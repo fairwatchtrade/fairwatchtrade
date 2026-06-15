@@ -1,0 +1,48 @@
+[
+  {
+    "id": "christies-ny-2026-06",
+    "house": "Christie's",
+    "sale": "Important Watches",
+    "city": "New York",
+    "start": "2026-06-15T13:00:00Z",
+    "end": "2026-06-15T22:00:00Z",
+    "catalogUrl": "https://www.christies.com/en/departments/watches-43",
+    "onlineOnly": false
+  },
+  {
+    "id": "sothebys-geneva-2026-06",
+    "house": "Sotheby's",
+    "sale": "Magnificent Watches",
+    "city": "Geneva",
+    "start": "2026-06-18T08:00:00Z",
+    "catalogUrl": "https://www.sothebys.com/en/departments/watches",
+    "onlineOnly": false
+  },
+  {
+    "id": "phillips-geneva-xvi-2026",
+    "house": "Phillips",
+    "sale": "Geneva Watch Auction XVI",
+    "city": "Geneva",
+    "start": "2026-06-24T09:00:00Z",
+    "catalogUrl": "https://www.phillips.com/watches",
+    "onlineOnly": false
+  },
+  {
+    "id": "bonhams-hk-2026-07",
+    "house": "Bonhams",
+    "sale": "Fine Watches",
+    "city": "Hong Kong",
+    "start": "2026-07-09T03:00:00Z",
+    "catalogUrl": "https://www.bonhams.com/departments/WAT-WAT/",
+    "onlineOnly": false
+  },
+  {
+    "id": "antiquorum-geneva-2026-07",
+    "house": "Antiquorum",
+    "sale": "Important Modern & Vintage Timepieces",
+    "city": "Geneva",
+    "start": "2026-07-23T10:00:00Z",
+    "catalogUrl": "https://www.antiquorum.swiss/en/auctions",
+    "onlineOnly": false
+  }
+]

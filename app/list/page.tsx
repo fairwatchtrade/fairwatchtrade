@@ -1,7 +1,7 @@
 'use client';
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { EvaluationResult } from '@/lib/evaluationPrompt';
+import MetalsLine from "@/components/MetalsLine";
 
 const INK = '#0D0F14';
 const PLATINUM = '#E8E4DC';
@@ -751,6 +751,7 @@ export default function ListPage() {
           </div>
         )}
       </div>
+       <MetalsLine />
     </main>
   );
 }
