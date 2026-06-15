@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --ink: #0D0F14;
+  --platinum: #E8E4DC;
+  --gold: #C9A84C;
+  --gold-dim: #9A7E3A;
+  --slate: #8A8F9E;
+  --surface: #13151C;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--ink);
+  color: var(--platinum);
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+/* Dial animation */
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.second-hand {
+  animation: sweep 60s linear infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fadeUp 0.8s ease forwards;
+}
+
+.fade-up-1 { animation-delay: 0.1s; opacity: 0; }
+.fade-up-2 { animation-delay: 0.3s; opacity: 0; }
+.fade-up-3 { animation-delay: 0.5s; opacity: 0; }
+.fade-up-4 { animation-delay: 0.7s; opacity: 0; }
+.fade-up-5 { animation-delay: 0.9s; opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .second-hand { animation: none; }
+  .fade-up { animation: none; opacity: 1; }
+}

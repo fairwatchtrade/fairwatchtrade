@@ -1,0 +1,326 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-06-12",
+  "policy_note": "FairWatchTrade curates independent, boutique, and collector-significant timepieces. Curation is the product.",
+  "brands": [
+    {
+      "name": "A. Lange & Söhne",
+      "slug": "a-lange-sohne",
+      "status": "approved",
+      "tier": "independent",
+      "message": "A. Lange & Söhne is fully supported. A cornerstone of independent watchmaking.",
+      "notes": "All references welcome including boutique and limited editions."
+    },
+    {
+      "name": "Audemars Piguet",
+      "slug": "audemars-piguet",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Audemars Piguet references are accepted. Royal Oak and Royal Oak Offshore are excluded due to gray market saturation. Vintage, dress, and complicated pieces welcome.",
+      "excluded_references": ["Royal Oak", "Royal Oak Offshore"],
+      "approved_references": ["Jules Audemars", "Millenary", "Edward Piguet", "Vintage pre-1985"],
+      "notes": "Jumping hours, tourbillons, and dress watches prioritized."
+    },
+    {
+      "name": "Blancpain",
+      "slug": "blancpain",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Blancpain is fully supported. One of the oldest watch manufacture names in continuous production.",
+      "notes": "Fifty Fathoms, Villeret, and complicated pieces especially welcome."
+    },
+    {
+      "name": "Bovet",
+      "slug": "bovet",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Bovet is fully supported. Exceptional enamel and complications.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "Breguet",
+      "slug": "breguet",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Breguet is fully supported. The founding house of fine watchmaking.",
+      "notes": "Classique, La Tradition, Tourbillon, Marine, and Reine de Naples all welcome."
+    },
+    {
+      "name": "Cartier",
+      "slug": "cartier",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Cartier is fully supported. Iconic design heritage with genuine collector significance.",
+      "notes": "Tank, Santos, Pasha, Ballon Bleu, Crash, and vintage references all welcome."
+    },
+    {
+      "name": "Chopard",
+      "slug": "chopard",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Chopard references accepted. L.U.C manufacture pieces and vintage references welcome. Fashion-oriented quartz pieces excluded.",
+      "approved_references": ["L.U.C", "Mille Miglia vintage", "Alpine Eagle"],
+      "notes": "Must be a mechanical piece with collector significance."
+    },
+    {
+      "name": "Credor",
+      "slug": "credor",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Credor is fully supported. Seiko's pinnacle — essentially handmade with independent watchmaker standards.",
+      "notes": "All references welcome. Extremely rare in the US market."
+    },
+    {
+      "name": "Czapek",
+      "slug": "czapek",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Czapek is fully supported. A revived Geneva independent with exceptional finishing.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "De Bethune",
+      "slug": "de-bethune",
+      "status": "approved",
+      "tier": "independent",
+      "message": "De Bethune is fully supported. Among the most technically innovative independents.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "F.P. Journe",
+      "slug": "fp-journe",
+      "status": "approved",
+      "tier": "independent",
+      "message": "F.P. Journe is fully supported. One of the most important independent watchmakers alive.",
+      "notes": "All references welcome including aluminium series."
+    },
+    {
+      "name": "Franck Muller",
+      "slug": "franck-muller",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Franck Muller references accepted. Complicated pieces, limited editions, and collector references welcome. High-volume fashion pieces excluded.",
+      "approved_references": ["Tourbillon", "Aeternitas", "Cintrée Curvex complications", "Vanguard limited editions"],
+      "notes": "Must have complication or documented limited edition status."
+    },
+    {
+      "name": "Grand Seiko",
+      "slug": "grand-seiko",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Grand Seiko is fully supported. Exceptional finishing and dial craft with a devoted collector base.",
+      "notes": "All references welcome including Spring Drive and manual wind."
+    },
+    {
+      "name": "Greubel Forsey",
+      "slug": "greubel-forsey",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Greubel Forsey is fully supported. Among the rarest and most technically significant independents.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "H. Moser & Cie",
+      "slug": "h-moser-cie",
+      "status": "approved",
+      "tier": "independent",
+      "message": "H. Moser & Cie is fully supported. Minimalist dial philosophy with exceptional movement finishing.",
+      "notes": "All references welcome including fumé dials."
+    },
+    {
+      "name": "Hautlence",
+      "slug": "hautlence",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Hautlence is fully supported. Bold independent with distinctive jumping hours architecture.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "IWC Schaffhausen",
+      "slug": "iwc",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select IWC references accepted. Portuguese, Portugieser, Grande Complication, and vintage references welcome. Current production entry pieces excluded.",
+      "approved_references": ["Portugieser", "Portuguese", "Grande Complication", "Vintage pre-2000", "Pilot vintage"],
+      "notes": "Focus on complicated and vintage pieces."
+    },
+    {
+      "name": "Jaeger-LeCoultre",
+      "slug": "jaeger-lecoultre",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Jaeger-LeCoultre is fully supported. The watchmaker's watchmaker with exceptional manufacture depth.",
+      "notes": "Reverso, Master, Atmos, Duomètre, and all complicated references welcome."
+    },
+    {
+      "name": "Laurent Ferrier",
+      "slug": "laurent-ferrier",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Laurent Ferrier is fully supported. Exceptional Geneva-school finishing from a former Patek master watchmaker.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "Longines",
+      "slug": "longines",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Vintage and heritage Longines references accepted. Current heritage reissues and complications welcome. Modern fashion pieces excluded.",
+      "approved_references": ["Flagship Heritage", "Heritage Classic", "Conquest Heritage", "Vintage mechanical", "Moonphase complications"],
+      "cutoff_year": 2000,
+      "notes": "Strong preference for pre-2000 vintage and current Heritage line."
+    },
+    {
+      "name": "Louis Erard",
+      "slug": "louis-erard",
+      "status": "conditional",
+      "tier": "independent",
+      "message": "Select Louis Erard references accepted. Collaboration pieces and limited editions with independent watchmakers welcome.",
+      "approved_references": ["Error 404", "Excellence", "La Semaine", "Independent collaboration pieces"],
+      "notes": "Collaboration and limited edition pieces prioritized."
+    },
+    {
+      "name": "MB&F",
+      "slug": "mbf",
+      "status": "approved",
+      "tier": "independent",
+      "message": "MB&F is fully supported. Among the most creative independent watchmakers working today.",
+      "notes": "All references welcome."
+    },
+    {
+      "name": "Omega",
+      "slug": "omega",
+      "status": "conditional",
+      "tier": "maison",
+      "cutoff_year": 1997,
+      "message": "Vintage Omega pre-1997 is accepted. Speedmaster references at any era accepted due to collector significance. Post-1997 modern pieces generally excluded.",
+      "approved_references": ["Speedmaster (all eras)", "Constellation pre-1997", "Seamaster pre-1997", "De Ville pre-1997", "Vintage mechanical any reference pre-1997"],
+      "notes": "1997 cutoff reflects pre-Swatch Group consolidation era. Speedmaster is the exception at any production year."
+    },
+    {
+      "name": "Parmigiani Fleurier",
+      "slug": "parmigiani-fleurier",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Parmigiani Fleurier is fully supported. An independent manufacture of exceptional depth and finishing.",
+      "notes": "Kalpa, Tonda, Bugatti, and all references welcome."
+    },
+    {
+      "name": "Patek Philippe",
+      "slug": "patek-philippe",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Patek Philippe references accepted. Complicated, vintage, and dress pieces welcome. Nautilus and Aquanaut excluded due to gray market saturation.",
+      "excluded_references": ["Nautilus", "Aquanaut"],
+      "approved_references": ["Calatrava", "Gondolo", "Grand Complications", "Annual Calendar", "Perpetual Calendar", "Tourbillon", "Vintage any reference", "World Time", "Travel Time"],
+      "notes": "Nautilus/Aquanaut are the gray market magnet — everything else is welcome."
+    },
+    {
+      "name": "Philippe Dufour",
+      "slug": "philippe-dufour",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Philippe Dufour is fully supported. Among the greatest living watchmakers. Exceptionally rare.",
+      "notes": "Any reference is an extraordinary listing opportunity."
+    },
+    {
+      "name": "Richard Mille",
+      "slug": "richard-mille",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Richard Mille references considered. Technical and limited edition pieces welcome. High-volume fashion pieces reviewed case by case.",
+      "notes": "Request review — will evaluate based on reference and provenance."
+    },
+    {
+      "name": "Roger Dubuis",
+      "slug": "roger-dubuis",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Roger Dubuis references considered. Complicated and limited edition pieces welcome.",
+      "approved_references": ["Excalibur Tourbillon", "Hommage", "Sympathie"],
+      "notes": "Must have genuine complication or limited edition documentation."
+    },
+    {
+      "name": "Seiko",
+      "slug": "seiko",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select vintage Seiko references accepted. King Seiko, Lord Marvel, early automatic dress watches with collector significance welcome. Modern Seiko excluded.",
+      "approved_references": ["King Seiko", "Lord Marvel", "Seiko 5 vintage", "Laurel", "Marvel"],
+      "cutoff_year": 1980,
+      "notes": "Vintage only. Strong collector provenance required. Modern Seiko — including current 5 series — not accepted."
+    },
+    {
+      "name": "TAG Heuer",
+      "slug": "tag-heuer",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Vintage Heuer (pre-TAG) references accepted. Carrera, Autavia, and Monaco vintage pieces welcome. Modern TAG Heuer generally excluded.",
+      "approved_references": ["Heuer Carrera vintage", "Heuer Autavia vintage", "Heuer Monaco vintage", "Pre-1985 Heuer any reference"],
+      "cutoff_year": 1985,
+      "notes": "Pre-TAG Heuer only. The vintage Heuer collector market is genuine and strong."
+    },
+    {
+      "name": "Universal Genève",
+      "slug": "universal-geneve",
+      "status": "approved",
+      "tier": "vintage",
+      "message": "Universal Genève is fully supported. A historically significant Geneva manufacture with exceptional vintage collector appeal.",
+      "notes": "Tri-Compax, Polerouter, Compax all welcome. Vintage only — brand ceased independent production."
+    },
+    {
+      "name": "Ulysse Nardin",
+      "slug": "ulysse-nardin",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Ulysse Nardin references accepted. Marine Chronometer, Freak, and complicated pieces welcome.",
+      "approved_references": ["Freak", "Marine Chronometer", "Royal Blue Tourbillon", "Astrolabium"],
+      "notes": "Freak series and complications prioritized."
+    },
+    {
+      "name": "Vacheron Constantin",
+      "slug": "vacheron-constantin",
+      "status": "approved",
+      "tier": "maison",
+      "message": "Vacheron Constantin is fully supported. One of the holy trinity with exceptional heritage.",
+      "notes": "Overseas, Patrimony, Traditionnelle, Les Cabinotiers all welcome."
+    },
+    {
+      "name": "Voutilainen",
+      "slug": "voutilainen",
+      "status": "approved",
+      "tier": "independent",
+      "message": "Voutilainen is fully supported. Among the most respected independents in the world.",
+      "notes": "Any reference is exceptional. Production is extremely limited."
+    },
+    {
+      "name": "Zenith",
+      "slug": "zenith",
+      "status": "conditional",
+      "tier": "maison",
+      "message": "Select Zenith references accepted. El Primero vintage, Chronomaster, and Defy Lab welcome. Modern fashion pieces excluded.",
+      "approved_references": ["El Primero vintage", "Chronomaster", "Defy Lab", "Academy", "Vintage A386"],
+      "notes": "El Primero is a legitimate horological landmark. Vintage and complicated pieces prioritized."
+    },
+    {
+      "name": "Rolex",
+      "slug": "rolex",
+      "status": "rejected",
+      "tier": "excluded",
+      "message": "Rolex isn't currently supported on FairWatchTrade. Our marketplace focuses on independent and boutique timepieces. For Rolex, we'd suggest Chrono24 or WatchBox.",
+      "notes": "Gray market saturation makes curation impossible. Brand decision, not quality judgment."
+    },
+    {
+      "name": "Tudor",
+      "slug": "tudor",
+      "status": "rejected",
+      "tier": "excluded",
+      "message": "Tudor isn't currently supported on FairWatchTrade.",
+      "notes": "Rolex family brand excluded alongside parent."
+    }
+  ],
+  "default_unknown": {
+    "status": "review",
+    "message": "We don't immediately recognize this brand. Submit for manual review — if it's an independent or boutique maker we may not have listed yet, we'd love to consider it."
+  }
+}
