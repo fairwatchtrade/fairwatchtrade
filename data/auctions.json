@@ -28,14 +28,15 @@
     "onlineOnly": false
   },
   {
-    "id": "bonhams-hk-2026-07",
-    "house": "Bonhams",
-    "sale": "Fine Watches",
-    "city": "Hong Kong",
-    "start": "2026-07-09T03:00:00Z",
-    "catalogUrl": "https://www.bonhams.com/departments/WAT-WAT/",
-    "onlineOnly": false
-  },
+  "id": "bonhams-ny-discovery-of-time-2026-06",
+  "house": "Bonhams",
+  "sale": "Discovery of Time — New York Fine Watches",
+  "city": "New York",
+  "start": "2026-06-14T16:00:00Z",
+  "end": "2026-06-16T16:00:00Z",
+  "catalogUrl": "https://www.bonhams.com/departments/WAT-WAT/",
+  "onlineOnly": true
+},
   {
     "id": "antiquorum-geneva-2026-07",
     "house": "Antiquorum",
