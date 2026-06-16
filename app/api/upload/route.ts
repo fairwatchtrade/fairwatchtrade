@@ -15,7 +15,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const blob = await put(`listings/${file.name}`, file, {
-      access: "public",
+      access: "private",
       addRandomSuffix: true, // two IMG_0001.jpg files won't collide
     });
 
