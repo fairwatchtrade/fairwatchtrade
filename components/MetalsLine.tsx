@@ -14,8 +14,13 @@ const PLACEHOLDER = [
   { key: "platinum", label: "Platinum", price: null as number | null },
 ];
 
-function usd(n: number | null) {
-  return n == null ? "—" : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+function usd(n: number | null, key: string) {
+  if (n == null) return "—";
+  const digits = key === "silver" ? 2 : 0;
+  return `$${n.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
 }
 
 export default function MetalsLine() {
@@ -29,7 +34,7 @@ export default function MetalsLine() {
         <span key={m.key} className="flex items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${DOT[m.key] ?? "bg-zinc-400"}`} />
           <span className="font-medium text-zinc-600 dark:text-zinc-300">{m.label}</span>
-          <span className="tabular-nums">{usd(m.price)}</span>
+          <span className="tabular-nums">{usd(m.price, m.key)}</span>
         </span>
       ))}
     </div>

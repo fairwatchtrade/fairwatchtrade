@@ -19,8 +19,13 @@ const PLACEHOLDER = [
   { key: "platinum", label: "Platinum", price: null as number | null, changePct: null as number | null },
 ];
 
-function usd(n: number | null) {
-  return n == null ? "—" : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+function usd(n: number | null, key: string) {
+  if (n == null) return "—";
+  const digits = key === "silver" ? 2 : 0;
+  return `$${n.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
 }
 
 function countdown(ms: number) {
@@ -68,7 +73,7 @@ export default function MarketBar() {
               <div className="leading-tight">
                 <div className="text-[11px] text-zinc-500">{m.label}</div>
                 <div className="text-[13px] font-medium tabular-nums">
-                  {usd(m.price)}
+                  {usd(m.price, m.key)}
                   {m.changePct != null && (
                     <span
                       className={`ml-1 text-[11px] ${
