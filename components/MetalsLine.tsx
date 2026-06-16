@@ -28,7 +28,7 @@ export default function MetalsLine() {
   const list = metals?.metals ?? PLACEHOLDER;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-white/10 py-2 text-[12px] text-[#8A8F9E]">
+    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-white/10 py-2 text-[12px] text-[#8A8F9E]">
       <span className="text-[11px] tracking-wide text-[#C9A84C]">London</span>
       {list.map((m) => (
         <span key={m.key} className="flex items-center gap-1.5">
