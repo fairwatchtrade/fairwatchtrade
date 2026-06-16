@@ -1,38 +1,27 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
-// Generates the short-lived token the browser uses to upload directly to Blob.
-// The token never reaches the client as a secret — it's scoped to one upload.
+// Server upload. With the Blob store connected via OIDC, put() authenticates
+// automatically using BLOB_STORE_ID + the rotating VERCEL_OIDC_TOKEN that
+// Vercel injects — NO BLOB_READ_WRITE_TOKEN required. (If that token is set
+// in env, the SDK uses it INSTEAD of OIDC, so it must NOT be present.)
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
-
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (_pathname, _clientPayload) => {
-        return {
-          allowedContentTypes: [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-          ],
-          addRandomSuffix: true, // two IMG_0001.jpg files won't collide
-          maximumSizeInBytes: 15 * 1024 * 1024, // 15 MB ceiling per photo
-        };
-      },
-      onUploadCompleted: async ({ blob }) => {
-        // Fires after a successful upload. Hook for AI validation / DB write
-        // later. NOTE: does not fire on localhost (Vercel can't reach a local
-        // webhook) — it works once deployed. No-op for now.
-        console.log("photo uploaded:", blob.url);
-      },
+    const form = await request.formData();
+    const file = form.get("file");
+
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "no file provided" }, { status: 400 });
+    }
+
+    const blob = await put(`listings/${file.name}`, file, {
+      access: "public",
+      addRandomSuffix: true, // two IMG_0001.jpg files won't collide
     });
 
-    return NextResponse.json(jsonResponse);
+    return NextResponse.json({ url: blob.url, pathname: blob.pathname });
   } catch (error) {
     const message = error instanceof Error ? error.message : "upload failed";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
