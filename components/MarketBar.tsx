@@ -61,23 +61,23 @@ export default function MarketBar() {
   const list = metals?.metals ?? PLACEHOLDER;
 
   return (
-    <div className="w-full border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="w-full border-b border-white/10 bg-[#13151C]">
       <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-3">
         <div className="flex shrink-0 items-center gap-4 pr-3">
-          <span className="select-none text-[11px] tracking-wide text-zinc-400 [writing-mode:vertical-rl] rotate-180">
-            London spot
+          <span className="select-none text-[11px] tracking-wide text-[#C9A84C] [writing-mode:vertical-rl] rotate-180">
+            London
           </span>
           {list.map((m) => (
             <div key={m.key} className="flex items-center gap-2">
               <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[m.key] ?? "bg-zinc-400"}`} />
               <div className="leading-tight">
-                <div className="text-[11px] text-zinc-500">{m.label}</div>
-                <div className="text-[13px] font-medium tabular-nums">
+                <div className="text-[11px] text-[#8A8F9E]">{m.label}</div>
+                <div className="text-[13px] font-medium tabular-nums text-[#E8E4DC]">
                   {usd(m.price, m.key)}
                   {m.changePct != null && (
                     <span
                       className={`ml-1 text-[11px] ${
-                        m.changePct >= 0 ? "text-emerald-600" : "text-red-500"
+                        m.changePct >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
                       {m.changePct >= 0 ? "▲" : "▼"}
@@ -90,12 +90,12 @@ export default function MarketBar() {
           ))}
         </div>
 
-        <div className="my-2 w-px shrink-0 self-stretch bg-zinc-200 dark:bg-zinc-800" />
+        <div className="my-2 w-px shrink-0 self-stretch bg-white/10" />
 
         <button
           onClick={() => scroll(-1)}
           aria-label="Scroll auctions left"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[#8A8F9E] hover:bg-white/5"
         >
           ‹
         </button>
@@ -112,24 +112,24 @@ export default function MarketBar() {
                 href={a.catalogUrl ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-w-[190px] shrink-0 items-center gap-2.5 rounded-md border border-zinc-200 px-3 py-1.5 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="flex min-w-[190px] shrink-0 items-center gap-2.5 rounded-md border border-white/10 px-3 py-1.5 hover:bg-white/5"
               >
                 <span
                   className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                    live ? "animate-pulse bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-700"
+                    live ? "animate-pulse bg-emerald-500" : "bg-[#3A3D45]"
                   }`}
                 />
                 <div className="min-w-0">
-                  <div className="whitespace-nowrap text-[13px] font-medium">{a.house}</div>
-                  <div className="whitespace-nowrap text-[11px] text-zinc-500">
+                  <div className="whitespace-nowrap text-[13px] font-medium text-[#E8E4DC]">{a.house}</div>
+                  <div className="whitespace-nowrap text-[11px] text-[#8A8F9E]">
                     {a.sale} · {a.city}
                   </div>
                 </div>
                 <div className="ml-auto whitespace-nowrap text-right">
                   {live ? (
-                    <span className="text-[12px] font-medium text-emerald-600">Live now</span>
+                    <span className="text-[12px] font-medium text-emerald-400">Live now</span>
                   ) : (
-                    <span className="text-[12px] font-medium tabular-nums">
+                    <span className="text-[12px] font-medium tabular-nums text-[#E8E4DC]">
                       {countdown(Date.parse(a.start) - now)}
                     </span>
                   )}
@@ -142,7 +142,7 @@ export default function MarketBar() {
         <button
           onClick={() => scroll(1)}
           aria-label="Scroll auctions right"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[#8A8F9E] hover:bg-white/5"
         >
           ›
         </button>
