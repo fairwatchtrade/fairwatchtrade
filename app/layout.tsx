@@ -15,7 +15,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <MarketBar />
+        {/*
+          Sticky site header. The real navigation bar (logo, browse, sell,
+          search, login) will go INSIDE this header, ABOVE <MarketBar />,
+          when it's built. The whole header sticks as one stacked unit, so
+          nav stays on top and the market strip stays visible beneath it.
+          The market strip does NOT own top-0 itself — the header does.
+        */}
+        <header className="sticky top-0 z-50">
+          <MarketBar />
+        </header>
         {children}
       </body>
     </html>
