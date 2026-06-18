@@ -1,21 +1,17 @@
 /* ════════════════════════════════════════════════════════════════════════
-   WATCH DNA QUIZ — ENGINE (3-bucket architecture)
+   WATCH DNA QUIZ — ENGINE (3-bucket architecture, FINAL LOCKED wording)
 
-   Locked model: 5 questions, 3 options each, one option per bucket —
-   CRAFT / PRESENCE / STORY. Tally the buckets across all five; highest wins.
-   Q1 is the anchor and carries extra weight. Provenance is NOT a separate
-   archetype that needs its own question — it's the STORY pillar, reachable
-   from every question, especially Q1.
+   Buckets: CRAFT / PRESENCE / HERITAGE.
+   5 questions, 3 options each (one per bucket). Tally across all five;
+   highest bucket wins. Q1 is the anchor (2 points); Q2–Q5 are 1 point each.
+   Tie-break: Craft → Heritage → Presence.
 
-   Pure / deterministic / no network. The questions and archetype copy are
-   plain data — swap in finalized wording freely; the architecture stays.
-
-   NOTE: the question wording below is a draft of the locked architecture.
-   If you and Ducky 3 finalized exact phrasings, replace the strings — the
-   bucket mappings (one option per bucket) are what matter.
+   Pure / deterministic / no network. Question + archetype copy is the locked
+   v1.1 set (vetted with William, Claude, Gemini). Archetype names/brands for
+   the result cards are still tunable flavor.
    ════════════════════════════════════════════════════════════════════════ */
 
-export type ArchetypeKey = "craft" | "presence" | "story";
+export type ArchetypeKey = "craft" | "presence" | "heritage";
 
 export type QuizOption = {
   id: string;
@@ -38,92 +34,93 @@ export type Archetype = {
   exampleBrands: string[];
 };
 
-/* ── Questions: 5, three options each (Craft / Presence / Story).
-   Q1 is the anchor — its options carry 2 points; the rest carry 1. ─────── */
+/* ── Questions (FINAL LOCKED v1.1). Q1 anchor = 2 pts; Q2–Q5 = 1 pt. ────── */
 export const QUESTIONS: Question[] = [
   {
     id: "q1",
-    prompt: "When a watch grabs you, what's really pulling you in?",
-    subtext: "The single most important question.",
+    prompt:
+      "Someone notices your watch and asks about it. What do you actually want them to say next?",
+    subtext: "The anchor question.",
     options: [
       {
-        id: "q1-presence",
-        label: "The dial — it should land at a glance.",
-        points: { presence: 2 },
-      },
-      {
         id: "q1-craft",
-        label:
-          "What's inside — the movement, the finishing, the things only you'll notice.",
+        label: "\u201CAsk me about the movement, that's the real story.\u201D",
         points: { craft: 2 },
       },
       {
-        id: "q1-story",
-        label: "Where it's been — who wore it, the history it carries.",
-        points: { story: 2 },
+        id: "q1-presence",
+        label: "\u201CJust tell me it looks good, that's enough.\u201D",
+        points: { presence: 2 },
+      },
+      {
+        id: "q1-heritage",
+        label:
+          "\u201CAsk me where it's from, there's a real story behind it.\u201D",
+        points: { heritage: 2 },
       },
     ],
   },
   {
     id: "q2",
-    prompt: "Would you rather own a watch that…",
+    prompt: "Day to day, you connect with a watch through\u2026",
     options: [
       {
         id: "q2-presence",
-        label: "…turns heads across a room.",
+        label: "how it wears and how it looks on the wrist",
         points: { presence: 1 },
       },
       {
         id: "q2-craft",
-        label: "…rewards the one person who truly gets it.",
+        label: "the engineering underneath and how it's built",
         points: { craft: 1 },
       },
       {
-        id: "q2-story",
-        label: "…comes with a past you can trace.",
-        points: { story: 1 },
+        id: "q2-heritage",
+        label: "the story you tell when someone asks about it",
+        points: { heritage: 1 },
       },
     ],
   },
   {
     id: "q3",
-    prompt: "What makes a watch feel valuable to you?",
+    prompt: "Would you rather own a watch that\u2026",
+    subtext: "The soul question \u2014 the platform's real differentiator.",
     options: [
       {
-        id: "q3-presence",
-        label: "Presence and design — it looks like something.",
-        points: { presence: 1 },
-      },
-      {
         id: "q3-craft",
-        label: "The engineering — how it's built and finished.",
+        label: "starts a conversation with the one person who notices",
         points: { craft: 1 },
       },
       {
-        id: "q3-story",
-        label: "Provenance — papers, prior owners, a documented life.",
-        points: { story: 1 },
+        id: "q3-presence",
+        label: "gets noticed from across the room",
+        points: { presence: 1 },
+      },
+      {
+        id: "q3-heritage",
+        label: "has a history worth knowing",
+        points: { heritage: 1 },
       },
     ],
   },
   {
     id: "q4",
-    prompt: "Day to day, you connect with a watch through…",
+    prompt: "What makes a watch feel valuable to you?",
     options: [
       {
         id: "q4-presence",
-        label: "…how it wears and how it looks on the wrist.",
+        label: "the look, the case shape, the overall aesthetic",
         points: { presence: 1 },
       },
       {
         id: "q4-craft",
-        label: "…the ritual and the mechanism — winding it, the caliber.",
+        label: "the movement, the engineering, how it's put together",
         points: { craft: 1 },
       },
       {
-        id: "q4-story",
-        label: "…the story you tell when someone asks about it.",
-        points: { story: 1 },
+        id: "q4-heritage",
+        label: "a history you can trace and a story you're proud to continue",
+        points: { heritage: 1 },
       },
     ],
   },
@@ -133,35 +130,35 @@ export const QUESTIONS: Question[] = [
     options: [
       {
         id: "q5-presence",
-        label: "It still turns heads.",
+        label: "it still turns heads",
         points: { presence: 1 },
       },
       {
         id: "q5-craft",
-        label: "It's still a benchmark of how it was made.",
+        label: "it's still a benchmark of how it was made",
         points: { craft: 1 },
       },
       {
-        id: "q5-story",
-        label: "It's been passed down with its history intact.",
-        points: { story: 1 },
+        id: "q5-heritage",
+        label: "it's a legacy that's still being written",
+        points: { heritage: 1 },
       },
     ],
   },
 ];
 
-/* ── Archetypes (3). Brands are William's own; edit freely. ─────────────── */
+/* ── Archetypes (3). Names/brands are tunable flavor for the result card. ── */
 export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
   craft: {
     key: "craft",
     name: "The Connoisseur",
     tagline: "The dial is just the cover of the book.",
     description:
-      "You buy for what's underneath — the movement, the finishing, the architecture only a few will ever notice. Substance over signal, every time.",
+      "You buy for what's underneath \u2014 the movement, the finishing, the architecture only a few will ever notice. Substance over signal, every time.",
     exampleBrands: [
       "Voutilainen",
       "Parmigiani Fleurier",
-      "Breguet (guilloché & finishing)",
+      "Breguet (guilloch\u00E9 & finishing)",
     ],
   },
   presence: {
@@ -169,7 +166,7 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
     name: "The Statement",
     tagline: "If it won't start a conversation, what's it for?",
     description:
-      "A watch should read — on the wrist and across the room. You want design and presence you don't have to explain, and you're not interested in apologizing for it.",
+      "A watch should read \u2014 on the wrist and across the room. You want design and presence you don't have to explain, and you're not interested in apologizing for it.",
     exampleBrands: [
       "Patek Philippe Calatrava",
       "Rolex",
@@ -177,12 +174,12 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
       "Antoine Martin",
     ],
   },
-  story: {
-    key: "story",
+  heritage: {
+    key: "heritage",
     name: "The Storyteller",
     tagline: "You collect provenance as much as product.",
     description:
-      "The watch matters, but the story matters more — who wore it, where it's been, the paperwork that proves it. A documented past is half of what you're buying.",
+      "The watch matters, but the story matters more \u2014 who wore it, where it's been, the paperwork that proves it. A documented past is half of what you're buying, and you're proud to continue it.",
     exampleBrands: [
       "Auction-sourced vintage",
       "Inherited & documented pieces",
@@ -191,8 +188,8 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
   },
 };
 
-/* Tie-break order — lean connoisseur for FairWatchTrade's audience. Tunable. */
-const PRIORITY: ArchetypeKey[] = ["craft", "story", "presence"];
+/* Tie-break: Craft -> Heritage -> Presence (per locked spec). */
+const PRIORITY: ArchetypeKey[] = ["craft", "heritage", "presence"];
 
 export type QuizResult = {
   archetype: Archetype;
@@ -204,7 +201,7 @@ export function scoreQuiz(selected: QuizOption[]): QuizResult {
   const scores: Record<ArchetypeKey, number> = {
     craft: 0,
     presence: 0,
-    story: 0,
+    heritage: 0,
   };
 
   for (const opt of selected) {
