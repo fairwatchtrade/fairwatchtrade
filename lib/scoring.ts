@@ -62,7 +62,8 @@ export const COMPLETENESS = {
   mandatoryPhotos: 6, // Dial + Caseback + Clasp (+ both bracelet sides if applicable)
   wristShot: 3,
   movementShown: 2, // a Movement / exhibition-back shot — collector-relevant
-  fullDocumentation: 5, // scaled by DOC_POINTS below
+  fullDocumentation: 5, // scaled by DOC_POINTS below — the CLAIM
+  documentationPhotos: 2, // +1 Box photo, +1 Papers photo — visual PROOF of the claim
   genuineDescription: 4, // >= MIN_WORDS and passed AI
 } as const;
 
@@ -71,7 +72,8 @@ export const COMPLETENESS_MAX =
   COMPLETENESS.wristShot +
   COMPLETENESS.movementShown +
   COMPLETENESS.fullDocumentation +
-  COMPLETENESS.genuineDescription; // = 20
+  COMPLETENESS.documentationPhotos +
+  COMPLETENESS.genuineDescription; // = 22
 
 export const MIN_WORDS = 75;
 
@@ -164,7 +166,20 @@ export function scoreCompleteness(s: ListingState): CompletenessResult {
     hint: "Full set (box + papers) earns the most",
   });
 
-  // 5. Genuine description
+  // 5. Documentation photographed — visual PROOF, on top of the dropdown claim
+  const boxShot = s.photoCategories.includes("Box");
+  const papersShot = s.photoCategories.includes("Papers/Warranty");
+  const docPhotoPoints = (boxShot ? 1 : 0) + (papersShot ? 1 : 0);
+  items.push({
+    key: "docPhotos",
+    label: "Box & papers photographed",
+    earned: docPhotoPoints,
+    max: COMPLETENESS.documentationPhotos,
+    done: docPhotoPoints === COMPLETENESS.documentationPhotos,
+    hint: "Photograph the box and papers — proof beats a checkbox",
+  });
+
+  // 6. Genuine description
   const descGood = s.descriptionPassedAI && s.descriptionWordCount >= MIN_WORDS;
   items.push({
     key: "description",
