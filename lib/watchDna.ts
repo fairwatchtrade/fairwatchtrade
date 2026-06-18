@@ -1,14 +1,14 @@
 /* ════════════════════════════════════════════════════════════════════════
-   WATCH DNA QUIZ — ENGINE (3-bucket architecture, FINAL LOCKED wording)
+   WATCH DNA QUIZ — ENGINE (3-bucket, FINAL LOCKED wording)
 
    Buckets: CRAFT / PRESENCE / HERITAGE.
    5 questions, 3 options each (one per bucket). Tally across all five;
    highest bucket wins. Q1 is the anchor (2 points); Q2–Q5 are 1 point each.
    Tie-break: Craft → Heritage → Presence.
 
-   Pure / deterministic / no network. Question + archetype copy is the locked
-   v1.1 set (vetted with William, Claude, Gemini). Archetype names/brands for
-   the result cards are still tunable flavor.
+   Questions are the locked v1.1 set. Archetype names/brands on the result
+   card are tunable flavor — brand lists below are a DRAFT for William to
+   confirm/swap (his curated picks, not generic press names).
    ════════════════════════════════════════════════════════════════════════ */
 
 export type ArchetypeKey = "craft" | "presence" | "heritage";
@@ -44,25 +44,24 @@ export const QUESTIONS: Question[] = [
     options: [
       {
         id: "q1-craft",
-        label: "\u201CAsk me about the movement, that's the real story.\u201D",
+        label: "“Ask me about the movement, that's the real story.”",
         points: { craft: 2 },
       },
       {
         id: "q1-presence",
-        label: "\u201CJust tell me it looks good, that's enough.\u201D",
+        label: "“Just tell me it looks good, that's enough.”",
         points: { presence: 2 },
       },
       {
         id: "q1-heritage",
-        label:
-          "\u201CAsk me where it's from, there's a real story behind it.\u201D",
+        label: "“Ask me where it's from, there's a real story behind it.”",
         points: { heritage: 2 },
       },
     ],
   },
   {
     id: "q2",
-    prompt: "Day to day, you connect with a watch through\u2026",
+    prompt: "Day to day, you connect with a watch through…",
     options: [
       {
         id: "q2-presence",
@@ -83,8 +82,8 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: "q3",
-    prompt: "Would you rather own a watch that\u2026",
-    subtext: "The soul question \u2014 the platform's real differentiator.",
+    prompt: "Would you rather own a watch that…",
+    subtext: "The soul question — the platform's real differentiator.",
     options: [
       {
         id: "q3-craft",
@@ -147,18 +146,21 @@ export const QUESTIONS: Question[] = [
   },
 ];
 
-/* ── Archetypes (3). Names/brands are tunable flavor for the result card. ── */
+/* ── Archetypes (3). Brand lists are DRAFT — confirm/swap your picks. ───── */
 export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
   craft: {
     key: "craft",
     name: "The Connoisseur",
     tagline: "The dial is just the cover of the book.",
     description:
-      "You buy for what's underneath \u2014 the movement, the finishing, the architecture only a few will ever notice. Substance over signal, every time.",
+      "You buy for what's underneath — the movement, the finishing, the architecture only a few will ever notice. Substance over signal, every time.",
     exampleBrands: [
       "Voutilainen",
       "Parmigiani Fleurier",
-      "Breguet (guilloch\u00E9 & finishing)",
+      "F.P. Journe",
+      "A. Lange & Söhne",
+      "Breguet",
+      "Jaeger-LeCoultre",
     ],
   },
   presence: {
@@ -166,24 +168,29 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
     name: "The Statement",
     tagline: "If it won't start a conversation, what's it for?",
     description:
-      "A watch should read \u2014 on the wrist and across the room. You want design and presence you don't have to explain, and you're not interested in apologizing for it.",
+      "A watch should read — on the wrist and across the room. You want design and presence you don't have to explain, and you're not interested in apologizing for it.",
     exampleBrands: [
-      "Patek Philippe Calatrava",
       "Rolex",
+      "Audemars Piguet",
       "Richard Mille",
+      "Panerai Luminor Marina",
+      "Hublot",
       "Antoine Martin",
     ],
   },
   heritage: {
     key: "heritage",
-    name: "The Storyteller",
+    name: "The Heritage Collector",
     tagline: "You collect provenance as much as product.",
     description:
-      "The watch matters, but the story matters more \u2014 who wore it, where it's been, the paperwork that proves it. A documented past is half of what you're buying, and you're proud to continue it.",
+      "The watch matters, but the story matters more — who wore it, where it's been, the paperwork that proves it. A documented past is half of what you're buying, and you're proud to continue it.",
     exampleBrands: [
-      "Auction-sourced vintage",
-      "Inherited & documented pieces",
-      "Heritage references with archives",
+      "Patek Philippe",
+      "Vacheron Constantin",
+      "Omega",
+      "Longines",
+      "Universal Genève",
+      "Heuer",
     ],
   },
 };
