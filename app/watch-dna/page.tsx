@@ -14,7 +14,7 @@ export default function WatchDnaPage() {
             What's your Watch DNA?
           </h1>
           <p className="mt-2 text-[14px] text-[#8A8F9E]">
-            Six questions. No wrong answers — just what's true for you.
+            Five questions. No wrong answers — just what's true for you.
           </p>
         </div>
 
