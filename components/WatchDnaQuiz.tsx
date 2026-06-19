@@ -62,7 +62,7 @@ export default function WatchDnaQuiz() {
           {a.name}
         </div>
         <div className="mt-1 text-[14px] italic text-[#C9A84C]">{a.tagline}</div>
-        <p className="mx-auto mt-4 max-w-sm px-4 text-center text-[14px] leading-relaxed text-[#B7BAC4]">
+        <p className="mt-4 text-center text-[14px] leading-relaxed text-[#B7BAC4]" style={{textAlign: 'center'}}>
           {a.description}
         </p>
 
