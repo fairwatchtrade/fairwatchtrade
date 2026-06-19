@@ -16,6 +16,7 @@ import PhotoUpload, {
 } from "@/components/PhotoUpload";
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
+import ReviewStep from "@/components/ReviewStep";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -117,9 +118,7 @@ export default function SellFlow() {
               onProceed={() => setStep(4)}
             />
           )}
-          {step === 4 && (
-            <Stub title="Step 5 — Review & Publish" note="Next: combined score, preview, Publish + Resend email." />
-          )}
+          {step === 4 && <ReviewStep draft={draft} />}
 
           {step > 0 && (
             <div className="mt-6">
@@ -332,19 +331,6 @@ function PhotosStep({
 
       <div className="mt-4">
         <PhotoUpload ref={photoRef} onChange={onPhotos} />
-      </div>
-    </div>
-  );
-}
-
-function Stub({ title, note }: { title: string; note: string }) {
-  return (
-    <div>
-      <h2 className="text-[18px] font-medium text-[#E8E4DC]">{title}</h2>
-      <p className="mt-2 text-[13px] text-[#8A8F9E]">{note}</p>
-      <div className="mt-4 rounded-md border border-dashed border-white/15 p-4 text-[12px] text-[#8A8F9E]">
-        Flow scaffold in place — this step's content is built next. Back / Next
-        navigation and the live score meter already work.
       </div>
     </div>
   );
