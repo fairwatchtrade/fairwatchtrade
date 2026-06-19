@@ -1,124 +1,57 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { FAIRWATCHTRADE_SYSTEM_PROMPT, buildEvaluationPrompt, ListingSubmission, EvaluationResult } from '@/lib/evaluationPrompt';
 
-/* ════════════════════════════════════════════════════════════════════════
-   DESCRIPTION VALIDATION (Step 4)
-
-   Judges whether a seller's description is genuine first-hand writing vs.
-   (1) copy-pasted manufacturer/retailer text, (2) padding to hit the word
-   count, or (3) generic boilerplate. Returns { passed, reason }.
-
-   GET handler is a deploy/diagnostic probe: visiting the URL in a browser
-   confirms the route is live and whether ANTHROPIC_API_KEY is present.
-
-   On an Anthropic/parse error this now returns a SPECIFIC { error, detail }
-   (HTTP 200) so the client can show exactly what failed — instead of silently
-   failing open and hiding the cause.
-   ════════════════════════════════════════════════════════════════════════ */
-
-const MODEL = "claude-sonnet-4-6"; // match /api/evaluate's model string
-
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    route: "validate-description",
-    hasKey: !!process.env.ANTHROPIC_API_KEY,
-  });
-}
-
-export async function POST(req: Request) {
-  let description = "";
-  let watchContext = "";
-  let disputeExplanation = "";
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    description = typeof body.description === "string" ? body.description : "";
-    watchContext = typeof body.watchContext === "string" ? body.watchContext : "";
-    disputeExplanation =
-      typeof body.disputeExplanation === "string" ? body.disputeExplanation : "";
-  } catch {
-    return NextResponse.json(
-      { error: "bad_request", detail: "Could not read the request body." },
-      { status: 400 }
-    );
-  }
+    const listing: ListingSubmission = await request.json();
 
-  if (!description.trim()) {
-    return NextResponse.json(
-      { passed: false, reason: "No description was provided." },
-      { status: 200 }
-    );
-  }
+    if (!listing.brand) {
+      return NextResponse.json(
+        { error: 'Brand is required' },
+        { status: 400 }
+      );
+    }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "no_key", detail: "ANTHROPIC_API_KEY is not set for this route." },
-      { status: 200 }
-    );
-  }
-
-  const system = `You review seller-written watch descriptions for a curated marketplace that prizes authenticity. A GOOD description has specific, first-hand detail only the owner would know: how the watch wears, why they bought or are selling it, quirks, ownership history, service notes, honest condition observations. FLAG a description only when there is a clear problem:
-1. Copy-pasted marketing or spec text from a manufacturer or retailer.
-2. Padding — filler sentences, repeated words, or extra spaces clearly added to reach a word count.
-3. Generic boilerplate that could describe any watch and contains no first-hand detail.
-Be fair: a plainly written but honest, specific description PASSES even if it is simple. Do not flag for grammar, brevity of style, or tone.${
-    disputeExplanation
-      ? "\n\nThe seller has DISPUTED a previous flag. Re-review the original description in light of their explanation below, and pass it if the explanation reasonably accounts for the concern."
-      : ""
-  }
-
-Respond with ONLY a JSON object — no prose, no markdown fences:
-{"passed": boolean, "reason": string}`;
-
-  const userContent = [
-    watchContext ? `Watch: ${watchContext}` : "",
-    `Description:\n${description}`,
-    disputeExplanation ? `Seller's dispute explanation:\n${disputeExplanation}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 300,
-        system,
-        messages: [{ role: "user", content: userContent }],
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: FAIRWATCHTRADE_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: buildEvaluationPrompt(listing),
+          },
+        ],
       }),
     });
 
-    if (!res.ok) {
-      const detail = (await res.text()).slice(0, 400);
-      return NextResponse.json({
-        error: "anthropic",
-        status: res.status,
-        detail,
-      });
+    if (!response.ok) {
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
-    const data = await res.json();
-    const text: string = (data.content ?? [])
-      .map((b: { type: string; text?: string }) => (b.type === "text" ? b.text ?? "" : ""))
-      .join("")
-      .trim();
+    const data = await response.json();
+    const rawText = data.content
+      .map((block: { type: string; text?: string }) => block.type === 'text' ? block.text : '')
+      .join('');
 
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean) as { passed?: boolean; reason?: string };
+    // Strip any markdown fences if present
+    const clean = rawText.replace(/```json|```/g, '').trim();
+    const evaluation: EvaluationResult = JSON.parse(clean);
 
-    return NextResponse.json({
-      passed: parsed.passed === true,
-      reason: typeof parsed.reason === "string" ? parsed.reason : "",
-    });
-  } catch (e) {
-    return NextResponse.json({
-      error: "exception",
-      detail: e instanceof Error ? e.message : String(e),
-    });
+    return NextResponse.json(evaluation);
+
+  } catch (error) {
+    console.error('Evaluation error:', error);
+    return NextResponse.json(
+      { error: 'Evaluation failed. Please try again.' },
+      { status: 500 }
+    );
   }
 }
