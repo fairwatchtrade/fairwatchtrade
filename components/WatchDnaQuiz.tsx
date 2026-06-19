@@ -103,7 +103,7 @@ export default function WatchDnaQuiz() {
   /* ── Question screen ───────────────────────────────────────────────── */
   const q = QUESTIONS[step];
   return (
-    <div className="rounded-xl border border-white/10 bg-[#13151C] p-7">
+    <div className="rounded-xl border border-white/10 bg-[#13151C] p-7 text-center">
       <div className="flex items-center justify-between text-[11px] text-[#8A8F9E]">
         <span>
           Question {step + 1} of {QUESTIONS.length}
