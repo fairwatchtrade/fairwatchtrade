@@ -3,27 +3,22 @@ import { NextResponse } from "next/server";
 /* ════════════════════════════════════════════════════════════════════════
    DESCRIPTION VALIDATION (Step 4)
 
-   Judges whether a seller's description is genuine first-hand writing vs.
-   (1) copy-pasted manufacturer/retailer text, (2) padding to hit the word
-   count, or (3) generic boilerplate. Returns { passed, reason }.
+   Uses the existing ANTHROPIC_API_KEY to judge whether a seller-written
+   description is genuine first-hand writing vs. (1) copy-pasted manufacturer/
+   retailer text, (2) padded filler to hit the word count, or (3) generic
+   boilerplate. Returns { passed, reason } where `reason` is specific and
+   courteous so the seller knows exactly what to fix.
 
-   GET handler is a deploy/diagnostic probe: visiting the URL in a browser
-   confirms the route is live and whether ANTHROPIC_API_KEY is present.
+   Dispute-ready: pass `disputeExplanation` to have the model re-review the
+   original description in light of the seller's explanation. The future
+   dispute handler (account-level) will call this same route, then email the
+   outcome to William via Resend.
 
-   On an Anthropic/parse error this now returns a SPECIFIC { error, detail }
-   (HTTP 200) so the client can show exactly what failed — instead of silently
-   failing open and hiding the cause.
+   Fail-open: if the model call itself errors, we return passed:true so an
+   infra hiccup never blocks an honest seller. Comment flags this tradeoff.
    ════════════════════════════════════════════════════════════════════════ */
 
-const MODEL = "claude-sonnet-4-6"; // match /api/evaluate's model string
-
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    route: "validate-description",
-    hasKey: !!process.env.ANTHROPIC_API_KEY,
-  });
-}
+const MODEL = "claude-sonnet-4-6"; // match /api/evaluate; Haiku also fine to cut cost
 
 export async function POST(req: Request) {
   let description = "";
@@ -37,7 +32,7 @@ export async function POST(req: Request) {
       typeof body.disputeExplanation === "string" ? body.disputeExplanation : "";
   } catch {
     return NextResponse.json(
-      { error: "bad_request", detail: "Could not read the request body." },
+      { passed: false, reason: "Could not read the request." },
       { status: 400 }
     );
   }
@@ -45,14 +40,7 @@ export async function POST(req: Request) {
   if (!description.trim()) {
     return NextResponse.json(
       { passed: false, reason: "No description was provided." },
-      { status: 200 }
-    );
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "no_key", detail: "ANTHROPIC_API_KEY is not set for this route." },
-      { status: 200 }
+      { status: 400 }
     );
   }
 
@@ -67,7 +55,8 @@ Be fair: a plainly written but honest, specific description PASSES even if it is
   }
 
 Respond with ONLY a JSON object — no prose, no markdown fences:
-{"passed": boolean, "reason": string}`;
+{"passed": boolean, "reason": string}
+If passed is true, reason may be a short affirmation. If false, reason must name the specific problem and what to change.`;
 
   const userContent = [
     watchContext ? `Watch: ${watchContext}` : "",
@@ -82,7 +71,7 @@ Respond with ONLY a JSON object — no prose, no markdown fences:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
@@ -94,12 +83,8 @@ Respond with ONLY a JSON object — no prose, no markdown fences:
     });
 
     if (!res.ok) {
-      const detail = (await res.text()).slice(0, 400);
-      return NextResponse.json({
-        error: "anthropic",
-        status: res.status,
-        detail,
-      });
+      // Fail-open — never block a seller on our infra problem.
+      return NextResponse.json({ passed: true, reason: "" });
     }
 
     const data = await res.json();
@@ -115,10 +100,8 @@ Respond with ONLY a JSON object — no prose, no markdown fences:
       passed: parsed.passed === true,
       reason: typeof parsed.reason === "string" ? parsed.reason : "",
     });
-  } catch (e) {
-    return NextResponse.json({
-      error: "exception",
-      detail: e instanceof Error ? e.message : String(e),
-    });
+  } catch {
+    // Parse or network failure — fail open.
+    return NextResponse.json({ passed: true, reason: "" });
   }
 }
