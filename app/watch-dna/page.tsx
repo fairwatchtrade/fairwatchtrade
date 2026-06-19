@@ -4,8 +4,8 @@ import WatchDnaQuiz from "@/components/WatchDnaQuiz";
 
 export default function WatchDnaPage() {
   return (
-    <main className="min-h-screen bg-[#0D0F14] px-4 py-12">
-      <div className="mx-auto max-w-xl text-center">
+    <main className="min-h-screen bg-[#0D0F14] px-4 py-12 flex justify-center">
+      <div className="w-full max-w-xl text-center">
         <div className="mb-7 text-center">
           <div className="text-[11px] uppercase tracking-[0.25em] text-[#8A8F9E]">
             FairWatchTrade
