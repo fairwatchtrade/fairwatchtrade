@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -10,7 +10,10 @@ import {
 } from "@/lib/listing";
 import { scoreCompleteness, type PhotoCategory } from "@/lib/scoring";
 import ListingScoreMeter from "@/components/ListingScoreMeter";
-import PhotoUpload, { type UploadedPhotoMeta } from "@/components/PhotoUpload";
+import PhotoUpload, {
+  type UploadedPhotoMeta,
+  type PhotoUploadHandle,
+} from "@/components/PhotoUpload";
 import DetailsStep from "@/components/DetailsStep";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
@@ -62,16 +65,22 @@ export default function SellFlow() {
     setDraft((d) => ({ ...d, ...p }));
   }
 
-  // Page-level drag guard. Outside the photo zone, every drop is
-  // preventDefault()'d so the browser never opens a file in a new tab. INSIDE
-  // the photo zone, we stay out of the way and let PhotoUpload's own onDrop
-  // accept and upload the file.
+  const photoRef = useRef<PhotoUploadHandle | null>(null);
+
+  // Page-level drag guard. Every drop on the page is preventDefault()'d so the
+  // browser never opens a file in a new tab. If the drop landed inside the
+  // photo zone, we upload it directly through the PhotoUpload handle — so
+  // uploads don't depend on which inner element happened to catch the event.
   useEffect(() => {
-    const inZone = (e: DragEvent) =>
-      !!(e.target as HTMLElement | null)?.closest?.("[data-photo-dropzone]");
     const onDragOver = (e: DragEvent) => e.preventDefault();
     const onDrop = (e: DragEvent) => {
-      if (!inZone(e)) e.preventDefault();
+      e.preventDefault();
+      const inZone = (e.target as HTMLElement | null)?.closest?.(
+        "[data-photo-dropzone]"
+      );
+      if (inZone && e.dataTransfer?.files?.length) {
+        photoRef.current?.uploadFiles(e.dataTransfer.files);
+      }
     };
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
@@ -89,11 +98,16 @@ export default function SellFlow() {
       <ProgressBar step={step} />
 
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-        <div className="rounded-xl border border-white/10 bg-[#13151C] p-6">
+        <div
+          data-photo-dropzone={step === 1 ? "" : undefined}
+          className="rounded-xl border border-white/10 bg-[#13151C] p-6"
+        >
           {step === 0 && (
             <CurationStep draft={draft} patch={patch} onPass={() => setStep(1)} />
           )}
-          {step === 1 && <PhotosStep draft={draft} patch={patch} />}
+          {step === 1 && (
+            <PhotosStep draft={draft} patch={patch} photoRef={photoRef} />
+          )}
           {step === 2 && <DetailsStep draft={draft} patch={patch} />}
           {step === 3 && (
             <Stub title="Step 4 — Seller Description" note="Next: 75-word field + AI validation + strike logic." />
@@ -275,9 +289,11 @@ function CurationStep({
 function PhotosStep({
   draft,
   patch,
+  photoRef,
 }: {
   draft: ListingDraft;
   patch: (p: Partial<ListingDraft>) => void;
+  photoRef: RefObject<PhotoUploadHandle | null>;
 }) {
   function onPhotos(metas: UploadedPhotoMeta[]) {
     const photos: ListingPhoto[] = metas
@@ -310,7 +326,7 @@ function PhotosStep({
       </label>
 
       <div className="mt-4">
-        <PhotoUpload onChange={onPhotos} />
+        <PhotoUpload ref={photoRef} onChange={onPhotos} />
       </div>
     </div>
   );
