@@ -11,6 +11,7 @@ import {
 import { scoreCompleteness, type PhotoCategory } from "@/lib/scoring";
 import ListingScoreMeter from "@/components/ListingScoreMeter";
 import PhotoUpload, { type UploadedPhotoMeta } from "@/components/PhotoUpload";
+import DetailsStep from "@/components/DetailsStep";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -74,9 +75,7 @@ export default function SellFlow() {
             <CurationStep draft={draft} patch={patch} onPass={() => setStep(1)} />
           )}
           {step === 1 && <PhotosStep draft={draft} patch={patch} />}
-          {step === 2 && (
-            <Stub title="Step 3 — Listing Details" note="Next: the structured 17-field details form." />
-          )}
+          {step === 2 && <DetailsStep draft={draft} patch={patch} />}
           {step === 3 && (
             <Stub title="Step 4 — Seller Description" note="Next: 75-word field + AI validation + strike logic." />
           )}

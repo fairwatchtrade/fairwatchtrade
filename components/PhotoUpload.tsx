@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 
-/* Each uploaded photo carries its category (+ a wrist-shot flag, since wrist
-   shots live under "Other" but the scoring engine tracks them separately). */
 export type UploadedPhotoMeta = {
   url: string;
   pathname: string;
@@ -13,8 +11,6 @@ export type UploadedPhotoMeta = {
   isWristShot: boolean;
 };
 
-/* Dropdown shows the 9 real categories plus a "Wrist shot" convenience that
-   maps to { category: "Other", isWristShot: true }. */
 const CATEGORY_OPTIONS = [
   "Dial",
   "Caseback",
@@ -65,7 +61,8 @@ export default function PhotoUpload({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const list = Array.from(files);
+    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (list.length === 0) return;
 
     const incoming: Item[] = list.map((f) => ({
       id: crypto.randomUUID(),
@@ -118,27 +115,34 @@ export default function PhotoUpload({
   }
 
   return (
-    <div>
+    /* Drag handlers live on the ROOT container, so a drop anywhere in the
+       component area is captured and preventDefault()'d — no more falling
+       through to the browser opening the image in a new tab. */
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        handleFiles(e.dataTransfer.files);
+      }}
+    >
       <p className="mb-3 text-[12px] text-[#C9A84C]">
         Blur any visible serial numbers before uploading.
       </p>
 
       <div
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          handleFiles(e.dataTransfer.files);
-        }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 text-center transition-all duration-200 ${dragging
-            ? "border-[#C9A84C] bg-[#C9A84C]/10 scale-[1.01]"
-            : "border-[#C9A84C]/50 hover:border-[#C9A84C] hover:bg-white/[0.03]"
-          }`}
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 text-center transition-colors ${
+          dragging
+            ? "border-[#C9A84C] bg-[#C9A84C]/10"
+            : "border-[#C9A84C]/40 hover:border-[#C9A84C]/70 hover:bg-white/5"
+        }`}
       >
         <div className="text-[14px] font-medium text-[#E8E4DC]">
           Drop photos here, or click to browse
@@ -194,10 +198,11 @@ export default function PhotoUpload({
                 value={it.isWristShot ? "Wrist shot" : it.category}
                 onChange={(e) => setCategory(it.id, e.target.value)}
                 disabled={it.status !== "done"}
-                className={`w-full rounded-md border bg-[#0D0F14] px-2 py-1 text-[12px] text-[#E8E4DC] disabled:opacity-40 ${it.category || it.isWristShot
+                className={`w-full rounded-md border bg-[#0D0F14] px-2 py-1 text-[12px] text-[#E8E4DC] disabled:opacity-40 ${
+                  it.category || it.isWristShot
                     ? "border-white/15"
                     : "border-[#C9A84C]/60"
-                  }`}
+                }`}
               >
                 <option value="">Label…</option>
                 {CATEGORY_OPTIONS.map((c) => (
