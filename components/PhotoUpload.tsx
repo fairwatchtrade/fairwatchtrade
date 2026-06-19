@@ -1,21 +1,49 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { uploadPhoto, type UploadedPhoto } from "@/lib/storage";
+import { uploadPhoto } from "@/lib/storage";
+import { type PhotoCategory } from "@/lib/scoring";
+
+/* Each uploaded photo carries its category (+ a wrist-shot flag, since wrist
+   shots live under "Other" but the scoring engine tracks them separately). */
+export type UploadedPhotoMeta = {
+  url: string;
+  pathname: string;
+  category: PhotoCategory | "";
+  isWristShot: boolean;
+};
+
+/* Dropdown shows the 9 real categories plus a "Wrist shot" convenience that
+   maps to { category: "Other", isWristShot: true }. */
+const CATEGORY_OPTIONS = [
+  "Dial",
+  "Caseback",
+  "Side/Lugs",
+  "Movement",
+  "Bracelet/Strap",
+  "Clasp",
+  "Box",
+  "Papers/Warranty",
+  "Wrist shot",
+  "Other",
+] as const;
 
 type Item = {
   id: string;
   name: string;
   previewUrl: string;
   status: "uploading" | "done" | "error";
-  uploaded?: UploadedPhoto;
+  url?: string;
+  pathname?: string;
   error?: string;
+  category: PhotoCategory | "";
+  isWristShot: boolean;
 };
 
 export default function PhotoUpload({
   onChange,
 }: {
-  onChange?: (photos: UploadedPhoto[]) => void;
+  onChange?: (photos: UploadedPhotoMeta[]) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -24,8 +52,13 @@ export default function PhotoUpload({
   useEffect(() => {
     onChange?.(
       items
-        .filter((i) => i.status === "done" && i.uploaded)
-        .map((i) => i.uploaded!)
+        .filter((i) => i.status === "done" && i.url)
+        .map((i) => ({
+          url: i.url!,
+          pathname: i.pathname!,
+          category: i.category,
+          isWristShot: i.isWristShot,
+        }))
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
@@ -39,6 +72,8 @@ export default function PhotoUpload({
       name: f.name,
       previewUrl: URL.createObjectURL(f),
       status: "uploading",
+      category: "",
+      isWristShot: false,
     }));
     setItems((prev) => [...prev, ...incoming]);
 
@@ -49,7 +84,9 @@ export default function PhotoUpload({
           const uploaded = await uploadPhoto(file);
           setItems((prev) =>
             prev.map((it) =>
-              it.id === id ? { ...it, status: "done", uploaded } : it
+              it.id === id
+                ? { ...it, status: "done", url: uploaded.url, pathname: uploaded.pathname }
+                : it
             )
           );
         } catch (e) {
@@ -60,6 +97,18 @@ export default function PhotoUpload({
             )
           );
         }
+      })
+    );
+  }
+
+  function setCategory(id: string, value: string) {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== id) return it;
+        if (value === "Wrist shot") {
+          return { ...it, category: "Other", isWristShot: true };
+        }
+        return { ...it, category: value as PhotoCategory | "", isWristShot: false };
       })
     );
   }
@@ -86,7 +135,7 @@ export default function PhotoUpload({
           setDragging(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center transition-colors ${
           dragging
             ? "border-[#C9A84C] bg-white/5"
             : "border-white/15 hover:border-white/30 hover:bg-white/5"
@@ -96,7 +145,7 @@ export default function PhotoUpload({
           Drop photos here, or click to browse
         </div>
         <div className="mt-1 text-[12px] text-[#8A8F9E]">
-          JPG, PNG, or WebP · up to 15 MB each
+          JPG, PNG, or WebP · up to 15 MB each · label each one below
         </div>
         <input
           ref={inputRef}
@@ -112,45 +161,53 @@ export default function PhotoUpload({
       </div>
 
       {items.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((it) => (
-            <div
-              key={it.id}
-              className="relative aspect-square overflow-hidden rounded-md border border-white/10 bg-[#0D0F14]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={it.previewUrl}
-                alt={it.name}
-                className="h-full w-full object-cover"
-              />
+            <div key={it.id} className="space-y-1.5">
+              <div className="relative aspect-square overflow-hidden rounded-md border border-white/10 bg-[#0D0F14]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={it.previewUrl}
+                  alt={it.name}
+                  className="h-full w-full object-cover"
+                />
+                {it.status === "uploading" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white/90" />
+                  </div>
+                )}
+                {it.status === "error" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-red-950/70 px-2 text-center text-[10px] text-red-200">
+                    {it.error}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => remove(it.id)}
+                  aria-label="Remove photo"
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[12px] leading-none text-white hover:bg-black/80"
+                >
+                  ×
+                </button>
+              </div>
 
-              {it.status === "uploading" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/55">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white/90" />
-                </div>
-              )}
-
-              {it.status === "error" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-red-950/70 px-2 text-center text-[10px] text-red-200">
-                  {it.error}
-                </div>
-              )}
-
-              {it.status === "done" && (
-                <div className="absolute bottom-1 left-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-medium text-black">
-                  ✓
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => remove(it.id)}
-                aria-label="Remove photo"
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[12px] leading-none text-white hover:bg-black/80"
+              <select
+                value={it.isWristShot ? "Wrist shot" : it.category}
+                onChange={(e) => setCategory(it.id, e.target.value)}
+                disabled={it.status !== "done"}
+                className={`w-full rounded-md border bg-[#0D0F14] px-2 py-1 text-[12px] text-[#E8E4DC] disabled:opacity-40 ${
+                  it.category || it.isWristShot
+                    ? "border-white/15"
+                    : "border-[#C9A84C]/60"
+                }`}
               >
-                ×
-              </button>
+                <option value="">Label…</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           ))}
         </div>

@@ -6,25 +6,18 @@ import {
   toScoringState,
   type Condition,
   type ListingDraft,
+  type ListingPhoto,
 } from "@/lib/listing";
+import { scoreCompleteness, type PhotoCategory } from "@/lib/scoring";
 import ListingScoreMeter from "@/components/ListingScoreMeter";
+import PhotoUpload, { type UploadedPhotoMeta } from "@/components/PhotoUpload";
 
-const STEPS = [
-  "Curation",
-  "Photos",
-  "Details",
-  "Description",
-  "Review",
-] as const;
-
+const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
 
 /* ── Curation call ───────────────────────────────────────────────────────
-   ASSUMED /api/evaluate contract (confirm against the real route):
-     POST body : { brand, reference, year, condition, askingPrice, provenanceNote }
-     response  : { score: number 0-100, decision: string, reasoning: string }
-   Pass = decision is anything other than a clear rejection.
-   Adjust the field reads below once the real route is confirmed. */
+   /api/evaluate confirmed working (returns score + decision). Defensive reads
+   in case field names differ. */
 async function runCuration(d: ListingDraft): Promise<{
   pass: boolean;
   score: number;
@@ -44,15 +37,20 @@ async function runCuration(d: ListingDraft): Promise<{
   });
   if (!res.ok) throw new Error(`evaluate ${res.status}`);
   const json = await res.json();
-
   const score = Number(json.score ?? json.significance ?? 0);
   const decision = String(json.decision ?? "").toLowerCase();
   const reasoning = String(json.reasoning ?? json.message ?? "");
   const pass = decision
     ? !decision.includes("reject") && !decision.includes("declin")
     : score > 0;
-
   return { pass, score, reasoning };
+}
+
+function mandatoryDone(d: ListingDraft): boolean {
+  return (
+    scoreCompleteness(toScoringState(d)).items.find((i) => i.key === "mandatory")
+      ?.done ?? false
+  );
 }
 
 export default function SellFlow() {
@@ -63,6 +61,9 @@ export default function SellFlow() {
     setDraft((d) => ({ ...d, ...p }));
   }
 
+  // Per-step gate for the Next button. Step 0 advances via the curation pass.
+  const canProceed = step === 1 ? mandatoryDone(draft) : true;
+
   return (
     <div className="space-y-6">
       <ProgressBar step={step} />
@@ -70,38 +71,52 @@ export default function SellFlow() {
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
         <div className="rounded-xl border border-white/10 bg-[#13151C] p-6">
           {step === 0 && (
-            <CurationStep
-              draft={draft}
-              patch={patch}
-              onPass={() => setStep(1)}
-            />
+            <CurationStep draft={draft} patch={patch} onPass={() => setStep(1)} />
           )}
-          {step === 1 && <Stub title="Step 2 — Photos" note="Next: add the nine-category dropdown to PhotoUpload and wire the meter to it." />}
-          {step === 2 && <Stub title="Step 3 — Listing Details" note="Next: the structured 17-field details form." />}
-          {step === 3 && <Stub title="Step 4 — Seller Description" note="Next: 75-word field + AI validation + strike logic." />}
-          {step === 4 && <Stub title="Step 5 — Review & Publish" note="Next: combined score, preview, Publish + Resend email." />}
+          {step === 1 && <PhotosStep draft={draft} patch={patch} />}
+          {step === 2 && (
+            <Stub title="Step 3 — Listing Details" note="Next: the structured 17-field details form." />
+          )}
+          {step === 3 && (
+            <Stub title="Step 4 — Seller Description" note="Next: 75-word field + AI validation + strike logic." />
+          )}
+          {step === 4 && (
+            <Stub title="Step 5 — Review & Publish" note="Next: combined score, preview, Publish + Resend email." />
+          )}
 
           {step > 0 && (
-            <div className="mt-6 flex justify-between">
-              <button
-                onClick={() => setStep(step - 1)}
-                className="rounded-md border border-white/15 px-4 py-2 text-[13px] text-[#E8E4DC] hover:bg-white/5"
-              >
-                ← Back
-              </button>
-              {step < STEPS.length - 1 && (
-                <button
-                  onClick={() => setStep(step + 1)}
-                  className="rounded-md bg-[#C9A84C] px-4 py-2 text-[13px] font-medium text-black hover:opacity-90"
-                >
-                  Next →
-                </button>
+            <div className="mt-6">
+              {step === 1 && !canProceed && (
+                <p className="mb-2 text-[12px] text-[#8A8F9E]">
+                  Add and label the required photos to continue
+                  {draft.hasBracelet
+                    ? " (dial, caseback, clasp, and both bracelet sides)."
+                    : " (dial, caseback, and clasp)."}
+                </p>
               )}
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep(step - 1)}
+                  className="rounded-md border border-white/15 px-4 py-2 text-[13px] text-[#E8E4DC] hover:bg-white/5"
+                >
+                  ← Back
+                </button>
+                {step < STEPS.length - 1 && (
+                  <button
+                    onClick={() => canProceed && setStep(step + 1)}
+                    disabled={!canProceed}
+                    className={`rounded-md bg-[#C9A84C] px-4 py-2 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
+                      canProceed ? "" : "cursor-not-allowed"
+                    }`}
+                  >
+                    Next →
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Live score meter — fixed Part 1 once curation passes, Part 2 climbs */}
         <div className="md:pt-1">
           {draft.significanceScore != null ? (
             <ListingScoreMeter listing={toScoringState(draft)} />
@@ -121,16 +136,8 @@ function ProgressBar({ step }: { step: number }) {
     <div className="flex items-center gap-2">
       {STEPS.map((label, i) => (
         <div key={label} className="flex flex-1 flex-col gap-1">
-          <div
-            className={`h-1 rounded-full ${
-              i <= step ? "bg-[#C9A84C]" : "bg-white/10"
-            }`}
-          />
-          <div
-            className={`text-[11px] ${
-              i === step ? "text-[#E8E4DC]" : "text-[#8A8F9E]"
-            }`}
-          >
+          <div className={`h-1 rounded-full ${i <= step ? "bg-[#C9A84C]" : "bg-white/10"}`} />
+          <div className={`text-[11px] ${i === step ? "text-[#E8E4DC]" : "text-[#8A8F9E]"}`}>
             {i + 1}. {label}
           </div>
         </div>
@@ -192,90 +199,101 @@ function CurationStep({
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div>
           <label className={label}>Brand</label>
-          <input
-            className={input}
-            value={draft.brand}
-            onChange={(e) => patch({ brand: e.target.value })}
-            placeholder="Parmigiani Fleurier"
-          />
+          <input className={input} value={draft.brand} onChange={(e) => patch({ brand: e.target.value })} placeholder="Parmigiani Fleurier" />
         </div>
         <div>
           <label className={label}>Reference number</label>
-          <input
-            className={input}
-            value={draft.reference}
-            onChange={(e) => patch({ reference: e.target.value })}
-            placeholder="PFC274-0000600"
-          />
+          <input className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="PFC274-0000600" />
         </div>
         <div>
           <label className={label}>Year</label>
-          <input
-            className={input}
-            value={draft.year}
-            onChange={(e) => patch({ year: e.target.value })}
-            placeholder="2021"
-          />
+          <input className={input} value={draft.year} onChange={(e) => patch({ year: e.target.value })} placeholder="2021" />
         </div>
         <div>
           <label className={label}>Condition</label>
-          <select
-            className={input}
-            value={draft.condition}
-            onChange={(e) =>
-              patch({ condition: e.target.value as Condition })
-            }
-          >
+          <select className={input} value={draft.condition} onChange={(e) => patch({ condition: e.target.value as Condition })}>
             <option value="">Select…</option>
             {CONDITIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
         <div>
           <label className={label}>Asking price (USD)</label>
-          <input
-            className={input}
-            value={draft.askingPrice}
-            onChange={(e) => patch({ askingPrice: e.target.value })}
-            placeholder="7250"
-            inputMode="numeric"
-          />
+          <input className={input} value={draft.askingPrice} onChange={(e) => patch({ askingPrice: e.target.value })} placeholder="7250" inputMode="numeric" />
         </div>
       </div>
 
       <div className="mt-4">
-        <label className={label}>This watch's story</label>
-        <textarea
-          className={`${input} min-h-[72px]`}
-          value={draft.provenanceNote}
-          onChange={(e) => patch({ provenanceNote: e.target.value })}
-          placeholder="Tell us this watch's story — where it came from, who owned it, why it matters. Even one sentence changes everything."
-        />
+        <label className={label}>Brief provenance note</label>
+        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Bought from an authorized dealer; full set; one owner…" />
       </div>
 
       {draft.curationDecision === "fail" && (
         <div className="mt-4 rounded-md border border-red-500/30 bg-red-950/30 p-3 text-[13px] text-red-200">
           <div className="font-medium">Not a fit right now.</div>
-          {draft.curationReasoning && (
-            <div className="mt-1 text-red-200/90">{draft.curationReasoning}</div>
-          )}
+          {draft.curationReasoning && <div className="mt-1 text-red-200/90">{draft.curationReasoning}</div>}
         </div>
       )}
 
-      {error && (
-        <div className="mt-4 text-[13px] text-red-300">Error: {error}</div>
-      )}
+      {error && <div className="mt-4 text-[13px] text-red-300">Error: {error}</div>}
 
       <button
         onClick={check}
         disabled={!ready || busy}
-        className="mt-5 rounded-md bg-[#C9A84C] px-5 py-2.5 text-[13px] font-medium text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className={`mt-5 flex items-center gap-2 rounded-md bg-[#C9A84C] px-5 py-2.5 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
+          busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
+        }`}
       >
+        {busy && (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+        )}
         {busy ? "Checking…" : "Check eligibility"}
       </button>
+    </div>
+  );
+}
+
+function PhotosStep({
+  draft,
+  patch,
+}: {
+  draft: ListingDraft;
+  patch: (p: Partial<ListingDraft>) => void;
+}) {
+  function onPhotos(metas: UploadedPhotoMeta[]) {
+    const photos: ListingPhoto[] = metas
+      .filter((m) => m.category)
+      .map((m) => ({
+        photo: { url: m.url, pathname: m.pathname },
+        category: m.category as PhotoCategory,
+        isWristShot: m.isWristShot,
+      }));
+    patch({ photos });
+  }
+
+  return (
+    <div>
+      <h2 className="text-[18px] font-medium text-[#E8E4DC]">Step 2 — Photos</h2>
+      <p className="mt-1 text-[13px] text-[#8A8F9E]">
+        Upload your shots and label each one. Required: dial, caseback, clasp
+        {draft.hasBracelet ? ", and both bracelet sides" : ""}. The score on the
+        right climbs as you go.
+      </p>
+
+      <label className="mt-4 flex items-center gap-2 text-[13px] text-[#E8E4DC]">
+        <input
+          type="checkbox"
+          checked={draft.hasBracelet}
+          onChange={(e) => patch({ hasBracelet: e.target.checked })}
+          className="accent-[#C9A84C]"
+        />
+        This watch is on a bracelet (needs both bracelet sides)
+      </label>
+
+      <div className="mt-4">
+        <PhotoUpload onChange={onPhotos} />
+      </div>
     </div>
   );
 }
