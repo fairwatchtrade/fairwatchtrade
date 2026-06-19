@@ -247,12 +247,12 @@ function CurationStep({
       </div>
 
       <div className="mt-4">
-        <label className={label}>Brief provenance note</label>
+        <label className={label}>This watch's story</label>
         <textarea
           className={`${input} min-h-[72px]`}
           value={draft.provenanceNote}
           onChange={(e) => patch({ provenanceNote: e.target.value })}
-          placeholder="Bought from an authorized dealer; full set; one owner…"
+          placeholder="Tell us this watch's story — where it came from, who owned it, why it matters. Even one sentence changes everything."
         />
       </div>
 
