@@ -135,10 +135,11 @@ export default function PhotoUpload({
           setDragging(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 text-center transition-all duration-200 ${dragging
-            ? "border-[#C9A84C] bg-[#C9A84C]/10 scale-[1.01]"
-            : "border-[#C9A84C]/50 hover:border-[#C9A84C] hover:bg-white/[0.03]"
-          }`}
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center transition-colors ${
+          dragging
+            ? "border-[#C9A84C] bg-white/5"
+            : "border-white/15 hover:border-white/30 hover:bg-white/5"
+        }`}
       >
         <div className="text-[14px] font-medium text-[#E8E4DC]">
           Drop photos here, or click to browse
@@ -194,10 +195,11 @@ export default function PhotoUpload({
                 value={it.isWristShot ? "Wrist shot" : it.category}
                 onChange={(e) => setCategory(it.id, e.target.value)}
                 disabled={it.status !== "done"}
-                className={`w-full rounded-md border bg-[#0D0F14] px-2 py-1 text-[12px] text-[#E8E4DC] disabled:opacity-40 ${it.category || it.isWristShot
+                className={`w-full rounded-md border bg-[#0D0F14] px-2 py-1 text-[12px] text-[#E8E4DC] disabled:opacity-40 ${
+                  it.category || it.isWristShot
                     ? "border-white/15"
                     : "border-[#C9A84C]/60"
-                  }`}
+                }`}
               >
                 <option value="">Label…</option>
                 {CATEGORY_OPTIONS.map((c) => (
