@@ -62,17 +62,22 @@ export default function SellFlow() {
     setDraft((d) => ({ ...d, ...p }));
   }
 
-  // Page-level drag guard. A file dropped ANYWHERE on the /sell page is
-  // preventDefault()'d, so the browser never opens it in a new tab. Only
-  // PhotoUpload's own onDrop actually accepts files (it runs first, during
-  // bubbling, then this swallows the default); drops elsewhere are rejected.
+  // Page-level drag guard. Outside the photo zone, every drop is
+  // preventDefault()'d so the browser never opens a file in a new tab. INSIDE
+  // the photo zone, we stay out of the way and let PhotoUpload's own onDrop
+  // accept and upload the file.
   useEffect(() => {
-    const prevent = (e: DragEvent) => e.preventDefault();
-    window.addEventListener("dragover", prevent);
-    window.addEventListener("drop", prevent);
+    const inZone = (e: DragEvent) =>
+      !!(e.target as HTMLElement | null)?.closest?.("[data-photo-dropzone]");
+    const onDragOver = (e: DragEvent) => e.preventDefault();
+    const onDrop = (e: DragEvent) => {
+      if (!inZone(e)) e.preventDefault();
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
     return () => {
-      window.removeEventListener("dragover", prevent);
-      window.removeEventListener("drop", prevent);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
     };
   }, []);
 

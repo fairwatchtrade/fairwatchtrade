@@ -119,6 +119,7 @@ export default function PhotoUpload({
        component area is captured and preventDefault()'d — no more falling
        through to the browser opening the image in a new tab. */
     <div
+      data-photo-dropzone
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
