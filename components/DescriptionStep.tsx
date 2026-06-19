@@ -49,7 +49,22 @@ export default function DescriptionStep({
           watchContext: `${draft.brand} ${draft.reference} (${draft.year})`.trim(),
         }),
       });
-      const { passed, reason } = await res.json();
+      if (!res.ok) {
+        setHint(
+          `Validation request failed (HTTP ${res.status}). The /api/validate-description route may not be deployed.`
+        );
+        return;
+      }
+      const data = await res.json();
+      if (data.error) {
+        setHint(
+          `Validation service error (${data.error}${
+            data.status ? " " + data.status : ""
+          })${data.detail ? ": " + data.detail : ""}`
+        );
+        return;
+      }
+      const { passed, reason } = data;
       if (passed) {
         patch({ descriptionPassedAI: true });
         onProceed();
@@ -57,8 +72,10 @@ export default function DescriptionStep({
         patch({ descriptionPassedAI: false });
         setFlag(reason || "This reads like generic or copied text. Add detail only you would know.");
       }
-    } catch {
-      setHint("Couldn't check just now — try again in a moment.");
+    } catch (e) {
+      setHint(
+        `Couldn't reach the validator: ${e instanceof Error ? e.message : "unknown error"}.`
+      );
     } finally {
       setBusy(false);
     }
