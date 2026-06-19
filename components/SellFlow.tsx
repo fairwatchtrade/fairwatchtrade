@@ -15,6 +15,7 @@ import PhotoUpload, {
   type PhotoUploadHandle,
 } from "@/components/PhotoUpload";
 import DetailsStep from "@/components/DetailsStep";
+import DescriptionStep from "@/components/DescriptionStep";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -110,7 +111,11 @@ export default function SellFlow() {
           )}
           {step === 2 && <DetailsStep draft={draft} patch={patch} />}
           {step === 3 && (
-            <Stub title="Step 4 — Seller Description" note="Next: 75-word field + AI validation + strike logic." />
+            <DescriptionStep
+              draft={draft}
+              patch={patch}
+              onProceed={() => setStep(4)}
+            />
           )}
           {step === 4 && (
             <Stub title="Step 5 — Review & Publish" note="Next: combined score, preview, Publish + Resend email." />
@@ -133,7 +138,7 @@ export default function SellFlow() {
                 >
                   ← Back
                 </button>
-                {step < STEPS.length - 1 && (
+                {step < STEPS.length - 1 && step !== 3 && (
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
