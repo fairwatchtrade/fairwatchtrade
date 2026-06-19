@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -61,6 +61,20 @@ export default function SellFlow() {
   function patch(p: Partial<ListingDraft>) {
     setDraft((d) => ({ ...d, ...p }));
   }
+
+  // Page-level drag guard. A file dropped ANYWHERE on the /sell page is
+  // preventDefault()'d, so the browser never opens it in a new tab. Only
+  // PhotoUpload's own onDrop actually accepts files (it runs first, during
+  // bubbling, then this swallows the default); drops elsewhere are rejected.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   // Per-step gate for the Next button. Step 0 advances via the curation pass.
   const canProceed = step === 1 ? mandatoryDone(draft) : true;
