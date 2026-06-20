@@ -11,13 +11,27 @@ export default function SignUpPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
+  const passwordsMatch = password === confirmPassword;
+  const showMismatch = confirmPassword.length > 0 && !passwordsMatch;
+  const canSubmit =
+    !busy && email.length > 0 && password.length >= 8 && passwordsMatch;
+
   async function handleSignUp() {
     setBusy(true);
     setError(null);
+
+    // Backstop: never let a mismatch reach Supabase, even if the button
+    // disabled state were somehow bypassed.
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      setBusy(false);
+      return;
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -34,7 +48,7 @@ export default function SignUpPage() {
     }
 
     // If email confirmation is ON, there's no active session yet — tell the
-    // seller to check their inbox. If it's OFF, a session exists; go home.
+    // seller to check their inbox. If it's OFF, a session exists; go to /sell.
     if (data.session) {
       router.push("/sell");
       router.refresh();
@@ -80,19 +94,31 @@ export default function SignUpPage() {
           onChange={(e) => setPassword(e.target.value)}
           className="w-full rounded-md border border-white/10 bg-[#0D0F14] px-3 py-2.5 text-[14px] text-[#E8E4DC] outline-none focus:border-[#C9A84C]/50"
         />
+        <input
+          type="password"
+          autoComplete="new-password"
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className={`w-full rounded-md border bg-[#0D0F14] px-3 py-2.5 text-[14px] text-[#E8E4DC] outline-none focus:border-[#C9A84C]/50 ${
+            showMismatch ? "border-red-500/50" : "border-white/10"
+          }`}
+        />
       </div>
 
+      {showMismatch && (
+        <p className="mt-2 text-[12px] text-[#E8B4B4]">Passwords don&apos;t match.</p>
+      )}
+
       {error && (
-        <p
-          className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-[#E8B4B4]"
-        >
+        <p className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-[#E8B4B4]">
           {error}
         </p>
       )}
 
       <button
         onClick={handleSignUp}
-        disabled={busy || !email || password.length < 8}
+        disabled={!canSubmit}
         className={`mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-[#C9A84C] px-5 py-2.5 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
           busy ? "cursor-wait" : ""
         }`}
