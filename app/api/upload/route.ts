@@ -14,8 +14,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "no file provided" }, { status: 400 });
     }
 
+    // Listing photos must be publicly readable so buyers' browsers (and, later,
+    // AI photo validation) can fetch them directly. Private access returns a
+    // 403/Forbidden on the public URL, which breaks <img> rendering.
     const blob = await put(`listings/${file.name}`, file, {
-      access: "private",
+      access: "public",
       addRandomSuffix: true, // two IMG_0001.jpg files won't collide
     });
 
