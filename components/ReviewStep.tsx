@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { type ListingDraft } from "@/lib/listing";
+import { toScoringState } from "@/lib/listing";
 
 function formatPrice(p: string): string {
   const n = Number(String(p).replace(/[^0-9.]/g, ""));
@@ -38,16 +39,51 @@ function specRows(draft: ListingDraft): [string, string][] {
 export default function ReviewStep({ draft }: { draft: ListingDraft }) {
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function publish() {
     setPublishing(true);
-    // PENDING: persist the listing (status draft → published) and send the
-    // seller a Resend confirmation email. Both need the account/email layer
-    // (Supabase) that doesn't exist yet, so this is a front-end success for
-    // now. Drop the POST + Resend send in here when that lands.
-    await new Promise((r) => setTimeout(r, 400));
-    setPublished(true);
-    setPublishing(false);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brand: draft.brand,
+          reference: draft.reference,
+          year: draft.year,
+          condition: draft.condition,
+          askingPrice: draft.askingPrice,
+          provenanceNote: draft.provenanceNote,
+          significanceScore: draft.significanceScore,
+          photos: draft.photos,
+          hasBracelet: draft.hasBracelet,
+          details: draft.details,
+          description: draft.description,
+          descriptionPassedAI: draft.descriptionPassedAI,
+          scoreState: toScoringState(draft),
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError("Please sign in before publishing — your listing isn't lost.");
+        } else {
+          setError(data?.detail || "Something went wrong publishing your listing.");
+        }
+        setPublishing(false);
+        return;
+      }
+
+      setPublished(true);
+    } catch {
+      setError("Network error — your listing wasn't published. Try again.");
+    } finally {
+      setPublishing(false);
+    }
   }
 
   if (published) {
@@ -144,6 +180,15 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
           )}
         </div>
       </div>
+
+      {error && (
+        <p
+          className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[13px] text-[#E8B4B4] text-center"
+          style={{ textAlign: "center" }}
+        >
+          {error}
+        </p>
+      )}
 
       <button
         onClick={publish}
