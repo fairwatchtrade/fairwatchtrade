@@ -28,6 +28,7 @@ const CATEGORY_OPTIONS = [
   "Side/Lugs",
   "Movement",
   "Bracelet/Strap",
+  "Full watch, strap/bracelet extended",
   "Clasp",
   "Box",
   "Papers/Warranty",
@@ -212,6 +213,14 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                     </option>
                   ))}
                 </select>
+
+                {it.category === "Full watch, strap/bracelet extended" && (
+                  <p className="text-[10px] leading-snug text-[#8A8F9E]">
+                    Lay the watch with the strap/bracelet fully extended, showing
+                    the entire length in one frame. Open any clasp fully — it&apos;s
+                    fine if the clasp itself doesn&apos;t sit flat.
+                  </p>
+                )}
               </div>
             ))}
           </div>
