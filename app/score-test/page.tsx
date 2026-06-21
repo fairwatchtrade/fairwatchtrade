@@ -18,8 +18,9 @@ const DOC_OPTIONS: DocumentationStatus[] = [
 const PHOTO_OPTIONS: PhotoCategory[] = [
   "Dial",
   "Caseback",
-  "Clasp",
+  "Clasp/Pin Buckle",
   "Bracelet/Strap",
+  "Full watch, strap/bracelet extended",
   "Movement",
   "Side/Lugs",
   "Box",
@@ -107,7 +108,7 @@ export default function ScoreTestPage() {
                 onChange={(e) => setHasBracelet(e.target.checked)}
                 className="accent-[#C9A84C]"
               />
-              On a bracelet (needs 2 bracelet shots)
+              On a bracelet (needs full strap/bracelet-extended shot)
             </label>
 
             <label className="flex items-center gap-2 text-[12px] text-[#E8E4DC]">
