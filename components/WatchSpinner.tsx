@@ -3,14 +3,14 @@
 /* ────────────────────────────────────────────────────────────────────────
    WATCH SPINNER — a small subdial that sweeps a hand continuously.
 
-   A branded replacement for the generic border-spinner. Champagne-gold dial
-   (not white — white reads flat against the dark UI) with a thin sweeping
-   second hand, tying into the gold accent used across the wordmark, score
-   meter, and flyer.
+   A branded replacement for the generic border-spinner. DARK dial face with
+   a champagne-gold rim, ticks, and sweeping hand. The dark face is the key:
+   it reads sharply against BOTH the gold buttons (where a solid-gold dial
+   would wash out) and the dark UI panels — and a black-dial-with-gold-trim
+   look is more "luxury watch" than a flat gold disc anyway.
 
    Reusable: drop <WatchSpinner /> anywhere a loading state is needed.
-   `size` controls the diameter in px; inherits currentColor for the hand
-   highlight where useful. Defaults suit an inline button spinner.
+   `size` controls the diameter in px. Defaults suit an inline button spinner.
    ──────────────────────────────────────────────────────────────────────── */
 export default function WatchSpinner({
   size = 18,
@@ -33,25 +33,25 @@ export default function WatchSpinner({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Dial face — champagne gold */}
-        <circle cx="20" cy="20" r="18" fill="#C9A84C" />
-        {/* Inner ring for a touch of dial depth */}
-        <circle cx="20" cy="20" r="18" fill="none" stroke="#A8863A" strokeWidth="1.5" />
-        {/* Hour ticks */}
-        <g stroke="#5A4A1E" strokeWidth="1.4" strokeLinecap="round">
+        {/* Dial face — dark, so it reads on gold buttons AND dark panels */}
+        <circle cx="20" cy="20" r="18" fill="#15110A" />
+        {/* Champagne-gold rim */}
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#C9A84C" strokeWidth="2" />
+        {/* Gold hour ticks */}
+        <g stroke="#C9A84C" strokeWidth="1.4" strokeLinecap="round">
           <line x1="20" y1="4.5" x2="20" y2="8" />
           <line x1="35.5" y1="20" x2="32" y2="20" />
           <line x1="20" y1="35.5" x2="20" y2="32" />
           <line x1="4.5" y1="20" x2="8" y2="20" />
         </g>
-        {/* Sweeping hand — rotates continuously */}
+        {/* Sweeping gold hand — rotates continuously */}
         <g style={{ transformOrigin: "20px 20px", animation: "fwt-sweep 1.1s linear infinite" }}>
           <line
             x1="20"
             y1="20"
             x2="20"
             y2="7"
-            stroke="#1A1206"
+            stroke="#E6C868"
             strokeWidth="1.6"
             strokeLinecap="round"
           />
@@ -61,13 +61,13 @@ export default function WatchSpinner({
             y1="20"
             x2="20"
             y2="24"
-            stroke="#1A1206"
+            stroke="#C9A84C"
             strokeWidth="1.6"
             strokeLinecap="round"
           />
         </g>
         {/* Center cap */}
-        <circle cx="20" cy="20" r="2" fill="#1A1206" />
+        <circle cx="20" cy="20" r="2" fill="#C9A84C" />
       </svg>
 
       <style>{`
