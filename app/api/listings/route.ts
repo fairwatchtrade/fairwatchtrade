@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 // future field rename in the draft can't silently break this route's build.
 type PublishBody = {
   brand?: string;
+  model?: string;
   reference?: string;
   year?: string;
   condition?: string;
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     seller_id: user.id,
     status: "published",
     brand: body.brand,
+    model: body.model || null,
     reference: body.reference,
     year: body.year ?? null,
     condition: body.condition || null,

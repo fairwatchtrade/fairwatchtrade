@@ -126,7 +126,7 @@ export default function SellFlow() {
                 <p className="mb-2 text-[12px] text-[#8A8F9E]">
                   Add and label the required photos to continue
                   {draft.hasBracelet
-                    ? " (dial, caseback, clasp, and both bracelet sides)."
+                    ? " (dial, caseback, clasp, and a full shot with the strap/bracelet extended)."
                     : " (dial, caseback, and clasp)."}
                 </p>
               )}
@@ -238,6 +238,10 @@ function CurationStep({
           <input className={input} value={draft.brand} onChange={(e) => patch({ brand: e.target.value })} placeholder="Parmigiani Fleurier" />
         </div>
         <div>
+          <label className={label}>Model</label>
+          <input className={input} value={draft.model} onChange={(e) => patch({ model: e.target.value })} placeholder="Tonda Métrographe" />
+        </div>
+        <div>
           <label className={label}>Reference number</label>
           <input className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="PFC274-0000600" />
         </div>
@@ -315,7 +319,7 @@ function PhotosStep({
       <h2 className="text-[18px] font-medium text-[#E8E4DC]">Step 2 — Photos</h2>
       <p className="mt-1 text-[13px] text-[#8A8F9E]">
         Upload your shots and label each one. Required: dial, caseback, clasp
-        {draft.hasBracelet ? ", and both bracelet sides" : ""}. The score on the
+        {draft.hasBracelet ? ", and a full shot with the strap/bracelet extended" : ""}. The score on the
         right climbs as you go.
       </p>
 
@@ -326,7 +330,7 @@ function PhotosStep({
           onChange={(e) => patch({ hasBracelet: e.target.checked })}
           className="accent-[#C9A84C]"
         />
-        This watch is on a bracelet (needs both bracelet sides)
+        This watch is on a bracelet (needs a full shot with the bracelet extended)
       </label>
 
       <div className="mt-4">

@@ -51,6 +51,7 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           brand: draft.brand,
+          model: draft.model,
           reference: draft.reference,
           year: draft.year,
           condition: draft.condition,
@@ -102,7 +103,7 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
           className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-[#B7BAC4] text-center"
           style={{ textAlign: "center" }}
         >
-          {draft.brand} {draft.reference} is now published on FairWatchTrade. You
+          {draft.brand} {draft.model || draft.reference} is now published on FairWatchTrade. You
           can manage or edit it anytime from your listings.
         </p>
       </div>
@@ -153,8 +154,13 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
             {[draft.condition, draft.year].filter(Boolean).join(" · ")}
           </div>
           <div className="mt-1 text-[18px] font-medium text-[#E8E4DC]">
-            {draft.brand} {draft.reference}
+            {[draft.brand, draft.model].filter(Boolean).join(" ")}
           </div>
+          {draft.reference && (
+            <div className="mt-0.5 text-[12px] text-[#8A8F9E]">
+              Ref. {draft.reference}
+            </div>
+          )}
           <div className="mt-1 text-[16px] font-semibold text-[#C9A84C]">
             {formatPrice(draft.askingPrice)}
           </div>
