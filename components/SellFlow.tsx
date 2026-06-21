@@ -17,6 +17,7 @@ import PhotoUpload, {
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
+import WatchSpinner from "@/components/WatchSpinner";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -285,9 +286,7 @@ function CurationStep({
           busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
         }`}
       >
-        {busy && (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-        )}
+        {busy && <WatchSpinner size={16} />}
         {busy ? "Checking…" : "Check eligibility"}
       </button>
     </div>

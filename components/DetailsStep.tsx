@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
 
-const MOVEMENT_TYPES = ["Manual Wind", "Automatic", "Quartz"];
+const MOVEMENT_TYPES = ["Automatic", "Manual Wind", "Quartz"];
 const CLOSURE_TYPES = [
   "Pin Buckle",
   "Deployant Clasp",
@@ -49,6 +49,7 @@ const COMPLICATIONS = [
   "Moonphase",
   "Power Reserve",
   "Small Seconds",
+  "Center Seconds",
   "Annual Calendar",
   "Perpetual Calendar",
   "Tourbillon",
