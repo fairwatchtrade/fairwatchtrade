@@ -176,6 +176,28 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
         </div>
 
         {items.length > 0 && (
+          <div className="mb-3 mt-4 flex items-center gap-2.5 rounded-lg border border-[#C9A84C]/30 border-l-[3px] border-l-[#C9A84C] bg-[#C9A84C]/10 px-3.5 py-2.5">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#C9A84C"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0"
+            >
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+            <span className="text-[12.5px] font-medium tracking-[0.01em] text-[#C9A84C]">
+              Tag every photo — it&apos;s what buyers look at first.
+            </span>
+          </div>
+        )}
+
+        {items.length > 0 && (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {items.map((it) => (
               <div key={it.id} className="space-y-1.5">
