@@ -65,6 +65,28 @@ const SERVICE = [
   "Polished",
 ];
 
+/* Mutual-exclusion rules for Service/repair history (option (b) — expressive):
+   - "Never serviced" contradicts every service claim → clears all three.
+   - "Serviced by manufacturer" ⊗ "Serviced by independent" — one who per service;
+     each clears the other AND clears "Never serviced".
+   - "Recently serviced" may coexist with a who (e.g. "recently serviced by an
+     independent"), so it only clears "Never serviced".
+   - "Polished" ⊗ "Unpolished / original" — case-finish contradiction.
+   Note: Group A (service) and Group B (polish) are independent, so e.g.
+   "Never serviced" + "Unpolished / original" remains a valid combo. */
+const SERVICE_EXCLUSIONS: Record<string, string[]> = {
+  "Never serviced": [
+    "Serviced by manufacturer",
+    "Serviced by independent",
+    "Recently serviced",
+  ],
+  "Serviced by manufacturer": ["Never serviced", "Serviced by independent"],
+  "Serviced by independent": ["Never serviced", "Serviced by manufacturer"],
+  "Recently serviced": ["Never serviced"],
+  "Polished": ["Unpolished / original"],
+  "Unpolished / original": ["Polished"],
+};
+
 const inputCls =
   "w-full rounded-md border border-white/15 bg-[#0D0F14] px-3 py-2 text-[14px] text-[#E8E4DC] placeholder:text-[#8A8F9E]/60 focus:border-[#C9A84C] focus:outline-none";
 const labelCls = "mb-1 block text-[12px] text-[#8A8F9E]";
@@ -185,7 +207,7 @@ export default function DetailsStep({
 
       <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => set("includedWithWatch", v)} />
       <MultiSelect label="Complication / function" options={COMPLICATIONS} selected={d.complications ?? []} onChange={(v) => set("complications", v)} />
-      <MultiSelect label="Service / repair history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} />
+      <MultiSelect label="Service / repair history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
     </div>
   );
 }
@@ -221,14 +243,32 @@ function MultiSelect({
   options,
   selected,
   onChange,
+  exclusiveWith,
 }: {
   label: string;
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
+  /* Optional: when a key option is selected, any options listed for it are
+     auto-deselected (mutual-exclusion). Rules are applied symmetrically via
+     a lookup at toggle time, so "A clears B" also means selecting B won't sit
+     alongside A if A also lists B. */
+  exclusiveWith?: Record<string, string[]>;
 }) {
   function toggle(opt: string) {
-    onChange(selected.includes(opt) ? selected.filter((s) => s !== opt) : [...selected, opt]);
+    if (selected.includes(opt)) {
+      onChange(selected.filter((s) => s !== opt));
+      return;
+    }
+    // Selecting opt: drop anything opt conflicts with, and anything that
+    // conflicts with opt (symmetric), so contradictions can't coexist.
+    const clears = new Set(exclusiveWith?.[opt] ?? []);
+    const next = selected.filter((s) => {
+      if (clears.has(s)) return false;
+      if ((exclusiveWith?.[s] ?? []).includes(opt)) return false;
+      return true;
+    });
+    onChange([...next, opt]);
   }
   return (
     <div className="mt-4">
