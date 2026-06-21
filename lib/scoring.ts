@@ -30,7 +30,7 @@ export type PhotoCategory =
   | "Movement"
   | "Bracelet/Strap"
   | "Full watch, strap/bracelet extended"
-  | "Clasp"
+  | "Clasp/Pin Buckle"
   | "Box"
   | "Papers/Warranty"
   | "Other";
@@ -60,7 +60,7 @@ export type ListingState = {
 
 /* ── Tunable weights (Part 2). Sum defines COMPLETENESS_MAX. ─────────────── */
 export const COMPLETENESS = {
-  mandatoryPhotos: 6, // Dial + Caseback + Clasp (+ full strap/bracelet-extended shot if on a bracelet)
+  mandatoryPhotos: 6, // Dial + Caseback + Clasp/Pin Buckle (+ full strap/bracelet-extended shot if on a bracelet)
   wristShot: 3,
   movementShown: 2, // a Movement / exhibition-back shot — collector-relevant
   fullDocumentation: 5, // scaled by DOC_POINTS below — the CLAIM
@@ -87,12 +87,12 @@ const DOC_POINTS: Record<DocumentationStatus, number> = {
 };
 
 /* ── Mandatory photo set ─────────────────────────────────────────────────
-   Required to go live (Dial, Caseback, Clasp; plus one full strap/bracelet-
+   Required to go live (Dial, Caseback, Clasp/Pin Buckle; plus one full strap/bracelet-
    extended shot if the watch is on a bracelet). Also the first rung of the
    completeness bonus. */
 function hasMandatoryPhotos(s: ListingState): boolean {
   const cats = new Set(s.photoCategories);
-  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp");
+  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp/Pin Buckle");
   if (!base) return false;
   if (s.hasBracelet) {
     // One full shot with the strap/bracelet fully extended — shows the whole

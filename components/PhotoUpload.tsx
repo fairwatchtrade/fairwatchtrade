@@ -22,19 +22,23 @@ export type UploadedPhotoMeta = {
    so uploads don't depend on which inner element catches the drop event. */
 export type PhotoUploadHandle = { uploadFiles: (files: FileList) => void };
 
-const CATEGORY_OPTIONS = [
-  "Dial",
-  "Caseback",
-  "Side/Lugs",
-  "Movement",
-  "Bracelet/Strap",
-  "Full watch, strap/bracelet extended",
-  "Clasp",
-  "Box",
-  "Papers/Warranty",
-  "Wrist shot",
-  "Other",
-] as const;
+// The three mandatory categories (required:true) are pinned to the top in
+// Dial → Caseback → Clasp/Pin Buckle order and shown with a trailing " *".
+// IMPORTANT: `value` is the exact PhotoCategory string the scoring engine
+// matches on — the " *" lives ONLY in the displayed label, never the value.
+const CATEGORY_OPTIONS: { value: string; required?: boolean }[] = [
+  { value: "Dial", required: true },
+  { value: "Caseback", required: true },
+  { value: "Clasp/Pin Buckle", required: true },
+  { value: "Side/Lugs" },
+  { value: "Movement" },
+  { value: "Bracelet/Strap" },
+  { value: "Full watch, strap/bracelet extended" },
+  { value: "Box" },
+  { value: "Papers/Warranty" },
+  { value: "Wrist shot" },
+  { value: "Other" },
+];
 
 type Item = {
   id: string;
@@ -208,8 +212,8 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                 >
                   <option value="">Label…</option>
                   {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                    <option key={c.value} value={c.value}>
+                      {c.required ? `${c.value} *` : c.value}
                     </option>
                   ))}
                 </select>
