@@ -267,7 +267,7 @@ function CurationStep({
 
       <div className="mt-4">
         <label className={label}>Brief provenance note</label>
-        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Bought from an authorized dealer; full set; one owner…" />
+        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Given to me by my father, been in the family ever since…" />
       </div>
 
       {draft.curationDecision === "fail" && (
