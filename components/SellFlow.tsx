@@ -18,6 +18,7 @@ import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
 import WatchSpinner from "@/components/WatchSpinner";
+import BrandCombobox from "@/components/BrandCombobox";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -236,7 +237,12 @@ function CurationStep({
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div>
           <label className={label}>Brand</label>
-          <input className={input} value={draft.brand} onChange={(e) => patch({ brand: e.target.value })} placeholder="Parmigiani Fleurier" />
+          <BrandCombobox
+            value={draft.brand}
+            onChange={(brand, isCustom) => patch({ brand, customBrandFlag: isCustom })}
+            inputClassName={input}
+            placeholder="Parmigiani Fleurier"
+          />
         </div>
         <div>
           <label className={label}>Model</label>

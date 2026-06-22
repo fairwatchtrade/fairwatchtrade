@@ -44,6 +44,7 @@ export type ListingDetails = {
 export type ListingDraft = {
   // Step 1 — curation gate
   brand: string;
+  customBrandFlag: boolean;
   model: string;
   reference: string;
   year: string;
@@ -70,6 +71,7 @@ export type ListingDraft = {
 export function emptyDraft(): ListingDraft {
   return {
     brand: "",
+    customBrandFlag: false,
     model: "",
     reference: "",
     year: "",

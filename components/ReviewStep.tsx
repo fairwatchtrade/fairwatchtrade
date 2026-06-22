@@ -51,6 +51,7 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           brand: draft.brand,
+          customBrandFlag: draft.customBrandFlag,
           model: draft.model,
           reference: draft.reference,
           year: draft.year,
