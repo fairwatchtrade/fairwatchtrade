@@ -37,7 +37,7 @@ export default function ListingScoreMeter({
       </div>
 
       {/* Headline combined number */}
-      <div className="mt-1 flex items-baseline gap-2">
+      <div className="mt-1 flex items-center gap-2">
         <div className="text-[28px] font-semibold leading-none text-[#E8E4DC] tabular-nums">
           {score.combined}
         </div>
