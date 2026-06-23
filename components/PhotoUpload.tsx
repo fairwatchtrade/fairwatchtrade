@@ -232,7 +232,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                     it.category || it.isWristShot ? "border-white/15" : "border-[#C9A84C]/60"
                   }`}
                 >
-                  <option value="">Label…</option>
+                  <option value="">Tag photo…</option>
                   {CATEGORY_OPTIONS.map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.required ? `${c.value} *` : c.value}
