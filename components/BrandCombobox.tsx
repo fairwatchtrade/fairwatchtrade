@@ -73,17 +73,17 @@ export default function BrandCombobox({
       .slice(0, 8);
   }, [query]);
 
+  // Centralized selection update function
+  function commit(selectedName: string) {
+    setQuery(selectedName);
+    setOpen(false);
+    onChange(selectedName, !isKnownBrand(selectedName));
+  }
+
   // Handle outside click + auto-correct snap fill logic
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        // Auto-snap ONLY on an unambiguous single match. With a 2-char minimum
-        // and substring matching, short queries match many brands — snapping
-        // the top of an ambiguous list silently commits an arbitrary wrong
-        // brand. So: exactly one match → commit it (honoring any active
-        // highlight, never hard-coding matches[0]); more than one match (or
-        // none) → just close the menu and leave the typed text intact so the
-        // custom-brand / validation path handles it.
         if (matches.length === 1) {
           const idx = activeIdx >= 0 && activeIdx < matches.length ? activeIdx : 0;
           commit(matches[idx]);
