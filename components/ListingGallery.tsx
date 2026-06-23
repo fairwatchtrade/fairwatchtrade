@@ -3,12 +3,13 @@
 import { useState } from "react";
 
 /* ────────────────────────────────────────────────────────────────────────
-   LISTING GALLERY — buyer-facing photo viewer (v1.22)
+   LISTING GALLERY — buyer-facing photo viewer (v1.23)
 
    Client child of /listings/[id]. Renders a full-width hero and a scrollable
-   strip of the REMAINING photos; clicking a thumbnail swaps it into the hero.
-   The parent computes the initial hero index (first "Dial" photo, else 0) and
-   passes plain public Blob URLs — no category labels are surfaced to buyers.
+   strip of ALL photos; clicking a thumbnail swaps it into the hero, with the
+   active thumbnail highlighted. The parent computes the initial hero index 
+   (first "Dial" photo, else 0) and passes plain public Blob URLs — no 
+   category labels are surfaced to buyers.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function ListingGallery({
@@ -34,23 +35,25 @@ export default function ListingGallery({
         <img src={heroUrl} alt="" className="h-auto w-full object-cover" />
       </div>
 
-      {/* Remaining photos — scrollable horizontal thumbnail strip */}
+      {/* Photo gallery — scrollable horizontal thumbnail strip */}
       {photos.length > 1 && (
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {photos.map((url, i) =>
-            i === active ? null : (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setActive(i)}
-                aria-label={`View photo ${i + 1}`}
-                className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-white/15 transition hover:border-[#C9A84C]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-full w-full object-cover" />
-              </button>
-            )
-          )}
+          {photos.map((url, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setActive(i)}
+              aria-label={`View photo ${i + 1}`}
+              className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border transition ${
+                i === active 
+                  ? 'border-[#C9A84C]' 
+                  : 'border-white/15 hover:border-[#C9A84C]'
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
         </div>
       )}
     </div>
