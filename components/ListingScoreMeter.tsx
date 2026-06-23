@@ -6,6 +6,7 @@ import {
   COMPLETENESS_MAX,
   type ListingState,
 } from "@/lib/scoring";
+import ListingScoreHelp from "./ListingScoreHelp";
 
 /* The seller's PRIVATE build-meter. Significance is locked at curation and
    shown as the base; completeness is the part that climbs as they add effort.
@@ -40,6 +41,7 @@ export default function ListingScoreMeter({
         <div className="text-[28px] font-semibold leading-none text-[#E8E4DC] tabular-nums">
           {score.combined}
         </div>
+        <ListingScoreHelp score={score.combined} />
         <div className="text-[12px] text-[#8A8F9E]">
           {score.significance} significance
           <span className="text-[#C9A84C]">
