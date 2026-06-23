@@ -2,7 +2,7 @@
 
 export const WATCH_BRANDS: string[] = [
   "Akin", "Akrivia", "Alexander Shorokhoff", "Alpina", "Angelus", "Anordain", 
-  "Antoine Preziuso", "Armin Strom", "Arnold & Son", "ArtyA", "Askania", 
+  "Antoine Martin", "Antoine Preziuso", "Armin Strom", "Arnold & Son", "ArtyA", "Askania", 
   "Audemars Piguet", "Autodromo", "Ball Watch Company", "Baltic Watches", 
   "Bamford Watch Department", "Bell & Ross", "Benrus", "Bermont", "Berneron", 
   "Biolley", "Blancpain", "Blaken", "Bravur", "Breguet", "Breitling", "Bremont", 
