@@ -63,16 +63,15 @@ export default function BrandCombobox({
   const matches = useMemo(() => {
     const q = normalize(query);
     if (q.length < MIN_CHARS) return [];
-    return NORMALIZED_BRANDS.filter((b) => b.norm.includes(q))
+
+    const prefix = NORMALIZED_BRANDS.filter((b) => b.norm.startsWith(q));
+    const sub = NORMALIZED_BRANDS.filter((b) => b.norm.includes(q) && !b.norm.startsWith(q));
+
+    return [...prefix.sort((a,b) => a.name.localeCompare(b.name)), 
+            ...sub.sort((a,b) => a.name.localeCompare(b.name))]
       .map((b) => b.name)
       .slice(0, 8);
   }, [query]);
-
-  function commit(text: string) {
-    setQuery(text);
-    onChange(text, !isKnownBrand(text));
-    setOpen(false);
-  }
 
   // Handle outside click + auto-correct snap fill logic
   useEffect(() => {
@@ -156,11 +155,10 @@ export default function BrandCombobox({
                   commit(name);
                 }}
                 onMouseEnter={() => setActiveIdx(i)}
-                className={`block w-full px-3 py-1.5 text-left text-[13px] ${
-                  i === activeIdx
+                className={`block w-full px-3 py-1.5 text-left text-[13px] ${i === activeIdx
                     ? "bg-[#C9A84C]/15 text-[#E8E4DC]"
                     : "text-[#B7BAC4] hover:bg-white/5"
-                }`}
+                  }`}
               >
                 {name}
               </button>
