@@ -28,6 +28,7 @@ type ListingRow = {
   condition: string;
   asking_price: number;
   photos: ListingPhoto[];
+  details?: { dialColorType?: string; caseMaterial?: string } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
@@ -91,6 +92,8 @@ export default async function BrowsePage() {
               const hero = heroUrl(row.photos);
               const title = row.model ? `${row.brand} ${row.model}` : row.brand;
               const meta = [row.condition, row.year].filter(Boolean).join(" · ");
+              const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
+              const attrs = parts.join(" · ") || null;
 
               return (
                 <Link
@@ -120,9 +123,9 @@ export default async function BrowsePage() {
                     <div className="mt-1 text-[15px] font-medium text-[#E8E4DC]">
                       {title}
                     </div>
-                    {row.reference && (
+                    {attrs && (
                       <div className="mt-0.5 text-[12px] text-[#B7BAC4]">
-                        Ref. {row.reference}
+                        {attrs}
                       </div>
                     )}
                     <div className="mt-2 text-[15px] font-semibold text-[#C9A84C]">
