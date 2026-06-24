@@ -31,7 +31,7 @@ export default function ListingGallery({
       {/* Hero — large, full-width */}
       <div className="w-full overflow-hidden rounded-lg border border-white/15 bg-[#0D0F14]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroUrl} alt="" className="h-auto w-full rounded-lg object-cover" />
+        <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
       </div>
 
       {/* Remaining photos — scrollable horizontal thumbnail strip */}
