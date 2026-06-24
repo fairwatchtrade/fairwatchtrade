@@ -39,6 +39,11 @@ export type ListingDetails = {
   complications?: string[];
   serviceHistory?: string[];
   movementFrequency?: string;
+  bezelMaterial?: string;
+  waterResistance?: string;
+  calibre?: string;
+  jewels?: string;
+  powerReserve?: string;
 };
 
 export type ListingDraft = {

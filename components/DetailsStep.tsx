@@ -25,6 +25,8 @@ const CASE_MATERIALS = [
   "Ceramic",
   "Bronze",
 ];
+const BEZEL_MATERIALS = ["Steel", "Ceramic", "Gold", "Platinum", "Titanium", "Other"];
+const WATER_RESISTANCE_OPTIONS = ["30m", "50m", "100m", "200m", "300m+", "Not rated"];
 const DOCS: DocumentationStatus[] = [
   "Full Set",
   "Papers Only",
@@ -135,6 +137,32 @@ export default function DetailsStep({
 
         <Field label="Case thickness (mm, optional)">
           <input className={inputCls} value={d.caseThicknessMm ?? ""} onChange={(e) => set("caseThicknessMm", e.target.value)} placeholder="8.7" inputMode="decimal" />
+        </Field>
+
+        <Field label="Bezel material (optional)">
+          <select className={inputCls} value={d.bezelMaterial ?? ""} onChange={(e) => set("bezelMaterial", e.target.value)}>
+            <option value="">Select…</option>
+            {BEZEL_MATERIALS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Water resistance (optional)">
+          <select className={inputCls} value={d.waterResistance ?? ""} onChange={(e) => set("waterResistance", e.target.value)}>
+            <option value="">Select…</option>
+            {WATER_RESISTANCE_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Calibre / movement reference (optional)">
+          <input className={inputCls} value={d.calibre ?? ""} onChange={(e) => set("calibre", e.target.value)} placeholder="e.g. Cal. 1020, Calibre 89" />
+        </Field>
+
+        <Field label="Jewel count (optional)">
+          <input className={inputCls} value={d.jewels ?? ""} onChange={(e) => set("jewels", e.target.value)} placeholder="25" inputMode="numeric" />
+        </Field>
+
+        <Field label="Power reserve (optional)">
+          <input className={inputCls} value={d.powerReserve ?? ""} onChange={(e) => set("powerReserve", e.target.value)} placeholder="e.g. 8 days, 72 hours" />
         </Field>
 
         <Field label="Case material">
