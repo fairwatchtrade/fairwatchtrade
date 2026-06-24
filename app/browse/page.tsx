@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { selectFeaturedListings, type ScoredListing } from "@/lib/featured";
+import BrowseClient from "@/components/BrowseClient";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC BROWSE — /browse  (v1.25)
@@ -35,16 +35,6 @@ type ListingRow = {
   weeks_featured?: number; // optional on the row; defaults 0 if absent
   status: string;
 };
-
-function formatPrice(value: number): string {
-  return `$${Number(value).toLocaleString("en-US")}`;
-}
-
-function heroUrl(photos: ListingPhoto[]): string | null {
-  if (!Array.isArray(photos) || photos.length === 0) return null;
-  const dial = photos.find((p) => p?.category === "Dial");
-  return (dial ?? photos[0])?.photo?.url ?? null;
-}
 
 export default async function BrowsePage() {
   const supabase = await createClient();
@@ -87,64 +77,7 @@ export default async function BrowsePage() {
             No listings are available right now — check back soon.
           </p>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredRows.map((row) => {
-              const hero = heroUrl(row.photos);
-              const title = row.model ? `${row.brand} ${row.model}` : row.brand;
-              const meta = [row.condition, row.year].filter(Boolean).join(" · ");
-              const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
-              const attrs = parts.join(" · ") || null;
-              const doc = row.details?.documentation;
-              const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
-
-              return (
-                <Link
-                  key={row.id}
-                  href={`/listings/${row.id}`}
-                  className="group block overflow-hidden rounded-xl border border-white/10 bg-[#0D0F14] transition hover:border-[#C9A84C]/40"
-                >
-                  <div className="relative overflow-hidden">
-                    {hero ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={hero}
-                        alt=""
-                        className="aspect-[4/3] w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[#B7BAC4]">
-                        No photo
-                      </div>
-                    )}
-                    {docBadge && (
-                      <span className="absolute top-2 right-2 rounded-full bg-[#C9A84C] px-2 py-0.5 text-[10px] font-medium tracking-wide text-[#0D0F14]">
-                        {docBadge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="p-4">
-                    {meta && (
-                      <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
-                        {meta}
-                      </div>
-                    )}
-                    <div className="mt-1 text-[15px] font-medium text-[#E8E4DC]">
-                      {title}
-                    </div>
-                    {attrs && (
-                      <div className="mt-0.5 text-[12px] text-[#B7BAC4]">
-                        {attrs}
-                      </div>
-                    )}
-                    <div className="mt-2 text-[15px] font-semibold text-[#C9A84C]">
-                      {formatPrice(Number(row.asking_price))}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <BrowseClient listings={featuredRows} />
         )}
       </div>
     </main>
