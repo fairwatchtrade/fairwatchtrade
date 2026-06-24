@@ -27,7 +27,7 @@ type ListingRow = {
   condition: string;
   asking_price: number;
   photos: ListingPhoto[];
-  details?: { dialColorType?: string; caseMaterial?: string; documentation?: string } | null;
+  details?: { dialColorType?: string; caseMaterial?: string; documentation?: string; caseSizeMm?: string; movementType?: string } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
@@ -52,6 +52,13 @@ function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [stri
     if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+// Case size facet/filter key: append "mm" unless already present, so the
+// displayed label and the value matched against the selection are identical.
+function sizeLabel(value?: string): string {
+  if (!value) return "";
+  return value.includes("mm") ? value : `${value}mm`;
 }
 
 function FacetGroup({
@@ -97,10 +104,35 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
+  const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
+  const [selectedMovements, setSelectedMovements] = useState<Set<string>>(new Set());
+  const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
+  const [selectedDials, setSelectedDials] = useState<Set<string>>(new Set());
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
 
   const brandFacets = useMemo(() => countBy(listings, (l) => l.brand), [listings]);
   const conditionFacets = useMemo(
     () => countBy(listings, (l) => l.condition),
+    [listings]
+  );
+  const caseSizeFacets = useMemo(
+    () => countBy(listings, (l) => sizeLabel(l.details?.caseSizeMm)),
+    [listings]
+  );
+  const movementFacets = useMemo(
+    () => countBy(listings, (l) => l.details?.movementType ?? ""),
+    [listings]
+  );
+  const materialFacets = useMemo(
+    () => countBy(listings, (l) => l.details?.caseMaterial ?? ""),
+    [listings]
+  );
+  const dialFacets = useMemo(
+    () => countBy(listings, (l) => l.details?.dialColorType ?? ""),
+    [listings]
+  );
+  const docFacets = useMemo(
+    () => countBy(listings, (l) => l.details?.documentation ?? ""),
     [listings]
   );
 
@@ -110,9 +142,41 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         const brandOk = selectedBrands.size === 0 || selectedBrands.has(l.brand);
         const condOk =
           selectedConditions.size === 0 || selectedConditions.has(l.condition);
-        return brandOk && condOk;
+        const sizeOk =
+          selectedCaseSizes.size === 0 ||
+          selectedCaseSizes.has(sizeLabel(l.details?.caseSizeMm));
+        const movementOk =
+          selectedMovements.size === 0 ||
+          selectedMovements.has(l.details?.movementType ?? "");
+        const materialOk =
+          selectedMaterials.size === 0 ||
+          selectedMaterials.has(l.details?.caseMaterial ?? "");
+        const dialOk =
+          selectedDials.size === 0 ||
+          selectedDials.has(l.details?.dialColorType ?? "");
+        const docOk =
+          selectedDocs.size === 0 ||
+          selectedDocs.has(l.details?.documentation ?? "");
+        return (
+          brandOk &&
+          condOk &&
+          sizeOk &&
+          movementOk &&
+          materialOk &&
+          dialOk &&
+          docOk
+        );
       }),
-    [listings, selectedBrands, selectedConditions]
+    [
+      listings,
+      selectedBrands,
+      selectedConditions,
+      selectedCaseSizes,
+      selectedMovements,
+      selectedMaterials,
+      selectedDials,
+      selectedDocs,
+    ]
   );
 
   const toggleBrand = (value: string) =>
@@ -131,8 +195,78 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       return next;
     });
 
+  const toggleCaseSize = (value: string) =>
+    setSelectedCaseSizes((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  const toggleMovement = (value: string) =>
+    setSelectedMovements((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  const toggleMaterial = (value: string) =>
+    setSelectedMaterials((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  const toggleDial = (value: string) =>
+    setSelectedDials((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  const toggleDoc = (value: string) =>
+    setSelectedDocs((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
   const facetList = (
     <div className="space-y-5">
+      <FacetGroup
+        title="Case Size"
+        facets={caseSizeFacets}
+        selected={selectedCaseSizes}
+        onToggle={toggleCaseSize}
+      />
+      <FacetGroup
+        title="Movement Type"
+        facets={movementFacets}
+        selected={selectedMovements}
+        onToggle={toggleMovement}
+      />
+      <FacetGroup
+        title="Case Material"
+        facets={materialFacets}
+        selected={selectedMaterials}
+        onToggle={toggleMaterial}
+      />
+      <FacetGroup
+        title="Dial Color"
+        facets={dialFacets}
+        selected={selectedDials}
+        onToggle={toggleDial}
+      />
+      <FacetGroup
+        title="Documentation"
+        facets={docFacets}
+        selected={selectedDocs}
+        onToggle={toggleDoc}
+      />
       <FacetGroup
         title="Brand"
         facets={brandFacets}
