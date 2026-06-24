@@ -28,7 +28,7 @@ type ListingRow = {
   condition: string;
   asking_price: number;
   photos: ListingPhoto[];
-  details?: { dialColorType?: string; caseMaterial?: string } | null;
+  details?: { dialColorType?: string; caseMaterial?: string; documentation?: string } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
@@ -94,6 +94,8 @@ export default async function BrowsePage() {
               const meta = [row.condition, row.year].filter(Boolean).join(" · ");
               const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
               const attrs = parts.join(" · ") || null;
+              const doc = row.details?.documentation;
+              const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
 
               return (
                 <Link
@@ -101,18 +103,25 @@ export default async function BrowsePage() {
                   href={`/listings/${row.id}`}
                   className="group block overflow-hidden rounded-xl border border-white/10 bg-[#0D0F14] transition hover:border-[#C9A84C]/40"
                 >
-                  {hero ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={hero}
-                      alt=""
-                      className="aspect-[4/3] w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[#B7BAC4]">
-                      No photo
-                    </div>
-                  )}
+                  <div className="relative overflow-hidden">
+                    {hero ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={hero}
+                        alt=""
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[#B7BAC4]">
+                        No photo
+                      </div>
+                    )}
+                    {docBadge && (
+                      <span className="absolute top-2 right-2 rounded-full bg-[#C9A84C] px-2 py-0.5 text-[10px] font-medium tracking-wide text-[#0D0F14]">
+                        {docBadge}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="p-4">
                     {meta && (
