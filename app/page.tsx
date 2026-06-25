@@ -182,11 +182,11 @@ export default function Home() {
           fontSize: '0.8rem',
           color: '#8A8F9E',
           lineHeight: 1.7,
-          maxWidth: '280px',
+          maxWidth: '220px',
           letterSpacing: '0.02em',
         }}>
           Every listing. Every sale.<br />
-          No forced cookies, no pop ups, no ads, just watches.<br />
+          No cookies. No pop ups. No ads.<br />
           Independent & boutique makers only.
         </div>
       </div>
