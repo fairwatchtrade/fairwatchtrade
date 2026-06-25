@@ -76,7 +76,7 @@ export default function Home() {
           <circle cx="60" cy="60" r="58" stroke="#C9A84C" strokeWidth="0.75" opacity="0.4" />
           <circle cx="60" cy="60" r="52" stroke="#C9A84C" strokeWidth="0.25" opacity="0.2" />
 
-          {[0,30,60,90,120,150,180,210,240,270,300,330].map((deg, i) => {
+          {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
             const rad = (deg - 90) * Math.PI / 180;
             const isMain = i % 3 === 0;
             const r1 = isMain ? 44 : 46;
@@ -174,132 +174,133 @@ export default function Home() {
           }}>FLAT FEE</div>
         </div>
         <div style={{
-          width: '1px',
-          height: '40px',
-          background: 'rgba(201,168,76,0.2)',
-        }} />
-        <div style={{
-          fontSize: '0.8rem',
-          color: '#8A8F9E',
-          lineHeight: 1.7,
-          maxWidth: '220px',
-          letterSpacing: '0.02em',
-        }}>
-          Every listing. Every sale.<br />
-          No cookies. No pop ups. No ads.<br />
-          Independent & boutique makers only.
-        </div>
-      </div>
-
-      {/* Email capture */}
-      <div className="fade-up fade-up-4" style={{ width: '100%', maxWidth: '420px', marginBottom: '2rem' }}>
-        <p style={{
-          fontSize: '0.7rem',
-          letterSpacing: '0.15em',
-          color: '#8A8F9E',
-          textAlign: 'center',
-          marginBottom: '1rem',
-          textTransform: 'uppercase',
-        }}>
-          Launching Soon — Get Early Access
-        </p>
-
-        {/* Buyer/Seller checkboxes */}
-        <div style={{
           display: 'flex',
           justifyContent: 'center',
-          gap: '1.5rem',
-          marginBottom: '1rem',
+          width: '100%'
         }}>
-          {[
-            { label: 'I want to buy', key: 'buyer' },
-            { label: 'I want to sell', key: 'seller' },
-          ].map(({ label, key }) => (
-            <label key={key} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              color: '#8A8F9E',
-              letterSpacing: '0.05em',
-            }}>
-              <input
-                type="checkbox"
-                checked={key === 'buyer' ? isBuyer : isSeller}
-                onChange={e => key === 'buyer' ? setIsBuyer(e.target.checked) : setIsSeller(e.target.checked)}
-                style={{
-                  accentColor: '#C9A84C',
-                  width: '14px',
-                  height: '14px',
-                  cursor: 'pointer',
-                }}
-              />
-              {label}
-            </label>
-          ))}
+          <div style={{
+            fontSize: '0.8rem',
+            color: '#8A8F9E',
+            lineHeight: 1.7,
+            maxWidth: '220px',
+            letterSpacing: '0.02em',
+            textAlign: 'center',
+          }}>
+            Every listing. Every sale.<br />
+            No cookies. No pop ups. No ads.<br />
+            Independent & boutique makers only.
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0', width: '100%' }}>
-          <input
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '0.875rem 1.25rem',
-              background: '#13151C',
-              border: '1px solid rgba(201,168,76,0.25)',
-              borderRight: 'none',
-              color: '#E8E4DC',
-              fontSize: '0.875rem',
-              fontFamily: 'Inter, sans-serif',
-              fontWeight: 300,
-              outline: 'none',
-              borderRadius: '2px 0 0 2px',
-            }}
-          />
-          <button
-            onClick={handleWaitlist}
-            disabled={waitlistLoading || waitlistDone}
-            style={{
-              padding: '0.875rem 1.5rem',
-              background: waitlistDone ? '#4CAF7D' : '#C9A84C',
-              border: 'none',
-              color: '#0D0F14',
-              fontSize: '0.75rem',
-              fontFamily: 'Inter, sans-serif',
-              fontWeight: 500,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              cursor: waitlistLoading || waitlistDone ? 'default' : 'pointer',
-              borderRadius: '0 2px 2px 0',
-              whiteSpace: 'nowrap',
-              transition: 'background 0.3s',
-            }}
-          >
-            {waitlistDone ? "You're In ✦" : waitlistLoading ? '...' : 'Notify Me'}
-          </button>
-        </div>
-        {waitlistError && (
-          <p style={{ fontSize: '0.7rem', color: '#C94C4C', textAlign: 'center', marginTop: '0.5rem' }}>
-            {waitlistError}
+        {/* Email capture */}
+        <div className="fade-up fade-up-4" style={{ width: '100%', maxWidth: '420px', marginBottom: '2rem' }}>
+          <p style={{
+            fontSize: '0.7rem',
+            letterSpacing: '0.15em',
+            color: '#8A8F9E',
+            textAlign: 'center',
+            marginBottom: '1rem',
+            textTransform: 'uppercase',
+          }}>
+            Launching Soon — Get Early Access
           </p>
-        )}
-      </div>
 
-      {/* Footer */}
-      <div className="fade-up fade-up-5" style={{ textAlign: 'center' }}>
-        <p style={{
-          fontSize: '0.65rem',
-          letterSpacing: '0.12em',
-          color: 'rgba(138,143,158,0.5)',
-          textTransform: 'uppercase',
-        }}>
-          For independent & boutique watchmakers
-        </p>
-      </div>
+          {/* Buyer/Seller checkboxes */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '1.5rem',
+            marginBottom: '1rem',
+          }}>
+            {[
+              { label: 'I want to buy', key: 'buyer' },
+              { label: 'I want to sell', key: 'seller' },
+            ].map(({ label, key }) => (
+              <label key={key} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                color: '#8A8F9E',
+                letterSpacing: '0.05em',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={key === 'buyer' ? isBuyer : isSeller}
+                  onChange={e => key === 'buyer' ? setIsBuyer(e.target.checked) : setIsSeller(e.target.checked)}
+                  style={{
+                    accentColor: '#C9A84C',
+                    width: '14px',
+                    height: '14px',
+                    cursor: 'pointer',
+                  }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0', width: '100%' }}>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.875rem 1.25rem',
+                background: '#13151C',
+                border: '1px solid rgba(201,168,76,0.25)',
+                borderRight: 'none',
+                color: '#E8E4DC',
+                fontSize: '0.875rem',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 300,
+                outline: 'none',
+                borderRadius: '2px 0 0 2px',
+              }}
+            />
+            <button
+              onClick={handleWaitlist}
+              disabled={waitlistLoading || waitlistDone}
+              style={{
+                padding: '0.875rem 1.5rem',
+                background: waitlistDone ? '#4CAF7D' : '#C9A84C',
+                border: 'none',
+                color: '#0D0F14',
+                fontSize: '0.75rem',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: waitlistLoading || waitlistDone ? 'default' : 'pointer',
+                borderRadius: '0 2px 2px 0',
+                whiteSpace: 'nowrap',
+                transition: 'background 0.3s',
+              }}
+            >
+              {waitlistDone ? "You're In ✦" : waitlistLoading ? '...' : 'Notify Me'}
+            </button>
+          </div>
+          {waitlistError && (
+            <p style={{ fontSize: '0.7rem', color: '#C94C4C', textAlign: 'center', marginTop: '0.5rem' }}>
+              {waitlistError}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="fade-up fade-up-5" style={{ textAlign: 'center' }}>
+          <p style={{
+            fontSize: '0.65rem',
+            letterSpacing: '0.12em',
+            color: 'rgba(138,143,158,0.5)',
+            textTransform: 'uppercase',
+          }}>
+            For independent & boutique watchmakers
+          </p>
+        </div>
 
     </main>
   );
