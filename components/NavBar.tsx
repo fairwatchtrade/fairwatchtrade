@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
   { label: "Sell", href: "/sell" },
   { label: "Account", href: "/account" },
+  { label: "About", href: "/about" },
 ];
 
 function Wordmark({ onClick }: { onClick?: () => void }) {

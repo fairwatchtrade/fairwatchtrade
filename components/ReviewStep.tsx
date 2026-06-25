@@ -79,7 +79,7 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
         setPublishing(false);
         return;
       }
-
+      window.scrollTo(0, 0);
       setPublished(true);
     } catch {
       setError("Network error — your listing wasn't published. Try again.");

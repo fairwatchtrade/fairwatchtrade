@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
+import SiteFooter from "@/components/SiteFooter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
           <MarketBar />
         </header>
         {children}
+        <SiteFooter />
       </body>
     </html>
   );
