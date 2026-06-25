@@ -3,20 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 import ListingGallery from "@/components/ListingGallery";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC LISTING DETAIL — /listings/[id]  (v1.22)
+   PUBLIC LISTING DETAIL — /listings/[id]  (v1.30c)
 
    Buyer-facing detail view for a single published listing. Server Component:
    fetches the row by UUID from `listings`, 404s if missing or not published.
 
    PRIVACY: scoring fields (significance_score, score_state, combined_score,
-   etc.) are NEVER selected into the render path here — they are seller-only.
-   We read only the buyer-safe fields below.
+   etc.) are NEVER rendered here — they are seller-only. Only buyer-safe
+   fields below reach the markup.
 
-   Iron Laws layout hierarchy (top → bottom):
-     Header (brand + model, Ref.)  |  Box & Papers badge (top-right)
-     Case line (size · thickness)
-     Photo gallery → Structured details → Seller description
-     Price  ← absolute last element in page content
+   Five-section layout (top → bottom):
+     1. Media gallery (hero w/ brand·model overlay + thumbnail strip)
+     2. Identity block — brand+model, Ref., Box & Papers badge, snapshot pills
+     3. Collector Snapshot — prominent two-column spec grid
+     4. Technical Specifications — remaining specs, never duplicating §3
+     5. From the Seller — full description, mb-8 reserve for the message stream
+     Price  ← absolute last in-flow element
    The message bar is position:fixed (viewport-pinned), so it is NOT part of
    the scrolling content flow — price remains the last in-flow element.
    ──────────────────────────────────────────────────────────────────────── */
@@ -36,6 +38,13 @@ type ListingDetails = {
   complications?: string[];
   closureType?: string;
   documentation: string;
+  bezelMaterial?: string;
+  waterResistance?: string;
+  calibre?: string;
+  jewels?: string;
+  powerReserve?: string;
+  casebackType?: string;
+  crystalMaterial?: string;
 };
 
 type Listing = {
@@ -97,15 +106,6 @@ export default async function ListingDetailPage({
   const showBoxPapers =
     details.documentation === "Full Set" || details.documentation === "Papers Only";
 
-  // LINE 2 — case size · thickness (header). Omit silently if neither exists.
-  const headerCase = [
-    details.caseSizeMm ? `${details.caseSizeMm}mm` : "",
-    details.caseThicknessMm ? `${details.caseThicknessMm}mm thick` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const headerShowsCase = headerCase.length > 0;
-
   // Movement — mapped to the canonical labelled string.
   const movementLabel = details.movementType
     ? MOVEMENT_LABELS[details.movementType] ?? details.movementType
@@ -117,67 +117,124 @@ export default async function ListingDetailPage({
       ? details.complications.join(", ")
       : "";
 
-  // Structured details — only fields that exist, in spec order.
-  const detailRows: Array<{ label: string; value: string }> = [];
-  if (movementLabel) detailRows.push({ label: "Movement", value: movementLabel });
-  if (details.caseMaterial)
-    detailRows.push({ label: "Case material", value: details.caseMaterial });
-  // Case size/thickness in the panel ONLY when the header didn't already show it.
-  if (!headerShowsCase && (details.caseSizeMm || details.caseThicknessMm)) {
-    const panelCase = [
-      details.caseSizeMm ? `${details.caseSizeMm}mm` : "",
-      details.caseThicknessMm ? `${details.caseThicknessMm}mm thick` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    if (panelCase) detailRows.push({ label: "Case", value: panelCase });
-  }
-  if (details.dialColorType)
-    detailRows.push({ label: "Dial color", value: details.dialColorType });
-  if (complications) detailRows.push({ label: "Complications", value: complications });
-  if (details.closureType)
-    detailRows.push({ label: "Closure type", value: details.closureType });
-  if (listing.year) detailRows.push({ label: "Year", value: listing.year });
-  if (listing.condition) detailRows.push({ label: "Condition", value: listing.condition });
-
   const priceText = `$${Number(listing.asking_price).toLocaleString()}`;
+
+  // §2 — Identity snapshot pills (raw values; each complication its own pill).
+  const snapshotPills: string[] = [];
+  if (details.caseSizeMm) snapshotPills.push(`${details.caseSizeMm} mm`);
+  if (details.caseThicknessMm) snapshotPills.push(`${details.caseThicknessMm} mm thick`);
+  if (details.movementType) snapshotPills.push(details.movementType);
+  if (listing.year) snapshotPills.push(listing.year);
+  if (Array.isArray(details.complications)) {
+    for (const c of details.complications) {
+      if (c && String(c).trim() !== "") snapshotPills.push(String(c));
+    }
+  }
+
+  // §3 — Collector Snapshot (prominent values), in spec order. Skip if absent.
+  const snapshotRows: Array<{ label: string; value: string }> = [];
+  const pushSnap = (label: string, value?: string | null) => {
+    if (value != null && String(value).trim() !== "")
+      snapshotRows.push({ label, value: String(value) });
+  };
+  pushSnap("Case Size", details.caseSizeMm ? `${details.caseSizeMm} mm` : "");
+  pushSnap("Case Thickness", details.caseThicknessMm ? `${details.caseThicknessMm} mm` : "");
+  pushSnap("Case Material", details.caseMaterial);
+  pushSnap("Movement", movementLabel);
+  pushSnap("Calibre", details.calibre);
+  pushSnap("Power Reserve", details.powerReserve);
+  pushSnap("Water Resistance", details.waterResistance);
+  pushSnap("Dial Color", details.dialColorType);
+  pushSnap("Complications", complications);
+  pushSnap("Year", listing.year);
+  pushSnap("Condition", listing.condition);
+
+  // §4 — Technical Specifications: remaining fields only, never duplicating §3.
+  const techRows: Array<{ label: string; value: string }> = [];
+  const pushTech = (label: string, value?: string | null) => {
+    if (value != null && String(value).trim() !== "")
+      techRows.push({ label, value: String(value) });
+  };
+  pushTech("Closure Type", details.closureType);
+  pushTech("Caseback", details.casebackType);
+  pushTech("Crystal", details.crystalMaterial);
+  pushTech("Bezel Material", details.bezelMaterial);
+  pushTech("Jewel Count", details.jewels);
+  pushTech("Documentation", details.documentation);
 
   return (
     <main className="min-h-screen bg-[#0D0F14] pb-24 text-[#E8E4DC]">
       <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-        {/* HEADER — title left, Box & Papers badge top-right */}
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold leading-tight text-[#E8E4DC]">
-              {title}
-            </h1>
-            <p className="mt-1 text-sm text-[#B7BAC4]">Ref. {listing.reference}</p>
-          </div>
-
-          {showBoxPapers && (
-            <span className="shrink-0 rounded-full border border-[#C9A84C] px-3 py-1 text-[11px] font-medium text-[#C9A84C]">
-              Box &amp; Papers ✓
-            </span>
-          )}
-        </header>
-
-        {/* LINE 2 — case size · thickness */}
-        {headerShowsCase && (
-          <p className="mt-2 text-sm text-[#B7BAC4]">{headerCase}</p>
-        )}
-
-        {/* MIDDLE — photo gallery */}
+        {/* SECTION 1 — Media gallery */}
         {photoUrls.length > 0 && (
-          <div className="mt-6">
-            <ListingGallery photos={photoUrls} initialIndex={heroIndex} />
-          </div>
+          <ListingGallery
+            photos={photoUrls}
+            initialIndex={heroIndex}
+            brandLabel={listing.brand}
+            modelLabel={listing.model}
+          />
         )}
 
-        {/* MIDDLE — structured details panel */}
-        {detailRows.length > 0 && (
-          <section className="mt-8 rounded-lg border border-white/15 p-4">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-              {detailRows.map((row) => (
+        {/* SECTION 2 — Identity block */}
+        <section className="mt-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight text-[#E8E4DC]">
+                {title}
+              </h1>
+              <p className="mt-1 text-sm text-[#B7BAC4]">Ref. {listing.reference}</p>
+            </div>
+
+            {showBoxPapers && (
+              <span className="shrink-0 rounded-full border border-[#C9A84C] px-3 py-1 text-[11px] font-medium text-[#C9A84C]">
+                Box &amp; Papers ✓
+              </span>
+            )}
+          </div>
+
+          {snapshotPills.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {snapshotPills.map((pill, i) => (
+                <span
+                  key={i}
+                  className="rounded border border-white/15 bg-[#13151C] px-2 py-0.5 font-mono text-[11px] text-[#B7BAC4]"
+                >
+                  {pill}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* SECTION 3 — Collector Snapshot */}
+        {snapshotRows.length > 0 && (
+          <section className="mt-8">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+              Collector Snapshot
+            </div>
+            <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              {snapshotRows.map((row) => (
+                <div key={row.label} className="flex flex-col">
+                  <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
+                    {row.label}
+                  </dt>
+                  <dd className="mt-0.5 text-[15px] font-medium text-[#E8E4DC]">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        {/* SECTION 4 — Full Technical Specifications */}
+        {techRows.length > 0 && (
+          <section className="mt-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+              Technical Specifications
+            </div>
+            <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              {techRows.map((row) => (
                 <div key={row.label} className="flex flex-col">
                   <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
                     {row.label}
@@ -189,10 +246,13 @@ export default async function ListingDetailPage({
           </section>
         )}
 
-        {/* MIDDLE — seller description (no truncation) */}
+        {/* SECTION 5 — Story & Provenance */}
         {listing.description && (
           <section className="mt-8">
-            <p className="whitespace-pre-line text-sm leading-relaxed text-[#B7BAC4]">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+              From the Seller
+            </div>
+            <p className="mt-3 mb-8 whitespace-pre-line text-sm leading-relaxed text-[#B7BAC4]">
               {listing.description}
             </p>
           </section>

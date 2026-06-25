@@ -14,9 +14,13 @@ import { useState } from "react";
 export default function ListingGallery({
   photos,
   initialIndex = 0,
+  brandLabel,
+  modelLabel,
 }: {
   photos: string[];
   initialIndex?: number;
+  brandLabel: string;
+  modelLabel: string | null;
 }) {
   const safeInitial =
     initialIndex >= 0 && initialIndex < photos.length ? initialIndex : 0;
@@ -29,9 +33,12 @@ export default function ListingGallery({
   return (
     <div>
       {/* Hero — large, full-width */}
-      <div className="w-full overflow-hidden rounded-lg border border-white/15 bg-[#0D0F14]">
+      <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#0D0F14]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
+        <div className="pointer-events-none absolute left-3 top-2 text-[10px] font-light uppercase tracking-[0.15em] text-[#E8E4DC]/60">
+          {modelLabel ? `${brandLabel} ${modelLabel}` : brandLabel}
+        </div>
       </div>
 
       {/* Remaining photos — scrollable horizontal thumbnail strip */}
