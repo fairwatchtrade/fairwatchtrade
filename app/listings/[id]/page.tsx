@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ListingGallery from "@/components/ListingGallery";
+import ListingSpecs from "@/components/ListingSpecs";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v1.30c)
@@ -62,13 +63,6 @@ type Listing = {
   status: string;
 };
 
-const MOVEMENT_LABELS: Record<string, string> = {
-  "Manual Wind": "✦ Manual Wind",
-  Automatic: "🔄 Automatic",
-  Quartz: "⚡ Quartz",
-  "Solar/Kinetic": "🔋 Solar/Kinetic",
-};
-
 export default async function ListingDetailPage({
   params,
 }: {
@@ -106,17 +100,6 @@ export default async function ListingDetailPage({
   const showBoxPapers =
     details.documentation === "Full Set" || details.documentation === "Papers Only";
 
-  // Movement — mapped to the canonical labelled string.
-  const movementLabel = details.movementType
-    ? MOVEMENT_LABELS[details.movementType] ?? details.movementType
-    : "";
-
-  // Complications — comma-joined.
-  const complications =
-    Array.isArray(details.complications) && details.complications.length > 0
-      ? details.complications.join(", ")
-      : "";
-
   const priceText = `$${Number(listing.asking_price).toLocaleString()}`;
 
   // §2 — Identity snapshot pills (raw values; each complication its own pill).
@@ -130,37 +113,6 @@ export default async function ListingDetailPage({
       if (c && String(c).trim() !== "") snapshotPills.push(String(c));
     }
   }
-
-  // §3 — Collector Snapshot (prominent values), in spec order. Skip if absent.
-  const snapshotRows: Array<{ label: string; value: string }> = [];
-  const pushSnap = (label: string, value?: string | null) => {
-    if (value != null && String(value).trim() !== "")
-      snapshotRows.push({ label, value: String(value) });
-  };
-  pushSnap("Case Size", details.caseSizeMm ? `${details.caseSizeMm} mm` : "");
-  pushSnap("Case Thickness", details.caseThicknessMm ? `${details.caseThicknessMm} mm` : "");
-  pushSnap("Case Material", details.caseMaterial);
-  pushSnap("Movement", movementLabel);
-  pushSnap("Calibre", details.calibre);
-  pushSnap("Power Reserve", details.powerReserve);
-  pushSnap("Water Resistance", details.waterResistance);
-  pushSnap("Dial Color", details.dialColorType);
-  pushSnap("Complications", complications);
-  pushSnap("Year", listing.year);
-  pushSnap("Condition", listing.condition);
-
-  // §4 — Technical Specifications: remaining fields only, never duplicating §3.
-  const techRows: Array<{ label: string; value: string }> = [];
-  const pushTech = (label: string, value?: string | null) => {
-    if (value != null && String(value).trim() !== "")
-      techRows.push({ label, value: String(value) });
-  };
-  pushTech("Closure Type", details.closureType);
-  pushTech("Caseback", details.casebackType);
-  pushTech("Crystal", details.crystalMaterial);
-  pushTech("Bezel Material", details.bezelMaterial);
-  pushTech("Jewel Count", details.jewels);
-  pushTech("Documentation", details.documentation);
 
   return (
     <main className="min-h-screen bg-[#0D0F14] pb-24 text-[#E8E4DC]">
@@ -206,45 +158,12 @@ export default async function ListingDetailPage({
           )}
         </section>
 
-        {/* SECTION 3 — Collector Snapshot */}
-        {snapshotRows.length > 0 && (
-          <section className="mt-8">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
-              Collector Snapshot
-            </div>
-            <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-              {snapshotRows.map((row) => (
-                <div key={row.label} className="flex flex-col">
-                  <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
-                    {row.label}
-                  </dt>
-                  <dd className="mt-0.5 text-[15px] font-medium text-[#E8E4DC]">
-                    {row.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-
-        {/* SECTION 4 — Full Technical Specifications */}
-        {techRows.length > 0 && (
-          <section className="mt-6">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
-              Technical Specifications
-            </div>
-            <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-              {techRows.map((row) => (
-                <div key={row.label} className="flex flex-col">
-                  <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
-                    {row.label}
-                  </dt>
-                  <dd className="mt-0.5 text-sm text-[#E8E4DC]">{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
+        {/* SECTIONS 3 & 4 — Collector Snapshot + collapsible Technical Specs */}
+        <ListingSpecs
+          details={details}
+          year={listing.year}
+          condition={listing.condition}
+        />
 
         {/* SECTION 5 — Story & Provenance */}
         {listing.description && (
