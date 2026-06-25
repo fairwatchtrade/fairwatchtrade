@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import MarketBar from "@/components/MarketBar";
+import NavBar from "@/components/NavBar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
           The market strip does NOT own top-0 itself — the header does.
         */}
         <header className="sticky top-0 z-50">
+          <NavBar />
           <MarketBar />
         </header>
         {children}
