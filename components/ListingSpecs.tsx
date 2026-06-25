@@ -30,10 +30,10 @@ type ListingDetails = {
 };
 
 const MOVEMENT_LABELS: Record<string, string> = {
-  "Manual Wind": "✦ Manual Wind",
-  Automatic: "🔄 Automatic",
-  Quartz: "⚡ Quartz",
-  "Solar/Kinetic": "🔋 Solar/Kinetic",
+  "Manual Wind": "Manual Wind",
+  Automatic: "Automatic",
+  Quartz: "Quartz",
+  "Solar/Kinetic": "Solar/Kinetic",
 };
 
 export default function ListingSpecs({
@@ -47,18 +47,15 @@ export default function ListingSpecs({
 }) {
   const [open, setOpen] = useState(false);
 
-  // Movement — mapped to the canonical labelled string.
   const movementLabel = details.movementType
     ? MOVEMENT_LABELS[details.movementType] ?? details.movementType
     : "";
 
-  // Complications — comma-joined.
   const complications =
     Array.isArray(details.complications) && details.complications.length > 0
       ? details.complications.join(", ")
       : "";
 
-  // §3 — Collector Snapshot (prominent values), in spec order. Skip if absent.
   const snapshotRows: Array<{ label: string; value: string }> = [];
   const pushSnap = (label: string, value?: string | null) => {
     if (value != null && String(value).trim() !== "")
@@ -76,7 +73,6 @@ export default function ListingSpecs({
   pushSnap("Year", year);
   pushSnap("Condition", condition);
 
-  // §4 — Technical Specifications: remaining fields only, never duplicating §3.
   const techRows: Array<{ label: string; value: string }> = [];
   const pushTech = (label: string, value?: string | null) => {
     if (value != null && String(value).trim() !== "")
@@ -94,8 +90,11 @@ export default function ListingSpecs({
       {/* SECTION 3 — Collector Snapshot (always visible) */}
       {snapshotRows.length > 0 && (
         <section className="mt-8">
-          <div className="border-t border-white/10 pt-6 text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
-            Collector Snapshot
+          <div className="pt-8">
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
+            <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+              Collector Snapshot
+            </span>
           </div>
           <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
             {snapshotRows.map((row) => (
@@ -126,14 +125,17 @@ export default function ListingSpecs({
                 setOpen((v) => !v);
               }
             }}
-            className="group flex cursor-pointer items-center justify-between border-t border-white/10 pt-6"
+            className="group flex cursor-pointer items-center justify-between pt-8"
           >
-            <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
-              Technical Specifications
-            </span>
+            <div className="flex-1">
+              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
+              <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+                Technical Specifications
+              </span>
+            </div>
             <span
               aria-hidden="true"
-              className={`text-[#C9A84C]/40 transition-all duration-300 group-hover:text-[#C9A84C] ${
+              className={`ml-4 text-[#C9A84C]/70 transition-all duration-300 group-hover:text-[#C9A84C] ${
                 open ? "rotate-180" : ""
               }`}
             >
@@ -141,7 +143,6 @@ export default function ListingSpecs({
             </span>
           </div>
 
-          {/* Collapsible body — grid-rows 0fr→1fr animates to natural height */}
           <div
             className={`grid transition-all duration-300 ${
               open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
