@@ -182,7 +182,7 @@ export default function Home() {
           fontSize: '0.8rem',
           color: '#8A8F9E',
           lineHeight: 1.7,
-          maxWidth: '220px',
+          maxWidth: '280px',
           letterSpacing: '0.02em',
         }}>
           Every listing. Every sale.<br />
