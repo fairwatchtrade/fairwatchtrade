@@ -36,7 +36,7 @@ export default function NavBar() {
 
   return (
     <nav className="w-full border-b border-white/10 bg-[#0D0F14]">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 sm:px-6">
         <Wordmark />
 
         {/* Desktop links */}
