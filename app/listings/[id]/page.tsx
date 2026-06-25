@@ -209,7 +209,7 @@ export default async function ListingDetailPage({
         {/* SECTION 3 — Collector Snapshot */}
         {snapshotRows.length > 0 && (
           <section className="mt-8">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
               Collector Snapshot
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -230,7 +230,7 @@ export default async function ListingDetailPage({
         {/* SECTION 4 — Full Technical Specifications */}
         {techRows.length > 0 && (
           <section className="mt-6">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
               Technical Specifications
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -249,7 +249,7 @@ export default async function ListingDetailPage({
         {/* SECTION 5 — Story & Provenance */}
         {listing.description && (
           <section className="mt-8">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
               From the Seller
             </div>
             <p className="mt-3 mb-8 whitespace-pre-line text-sm leading-relaxed text-[#B7BAC4]">
