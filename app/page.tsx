@@ -186,6 +186,7 @@ export default function Home() {
           letterSpacing: '0.02em',
         }}>
           Every listing. Every sale.<br />
+          No forced cookies, no pop ups, no ads, just watches.<br />
           Independent & boutique makers only.
         </div>
       </div>
