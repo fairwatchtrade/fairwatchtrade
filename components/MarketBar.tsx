@@ -62,7 +62,7 @@ export default function MarketBar() {
 
   return (
     <div className="w-full border-b border-white/10 bg-[#13151C]">
-      <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-3">
+      <div className="mx-auto flex h-11 max-w-screen-2xl items-center gap-2 px-3">
         <div className="flex shrink-0 items-center gap-4 pr-3">
           <span className="select-none text-[11px] tracking-wide text-[#C9A84C] [writing-mode:vertical-rl] rotate-180">
             London
