@@ -4,7 +4,7 @@ import SellFlow from "@/components/SellFlow";
 
 export default function SellPage() {
   return (
-    <main className="min-h-screen bg-[#0D0F14] px-4 py-10">
+    <main className="min-h-screen bg-[#0D0F14] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6">
           <div className="text-[11px] uppercase tracking-[0.25em] text-[#8A8F9E]">
