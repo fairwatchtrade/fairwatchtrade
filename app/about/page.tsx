@@ -5,7 +5,7 @@
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[#0D0F14]">
-      <div className="mx-auto max-w-3xl px-4 py-16">
+      <div className="mx-auto max-w-3xl px-6 py-16 sm:px-8">
         <div className="text-[11px] uppercase tracking-[0.15em] text-[#C9A84C]">
           The Story Behind the Platform
         </div>
