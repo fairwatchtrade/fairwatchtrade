@@ -110,8 +110,9 @@ export default async function AccountPage() {
         {/* LEFT CONTROL PANEL — desktop only */}
         <aside className="hidden min-h-screen w-60 shrink-0 flex-col border-r border-white/10 shadow-[1px_0_0_0_rgba(255,255,255,0.06)] bg-[#13151C] px-4 py-6 md:flex">
           <div className="flex items-center justify-center px-4 py-8 text-center">
-            <span className="text-[13px] font-light tracking-[0.2em] uppercase text-[#8A8F9E]">
+            <span className="text-[13px] font-light tracking-[0.25em] uppercase text-[#C9A84C]">
               Seller Panel
+              <p className="mt-1 text-[10px] tracking-[0.15em] uppercase text-[#8A8F9E]/60">Your Workspace</p>
             </span>
           </div>
           <div className="border-t border-white/10" />
