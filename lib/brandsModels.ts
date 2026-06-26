@@ -1019,7 +1019,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_022",
-    "name": "Bovet 1822",
+    "name": "Bovet",
     "founding_snippet": "Founded in 1822 by Édouard Bovet in Fleurier, Switzerland. The historical maison became famous for creating highly ornate pocket watches for the Chinese empire. Modernly revived under Pascal Raffy, Bovet operates as a completely vertically integrated manufacture crafting hyper-artistic haute horlogerie, recognized for its convertible 'Amadéo' cases and signature 12 o'clock crown placement.",
     "models": [
       {
@@ -1975,7 +1975,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_046",
-    "name": "Gerald Genta (Gérald Genta)",
+    "name": "Gerald Genta",
     "founding_snippet": "Originally founded in 1969 by the most influential watch designer in history, Gérald Genta. The brand established an avant-garde haute horlogerie reputation for combining Disney character jump-hour complications with hyper-complex minute repeaters and retrograde displays, recently revitalized as an elite boutique manufacture backed by La Fabrique du Temps Louis Vuitton.",
     "models": [
       {
@@ -2686,7 +2686,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_065",
-    "name": "Jean-Claude Biver (Biver / Biver Watches)",
+    "name": "Jean-Claude Biver",
     "founding_snippet": "The ultra-exclusive independent manufacture launched in 2023 by legendary industry visionary Jean-Claude Biver and his son, Pierre. The brand focuses on creating hyper-limited, high-art, and complex timepieces—such as tourbillon carillons—that blend traditional hand-finishing with modern materials and a deeply personal collector ethos.",
     "models": [
       {
@@ -3033,7 +3033,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_078",
-    "name": "Louis Vuitton (La Fabrique du Temps)",
+    "name": "Louis Vuitton",
     "founding_snippet": "While globally recognized as a luxury fashion house, Louis Vuitton established 'La Fabrique du Temps' in Geneva, an elite manufacture led by masters Michel Navas and Enrico Barbasini. They craft hyper-complex, award-winning timepieces featuring intricate automatons, tourbillons, and minute repeaters.",
     "models": [
       {
@@ -3497,7 +3497,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_094",
-    "name": "Moser & Cie (H. Moser & Cie.)",
+    "name": "H. Moser & Cie",
     "founding_snippet": "Founded in 1828 by Heinrich Moser. The modern manufacture is famous for its 'minimalist luxury' approach, creating high-horology pieces with no logos or indices (Concept series), proprietary hairsprings, and arguably the most iconic 'fumé' (smoky) dials in the world.",
     "models": [
       {
@@ -5441,7 +5441,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_151",
-    "name": "Voutilainen (Kari Voutilainen - Collaborations/Sub-Brands)",
+    "name": "Voutilainen",
     "founding_snippet": "This category encompasses collaborative horological projects and sub-entities (like Urban Jürgensen ownership/involvement) that leverage the legendary finishing standards, proprietary escapement engineering, and aesthetic mastery of master watchmaker Kari Voutilainen.",
     "models": [
       {
@@ -5456,7 +5456,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_152",
-    "name": "Vulcan (Vulcain)",
+    "name": "Vulcain",
     "founding_snippet": "Founded in 1858 in La Chaux-de-Fonds, Switzerland. The brand is globally iconic for the 'Cricket,' the first reliable mechanical alarm wristwatch, which became the favored timepiece of many U.S. Presidents (earning it the nickname 'The President's Watch').",
     "models": [
       {
@@ -5697,7 +5697,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_160",
-    "name": "Panerai (Officine Panerai)",
+    "name": "Panerai",
     "founding_snippet": "Founded in 1860 in Florence, Italy. Panerai is globally iconic for its oversized, cushion-shaped tool watches originally supplied to the Italian Navy's elite diving units (Decima Flottiglia MAS), famous for their sandwich dials and patented crown-protecting bridges.",
     "models": [
       {
@@ -5920,7 +5920,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_176",
-    "name": "Zodiac Watches",
+    "name": "Zodiac",
     "founding_snippet": null,
     "models": []
   },
