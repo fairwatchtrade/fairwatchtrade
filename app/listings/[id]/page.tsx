@@ -63,6 +63,20 @@ type Listing = {
   status: string;
 };
 
+// Buyer-facing photo display order by category; anything unlisted sorts last.
+const PHOTO_ORDER = [
+  "Dial",
+  "Caseback",
+  "Side/Lugs",
+  "Movement",
+  "Full watch, strap/bracelet extended",
+  "Clasp/Pin Buckle",
+  "Box",
+  "Papers/Warranty",
+  "Wrist shot",
+  "Other",
+];
+
 export default async function ListingDetailPage({
   params,
 }: {
@@ -88,8 +102,17 @@ export default async function ListingDetailPage({
   // hero detection and the URL list stay index-aligned.
   const allPhotos = Array.isArray(listing.photos) ? listing.photos : [];
   const withUrls = allPhotos.filter((p) => p?.photo?.url);
-  const photoUrls = withUrls.map((p) => p.photo.url);
-  const dialIdx = withUrls.findIndex((p) => p?.category === "Dial");
+  // Sort by category priority so the gallery receives URLs in display order;
+  // a Dial photo lands at index 0 and becomes the hero. Stable sort keeps the
+  // original order within a category. (Done here because category data lives
+  // on the row, not on the URL-only gallery prop.)
+  const photoRank = (c?: string) => {
+    const i = PHOTO_ORDER.indexOf(c ?? "");
+    return i === -1 ? PHOTO_ORDER.length : i;
+  };
+  const sorted = [...withUrls].sort((a, b) => photoRank(a?.category) - photoRank(b?.category));
+  const photoUrls = sorted.map((p) => p.photo.url);
+  const dialIdx = sorted.findIndex((p) => p?.category === "Dial");
   const heroIndex = dialIdx >= 0 ? dialIdx : 0;
   const heroUrl = photoUrls[heroIndex] ?? photoUrls[0] ?? null;
 
@@ -129,20 +152,18 @@ export default async function ListingDetailPage({
 
         {/* SECTION 2 — Identity block */}
         <section className="mt-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold leading-tight text-[#E8E4DC]">
-                {title}
-              </h1>
-              <p className="mt-1 text-sm text-[#B7BAC4]">Ref. {listing.reference}</p>
-            </div>
+          <h1 className="text-2xl font-semibold leading-tight text-[#E8E4DC]">
+            {title}
+          </h1>
+          <p className="mt-1 text-sm text-[#B7BAC4]">Ref. {listing.reference}</p>
 
-            {showBoxPapers && (
-              <span className="shrink-0 rounded-full border border-[#C9A84C] px-3 py-1 text-[11px] font-medium text-[#C9A84C]">
+          {showBoxPapers && (
+            <div className="mt-2">
+              <span className="inline-flex rounded-full border border-[#C9A84C] px-3 py-1 text-[11px] font-medium text-[#C9A84C]">
                 Box &amp; Papers ✓
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {snapshotPills.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">

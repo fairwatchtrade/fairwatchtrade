@@ -125,22 +125,22 @@ export default function ListingSpecs({
                 setOpen((v) => !v);
               }
             }}
-            className="group flex cursor-pointer items-center justify-between pt-8"
+            className="group cursor-pointer pt-8"
           >
-            <div className="flex-1">
-              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
+            <div className="flex items-center justify-end gap-2">
               <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
                 Technical Specifications
               </span>
+              <span
+                aria-hidden="true"
+                className={`text-[#C9A84C]/70 transition-all duration-300 group-hover:text-[#C9A84C] ${
+                  open ? "rotate-180" : ""
+                }`}
+              >
+                ∨
+              </span>
             </div>
-            <span
-              aria-hidden="true"
-              className={`ml-4 text-[#C9A84C]/70 transition-all duration-300 group-hover:text-[#C9A84C] ${
-                open ? "rotate-180" : ""
-              }`}
-            >
-              ∨
-            </span>
           </div>
 
           <div
