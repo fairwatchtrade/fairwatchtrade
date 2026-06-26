@@ -66,7 +66,7 @@ export default async function BrowsePage() {
 
   return (
     <main className="min-h-screen bg-[#0D0F14] text-[#E8E4DC]">
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
         <h1 className="text-[22px] font-medium text-[#E8E4DC]">Available Now</h1>
         <p className="mt-1 text-[13px] text-[#B7BAC4]">
           A merit-ranked selection from the FairWatchTrade marketplace.
