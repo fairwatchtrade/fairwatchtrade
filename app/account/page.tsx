@@ -153,7 +153,7 @@ export default async function AccountPage() {
         </aside>
 
         {/* RIGHT WORKSPACE */}
-        <div className="min-w-0 flex-1 overflow-hidden px-6 pt-4 pb-8">
+        <div className="min-w-0 flex-1 overflow-hidden border-l border-white/10 px-6 pt-4 pb-8">
           {/* KPI ROW */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {kpis.map((kpi) => (
