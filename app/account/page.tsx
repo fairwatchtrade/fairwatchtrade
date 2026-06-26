@@ -65,7 +65,7 @@ export default async function AccountPage() {
 
   return (
     <main className="min-h-screen bg-[#0D0F14] text-[#E8E4DC]">
-      <div className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-5xl px-6 sm:px-8">
         <h1 className="text-2xl font-light text-[#E8E4DC]">My Listings</h1>
 
         {listings.length === 0 ? (
@@ -102,7 +102,7 @@ export default async function AccountPage() {
                 const badgeLabel = STATUS_LABELS[row.status] ?? row.status;
 
                 const card = (
-                  <div className="flex items-start justify-between gap-4 p-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="truncate text-[15px] font-medium text-[#E8E4DC]">
                         {title}
@@ -129,14 +129,14 @@ export default async function AccountPage() {
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="block rounded-xl border border-white/10 transition hover:border-[#C9A84C]/40"
+                    className="block rounded-lg border border-white/10 bg-[#13151C] px-4 py-3 transition hover:border-[#C9A84C]/40"
                   >
                     {card}
                   </Link>
                 ) : (
                   <div
                     key={row.id}
-                    className="rounded-xl border border-white/10"
+                    className="rounded-lg border border-white/10 bg-[#13151C] px-4 py-3"
                   >
                     {card}
                   </div>
