@@ -14,7 +14,7 @@ export type WatchModel = {
 export type BrandModels = {
   id: string;
   name: string;
-  founding_snippet: string;
+  founding_snippet: string | null;
   models: WatchModel[];
 };
 
