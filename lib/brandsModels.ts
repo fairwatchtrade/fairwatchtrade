@@ -1528,7 +1528,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_035",
-    "name": "F.P. Journe (Invenit et Fecit)",
+    "name": "F.P. Journe",
     "founding_snippet": "Founded in Geneva in 1999 by master horologist François-Paul Journe under the motto 'Invenit et Fecit' (Invented and Made). Representing the absolute apex of modern independent watchmaking, Journe is world-renowned for crafting entire movements out of solid 18k rose gold, engineering highly innovative resonance and constant-force calibers.",
     "models": [
       {
