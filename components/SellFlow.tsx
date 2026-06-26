@@ -19,6 +19,7 @@ import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
+import ModelCombobox from "@/components/ModelCombobox";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -246,11 +247,18 @@ function CurationStep({
         </div>
         <div>
           <label className={label}>Model</label>
-          <input className={input} value={draft.model} onChange={(e) => patch({ model: e.target.value })} placeholder="Tonda Métrographe" />
+          <ModelCombobox
+            id="model"
+            value={draft.model}
+            onChange={(model) => patch({ model })}
+            brandName={draft.brand}
+            inputClassName={input}
+            placeholder="Tonda Métrographe"
+          />
         </div>
         <div>
           <label className={label}>Reference number</label>
-          <input className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="PFC274-0000600" />
+          <input id="reference" className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="PFC274-0000600" />
         </div>
         <div>
           <label className={label}>Year</label>
