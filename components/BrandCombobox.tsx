@@ -119,6 +119,7 @@ export default function BrandCombobox({
         e.preventDefault();
         commit(matches[activeIdx]);
       }
+      document.getElementById("model")?.focus();
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -136,7 +137,19 @@ export default function BrandCombobox({
         value={query}
         placeholder={placeholder}
         onChange={(e) => onInput(e.target.value)}
-        onFocus={() => setOpen(true)}
+        onFocus={(e) => {
+          setOpen(true);
+          if (isKnownBrand(query)) {
+            e.target.select();
+          }
+        }}
+        onBlur={() => {
+          if (matches.length === 1) {
+            commit(matches[0]);
+          } else if (isKnownBrand(query)) {
+            commit(query);
+          }
+        }}
         onKeyDown={onKeyDown}
         role="combobox"
         aria-expanded={open}
