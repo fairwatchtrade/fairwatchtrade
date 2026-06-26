@@ -106,23 +106,23 @@ export default async function AccountPage() {
 
   return (
     <main className="min-h-screen bg-[#0D0F14] text-[#E8E4DC]">
-      <div className="flex">
+      <div className="flex overflow-hidden">
         {/* LEFT CONTROL PANEL — desktop only */}
-        <aside className="hidden min-h-screen w-60 shrink-0 flex-col border-r border-white/10 bg-[#13151C] px-4 py-6 md:flex">
+        <aside className="hidden min-h-screen w-60 shrink-0 flex-col border-r border-white/10 shadow-[1px_0_0_0_rgba(255,255,255,0.06)] bg-[#13151C] px-4 py-6 md:flex">
           <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
             Seller Panel
           </div>
 
-          <nav className="mt-5 space-y-0.5">
+          <nav className="mt-5 space-y-1">
             {/* Active page */}
-            <div className="flex items-center justify-between border-l-2 border-[#C9A84C] py-1.5 pl-3 text-[13px] text-[#E8E4DC]">
+            <div className="flex items-center justify-between border-l-2 border-[#C9A84C] py-2 pl-3 text-[13px] text-[#E8E4DC]">
               <span>Dashboard</span>
             </div>
 
             {navCounts.map((item) => (
               <div
                 key={item.label}
-                className="flex items-center justify-between border-l-2 border-transparent py-1.5 pl-3 text-[13px] text-[#B7BAC4] transition hover:text-[#E8E4DC]"
+                className="flex items-center justify-between border-l-2 border-transparent py-2 pl-3 text-[13px] text-[#B7BAC4] transition hover:text-[#E8E4DC]"
               >
                 <span>{item.label}</span>
                 <span className="text-[12px] tabular-nums text-[#B7BAC4]">
@@ -153,13 +153,13 @@ export default async function AccountPage() {
         </aside>
 
         {/* RIGHT WORKSPACE */}
-        <div className="min-w-0 flex-1 px-6 py-8">
+        <div className="min-w-0 flex-1 overflow-hidden px-6 pt-4 pb-8">
           {/* KPI ROW */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {kpis.map((kpi) => (
               <div
                 key={kpi.label}
-                className="rounded-lg border border-white/10 bg-[#13151C] px-4 py-3"
+                className="rounded-lg border border-white/10 bg-[#13151C] px-4 py-4"
               >
                 <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
                   {kpi.label}
