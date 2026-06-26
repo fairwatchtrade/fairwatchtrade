@@ -86,7 +86,7 @@ export default function ModelCombobox({
     const q = normalize(query);
     if (q.length < MIN_CHARS) return [];
 
-    const hit = normalizedModels.filter((m) => m.hay.some((h) => h.includes(q)));
+    const hit = normalizedModels.filter((m) =>m.hay.some((h) => q.length < 3 ? h.startsWith(q) : h.includes(q)));
     const prefix = hit.filter((m) => m.displayNorm.startsWith(q));
     const sub = hit.filter((m) => !m.displayNorm.startsWith(q));
 
