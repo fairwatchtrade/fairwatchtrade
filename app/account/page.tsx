@@ -65,8 +65,8 @@ export default async function AccountPage() {
 
   return (
     <main className="min-h-screen bg-[#0D0F14] text-[#E8E4DC]">
-      <div className="mx-auto w-full max-w-5xl px-6 sm:px-8">
-        <h1 className="text-2xl font-light text-[#E8E4DC]">My Listings</h1>
+      <div className="mx-auto w-full max-w-2xl px-6 sm:px-8">
+        <h1 className="pt-8 text-2xl font-light text-[#E8E4DC]">My Listings</h1>
 
         {listings.length === 0 ? (
           <div className="mt-12 rounded-xl border border-white/10 px-4 py-12 text-center">
