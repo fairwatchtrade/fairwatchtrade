@@ -109,20 +109,23 @@ export default async function AccountPage() {
       <div className="flex overflow-hidden">
         {/* LEFT CONTROL PANEL — desktop only */}
         <aside className="hidden min-h-screen w-60 shrink-0 flex-col border-r border-white/10 shadow-[1px_0_0_0_rgba(255,255,255,0.06)] bg-[#13151C] px-4 py-6 md:flex">
-          <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
-            Seller Panel
+          <div className="flex items-center justify-center px-4 py-8 text-center">
+            <span className="text-[13px] font-light tracking-[0.2em] uppercase text-[#8A8F9E]">
+              Seller Panel
+            </span>
           </div>
+          <div className="border-t border-white/10" />
 
-          <nav className="mt-5 space-y-1">
+          <nav className="pt-4 space-y-2">
             {/* Active page */}
-            <div className="flex items-center justify-between border-l-2 border-[#C9A84C] py-2 pl-3 text-[13px] text-[#E8E4DC]">
+            <div className="flex items-center justify-between border-l-2 border-[#C9A84C] py-2.5 pl-3 text-[13px] text-[#E8E4DC]">
               <span>Dashboard</span>
             </div>
 
             {navCounts.map((item) => (
               <div
                 key={item.label}
-                className="flex items-center justify-between border-l-2 border-transparent py-2 pl-3 text-[13px] text-[#B7BAC4] transition hover:text-[#E8E4DC]"
+                className="flex items-center justify-between border-l-2 border-transparent py-2.5 pl-3 text-[13px] text-[#B7BAC4] transition hover:text-[#E8E4DC]"
               >
                 <span>{item.label}</span>
                 <span className="text-[12px] tabular-nums text-[#B7BAC4]">
