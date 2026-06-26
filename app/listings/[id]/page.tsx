@@ -139,7 +139,7 @@ export default async function ListingDetailPage({
 
   return (
     <main className="min-h-screen bg-[#0D0F14] pb-24 text-[#E8E4DC]">
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
         {/* SECTION 1 — Media gallery */}
         {photoUrls.length > 0 && (
           <ListingGallery
