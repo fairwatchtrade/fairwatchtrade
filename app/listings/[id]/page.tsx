@@ -206,7 +206,7 @@ export default async function ListingDetailPage({
 
       {/* MESSAGE THREAD SHELL — fixed to viewport bottom. UI only, no backend. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/15 bg-[#0D0F14]">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 py-3 sm:px-8">
           {/* Left — anchored snapshot (dial thumb, brand, reference, price) */}
           <div className="flex min-w-0 items-center gap-3">
             {heroUrl && (
