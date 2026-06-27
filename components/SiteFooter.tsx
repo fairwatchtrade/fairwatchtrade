@@ -21,6 +21,14 @@ export default function SiteFooter() {
           >
             Contact
           </a>
+          <span className="text-[#8A8F9E]">·</span>
+          <Link href="/terms" className="transition-colors hover:text-[#E8E4DC]">
+            Terms
+          </Link>
+          <span className="text-[#8A8F9E]">·</span>
+          <Link href="/privacy" className="transition-colors hover:text-[#E8E4DC]">
+            Privacy
+          </Link>
         </div>
         <p className="mt-3 text-[11px] text-[#8A8F9E]">
           Built for collectors. 5% flat fee. No ads. Ever.
