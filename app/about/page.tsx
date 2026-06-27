@@ -15,26 +15,26 @@ export default function AboutPage() {
 
         <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-[#B7BAC4]">
           <p>
-            My name is William Mynatt. Long before I dedicated my free time to
-            the collection of timepieces, I cut my teeth in IT infrastructure
-            consulting in Northern Virginia. My quiet, enduring passion was
-            always the engineering, history, and artistry of watches.
+            My name is William Mynatt. Long before I devoted my free time to
+            collecting watches, I worked in IT infrastructure
+            consulting in Northern Virginia. Throughout those years, my interest
+            was always the engineering, history, and craftsmanship of watches.
           </p>
           <p>
-            The spark for FairWatchTrade didn&rsquo;t come from a boardroom. It
-            came from a personal mission.
+            FairWatchTrade wasn't born from a business plan. It grew out of a 
+            personal search.
           </p>
           <p>
-            I was searching for the perfect Mother&rsquo;s Day gift for my wife
-            — a watch that met a very specific, elegant aesthetic. I wasn&rsquo;t
-            tied to a single brand name; I was chasing a vision. A moon phase
-            complication, a specific mother-of-pearl dial, and an exact
-            structural harmony.
+            I was looking for the perfect Mother's Day gift for my wife
+            — a watch that met a very specific look and feel. I wasn't
+            focused on a particular brand. I was searching for a moon phase,
+            a particular mother-of-pearl dial, and a design where every detail
+            felt balanced and intentional.
           </p>
           <p>
             What should have been an inspiring search quickly devolved into a
             frustrating exercise in digital fragmentation. The watch
-            industry&rsquo;s search engines forced me to shop by manufacturer
+            industry's search engines forced me to shop by manufacturer
             first, rather than by the artistry and specific features of the
             timepiece itself. I found myself hunting across dozens of scattered
             tabs, realizing how punishing the landscape is when you are looking
@@ -42,8 +42,8 @@ export default function AboutPage() {
           </p>
           <p>
             Adding to the frustration was the daily lag. Like many collectors,
-            I&rsquo;d wake up to an inbox flooded with match alerts bundled into
-            automated batch releases. You open an alert thinking you&rsquo;ve
+            I'd wake up to an inbox flooded with match alerts bundled into
+            automated batch releases. You open an alert thinking you've
             spotted something fresh, only to realize the listing is already 23
             hours old. When you are chasing extremely rare pieces where only
             five examples might exist worldwide, a day-long delay means the
@@ -59,16 +59,10 @@ export default function AboutPage() {
             search the market efficiently, you know the system is broken.
           </p>
           <p>
-            Driven by that frustration, I decided to bridge the gap permanently.
-            I sat down one night, reached back to my roots in technical
-            architecture, and began writing the code to solve a real, unmet need
-            in our community.
+            Driven by that frustration, I sat down one night — not to create another marketplace, but to solve a problem collectors had quietly lived with for years.
           </p>
           <p>
-            I built FairWatchTrade to be the definitive ecosystem I wished
-            existed when I was hunting for those hard-to-find pieces. It was made
-            by a collector, for collectors, with every feature exactly where it
-            belongs.
+            I built FairWatchTrade to be the platform I wished had existed when I was searching for those hard-to-find pieces. Every feature was designed by a collector, for collectors, with the goal of making the experience a little easier and a little more enjoyable.
           </p>
         </div>
 
