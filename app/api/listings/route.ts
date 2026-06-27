@@ -105,8 +105,50 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // PENDING: Resend seller-confirmation email fires here once the email
-  // layer lands — we now have user.email available to send to.
+  // Seller-confirmation email (Resend). Non-fatal by design: if Resend fails
+  // for any reason, the publish has already succeeded and we still return { id }.
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from: "FairWatchTrade <hello@fairwatchtrade.com>",
+      to: user.email,
+      subject: "Your listing is live on FairWatchTrade",
+      html: `
+        <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; background: #0D0F14; color: #E8E4DC; padding: 2rem;">
+          <h1 style="font-family: Georgia, serif; font-weight: 300; color: #C9A84C; font-size: 1.8rem; margin-bottom: 0.5rem;">
+            FairWatchTrade
+          </h1>
+          <p style="color: #B7BAC4; font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Your listing is now live on the marketplace.
+          </p>
+          <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+            <p style="color: #C9A84C; font-size: 1rem; font-weight: 500; margin: 0 0 0.25rem;">
+              ${body.brand}${body.model ? " " + body.model : ""}
+            </p>
+            <p style="color: #8A8F9E; font-size: 0.8rem; margin: 0 0 0.25rem;">
+              Ref. ${body.reference}
+            </p>
+            <p style="color: #E8E4DC; font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0;">
+              $${Number(row.asking_price).toLocaleString()}
+            </p>
+          </div>
+          <a href="https://fairwatchtrade.com/listings/${data.id}"
+             style="display: inline-block; background: #C9A84C; color: #0D0F14; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+            View Your Listing
+          </a>
+          <p style="color: #8A8F9E; font-size: 0.75rem; margin-top: 2rem;">
+            FairWatchTrade · Independent & boutique watchmakers only · 5% flat fee
+          </p>
+        </div>
+      `,
+    }),
+  }).catch(() => {
+    // Email failure is non-fatal — listing is already published.
+  });
 
   return NextResponse.json({ id: data.id }, { status: 201 });
 }
