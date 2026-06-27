@@ -4,8 +4,8 @@
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-[#0D0F14]">
-      <div className="mx-auto max-w-3xl px-6 py-16 sm:px-8">
+    <main className="min-h-screen bg-[#0D0F14] px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-3xl rounded-xl border border-white/10 bg-[#13151C] px-8 py-12 sm:px-12">
         <div className="text-[11px] uppercase tracking-[0.15em] text-[#C9A84C]">
           The Story Behind the Platform
         </div>
@@ -13,7 +13,7 @@ export default function AboutPage() {
           About FairWatchTrade
         </h1>
 
-        <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-[#B7BAC4]">
+        <div className="mt-8 space-y-6 text-[15px] leading-relaxed text-[#B7BAC4]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure
@@ -66,7 +66,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <p className="mt-8 text-[15px] font-medium text-[#E8E4DC]">
+        <p className="mt-12 pl-4 text-[15px] font-medium text-[#E8E4DC]">
           — William Mynatt, Founder
         </p>
       </div>
