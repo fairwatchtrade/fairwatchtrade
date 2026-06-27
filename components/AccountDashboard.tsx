@@ -139,22 +139,20 @@ function DashboardView({
   return (
     <div>
       {/* KPI ROW */}
-      <div className="flex h-24 items-center">
-        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
-          {kpis.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-lg border border-white/10 bg-[#13151C] px-4 py-4"
-            >
-              <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
-                {kpi.label}
-              </div>
-              <div className={`mt-1 text-2xl font-light ${kpi.valueClass}`}>
-                {kpi.value}
-              </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className="rounded-lg border border-white/10 bg-[#13151C] px-4 py-4"
+          >
+            <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
+              {kpi.label}
             </div>
-          ))}
-        </div>
+            <div className={`mt-1 text-2xl font-light ${kpi.valueClass}`}>
+              {kpi.value}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* HEADER */}
@@ -226,13 +224,11 @@ function InventoryView({
   return (
     <div>
       {/* TOP BAR */}
-      <div className="flex h-24 items-center">
-        <div className="flex w-full items-center justify-between gap-4">
-          <h2 className="text-2xl font-light text-[#E8E4DC]">Inventory</h2>
-          <Link href="/sell" className={CTA_CLASS}>
-            Create New Listing
-          </Link>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-light text-[#E8E4DC]">Inventory</h2>
+        <Link href="/sell" className={CTA_CLASS}>
+          Create New Listing
+        </Link>
       </div>
 
       {/* STATUS TABS */}
@@ -299,7 +295,7 @@ export default function AccountDashboard({
         {/* LEFT CONTROL PANEL — desktop only. Global nav: changes WHERE you are. */}
         <aside className="hidden min-h-screen w-60 shrink-0 flex-col border-r border-white/10 bg-[#13151C] md:flex">
           {/* Header zone */}
-          <div className="flex h-24 items-center justify-center px-4 text-center">
+          <div className="flex items-center justify-center px-4 py-10 text-center">
             <span className="text-[13px] font-light uppercase tracking-[0.25em] text-[#C9A84C]">
               Seller Panel
               <span className="mt-1 block text-[10px] tracking-[0.15em] text-[#8A8F9E]">
@@ -346,7 +342,7 @@ export default function AccountDashboard({
         </aside>
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}
-        <div className="min-w-0 flex-1 border-l border-white/10 px-6 pt-0 pb-8">
+        <div className="min-w-0 flex-1 border-l border-white/10 px-6 pt-4 pb-8">
           {/* Mobile: Inventory only — no module switching (panel hidden). */}
           <div className="md:hidden">
             <InventoryView
