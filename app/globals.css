@@ -94,6 +94,10 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
 }
 
+.fw-body {
+  line-height: 2.1;
+}
+
 .fw-eyebrow {
   font-family: 'Inter', sans-serif;
   font-size: 8px;
