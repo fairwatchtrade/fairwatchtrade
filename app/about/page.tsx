@@ -1,12 +1,13 @@
 /* ────────────────────────────────────────────────────────────────────────
    ABOUT — /about  (founder's statement, server component)
 
-   v1.48f — two changes from v1.48e:
-   1. Body div: space-y-6 removed, fw-body added (paragraph spacing now
-      handled by .fw-body p { margin-bottom: 24px } in globals.css).
-   2. sm:py-40 confirmed on <main> (was already set in v1.48e).
-   Inter 300 body spec unchanged. Cormorant on title, pulls, signature only.
-   All copy verbatim. Canary: PFC274 = 62.
+   v1.49 — FINAL. Cormorant Garamond reinstated for body at 300/16.5px/2.1lh.
+   font-display: swap already present in Google Fonts URL (&display=swap).
+   text-rendering: optimizeLegibility added to html/body in globals.css.
+   Paragraph spacing via .fw-body p (globals.css). sm:py-40 breathing room.
+   Cormorant on title, body, pull quotes, and signature — as designed.
+   Inter on eyebrow and tagline only. All copy verbatim. Canary: PFC274 = 62.
+   The about page is done. Moving on.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function AboutPage() {
@@ -54,11 +55,11 @@ export default function AboutPage() {
         </h1>
         <div className="fw-rule my-8" />
 
-        {/* Body — Inter 300, 15px. Paragraph spacing via .fw-body p in globals.
-            space-y-6 removed — margin now comes from CSS, not Tailwind utility.
-            Cormorant renders heavy on Windows/DirectWrite at body sizes.
-            .fw-pull retains Cormorant via globals.css — display moments only. */}
-        <div className="fw-body px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+        {/* Body — Cormorant Garamond 300, 16.5px, line-height 2.1 via .fw-body.
+            font-display: swap in Google Fonts URL. text-rendering: optimizeLegibility
+            in globals.css. Paragraph spacing via .fw-body p. This is the approved
+            Studio spec. Done. */}
+        <div className="fw-body font-display px-1 text-left text-[16.5px] font-light text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
@@ -124,7 +125,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* Signature — Cormorant retained, display moment */}
+        {/* Signature — Cormorant, display moment */}
         <div className="mt-9 px-1 text-right font-[Cormorant_Garamond] text-[15px] font-light italic text-[var(--muted)]">
           — <span className="text-[var(--gold)] not-italic">William Mynatt</span>,
           Founder
