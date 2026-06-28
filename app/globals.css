@@ -97,6 +97,8 @@ html, body {
 .fw-body {
   line-height: 2.1;
 }
+.fw-body p { margin-bottom: 24px; }
+.fw-body p:last-child { margin-bottom: 0; }
 
 .fw-eyebrow {
   font-family: 'Inter', sans-serif;

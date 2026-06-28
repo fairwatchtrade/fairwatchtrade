@@ -1,17 +1,17 @@
 /* ────────────────────────────────────────────────────────────────────────
    ABOUT — /about  (founder's statement, server component)
 
-   v1.48e — body paragraphs: Inter 300, 15px, leading-[1.9]. Reinstates the
-   v1.48 spec exactly. Cormorant Garamond at body sizes renders heavy on
-   Windows/DirectWrite regardless of font-weight — Inter 300 is the correct
-   cross-platform fix. Cormorant retained for title, .fw-pull quotes, and
-   signature (display moments only). sm:py-36 breathing room preserved.
+   v1.48f — two changes from v1.48e:
+   1. Body div: space-y-6 removed, fw-body added (paragraph spacing now
+      handled by .fw-body p { margin-bottom: 24px } in globals.css).
+   2. sm:py-40 confirmed on <main> (was already set in v1.48e).
+   Inter 300 body spec unchanged. Cormorant on title, pulls, signature only.
    All copy verbatim. Canary: PFC274 = 62.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function AboutPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 sm:py-36">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 sm:py-40">
       {/* Movement background — decorative watch dial, left side, vertically centered */}
       <svg
         className="fw-movement-bg left-[-80px] top-1/2 h-[500px] w-[500px] -translate-y-1/2"
@@ -54,11 +54,11 @@ export default function AboutPage() {
         </h1>
         <div className="fw-rule my-8" />
 
-        {/* Body — Inter 300, 15px, leading-[1.9].
+        {/* Body — Inter 300, 15px. Paragraph spacing via .fw-body p in globals.
+            space-y-6 removed — margin now comes from CSS, not Tailwind utility.
             Cormorant renders heavy on Windows/DirectWrite at body sizes.
-            Inter is screen-native and consistent across all platforms.
             .fw-pull retains Cormorant via globals.css — display moments only. */}
-        <div className="space-y-6 px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+        <div className="fw-body px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
