@@ -1,22 +1,84 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&display=swap');
 
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════
+   FAIRWATCHTRADE DESIGN SYSTEM v1.0
+   Extracted from Studio prototypes. Every page inherits from here.
+   ═══════════════════════════════════════════════════════════════ */
+
 :root {
-  --ink: #0D0F14;
-  --platinum: #E8E4DC;
-  --gold: #C9A84C;
-  --gold-dim: #9A7E3A;
-  --slate: #8A8F9E;
-  --surface: #13151C;
+
+  /* ── READABILITY FLOOR RULES ──
+     --muted (#6E7480) = absolute minimum for ANY text the user is meant to read.
+     --ghost (#4A4F5C) = disabled states and placeholders ONLY.
+     --void  (#3D424F) = decorative and placeholder text ONLY. Never instructional.
+     --platinum-dim overrides to #D8D4CC at max-width: 520px.
+     --slate overrides to #969BAA at max-width: 520px.
+     Never place readable text below --muted. ── */
+
+  /* ── COLOR TOKENS ── */
+  --ink:          #0D0F14;
+  --ink-deep:     #07080C;
+  --surface:      #13151C;
+  --surface-2:    #1A1D26;
+  --platinum:     #E8E4DC;
+  --platinum-dim: #C2BEB6;
+  --slate:        #8A8F9E;
+  --muted:        #6E7480;
+  --ghost:        #4A4F5C;
+
+  /* VOID FLOOR WARNING: #3D424F is below the readable floor.
+     Use ONLY for decorative elements, placeholders, and disabled states.
+     Never for instructional or informational text.
+     Minimum readable text = --ghost (#4A4F5C). */
+  --void:         #3D424F;
+
+  --gold-dim:     #9A7E3A;
+  --gold-subtle:  rgba(201,168,76,0.45);
+  --gold-whisper: rgba(201,168,76,0.08);
+
+  /* GOLD HIERARCHY RULE: --gold is used ONCE per section.
+     It marks the single most important element in that zone.
+     Supporting gold uses --gold-dim or --gold-subtle only.
+     Never two --gold elements competing in the same section. */
+  --gold:         #C9A84C;
+
+  --danger:       #E07070;
+  --success:      #70C090;
+
+  /* ── BORDER TOKENS ── */
+  --border-gold:        rgba(201,168,76,0.28);
+  --border-gold-strong: rgba(201,168,76,0.55);
+  --border-subtle:      rgba(255,255,255,0.06);
+  --border-faint:       rgba(255,255,255,0.04);
+  --border-mid:         rgba(255,255,255,0.08);
+
+  /* ── SPACING ── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── MOTION ── */
+  --ease:      0.2s ease;
+  --ease-slow: 0.4s ease;
 }
 
-* {
+/* ── RESET ── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* ── BASE ── */
 html, body {
   background: var(--ink);
   color: var(--platinum);
@@ -24,18 +86,181 @@ html, body {
   font-weight: 300;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── TYPOGRAPHY ── */
 .font-display {
   font-family: 'Cormorant Garamond', serif;
 }
 
-/* Dial animation */
-@keyframes sweep {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.fw-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 8px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold-subtle);
 }
 
+.fw-nav-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ghost);
+}
+
+.fw-pull {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--platinum-dim);
+  text-align: center;
+  line-height: 1.85;
+  padding: 36px 24px;
+  position: relative;
+}
+.fw-pull::before, .fw-pull::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 1px;
+  background: rgba(201,168,76,0.4);
+}
+.fw-pull::before { top: 0; }
+.fw-pull::after  { bottom: 0; }
+
+/* ── GOLD DIVIDER ── */
+.fw-rule {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+  margin: 0 auto;
+  opacity: 0.6;
+}
+.fw-rule-left {
+  height: 1px;
+  background: linear-gradient(to right, rgba(201,168,76,0.2), transparent);
+}
+
+/* ── PLACARD — bordered card with corner accents ── */
+.fw-placard {
+  position: relative;
+  border: 1px solid var(--border-gold);
+  padding: 72px 68px 64px;
+}
+.fw-placard::before, .fw-placard::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--border-gold-strong);
+  border-style: solid;
+}
+.fw-placard::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+.fw-placard::after  { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+
+/* ── CARD ── */
+.fw-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  transition: border-color var(--ease);
+}
+.fw-card:hover { border-color: rgba(201,168,76,0.2); }
+
+/* ── BUTTONS ── */
+.fw-btn-primary {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 400;
+  padding: 13px 24px;
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  cursor: pointer;
+  transition: opacity var(--ease);
+}
+.fw-btn-primary:hover    { opacity: 0.9; }
+.fw-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.fw-btn-secondary {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  color: var(--slate);
+  cursor: pointer;
+  transition: border-color var(--ease), color var(--ease);
+}
+.fw-btn-secondary:hover {
+  border-color: rgba(255,255,255,0.15);
+  color: var(--platinum);
+}
+
+/* ── FORM INPUTS — underline style ── */
+.fw-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-mid);
+  padding: 8px 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--platinum);
+  outline: none;
+  transition: border-color var(--ease);
+}
+.fw-input::placeholder {
+  color: var(--void);
+  font-style: italic;
+}
+.fw-input:focus { border-bottom-color: rgba(201,168,76,0.35); }
+
+/* ── NAV ── */
+.fw-nav {
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-faint);
+}
+.fw-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--platinum);
+  letter-spacing: 0.5px;
+}
+.fw-logo span { color: var(--gold); }
+
+/* ── STEP INDICATOR ── */
+.fw-step-dot         { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--border-subtle); background: #1E2128; }
+.fw-step-dot.active  { background: var(--gold); border-color: var(--gold); }
+.fw-step-dot.done    { background: rgba(201,168,76,0.35); border-color: rgba(201,168,76,0.35); }
+.fw-step-dot.next    { background: rgba(201,168,76,0.12); border-color: rgba(201,168,76,0.2); }
+
+/* ── VAULT CROSSING ── */
+.fw-crossing { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.fw-crossing-word { font-size: 9px; letter-spacing: 6px; color: var(--gold-subtle); text-transform: uppercase; padding: 8px 0; }
+
+/* ── MOVEMENT BACKGROUND ── */
+.fw-movement-bg { position: absolute; opacity: 0.03; pointer-events: none; }
+
+/* ── ANIMATIONS ── */
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 .second-hand {
   animation: sweep 60s linear infinite;
   transform-origin: center bottom;
@@ -43,13 +268,9 @@ html, body {
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-.fade-up {
-  animation: fadeUp 0.8s ease forwards;
-}
-
+.fade-up   { animation: fadeUp 0.8s ease forwards; }
 .fade-up-1 { animation-delay: 0.1s; opacity: 0; }
 .fade-up-2 { animation-delay: 0.3s; opacity: 0; }
 .fade-up-3 { animation-delay: 0.5s; opacity: 0; }
@@ -58,5 +279,13 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   .second-hand { animation: none; }
-  .fade-up { animation: none; opacity: 1; }
+  .fade-up     { animation: none; opacity: 1; }
+}
+
+/* ── MOBILE TYPOGRAPHY FLOOR ── */
+@media (max-width: 520px) {
+  :root {
+    --platinum-dim: #D8D4CC;  /* brightness bump for body copy on mobile */
+    --slate: #969BAA;          /* readable floor bump on mobile */
+  }
 }
