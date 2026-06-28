@@ -1,10 +1,13 @@
 /* ────────────────────────────────────────────────────────────────────────
    ABOUT — /about  (founder's statement, server component)
 
-   v1.47 — rebuilt to the Ducky 3 Studio prototype on the v1.46 design system.
-   Copy preserved verbatim from the prior page.tsx; paragraphs 2 and 7 are
-   promoted to .fw-pull quotes (same positions as the prototype). Global NavBar
-   from the layout handles navigation — no local nav here.
+   v1.48 — body paragraphs switched from Cormorant Garamond to Inter weight 300.
+   Cormorant Garamond rendered inconsistently heavy on Windows/DirectWrite at
+   body sizes despite font-weight: 300. Inter is screen-native and renders
+   consistently across all platforms. Cormorant retained for: h1 title,
+   .fw-pull quotes, and signature — display moments only, as designed.
+   Pull quotes retain Cormorant via the .fw-pull class in globals.css.
+   All copy preserved verbatim. Canary: PFC274 = 62.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function AboutPage() {
@@ -49,8 +52,12 @@ export default function AboutPage() {
         </h1>
         <div className="fw-rule my-8" />
 
-        
-<div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)] [font-synthesis:none]">          <p>
+        {/* Body — Inter weight 300 for cross-platform rendering consistency.
+            Cormorant Garamond renders heavy on Windows/DirectWrite at body sizes.
+            Inter is screen-native and consistent across all platforms.
+            .fw-pull retains Cormorant via globals.css — display use only. */}
+        <div className="space-y-6 px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+          <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
             Northern Virginia. Throughout those years, my interest was always the
@@ -115,6 +122,7 @@ export default function AboutPage() {
           </p>
         </div>
 
+        {/* Signature — Cormorant retained, display moment */}
         <div className="mt-9 px-1 text-right font-[Cormorant_Garamond] text-[15px] font-light italic text-[var(--muted)]">
           — <span className="text-[var(--gold)] not-italic">William Mynatt</span>,
           Founder
