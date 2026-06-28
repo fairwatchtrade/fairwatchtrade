@@ -393,7 +393,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
               No listings match these filters.
             </p>
           ) : (
-            <div className={`grid gap-px ${gridCols === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+            <div className={`grid gap-px bg-[var(--border-faint)] ${gridCols === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
               {paginated.map((row) => {
                 const hero = heroUrl(row.photos);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
@@ -407,16 +407,16 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group relative block cursor-pointer border border-transparent p-5 transition hover:bg-[rgba(255,255,255,0.02)]"
+                    className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
                     {/* Dial / image area */}
-                    <div className="relative mb-4 flex h-[110px] w-full items-center justify-center overflow-hidden">
+                    <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={hero}
                           alt=""
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
