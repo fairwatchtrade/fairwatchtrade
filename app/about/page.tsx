@@ -11,7 +11,7 @@
 
 export default function AboutPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 sm:py-36">
       {/* Movement background — decorative watch dial, left side, vertically centered */}
       <svg
         className="fw-movement-bg left-[-80px] top-1/2 h-[500px] w-[500px] -translate-y-1/2"
@@ -46,7 +46,7 @@ export default function AboutPage() {
         <div className="mb-6 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           The Story Behind the Platform
         </div>
-        <h1 className="font-display text-[30px] font-light leading-[1.3] tracking-[1.5px] text-[var(--platinum)]">
+        <h1 className="font-[Cormorant_Garamond] text-[30px] font-light leading-[1.3] tracking-[1.5px] text-[var(--platinum)]">
           About FairWatchTrade
         </h1>
         <div className="fw-rule my-8" />
@@ -54,7 +54,7 @@ export default function AboutPage() {
         {/* Body — Cormorant Garamond 300, 16.5px / 2.1 line-height: the airy
             serif rhythm from the Studio prototype. Its condensed glyphs fit more
             per line, so the 660px column reads wider and breathes. */}
-        <div className="space-y-6 px-1 text-left font-display text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)]">
+        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-normal leading-[2.1] text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
@@ -121,7 +121,7 @@ export default function AboutPage() {
         </div>
 
         {/* Signature — Cormorant retained, display moment */}
-        <div className="mt-9 px-1 text-right font-display text-[15px] font-light italic text-[var(--muted)]">
+        <div className="mt-9 px-1 text-right font-[Cormorant_Garamond] text-[15px] font-light italic text-[var(--muted)]">
           — <span className="text-[var(--gold)] not-italic">William Mynatt</span>,
           Founder
         </div>
