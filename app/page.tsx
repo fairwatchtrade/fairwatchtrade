@@ -53,7 +53,7 @@ export default function Home() {
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--ink)]">
 
-      {/* Movement background art — right side */}
+      {/* Movement background art */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute right-[-10%] top-[40%] w-[55%] max-w-[560px] -translate-y-1/2 opacity-[0.025]"
@@ -74,9 +74,15 @@ export default function Home() {
         </svg>
       </div>
 
-      {/* ── ZONE 1 — HERO ── */}
-      <div className="relative z-[1] flex flex-col items-center px-6 pb-10 pt-16 text-center sm:pt-24">
+      {/* ── ZONE 1 — HERO ──
+          Inline styles guarantee spacing regardless of Tailwind JIT compilation.
+      ── */}
+      <div
+        className="relative z-[1] flex flex-col items-center px-6 text-center"
+        style={{ paddingTop: '72px', paddingBottom: '40px' }}
+      >
 
+        {/* Gap between market bar and eyebrow — inline guaranteed */}
         <div className="mb-8 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           Independent &amp; Boutique Watchmakers Only
         </div>
@@ -104,7 +110,6 @@ export default function Home() {
             <text x="50" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="rgba(232,228,220,0.38)" letterSpacing="1">IX</text>
             <text x="110" y="96" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="8" fill="rgba(201,168,76,0.4)" letterSpacing="2">FW</text>
             <text x="110" y="106" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="5.5" fill="rgba(201,168,76,0.28)" letterSpacing="1.5">FAIRWATCHTRADE</text>
-
             <g style={{ transformOrigin: '110px 110px', transform: `rotate(${hourDeg}deg)` }}>
               <line x1="110" y1="110" x2="110" y2="48" stroke="#E8E4DC" strokeWidth="1.2" strokeLinecap="round" />
             </g>
@@ -114,7 +119,6 @@ export default function Home() {
             <g className="second-hand" style={{ transformOrigin: '110px 110px', transform: `rotate(${secDeg}deg)` }}>
               <line x1="110" y1="122" x2="110" y2="40" stroke="#C9A84C" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
             </g>
-
             <circle cx="110" cy="110" r="3" fill="#C9A84C" />
             <circle cx="110" cy="110" r="1.5" fill="#0D0F14" />
           </svg>
@@ -134,8 +138,11 @@ export default function Home() {
 
       </div>
 
+      {/* ── GUARANTEED SPACER between Zone 1 and Zone 2 ── */}
+      <div style={{ height: '56px', flexShrink: 0 }} />
+
       {/* ── ZONE 2 — WAITLIST ── */}
-      <div className="relative z-[1] flex flex-col items-center px-6 pt-14 sm:pt-20">
+      <div className="relative z-[1] flex flex-col items-center px-6">
 
         <p className="mb-5 text-center text-[10px] uppercase tracking-[3px] text-[var(--muted)]">
           Launching Soon — Get Early Access
@@ -161,7 +168,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Email row — its own block, nothing below it until the tagline */}
         <div className="w-full max-w-[420px]">
           <div className="flex gap-3">
             <input
@@ -189,8 +195,11 @@ export default function Home() {
 
       </div>
 
-      {/* Footer tagline — fixed margin below the button row, never collides */}
-      <p className="relative z-[1] mt-12 pb-12 text-center text-[9px] uppercase tracking-[3px] text-[var(--ghost)]">
+      {/* ── FOOTER TAGLINE — guaranteed 48px below button row ── */}
+      <p
+        className="relative z-[1] text-center text-[9px] uppercase tracking-[3px] text-[var(--ghost)]"
+        style={{ marginTop: '48px', paddingBottom: '48px' }}
+      >
         For independent &amp; boutique watchmakers
       </p>
 
