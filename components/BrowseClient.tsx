@@ -410,7 +410,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     className="group relative block cursor-pointer border border-transparent p-5 transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
                     {/* Dial / image area */}
-                    <div className="mb-4 flex h-[110px] w-full items-center justify-center overflow-hidden">
+                    <div className="relative mb-4 flex h-[110px] w-full items-center justify-center overflow-hidden">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
