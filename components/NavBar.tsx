@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
@@ -9,6 +10,8 @@ import Link from "next/link";
    Desktop: wordmark left, Browse · Sell · Account right.
    Mobile (md:hidden): wordmark + hamburger; tapping opens a full-screen
    overlay with the same links stacked and a close button top-right.
+
+   Active link is rendered in gold (#C9A84C) via usePathname().
    ──────────────────────────────────────────────────────────────────────── */
 
 const NAV_LINKS = [
@@ -34,6 +37,7 @@ function Wordmark({ onClick }: { onClick?: () => void }) {
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <nav className="w-full border-b border-white/10 bg-[#0D0F14]">
@@ -46,7 +50,11 @@ export default function NavBar() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-[13px] text-[#B7BAC4] transition-colors hover:text-[#E8E4DC]"
+              className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                pathname === item.href
+                  ? "text-[#C9A84C]"
+                  : "text-[#B7BAC4] hover:text-[#E8E4DC]"
+              }`}
             >
               {item.label}
             </Link>
@@ -110,7 +118,11 @@ export default function NavBar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="py-2 text-[15px] text-[#B7BAC4] transition-colors hover:text-[#E8E4DC]"
+                className={`py-2 text-[13px] uppercase tracking-[1.5px] transition-colors ${
+                  pathname === item.href
+                    ? "text-[#C9A84C]"
+                    : "text-[#B7BAC4] hover:text-[#E8E4DC]"
+                }`}
               >
                 {item.label}
               </Link>
