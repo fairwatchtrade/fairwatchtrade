@@ -1,12 +1,12 @@
 /* ────────────────────────────────────────────────────────────────────────
    ABOUT — /about  (founder's statement, server component)
 
-   v1.47c — body paragraphs restored to Cormorant Garamond (16.5px, 2.1
-   line-height, weight 300) to match the Ducky 3 Studio prototype. The earlier
-   v1.48 switch to Inter tightened the column and lost the airy serif rhythm;
-   this returns the body to the approved side-by-side look. Title, .fw-pull
-   quotes, and signature were already Cormorant and are unchanged.
-   All copy preserved verbatim. Canary: PFC274 = 62.
+   v1.48e — body paragraphs: Inter 300, 15px, leading-[1.9]. Reinstates the
+   v1.48 spec exactly. Cormorant Garamond at body sizes renders heavy on
+   Windows/DirectWrite regardless of font-weight — Inter 300 is the correct
+   cross-platform fix. Cormorant retained for title, .fw-pull quotes, and
+   signature (display moments only). sm:py-36 breathing room preserved.
+   All copy verbatim. Canary: PFC274 = 62.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function AboutPage() {
@@ -37,24 +37,28 @@ export default function AboutPage() {
         <circle cx="60" cy="200" r="5" stroke="white" strokeWidth="0.5" opacity="0.5" />
       </svg>
 
-      {/* Placard — .fw-placard supplies the border + top-left/bottom-right pseudo
-          corners; the two divs below add the top-right/bottom-left corners. */}
+      {/* Placard — .fw-placard supplies border + top-left/bottom-right pseudo
+          corners; the two divs below add top-right/bottom-left corners. */}
       <div className="fw-placard relative w-full max-w-[660px] text-center">
         <div className="absolute right-[-1px] top-[-1px] h-[14px] w-[14px] border-r border-t border-[var(--border-gold-strong)]" />
         <div className="absolute bottom-[-1px] left-[-1px] h-[14px] w-[14px] border-b border-l border-[var(--border-gold-strong)]" />
 
+        {/* Eyebrow — Inter, display moment */}
         <div className="mb-6 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           The Story Behind the Platform
         </div>
+
+        {/* Title — Cormorant, display moment */}
         <h1 className="font-[Cormorant_Garamond] text-[30px] font-light leading-[1.3] tracking-[1.5px] text-[var(--platinum)]">
           About FairWatchTrade
         </h1>
         <div className="fw-rule my-8" />
 
-        {/* Body — Cormorant Garamond 300, 16.5px / 2.1 line-height: the airy
-            serif rhythm from the Studio prototype. Its condensed glyphs fit more
-            per line, so the 660px column reads wider and breathes. */}
-        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-normal fw-body text-[var(--platinum-dim)]">
+        {/* Body — Inter 300, 15px, leading-[1.9].
+            Cormorant renders heavy on Windows/DirectWrite at body sizes.
+            Inter is screen-native and consistent across all platforms.
+            .fw-pull retains Cormorant via globals.css — display moments only. */}
+        <div className="space-y-6 px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
