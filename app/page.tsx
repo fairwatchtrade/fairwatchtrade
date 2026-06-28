@@ -74,18 +74,13 @@ export default function Home() {
         </svg>
       </div>
 
-      {/* ── ZONE 1 — HERO ─────────────────────────────────────────────────
-          Clock and headline are the primary moment.
-          This zone reads as dominant and calm before anything else.
-      ──────────────────────────────────────────────────────────────────── */}
+      {/* ── ZONE 1 — HERO ── */}
       <div className="relative z-[1] flex flex-col items-center px-6 pb-10 pt-16 text-center sm:pt-24">
 
-        {/* Eyebrow */}
         <div className="mb-8 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           Independent &amp; Boutique Watchmakers Only
         </div>
 
-        {/* Hero clock — real-time hands */}
         <div className="mx-auto mb-9 w-full max-w-[180px]">
           <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FairWatchTrade clock" className="block h-auto w-full">
             <circle cx="110" cy="110" r="108" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
@@ -110,17 +105,12 @@ export default function Home() {
             <text x="110" y="96" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="8" fill="rgba(201,168,76,0.4)" letterSpacing="2">FW</text>
             <text x="110" y="106" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="5.5" fill="rgba(201,168,76,0.28)" letterSpacing="1.5">FAIRWATCHTRADE</text>
 
-            {/* Hour hand — real time */}
             <g style={{ transformOrigin: '110px 110px', transform: `rotate(${hourDeg}deg)` }}>
               <line x1="110" y1="110" x2="110" y2="48" stroke="#E8E4DC" strokeWidth="1.2" strokeLinecap="round" />
             </g>
-
-            {/* Minute hand — real time */}
             <g style={{ transformOrigin: '110px 110px', transform: `rotate(${minDeg}deg)` }}>
               <line x1="110" y1="110" x2="110" y2="34" stroke="#E8E4DC" strokeWidth="1" strokeLinecap="round" />
             </g>
-
-            {/* Second hand — real time + CSS sweep */}
             <g className="second-hand" style={{ transformOrigin: '110px 110px', transform: `rotate(${secDeg}deg)` }}>
               <line x1="110" y1="122" x2="110" y2="40" stroke="#C9A84C" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
             </g>
@@ -130,34 +120,27 @@ export default function Home() {
           </svg>
         </div>
 
-        {/* Headline */}
         <h1 className="mb-4 max-w-[540px] font-display text-[40px] font-light leading-[1.3] tracking-[0.3px] text-[var(--platinum)] sm:text-[48px]">
           A marketplace <span className="text-[var(--gold)]">worthy</span>
           <br />
           of the watches within it.
         </h1>
 
-        {/* Subtitle */}
         <p className="mb-9 max-w-[400px] font-display text-[16px] font-light italic leading-[1.8] text-[var(--slate)]">
           Independent and boutique watchmakers only. One flat fee. No hidden costs. No compromises.
         </p>
 
-        {/* Gold rule */}
         <div className="fw-rule" />
 
       </div>
 
-      {/* ── ZONE 2 — WAITLIST ─────────────────────────────────────────────
-          Deliberate separation from the hero. A separate invitation,
-          not an appendage of the clock and headline above.
-      ──────────────────────────────────────────────────────────────────── */}
+      {/* ── ZONE 2 — WAITLIST ── */}
       <div className="relative z-[1] flex flex-col items-center px-6 pt-14 sm:pt-20">
 
         <p className="mb-5 text-center text-[10px] uppercase tracking-[3px] text-[var(--muted)]">
           Launching Soon — Get Early Access
         </p>
 
-        {/* Buyer/Seller checkboxes — logic preserved */}
         <div className="mb-5 flex justify-center gap-6">
           {[
             { label: 'I want to buy', key: 'buyer' },
@@ -178,33 +161,36 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="flex w-full max-w-[420px] gap-3">
-          <input
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="fw-input flex-1"
-          />
-          <button
-            onClick={handleWaitlist}
-            disabled={waitlistLoading || waitlistDone}
-            className="fw-btn-primary whitespace-nowrap"
-          >
-            {waitlistDone ? "You're In ✦" : waitlistLoading ? '...' : 'Notify Me'}
-          </button>
-        </div>
+        {/* Email row — its own block, nothing below it until the tagline */}
+        <div className="w-full max-w-[420px]">
+          <div className="flex gap-3">
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="fw-input flex-1"
+            />
+            <button
+              onClick={handleWaitlist}
+              disabled={waitlistLoading || waitlistDone}
+              className="fw-btn-primary whitespace-nowrap"
+            >
+              {waitlistDone ? "You're In ✦" : waitlistLoading ? '...' : 'Notify Me'}
+            </button>
+          </div>
 
-        {waitlistError && (
-          <p className="mt-3 text-center text-[11px] text-[var(--danger)]">
-            {waitlistError}
-          </p>
-        )}
+          {waitlistError && (
+            <p className="mt-3 text-center text-[11px] text-[var(--danger)]">
+              {waitlistError}
+            </p>
+          )}
+        </div>
 
       </div>
 
-      {/* Footer tagline — clear breathing room at the very bottom */}
-      <p className="relative z-[1] mt-auto pb-10 pt-14 text-center text-[9px] uppercase tracking-[3px] text-[var(--ghost)]">
+      {/* Footer tagline — fixed margin below the button row, never collides */}
+      <p className="relative z-[1] mt-12 pb-12 text-center text-[9px] uppercase tracking-[3px] text-[var(--ghost)]">
         For independent &amp; boutique watchmakers
       </p>
 
