@@ -1,16 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
-import { selectFeaturedListings, type ScoredListing } from "@/lib/featured";
 import BrowseClient from "@/components/BrowseClient";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC BROWSE — /browse  (v1.25)
+   PUBLIC BROWSE — /browse  (v1.56)
 
-   Buyer-facing storefront. Fetches every published listing, ranks via the
-   featured selector (merit-based, top 6 by combined score), and renders the
-   result as a card grid. No search, no filters — v1 is merit-ranked only.
+   Buyer-facing storefront. Fetches every published listing and hands the
+   full set to BrowseClient, which owns filtering, faceting, layout controls,
+   and pagination. Browse is filter-first: it shows the entire published
+   catalogue, not a pre-ranked slice.
 
-   PRIVACY: combined_score is read ONLY to feed the ranker — it is never
-   rendered. No score number appears on this buyer-facing surface.
+   The merit-based top-6 ranker (selectFeaturedListings in lib/featured.ts)
+   is NOT used here — it belongs to the homepage marketplace preview. It
+   remains intact in lib/featured.ts for that surface to consume later.
+
+   PRIVACY: combined_score is never rendered. No score number appears on this
+   buyer-facing surface.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -45,25 +49,6 @@ export default async function BrowsePage() {
 
   const rows = (!error && Array.isArray(data) ? data : []) as ListingRow[];
 
-  // Map rows into the featured selector's ScoredListing shape, then let it
-  // pick + rank the top 6. `sold` / `weeks_featured` are read defensively so
-  // this is correct whether or not those columns exist on the row yet.
-  const scored: ScoredListing[] = rows.map((row) => ({
-    id: row.id,
-    combined: Number(row.combined_score ?? 0),
-    createdAt: row.created_at,
-    sold: Boolean(row.sold),
-    weeksFeatured: Number(row.weeks_featured ?? 0),
-  }));
-
-  // Re-associate the ranked result back to the raw rows by id, so rendering
-  // stays decoupled from the ScoredListing shape.
-  const featured = selectFeaturedListings(scored);
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  const featuredRows = featured
-    .map((f) => byId.get(f.id))
-    .filter((r): r is ListingRow => Boolean(r));
-
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       <div className="flex flex-col">
@@ -74,18 +59,18 @@ export default async function BrowsePage() {
               Discover
             </h1>
             <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--ghost)]">
-              {featuredRows.length} watches · curated and verified
+              {rows.length} watches · curated and verified
             </p>
           </div>
         </div>
 
         <div className="px-6 py-5">
-          {featuredRows.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="text-[14px] text-[var(--slate)]">
               No listings are available right now — check back soon.
             </p>
           ) : (
-            <BrowseClient listings={featuredRows} />
+            <BrowseClient listings={rows} />
           )}
         </div>
       </div>
