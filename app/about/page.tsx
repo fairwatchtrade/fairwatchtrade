@@ -54,7 +54,7 @@ export default function AboutPage() {
         {/* Body — Cormorant Garamond 300, 16.5px / 2.1 line-height: the airy
             serif rhythm from the Studio prototype. Its condensed glyphs fit more
             per line, so the 660px column reads wider and breathes. */}
-        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)]">
+        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-normal leading-[2.1] text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
