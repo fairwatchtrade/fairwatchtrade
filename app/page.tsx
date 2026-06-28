@@ -51,7 +51,7 @@ export default function Home() {
   const { hourDeg, minDeg, secDeg } = time;
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 pb-16">
 
       {/* Movement background art — right side, copied verbatim from prototype */}
       <div
@@ -140,13 +140,13 @@ export default function Home() {
       <div className="fw-rule relative z-[1] mb-9" />
 
       {/* Waitlist — all logic preserved, wrapper restyled */}
-      <div className="relative z-[1] w-full max-w-[420px]">
-        <p className="mb-5 text-center text-[10px] uppercase tracking-[3px] text-[var(--muted)]">
+      <div className="relative z-[1] mt-6 w-full max-w-[420px]">
+        <p className="mb-6 mt-10 text-center text-[10px] uppercase tracking-[3px] text-[var(--muted)]">
           Launching Soon — Get Early Access
         </p>
 
         {/* Buyer/Seller checkboxes — logic preserved, labels restyled */}
-        <div className="mb-4 flex justify-center gap-6">
+        <div className="mb-5 flex justify-center gap-6">
           {[
             { label: 'I want to buy', key: 'buyer' },
             { label: 'I want to sell', key: 'seller' },
@@ -184,7 +184,7 @@ export default function Home() {
         </div>
 
         {waitlistError && (
-          <p className="mt-2 text-center text-[11px] text-[var(--danger)]">
+          <p className="mt-4 text-center text-[11px] text-[var(--danger)]">
             {waitlistError}
           </p>
         )}
