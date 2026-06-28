@@ -65,20 +65,29 @@ export default async function BrowsePage() {
     .filter((r): r is ListingRow => Boolean(r));
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] text-[#E8E4DC]">
-      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
-        <h1 className="text-[22px] font-medium text-[#E8E4DC]">Available Now</h1>
-        <p className="mt-1 text-[13px] text-[#B7BAC4]">
-          A merit-ranked selection from the FairWatchTrade marketplace.
-        </p>
+    <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
+      <div className="flex flex-col">
+        {/* Browse header */}
+        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
+          <div>
+            <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
+              Discover
+            </h1>
+            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--ghost)]">
+              {featuredRows.length} watches · curated and verified
+            </p>
+          </div>
+        </div>
 
-        {featuredRows.length === 0 ? (
-          <p className="mt-10 text-[14px] text-[#B7BAC4]">
-            No listings are available right now — check back soon.
-          </p>
-        ) : (
-          <BrowseClient listings={featuredRows} />
-        )}
+        <div className="px-6 py-5">
+          {featuredRows.length === 0 ? (
+            <p className="text-[14px] text-[var(--slate)]">
+              No listings are available right now — check back soon.
+            </p>
+          ) : (
+            <BrowseClient listings={featuredRows} />
+          )}
+        </div>
       </div>
     </main>
   );

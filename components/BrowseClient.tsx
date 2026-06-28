@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
-   BROWSE CLIENT — client-side facet filtering shell for /browse (v1.28)
+   BROWSE CLIENT — client-side facet filtering shell for /browse (v1.55)
 
    Receives the already-ranked listings from the server page and renders the
-   collapsible filter sidebar (desktop) / overlay (mobile) plus the card grid.
-   Card markup is copied verbatim from the v1.27 server page — only the
-   surrounding filter/layout chrome is new.
+   Studio filter sidebar (desktop) / overlay (mobile) plus the card grid.
+   Filter/facet logic, toggle functions, and useMemo hooks are preserved
+   verbatim from v1.28 — only the visual/layout chrome is restyled, plus
+   grid-width and page-size controls.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -74,26 +75,48 @@ function FacetGroup({
 }) {
   if (facets.length === 0) return null;
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+    <div className="mb-[22px] px-[18px]">
+      <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--ghost)]">
         {title}
       </div>
-      <div className="mt-2 space-y-1.5">
-        {facets.map(([value, count]) => (
-          <label
-            key={value}
-            className="flex cursor-pointer items-center gap-2 text-[13px] text-[#E8E4DC]"
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(value)}
-              onChange={() => onToggle(value)}
-              className="h-3.5 w-3.5 shrink-0 rounded accent-[#C9A84C]"
-            />
-            <span className="min-w-0 flex-1 truncate">{value}</span>
-            <span className="text-[11px] tabular-nums text-[#B7BAC4]">{count}</span>
-          </label>
-        ))}
+      <div>
+        {facets.map(([value, count]) => {
+          const isSelected = selected.has(value);
+          return (
+            <label
+              key={value}
+              className="mb-2 flex cursor-pointer items-center gap-2"
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggle(value)}
+                className="sr-only"
+              />
+              <div
+                className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+                  isSelected
+                    ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
+                    : "border-[var(--border-subtle)]"
+                }`}
+              >
+                {isSelected && (
+                  <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />
+                )}
+              </div>
+              <span
+                className={`min-w-0 flex-1 truncate text-[11px] tracking-[0.3px] ${
+                  isSelected ? "text-[var(--slate)]" : "text-[var(--muted)]"
+                }`}
+              >
+                {value}
+              </span>
+              <span className="text-[10px] tabular-nums text-[var(--ghost)]">
+                {count}
+              </span>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -102,6 +125,8 @@ function FacetGroup({
 export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [gridCols, setGridCols] = useState<3 | 4>(3);
+  const [pageSize, setPageSize] = useState<20 | 40 | "all">(20);
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
   const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
@@ -179,6 +204,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     ]
   );
 
+  const paginated = pageSize === "all" ? filtered : filtered.slice(0, pageSize);
+
   const toggleBrand = (value: string) =>
     setSelectedBrands((prev) => {
       const next = new Set(prev);
@@ -236,7 +263,17 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     });
 
   const facetList = (
-    <div className="space-y-5">
+    <div>
+      {/* Filter intro */}
+      <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
+        <div className="mb-[6px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          Refine
+        </div>
+        <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+          Collectors think in dials, not dropdowns.
+        </p>
+      </div>
+
       <FacetGroup
         title="Case Size"
         facets={caseSizeFacets}
@@ -302,25 +339,62 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         </button>
       </div>
 
+      {/* Layout controls bar — grid width + page size */}
+      <div className="mt-6 flex items-center justify-between border-b border-[var(--border-faint)] pb-4">
+        <div className="flex items-center gap-1">
+          {([3, 4] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setGridCols(n)}
+              className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                gridCols === n
+                  ? "border-[var(--border-gold)] text-[var(--gold)]"
+                  : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+              }`}
+            >
+              {n}-wide
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {([20, 40, "all"] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPageSize(n)}
+              className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                pageSize === n
+                  ? "border-[var(--border-gold)] text-[var(--gold)]"
+                  : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+              }`}
+            >
+              {n === "all" ? "All" : n}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-4 flex gap-6">
         {/* Desktop sidebar — collapses to w-0 */}
         <aside
           className={`hidden shrink-0 flex-col overflow-hidden transition-all duration-300 md:flex ${
-            isFilterOpen ? "w-64" : "w-0"
+            isFilterOpen ? "w-[168px]" : "w-0"
           }`}
         >
-          <div className="w-64 pr-2">{facetList}</div>
+          <div className="w-[168px]">{facetList}</div>
         </aside>
 
         {/* Grid wrapper — expands as the sidebar collapses */}
         <div className="min-w-0 flex-1">
-          {filtered.length === 0 ? (
-            <p className="text-[14px] text-[#B7BAC4]">
+          {paginated.length === 0 ? (
+            <p className="text-[14px] text-[var(--slate)]">
               No listings match these filters.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
-              {filtered.map((row) => {
+            <div className={`grid gap-px ${gridCols === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+              {paginated.map((row) => {
                 const hero = heroUrl(row.photos);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
                 const meta = [row.condition, row.year].filter(Boolean).join(" · ");
@@ -333,46 +407,53 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group block overflow-hidden rounded-xl border border-white/10 bg-[#0D0F14] transition hover:border-[#C9A84C]/40"
+                    className="group relative block cursor-pointer border border-transparent p-5 transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
-                    <div className="relative overflow-hidden">
+                    {/* Dial / image area */}
+                    <div className="mb-4 flex h-[110px] w-full items-center justify-center overflow-hidden">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={hero}
                           alt=""
-                          className="aspect-[4/3] w-full object-cover"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[#B7BAC4]">
+                        <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
                           No photo
                         </div>
                       )}
                       {docBadge && (
-                        <span className="absolute top-2 right-2 rounded-full bg-[#C9A84C] px-2 py-0.5 text-[10px] font-medium tracking-wide text-[#0D0F14]">
+                        <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
                           {docBadge}
                         </span>
                       )}
                     </div>
 
-                    <div className="p-4">
-                      {meta && (
-                        <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
-                          {meta}
-                        </div>
-                      )}
-                      <div className="mt-1 text-[15px] font-medium text-[#E8E4DC]">
-                        {title}
-                      </div>
-                      {attrs && (
-                        <div className="mt-0.5 text-[12px] text-[#B7BAC4]">
-                          {attrs}
-                        </div>
-                      )}
-                      <div className="mt-2 text-[15px] font-semibold text-[#C9A84C]">
-                        {formatPrice(Number(row.asking_price))}
-                      </div>
+                    {/* Brand */}
+                    <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                      {row.brand}
                     </div>
+
+                    {/* Model */}
+                    <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
+                      {row.model ?? row.brand}
+                    </div>
+
+                    {/* Reference / meta */}
+                    {meta && (
+                      <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                        {attrs ? `${meta} · ${attrs}` : meta}
+                      </div>
+                    )}
+
+                    {/* Price */}
+                    <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
+                      {formatPrice(Number(row.asking_price))}
+                    </div>
+
+                    {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
+                    {/* <div className="fw-hover-enrichment"> ... </div> */}
                   </Link>
                 );
               })}
@@ -384,19 +465,21 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       {/* Mobile filter overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-[#0D0F14]/95 md:hidden"
+          className="fixed inset-0 z-40 bg-[var(--ink)]/95 md:hidden"
           onClick={() => setMobileOpen(false)}
         >
           <div
-            className="absolute inset-y-0 left-0 w-72 max-w-[80%] overflow-auto border-r border-white/10 bg-[#0D0F14] p-4"
+            className="absolute inset-y-0 left-0 w-72 max-w-[80%] overflow-auto border-r border-[var(--border-faint)] bg-[var(--ink)] py-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-[14px] font-medium text-[#E8E4DC]">Filters</span>
+            <div className="mb-5 flex items-center justify-between px-[18px]">
+              <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                Refine
+              </span>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-[#E8E4DC]"
+                className="fw-btn-secondary"
               >
                 Close
               </button>
