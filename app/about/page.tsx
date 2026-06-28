@@ -1,12 +1,11 @@
 /* ────────────────────────────────────────────────────────────────────────
    ABOUT — /about  (founder's statement, server component)
 
-   v1.48 — body paragraphs switched from Cormorant Garamond to Inter weight 300.
-   Cormorant Garamond rendered inconsistently heavy on Windows/DirectWrite at
-   body sizes despite font-weight: 300. Inter is screen-native and renders
-   consistently across all platforms. Cormorant retained for: h1 title,
-   .fw-pull quotes, and signature — display moments only, as designed.
-   Pull quotes retain Cormorant via the .fw-pull class in globals.css.
+   v1.47c — body paragraphs restored to Cormorant Garamond (16.5px, 2.1
+   line-height, weight 300) to match the Ducky 3 Studio prototype. The earlier
+   v1.48 switch to Inter tightened the column and lost the airy serif rhythm;
+   this returns the body to the approved side-by-side look. Title, .fw-pull
+   quotes, and signature were already Cormorant and are unchanged.
    All copy preserved verbatim. Canary: PFC274 = 62.
    ──────────────────────────────────────────────────────────────────────── */
 
@@ -52,11 +51,10 @@ export default function AboutPage() {
         </h1>
         <div className="fw-rule my-8" />
 
-        {/* Body — Inter weight 300 for cross-platform rendering consistency.
-            Cormorant Garamond renders heavy on Windows/DirectWrite at body sizes.
-            Inter is screen-native and consistent across all platforms.
-            .fw-pull retains Cormorant via globals.css — display use only. */}
-        <div className="space-y-6 px-1 text-left font-[Inter] text-[15px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+        {/* Body — Cormorant Garamond 300, 16.5px / 2.1 line-height: the airy
+            serif rhythm from the Studio prototype. Its condensed glyphs fit more
+            per line, so the 660px column reads wider and breathes. */}
+        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
