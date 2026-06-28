@@ -49,8 +49,8 @@ export default function AboutPage() {
         </h1>
         <div className="fw-rule my-8" />
 
-        <div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)]">
-          <p>
+        
+<div className="space-y-6 px-1 text-left font-[Cormorant_Garamond] text-[16.5px] font-light leading-[2.1] text-[var(--platinum-dim)] [font-synthesis:none]">          <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
             Northern Virginia. Throughout those years, my interest was always the

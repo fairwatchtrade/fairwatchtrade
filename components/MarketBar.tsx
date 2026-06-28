@@ -38,7 +38,7 @@ function countdown(ms: number) {
 
 export default function MarketBar() {
   const metals = useMetals();
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
