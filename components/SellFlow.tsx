@@ -23,6 +23,7 @@ import ModelCombobox from "@/components/ModelCombobox";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
+const ROMAN = ["I", "II", "III", "IV", "V"] as const;
 
 /* ── Curation call ───────────────────────────────────────────────────────
    /api/evaluate confirmed working (returns score + decision). Defensive reads
@@ -105,7 +106,7 @@ export default function SellFlow() {
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
         <div
           data-photo-dropzone={step === 1 ? "" : undefined}
-          className="rounded-xl border border-white/10 bg-[#13151C] p-6"
+          className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-8"
         >
           {step === 0 && (
             <CurationStep draft={draft} patch={patch} onPass={() => setStep(1)} />
@@ -126,7 +127,7 @@ export default function SellFlow() {
           {step > 0 && (
             <div className="mt-6">
               {step === 1 && !canProceed && (
-                <p className="mb-2 text-[12px] text-[#8A8F9E]">
+                <p className="mb-2 text-[12px] text-[var(--muted)]">
                   Add and label the required photos to continue
                   {draft.hasBracelet
                     ? " (dial, caseback, clasp, and a full shot with the strap/bracelet extended)."
@@ -136,19 +137,17 @@ export default function SellFlow() {
               <div className="flex justify-between">
                 <button
                   onClick={() => setStep(step - 1)}
-                  className="rounded-md border border-white/15 px-4 py-2 text-[13px] text-[#E8E4DC] hover:bg-white/5"
+                  className="border border-[var(--border-mid)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
                 >
-                  ← Back
+                  Back
                 </button>
                 {step < STEPS.length - 1 && step !== 3 && (
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
-                    className={`rounded-md bg-[#C9A84C] px-4 py-2 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
-                      canProceed ? "" : "cursor-not-allowed"
-                    }`}
+                    className="bg-[var(--gold)] px-5 py-2 font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next →
+                    Continue
                   </button>
                 )}
               </div>
@@ -160,8 +159,13 @@ export default function SellFlow() {
           {draft.significanceScore != null ? (
             <ListingScoreMeter listing={toScoringState(draft)} />
           ) : (
-            <div className="rounded-lg border border-dashed border-white/15 p-4 text-[12px] text-[#8A8F9E]">
-              Your listing score appears here once curation passes.
+            <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
+              <div className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)]">
+                Listing Score
+              </div>
+              <div className="mt-2 font-display text-[11px] italic text-[var(--ghost)]">
+                Appears after curation passes.
+              </div>
             </div>
           )}
         </div>
@@ -172,15 +176,56 @@ export default function SellFlow() {
 
 function ProgressBar({ step }: { step: number }) {
   return (
-    <div className="flex items-center gap-2">
-      {STEPS.map((label, i) => (
-        <div key={label} className="flex flex-1 flex-col gap-1">
-          <div className={`h-1 rounded-full ${i <= step ? "bg-[#C9A84C]" : "bg-white/10"}`} />
-          <div className={`text-[11px] ${i === step ? "text-[#E8E4DC]" : "text-[#8A8F9E]"}`}>
-            {i + 1}. {label}
+    <div className="mb-8">
+      <div className="flex items-center gap-0">
+        {STEPS.map((label, i) => (
+          <div key={label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div
+                className={`font-[Inter] text-[9px] uppercase tracking-[2px] ${
+                  i === step
+                    ? "text-[var(--gold)]"
+                    : i < step
+                      ? "text-[var(--gold-subtle)]"
+                      : "text-[var(--ghost)]"
+                }`}
+              >
+                {ROMAN[i]}
+              </div>
+              <div
+                className={`mt-1 font-[Inter] text-[9px] uppercase tracking-[1.5px] ${
+                  i === step
+                    ? "text-[var(--slate)]"
+                    : i < step
+                      ? "text-[var(--ghost)]"
+                      : "text-[var(--ghost)]"
+                }`}
+              >
+                {label}
+              </div>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className="mx-3 mb-3 flex items-center gap-1">
+                <div
+                  className={`h-1 w-1 rounded-full ${
+                    i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-subtle)]"
+                  }`}
+                />
+                <div
+                  className={`h-px w-8 ${
+                    i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-faint)]"
+                  }`}
+                />
+                <div
+                  className={`h-1 w-1 rounded-full ${
+                    i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-subtle)]"
+                  }`}
+                />
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -223,15 +268,15 @@ function CurationStep({
   }
 
   const input =
-    "w-full rounded-md border border-white/15 bg-[#0D0F14] px-3 py-2 text-[14px] text-[#E8E4DC] placeholder:text-[#8A8F9E]/60 focus:border-[#C9A84C] focus:outline-none";
-  const label = "mb-1 block text-[12px] text-[#8A8F9E]";
+    "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--void)] focus:border-[var(--border-gold)] focus:outline-none transition";
+  const label = "mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]";
 
   return (
     <div>
-      <h2 className="text-[18px] font-medium text-[#E8E4DC]">
-        Step 1 — Is your watch a fit?
+      <h2 className="mb-1 font-display text-[20px] font-light text-[var(--platinum)]">
+        Is your watch a fit?
       </h2>
-      <p className="mt-1 text-[13px] text-[#8A8F9E]">
+      <p className="mb-6 text-[13px] text-[var(--muted)]">
         A quick check before you build the listing. FairWatchTrade is curated.
       </p>
 
@@ -285,18 +330,18 @@ function CurationStep({
       </div>
 
       {draft.curationDecision === "fail" && (
-        <div className="mt-4 rounded-md border border-red-500/30 bg-red-950/30 p-3 text-[13px] text-red-200">
-          <div className="font-medium">Not a fit right now.</div>
-          {draft.curationReasoning && <div className="mt-1 text-red-200/90">{draft.curationReasoning}</div>}
+        <div className="mt-4 border border-[rgba(220,80,80,0.25)] bg-[rgba(220,80,80,0.06)] px-4 py-3 text-[13px]">
+          <div className="mb-1 font-medium text-[var(--danger)]">Not a fit right now.</div>
+          {draft.curationReasoning && <div className="text-[var(--danger)]/80">{draft.curationReasoning}</div>}
         </div>
       )}
 
-      {error && <div className="mt-4 text-[13px] text-red-300">Error: {error}</div>}
+      {error && <div className="mt-4 text-[13px] text-[var(--danger)]">Error: {error}</div>}
 
       <button
         onClick={check}
         disabled={!ready || busy}
-        className={`mt-5 flex items-center gap-2 rounded-md bg-[#C9A84C] px-5 py-2.5 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
+        className={`mt-6 flex items-center gap-2 bg-[var(--gold)] px-6 py-[11px] font-[Inter] text-[10px] font-normal uppercase tracking-[2.5px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
           busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
         }`}
       >
@@ -329,14 +374,14 @@ function PhotosStep({
 
   return (
     <div>
-      <h2 className="text-[18px] font-medium text-[#E8E4DC]">Step 2 — Photos</h2>
-      <p className="mt-1 text-[13px] text-[#8A8F9E]">
+      <h2 className="mb-1 font-display text-[20px] font-light text-[var(--platinum)]">Photos</h2>
+      <p className="mb-6 text-[13px] text-[var(--muted)]">
         Upload your shots and label each one. Required: dial, caseback, clasp
         {draft.hasBracelet ? ", and a full shot with the strap/bracelet extended" : ""}. The score on the
         right climbs as you go.
       </p>
 
-      <label className="mt-4 flex items-center gap-2 text-[13px] text-[#E8E4DC]">
+      <label className="mt-4 flex items-center gap-2 text-[13px] text-[var(--platinum)]">
         <input
           type="checkbox"
           checked={draft.hasBracelet}

@@ -96,6 +96,13 @@ export default function ListingScoreMeter({
           </li>
         ))}
       </ul>
+
+      {/* Destination line — always present, even at score 0. Not a reward. */}
+      <div className="mt-5 border-t border-[var(--border-faint)] pt-4 text-center">
+        <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+          Your watch is ready for its next collector.
+        </p>
+      </div>
     </div>
   );
 }

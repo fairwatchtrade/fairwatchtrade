@@ -4,15 +4,18 @@ import SellFlow from "@/components/SellFlow";
 
 export default function SellPage() {
   return (
-    <main className="min-h-screen bg-[#0D0F14] px-6 py-10 sm:px-8">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6">
-          <div className="text-[11px] uppercase tracking-[0.25em] text-[#8A8F9E]">
+    <main className="min-h-screen bg-[var(--ink)]">
+      <div className="mx-auto max-w-3xl px-6 py-12 sm:px-8">
+        <div className="mb-8">
+          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
             FairWatchTrade
           </div>
-          <h1 className="mt-1 text-[24px] font-semibold text-[#E8E4DC]">
-            List your watch
+          <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
+            List your watch.
           </h1>
+          <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+            Independent &amp; boutique makers only. Curated before listed.
+          </p>
         </div>
         <SellFlow />
       </div>
