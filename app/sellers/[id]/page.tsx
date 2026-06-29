@@ -42,8 +42,9 @@ function qualityTextFor(scores: number[]): string | null {
 export default async function SellerProfilePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Profile — select ONLY display-safe columns. strikes and
@@ -51,7 +52,7 @@ export default async function SellerProfilePage({
   const { data: seller } = await supabase
     .from("profiles")
     .select("id, display_name, created_at")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!seller) notFound();
@@ -64,7 +65,7 @@ export default async function SellerProfilePage({
     .select(
       "id, brand, model, reference, year, condition, asking_price, photos, details, combined_score"
     )
-    .eq("seller_id", params.id)
+    .eq("seller_id", id)
     .eq("status", "published");
 
   const rows = listingRows ?? [];
