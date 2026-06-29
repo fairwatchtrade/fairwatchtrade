@@ -11,17 +11,22 @@ import { usePathname } from "next/navigation";
    ════════════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────────────
-   MOBILE NAV — the "watch roll" drawer  (v1.65)
+   MOBILE NAV — the "watch roll" drawer  (v1.65a)
 
-   Left-edge drawer (82% width) that slides in over a dimmed peek strip (18%).
-   Tapping the peek — or the close hint, or a nav item — closes it. Mobile
-   only (md:hidden); desktop never renders this. The Collector's Drawer on
-   listing detail is a separate desktop-hover component and never shares a
-   screen with this at mobile sizes.
+   Left-edge drawer (76% width) that slides in over a dimmed peek strip (~24%).
+   The wider peek makes the live page behind unmistakably visible — the drawer
+   reads AS a drawer before the user interacts. Tapping the peek — or the close
+   hint, the watch-hand pull, or a nav item — closes it. Mobile only
+   (md:hidden); desktop never renders this.
 
-   Structural note: the outer flex row makes the drawer (w-[82%]) and the peek
+   Visually alive, not interactively alive: the page behind keeps ticking and
+   animating (nothing is unmounted), shows through the 0.72 peek backdrop, but
+   receives no input until the drawer closes. The closed-state wrapper's
+   pointer-events-none/opacity-0 is the HIDE mechanism — left untouched.
+
+   Structural note: the outer flex row makes the drawer (w-[76%]) and the peek
    (flex-1) siblings, so the peek fills the literal remainder. The peek is
-   `relative` so its ghosted dial + close hint anchor to it.
+   `relative` so its watch-hand pull + close hint anchor to it.
    ──────────────────────────────────────────────────────────────────────── */
 
 type BadgeVariant = "green" | "gold" | "blue";
@@ -102,7 +107,7 @@ export default function MobileNav({
     >
       {/* Drawer — 82%, slides from left */}
       <div
-        className={`relative flex h-full w-[82%] flex-col bg-[#09090E] transition-transform duration-300 ${
+        className={`relative flex h-full w-[76%] flex-col bg-[#09090E] transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -188,23 +193,29 @@ export default function MobileNav({
         </div>
       </div>
 
-      {/* Peek — dimmed remainder, taps to close. relative so children anchor. */}
-      <div className="relative flex-1 bg-[rgba(7,8,12,0.88)]" onClick={onClose}>
-        {/* Ghosted dial — decorative */}
-        <svg
-          className="absolute right-0 top-1/3 opacity-[0.12]"
-          viewBox="0 0 120 120"
-          width="90"
-          height="90"
-          aria-hidden="true"
-        >
-          <circle cx="60" cy="60" r="58" stroke="#C9A84C" strokeWidth="0.75" fill="none" />
-          <circle cx="60" cy="60" r="52" stroke="#C9A84C" strokeWidth="0.25" fill="none" />
-          <circle cx="60" cy="60" r="2" fill="#C9A84C" opacity="0.5" />
-        </svg>
-        {/* Close hint */}
-        <div className="absolute bottom-8 right-0 flex w-[18%] flex-col items-center gap-1">
-          <span className="text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">Close</span>
+      {/* Peek — dimmed remainder, taps to close. relative so children anchor.
+          0.72 backdrop lets the live page read through (visually alive). */}
+      <div className="relative flex-1 bg-[rgba(7,8,12,0.72)]" onClick={onClose}>
+        {/* Watch-hand pull — a dauphine hand pointing left, centered vertically.
+            The drawer-pull gesture, not a UI chevron. Decorative SVG, so the
+            gold fill is hardcoded (can't read CSS vars). */}
+        <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+          <svg
+            width="22"
+            height="40"
+            viewBox="0 0 22 40"
+            fill="none"
+            aria-hidden="true"
+          >
+            {/* Dauphine hand: tapered diamond pointing left, with facet edge */}
+            <polygon points="2,20 20,9 16,20 20,31" fill="#C9A84C" />
+            <polygon points="2,20 20,9 16,20" fill="#E6C868" opacity="0.55" />
+            {/* Pivot cap */}
+            <circle cx="19" cy="20" r="2" fill="#C9A84C" />
+          </svg>
+          <span className="text-[7px] uppercase tracking-[3px] text-[var(--ghost)]">
+            Close
+          </span>
         </div>
       </div>
     </div>
