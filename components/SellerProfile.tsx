@@ -159,19 +159,19 @@ export default function SellerProfile({
 
           <div className="mt-4">
             <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--ghost)]">Member since</span>
+              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Member since</span>
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">
                 {memberSince(seller.createdAt)}
               </span>
             </div>
             <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--ghost)]">Active listings</span>
+              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Active listings</span>
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">
                 {listings.length}
               </span>
             </div>
             <div className="flex items-baseline justify-between py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--ghost)]">Completed sales</span>
+              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Completed sales</span>
               {/* Literal dash — never 0. Transaction history is Phase 2 dormant. */}
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">—</span>
             </div>
@@ -193,10 +193,10 @@ export default function SellerProfile({
 
           {/* Verification shell — always present, always dormant. */}
           <div className="mb-4 border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.01)] p-3">
-            <div className="mb-1 text-[7.5px] uppercase tracking-[2px] text-[var(--ghost)]">
+            <div className="mb-1 text-[7.5px] uppercase tracking-[2px] text-[var(--muted)]">
               Verification
             </div>
-            <div className="text-[10px] font-light italic text-[var(--ghost)]">
+            <div className="text-[10px] font-light italic text-[var(--muted)]">
               In Hand Verified — Phase 2
             </div>
           </div>
@@ -204,26 +204,26 @@ export default function SellerProfile({
           <div className="fw-rule my-5" />
 
           {/* House Style — section header kept; items omitted (no column yet). */}
-          <div className="text-[7.5px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="text-[7.5px] uppercase tracking-[3px] text-[var(--gold)] opacity-70">
             Private correspondence, public standards.
           </div>
 
           <div className="fw-rule my-5" />
 
           {/* Collector statement — always the fallback (no column yet). */}
-          <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">
+          <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
             Collector statement
           </div>
-          <p className="font-display text-[12px] font-light italic leading-[1.8] text-[var(--ghost)]">
+          <p className="font-display text-[12px] font-light italic leading-[1.8] text-[var(--muted)]">
             This seller hasn&apos;t added a statement yet.
           </p>
 
           {/* Correspondence — pinned to bottom */}
           <div className="mt-auto border-t border-[var(--border-faint)] pt-5">
-            <div className="mb-2 text-[7.5px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            <div className="mb-2 text-[7.5px] uppercase tracking-[3px] text-[var(--gold)] opacity-70">
               Correspondence
             </div>
-            <p className="mb-3 font-display text-[12px] font-light italic leading-[1.6] text-[var(--ghost)]">
+            <p className="mb-3 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
               Questions about a specific listing are handled through the listing&apos;s
               conversation thread. Serious enquiries only.
             </p>
@@ -234,7 +234,7 @@ export default function SellerProfile({
             ) : (
               <span className="fw-btn-secondary inline-block opacity-40">Contact via listing</span>
             )}
-            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[8px] uppercase tracking-[2px] text-[var(--void)]">
+            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">
               Private correspondence · Public standards
             </div>
           </div>
