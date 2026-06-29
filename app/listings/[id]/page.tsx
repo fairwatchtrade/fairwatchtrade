@@ -4,7 +4,7 @@ import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC LISTING DETAIL — /listings/[id]  (v1.30c)
+   PUBLIC LISTING DETAIL — /listings/[id]  (v1.57)
 
    Buyer-facing detail view for a single published listing. Server Component:
    fetches the row by UUID from `listings`, 404s if missing or not published.
@@ -22,6 +22,9 @@ import ListingSpecs from "@/components/ListingSpecs";
      Price  ← absolute last in-flow element
    The message bar is position:fixed (viewport-pinned), so it is NOT part of
    the scrolling content flow — price remains the last in-flow element.
+
+   v1.57: Studio design-system token migration. No logic, data, scoring,
+   privacy, or photo-sort changes — className/layout only.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -138,7 +141,7 @@ export default async function ListingDetailPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] pb-24 text-[#E8E4DC]">
+    <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
       <div className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
         {/* SECTION 1 — Media gallery */}
         {photoUrls.length > 0 && (
@@ -150,16 +153,27 @@ export default async function ListingDetailPage({
           />
         )}
 
+        {/* DIAL REVEAL — Phase 2
+            On hover over dial photo only, a thin contrast/brightness slider appears.
+            No zoom. No magnifying glass. Just the detail that was already there —
+            MOP depth, guilloché pattern, printing on dark dials, hidden by the
+            photographer's exposure balance.
+            Implementation: CSS filter on img element, one range input, ~30 lines JS.
+            Slot: wrap the dial <img> in a relative container with data-dial-reveal.
+            Activation: when real data is present and DialReveal component exists. */}
+
         {/* SECTION 2 — Identity block */}
         <section className="mt-6">
-          <h1 className="text-2xl font-semibold leading-tight text-[#E8E4DC]">
+          <h1 className="font-display text-[28px] font-light leading-tight tracking-[0.3px] text-[var(--platinum)]">
             {title}
           </h1>
-          <p className="mt-1 text-sm text-[#B7BAC4]">Ref. {listing.reference}</p>
+          <p className="mt-1 text-[13px] tracking-[0.5px] text-[var(--muted)]">
+            Ref. {listing.reference}
+          </p>
 
           {showBoxPapers && (
             <div className="mt-2">
-              <span className="inline-flex rounded-full border border-[#C9A84C] px-3 py-1 text-[11px] font-medium text-[#C9A84C]">
+              <span className="inline-flex border border-[var(--border-gold)] px-3 py-1 text-[11px] uppercase tracking-[1px] text-[var(--gold)]">
                 Box &amp; Papers ✓
               </span>
             </div>
@@ -170,7 +184,7 @@ export default async function ListingDetailPage({
               {snapshotPills.map((pill, i) => (
                 <span
                   key={i}
-                  className="rounded border border-white/15 bg-[#13151C] px-2 py-0.5 font-mono text-[11px] text-[#B7BAC4]"
+                  className="border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 font-[Inter] text-[11px] tracking-[0.3px] text-[var(--slate)]"
                 >
                   {pill}
                 </span>
@@ -186,26 +200,44 @@ export default async function ListingDetailPage({
           condition={listing.condition}
         />
 
-        {/* SECTION 5 — Story & Provenance */}
+        {/* SECTION 5 — From the Seller */}
         {listing.description && (
           <section className="mt-8">
-            <div className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4] pt-6 border-t border-white/10">
+            <div className="border-t border-[var(--border-faint)] pt-6 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
               From the Seller
             </div>
-            <p className="mt-3 mb-8 whitespace-pre-line text-sm leading-relaxed text-[#B7BAC4]">
+            <p className="mt-3 mb-8 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
               {listing.description}
             </p>
           </section>
         )}
 
         {/* PRICE — absolute last rendered element in page content */}
-        <div className="mt-10">
-          <p className="text-3xl font-semibold text-[#E8E4DC]">{priceText}</p>
+        <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
+          <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
+            Asking Price · 5% platform fee applies
+          </p>
         </div>
       </div>
 
-      {/* MESSAGE THREAD SHELL — fixed to viewport bottom. UI only, no backend. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/15 bg-[#0D0F14]">
+      {/* COLLECTOR'S DRAWER — Phase 2
+          Left-edge strip: stays CLOSED as a 28px collapsed strip with the word
+          "Explore" running vertically. On hover it expands RIGHTWARD to ~178px,
+          opening just over the LEFT PORTION of the hero shot — the dial behind
+          it lightly shines through. Smoked glass, not a wall:
+          background rgba(6,8,13,0.82) with backdrop-blur-md. The collector never
+          feels they've left the viewing room; the drawer floats over it.
+          Contains: Back to Browse (filters preserved), Similar Watches, Same
+          Reference, Same Movement, Same Case Size, Same Dial Color, Compare,
+          Recently Viewed, Add to My Catalogue.
+          Aesthetics & motion owned by Ducky 3 — build to the prototype.
+          Activation: when CollectorsDrawer component exists. */}
+
+      {/* MESSAGE THREAD SHELL — fixed to viewport bottom. UI only, no backend.
+          FUTURE FLIGHT: messaging is not wired this pass. Input is non-functional,
+          Send button remains disabled. Do not wire without a messaging brief. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--ink)]">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 py-3 sm:px-8">
           {/* Left — anchored snapshot (dial thumb, brand, reference, price) */}
           <div className="flex min-w-0 items-center gap-3">
@@ -214,14 +246,14 @@ export default async function ListingDetailPage({
               <img
                 src={heroUrl}
                 alt=""
-                className="h-10 w-10 shrink-0 rounded-md border border-white/15 object-cover"
+                className="h-10 w-10 shrink-0 border border-[var(--border-subtle)] object-cover"
               />
             )}
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-[#E8E4DC]">
+              <p className="truncate text-[12px] font-medium text-[var(--platinum)]">
                 {listing.brand}
               </p>
-              <p className="truncate text-[11px] text-[#B7BAC4]">
+              <p className="truncate text-[11px] text-[var(--muted)]">
                 Ref. {listing.reference} · {priceText}
               </p>
             </div>
@@ -232,12 +264,12 @@ export default async function ListingDetailPage({
             <input
               type="text"
               placeholder="Message seller…"
-              className="min-w-0 flex-1 rounded-md border border-white/15 bg-transparent px-3 py-2 text-sm text-[#E8E4DC] placeholder:text-[#B7BAC4] focus:outline-none"
+              className="min-w-0 flex-1 border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
             />
             <button
               type="button"
               disabled
-              className="shrink-0 cursor-not-allowed rounded-md border border-[#C9A84C] px-4 py-2 text-sm font-medium text-[#C9A84C] opacity-60"
+              className="shrink-0 cursor-not-allowed border border-[var(--border-gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-40"
             >
               Send
             </button>

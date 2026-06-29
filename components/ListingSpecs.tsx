@@ -9,6 +9,9 @@ import { useState } from "react";
    Client child of the server detail page: receives raw spec data and derives
    the display rows here so the page stays a clean server component. §4 is
    collapsed by default; its label row is the toggle (no button chrome).
+
+   v1.57: Studio design-system token migration. Data derivation and toggle
+   state preserved verbatim — className tokens only.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingDetails = {
@@ -92,17 +95,17 @@ export default function ListingSpecs({
         <section className="mt-8">
           <div className="pt-8">
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+            <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
               Collector Snapshot
             </span>
           </div>
           <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
             {snapshotRows.map((row) => (
               <div key={row.label} className="flex flex-col">
-                <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
+                <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
                   {row.label}
                 </dt>
-                <dd className="mt-0.5 text-[15px] font-medium text-[#E8E4DC]">
+                <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">
                   {row.value}
                 </dd>
               </div>
@@ -129,12 +132,12 @@ export default function ListingSpecs({
           >
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
             <div className="flex items-center justify-end gap-2">
-              <span className="text-[11px] uppercase tracking-[0.15em] text-[#B7BAC4]">
+              <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
                 Technical Specifications
               </span>
               <span
                 aria-hidden="true"
-                className={`text-[#C9A84C]/70 transition-all duration-300 group-hover:text-[#C9A84C] ${
+                className={`text-[var(--gold-subtle)] transition-all duration-300 group-hover:text-[var(--gold)] ${
                   open ? "rotate-180" : ""
                 }`}
               >
@@ -152,10 +155,10 @@ export default function ListingSpecs({
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 {techRows.map((row) => (
                   <div key={row.label} className="flex flex-col">
-                    <dt className="text-[11px] uppercase tracking-wide text-[#B7BAC4]">
+                    <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
                       {row.label}
                     </dt>
-                    <dd className="mt-0.5 text-sm text-[#E8E4DC]">{row.value}</dd>
+                    <dd className="mt-0.5 text-[13px] text-[var(--slate)]">{row.value}</dd>
                   </div>
                 ))}
               </dl>

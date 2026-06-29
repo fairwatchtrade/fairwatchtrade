@@ -47,31 +47,31 @@ export default function ListingScoreHelp({ score }: ListingScoreHelpProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 left-1/2 transform -translate-x-1/2 mt-2 top-full w-72 bg-[#0D0F14] border border-white/15 rounded-lg shadow-xl p-4 text-sm text-[#E8E4DC]">
+        <div className="absolute z-50 left-1/2 transform -translate-x-1/2 mt-2 top-full w-72 bg-[var(--ink)] border border-[var(--border-subtle)] rounded-lg shadow-xl p-4 text-sm text-[var(--platinum)]">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/15">
-            <span className="font-semibold text-[#E8E4DC]">Listing Score Guide</span>
-            <span className="font-mono bg-[#13151C] px-2 py-1 rounded text-xs">{score} / 100</span>
+            <span className="font-medium text-[var(--platinum)]">Listing Score Guide</span>
+            <span className="font-mono bg-[var(--surface)] text-[var(--slate)] px-2 py-1 rounded text-xs">{score} / 100</span>
           </div>
 
           <div className="mb-3">
-            <span className="block text-xs text-[#8A8F9E] uppercase tracking-wider mb-1">Current Tier</span>
-            <span className="font-medium text-[#C9A84C]">{tierContext.name}</span>
+            <span className="block text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Current Tier</span>
+            <span className="font-medium text-[var(--gold)]">{tierContext.name}</span>
           </div>
 
-          <div className="bg-[#13151C] rounded p-3 mb-1">
+          <div className="bg-[var(--surface)] rounded p-3 mb-1">
             {tierContext.next ? (
               <>
-                <span className="block text-xs text-[#8A8F9E] uppercase tracking-wider mb-1">Path to {tierContext.next}</span>
-                <p className="text-[#E8E4DC] leading-relaxed">{tierContext.advice}</p>
+                <span className="block text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Path to {tierContext.next}</span>
+                <p className="text-[var(--platinum-dim)] leading-relaxed">{tierContext.advice}</p>
               </>
             ) : (
               <>
-                <span className="block text-xs text-[#C9A84C] uppercase tracking-wider mb-1">Maximum Achieved</span>
-                <p className="text-[#E8E4DC] leading-relaxed">{tierContext.advice}</p>
+                <span className="block text-xs text-[var(--gold)] uppercase tracking-wider mb-1">Maximum Achieved</span>
+                <p className="text-[var(--platinum-dim)] leading-relaxed">{tierContext.advice}</p>
               </>
             )}
           </div>
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[#0D0F14] border-t border-l border-white/15 rotate-45"></div>
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[var(--ink)] border-t border-l border-[var(--border-subtle)] rotate-45"></div>
         </div>
       )}
     </div>
