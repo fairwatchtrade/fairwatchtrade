@@ -15,7 +15,6 @@ export default function ListingGallery({
   photos,
   initialIndex = 0,
   brandLabel,
-  modelLabel,
 }: {
   photos: string[];
   initialIndex?: number;
@@ -37,7 +36,7 @@ export default function ListingGallery({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
         <div className="pointer-events-none absolute left-3 top-2 text-[10px] font-light uppercase tracking-[0.15em] text-[#E8E4DC]/60">
-          {modelLabel ? `${brandLabel} ${modelLabel}` : brandLabel}
+          {brandLabel}
         </div>
         {/* Invisible tap zones — left 40% prev, right 40% next */}
         <div
