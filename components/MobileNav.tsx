@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
    ════════════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────────────
-   MOBILE NAV — the "watch roll" drawer  (v1.65a)
+   MOBILE NAV — the "watch roll" drawer  (v1.65b)
 
    Left-edge drawer (76% width) that slides in over a dimmed peek strip (~24%).
    The wider peek makes the live page behind unmistakably visible — the drawer
@@ -27,6 +27,11 @@ import { usePathname } from "next/navigation";
    Structural note: the outer flex row makes the drawer (w-[76%]) and the peek
    (flex-1) siblings, so the peek fills the literal remainder. The peek is
    `relative` so its watch-hand pull + close hint anchor to it.
+
+   Layer hierarchy (v1.65b): (1) drawer nav content — brightest, readable in
+   outdoor sun; (2) gold watch-hand handle; (3) revealed page — dimmed to 0.80
+   so it stays alive but recedes, context not competition. Nav text tokens were
+   lifted one tier for sunlight readability (the "porch test").
    ──────────────────────────────────────────────────────────────────────── */
 
 type BadgeVariant = "green" | "gold" | "blue";
@@ -134,7 +139,7 @@ export default function MobileNav({
           <div className="font-display text-[16px] font-light text-[var(--platinum)]">
             Welcome back.
           </div>
-          <div className="mt-1 text-[10px] tracking-[1px] text-[var(--slate)]">
+          <div className="mt-1 text-[10px] tracking-[1px] text-[var(--platinum-dim)]">
             Your catalogue is waiting.
           </div>
         </div>
@@ -143,7 +148,7 @@ export default function MobileNav({
         <div className="flex-1 overflow-y-auto py-3">
           {SECTIONS.map((sec) => (
             <div key={sec.section}>
-              <div className="px-5 pb-2 pt-4 text-[7.5px] uppercase tracking-[3px] text-[var(--ghost)]">
+              <div className="px-5 pb-2 pt-4 text-[8.5px] uppercase tracking-[3px] text-[var(--muted)]">
                 {sec.section}
               </div>
               {sec.items.map((item) => {
@@ -156,7 +161,7 @@ export default function MobileNav({
                     className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[13px] transition ${
                       isActive
                         ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
-                        : "border-transparent text-[var(--muted)] hover:text-[var(--slate)]"
+                        : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
                     }`}
                   >
                     <span>{item.label}</span>
@@ -172,7 +177,7 @@ export default function MobileNav({
           <Link
             href="/account"
             onClick={onClose}
-            className="flex items-center border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--ghost)] transition hover:text-[var(--slate)]"
+            className="flex items-center border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
           >
             Account
           </Link>
@@ -195,7 +200,7 @@ export default function MobileNav({
 
       {/* Peek — dimmed remainder, taps to close. relative so children anchor.
           0.72 backdrop lets the live page read through (visually alive). */}
-      <div className="relative flex-1 bg-[rgba(7,8,12,0.72)]" onClick={onClose}>
+      <div className="relative flex-1 bg-[rgba(7,8,12,0.80)]" onClick={onClose}>
         {/* Watch-hand pull — a dauphine hand pointing left, centered vertically.
             The drawer-pull gesture, not a UI chevron. Decorative SVG, so the
             gold fill is hardcoded (can't read CSS vars). */}
