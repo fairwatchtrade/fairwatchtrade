@@ -1,0 +1,8 @@
+/* ── PASTE INTO globals.css, immediately BELOW the existing --void warning
+   comment (the "VOID FLOOR WARNING" block, just above --gold-dim). ── */
+
+  /* GOVERNANCE: --void is ONLY for placeholder: text, truly decorative
+     elements, and disabled states. Any text a user needs to read —
+     labels, hints, captions, "Soon" pills, progress step names,
+     nav items — floors at --ghost (#4A4F5C) minimum.
+     If a brief specifies --void on informational text, --ghost wins. */
