@@ -3,15 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import MobileNav from "@/components/MobileNav";
 
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop: wordmark left, Browse · Sell · Account right.
-   Mobile (md:hidden): wordmark + hamburger; tapping opens a full-screen
-   overlay with the same links stacked and a close button top-right.
+   Desktop: wordmark left, Browse · Sell · Account · About right.
+   Mobile (md:hidden): wordmark + hamburger; tapping opens <MobileNav />,
+   the left-edge "watch roll" drawer (separate component).
 
-   Active link is rendered in gold (#C9A84C) via usePathname().
+   Active link is rendered in gold via usePathname().
+
+   v1.64: Studio token pass; full-screen overlay extracted into MobileNav.
    ──────────────────────────────────────────────────────────────────────── */
 
 const NAV_LINKS = [
@@ -28,9 +31,9 @@ function Wordmark({ onClick }: { onClick?: () => void }) {
       onClick={onClick}
       className="font-display text-xl font-light tracking-[0.02em]"
     >
-      <span className="text-[#E8E4DC]">Fair</span>
-      <span className="text-[#C9A84C]">Watch</span>
-      <span className="text-[#E8E4DC]">Trade</span>
+      <span className="text-[var(--platinum)]">Fair</span>
+      <span className="text-[var(--gold)]">Watch</span>
+      <span className="text-[var(--platinum)]">Trade</span>
     </Link>
   );
 }
@@ -40,7 +43,7 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="w-full border-b border-white/10 bg-[#0D0F14]">
+    <nav className="w-full border-b border-[var(--border-subtle)] bg-[var(--ink)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 sm:px-6">
         <Wordmark />
 
@@ -52,8 +55,8 @@ export default function NavBar() {
               href={item.href}
               className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
                 pathname === item.href
-                  ? "text-[#C9A84C]"
-                  : "text-[#B7BAC4] hover:text-[#E8E4DC]"
+                  ? "text-[var(--gold)]"
+                  : "text-[var(--slate)] hover:text-[var(--platinum)]"
               }`}
             >
               {item.label}
@@ -67,69 +70,27 @@ export default function NavBar() {
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="md:hidden"
+          className="text-[var(--slate)] md:hidden"
         >
           <svg
             width="22"
             height="22"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#B7BAC4"
+            stroke="currentColor"
             strokeWidth="1.75"
             strokeLinecap="round"
             aria-hidden="true"
           >
             <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="6" y1="12" x2="21" y2="12" />
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
       </div>
 
-      {/* Mobile full-screen overlay */}
-      {open && (
-        <div className="fixed inset-0 z-50 bg-[#0D0F14] md:hidden">
-          <div className="flex h-14 items-center justify-between px-4 sm:px-6">
-            <Wordmark onClick={() => setOpen(false)} />
-            <button
-              type="button"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#B7BAC4"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <line x1="5" y1="5" x2="19" y2="19" />
-                <line x1="19" y1="5" x2="5" y2="19" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-1 px-4 pt-6 sm:px-6">
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`py-2 text-[13px] uppercase tracking-[1.5px] transition-colors ${
-                  pathname === item.href
-                    ? "text-[#C9A84C]"
-                    : "text-[#B7BAC4] hover:text-[#E8E4DC]"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Mobile drawer — the watch-roll nav */}
+      <MobileNav open={open} onClose={() => setOpen(false)} />
     </nav>
   );
 }
