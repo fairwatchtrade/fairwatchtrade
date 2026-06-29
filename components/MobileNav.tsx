@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+/* ════════════════════════════════════════════════════════════════════════
+   NAV DRAWER — hamburger-triggered site navigation, every page.
+   COLLECTOR'S DRAWER (Phase 2) — listing-detail only, desktop: left,
+   mobile: bottom sheet.
+   Never confuse the two.
+   ════════════════════════════════════════════════════════════════════════ */
+
 /* ────────────────────────────────────────────────────────────────────────
-   MOBILE NAV — the "watch roll" drawer  (v1.64)
+   MOBILE NAV — the "watch roll" drawer  (v1.65)
 
    Left-edge drawer (82% width) that slides in over a dimmed peek strip (18%).
    Tapping the peek — or the close hint, or a nav item — closes it. Mobile
@@ -122,7 +129,7 @@ export default function MobileNav({
           <div className="font-display text-[16px] font-light text-[var(--platinum)]">
             Welcome back.
           </div>
-          <div className="mt-1 text-[9px] tracking-[1.5px] text-[var(--ghost)]">
+          <div className="mt-1 text-[10px] tracking-[1px] text-[var(--slate)]">
             Your catalogue is waiting.
           </div>
         </div>
@@ -131,7 +138,7 @@ export default function MobileNav({
         <div className="flex-1 overflow-y-auto py-3">
           {SECTIONS.map((sec) => (
             <div key={sec.section}>
-              <div className="px-5 pb-2 pt-4 text-[7.5px] uppercase tracking-[3px] text-[var(--void)]">
+              <div className="px-5 pb-2 pt-4 text-[7.5px] uppercase tracking-[3px] text-[var(--ghost)]">
                 {sec.section}
               </div>
               {sec.items.map((item) => {
@@ -197,7 +204,7 @@ export default function MobileNav({
         </svg>
         {/* Close hint */}
         <div className="absolute bottom-8 right-0 flex w-[18%] flex-col items-center gap-1">
-          <span className="text-[8px] uppercase tracking-[2px] text-[var(--void)]">Close</span>
+          <span className="text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">Close</span>
         </div>
       </div>
     </div>
