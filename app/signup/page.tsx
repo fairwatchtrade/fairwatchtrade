@@ -53,9 +53,20 @@ export default function SignUpPage() {
     // If email confirmation is ON, there's no active session yet — tell the
     // seller to check their inbox. If it's OFF, a session exists; go to /sell.
     if (data.session) {
+      // Create the profile row now that we have a confirmed session. This is
+      // what populates the profiles table (id = auth user id) so seller pages,
+      // settings, and listings have a backing profile.
+      await supabase.from("profiles").insert({
+        id: data.session.user.id,
+        email: email,
+        display_name: email.split("@")[0], // sensible default until they set it
+      });
+
       router.push("/sell");
       router.refresh();
     } else {
+      // TODO: profile row creation on email confirmation path
+      // Wire in /auth/confirm route when building email confirmation handler
       setSent(true);
     }
     setBusy(false);
