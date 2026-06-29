@@ -90,8 +90,8 @@ const SERVICE_EXCLUSIONS: Record<string, string[]> = {
 };
 
 const inputCls =
-  "w-full rounded-md border border-white/15 bg-[#0D0F14] px-3 py-2 text-[14px] text-[#E8E4DC] placeholder:text-[#8A8F9E]/60 focus:border-[#C9A84C] focus:outline-none";
-const labelCls = "mb-1 block text-[12px] text-[#8A8F9E]";
+  "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none";
+const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
 
 export default function DetailsStep({
   draft,
@@ -111,10 +111,10 @@ export default function DetailsStep({
 
   return (
     <div>
-      <h2 className="text-[18px] font-medium text-[#E8E4DC]">
+      <h2 className="font-display text-[20px] font-light text-[var(--platinum)]">
         Step 3 — Listing details
       </h2>
-      <p className="mt-1 text-[13px] text-[#8A8F9E]">
+      <p className="mt-1 text-[13px] text-[var(--muted)]">
         The specifics collectors look for. Optional fields are marked — skip what
         you can't confirm rather than guessing.
       </p>
@@ -259,8 +259,22 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-[13px] text-[#E8E4DC]">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-[#C9A84C]" />
+    <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[var(--platinum)]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div
+        className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+          checked
+            ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
+            : "border-[var(--border-subtle)]"
+        }`}
+      >
+        {checked && <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />}
+      </div>
       {label}
     </label>
   );
@@ -309,10 +323,10 @@ function MultiSelect({
               key={opt}
               type="button"
               onClick={() => toggle(opt)}
-              className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
+              className={`border px-3 py-1 text-[11px] transition-colors ${
                 on
-                  ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#E8E4DC]"
-                  : "border-white/15 text-[#8A8F9E] hover:border-white/30"
+                  ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                  : "border-[var(--border-subtle)] text-[var(--muted)] hover:border-[var(--border-mid)]"
               }`}
             >
               {opt}

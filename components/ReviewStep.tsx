@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { type ListingDraft } from "@/lib/listing";
 import { toScoringState } from "@/lib/listing";
+import WatchSpinner from "@/components/WatchSpinner";
 
 function formatPrice(p: string): string {
   const n = Number(String(p).replace(/[^0-9.]/g, ""));
@@ -90,22 +91,15 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
 
   if (published) {
     return (
-      <div className="py-6 text-center" style={{ textAlign: "center" }}>
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-[22px] text-black">
-          ✓
+      <div className="py-12 text-center">
+        <div className="mb-6 font-display text-[28px] font-light text-[var(--platinum)]">
+          Your listing is live.
         </div>
-        <h2
-          className="mt-4 text-[20px] font-semibold text-[#E8E4DC] text-center"
-          style={{ textAlign: "center" }}
-        >
-          Your listing is live
-        </h2>
-        <p
-          className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-[#B7BAC4] text-center"
-          style={{ textAlign: "center" }}
-        >
-          {draft.brand} {draft.model || draft.reference} is now published on FairWatchTrade. You
-          can manage or edit it anytime from your listings.
+        <p className="mx-auto mb-4 max-w-md font-display text-[16px] font-light italic leading-[1.8] text-[var(--muted)]">
+          Your watch is ready for its next collector.
+        </p>
+        <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[var(--slate)]">
+          {draft.brand} {draft.model || draft.reference} is now published on FairWatchTrade. You can manage or edit it anytime from your listings.
         </p>
       </div>
     );
@@ -118,20 +112,20 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
 
   return (
     <div>
-      <h2 className="text-[18px] font-medium text-[#E8E4DC]">
-        Step 5 — Review & publish
+      <h2 className="font-display text-[20px] font-light text-[var(--platinum)]">
+        Step 5 — Review &amp; publish
       </h2>
-      <p className="mt-1 text-[13px] text-[#8A8F9E]">
-        Here's exactly how buyers will see your listing.
+      <p className="mt-1 text-[13px] text-[var(--muted)]">
+        Here&apos;s exactly how buyers will see your listing.
       </p>
 
       {/* Buyer's-eye preview */}
-      <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#0D0F14]">
+      <div className="mt-4 overflow-hidden border border-[var(--border-subtle)] bg-[var(--ink)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="aspect-[4/3] w-full object-cover" />
         ) : (
-          <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[#8A8F9E]">
+          <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[var(--muted)]">
             No photos added
           </div>
         )}
@@ -144,30 +138,30 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
                 key={i}
                 src={p.photo.url}
                 alt=""
-                className="h-14 w-14 shrink-0 rounded-md border border-white/10 object-cover"
+                className="h-14 w-14 shrink-0 border border-[var(--border-subtle)] object-cover"
               />
             ))}
           </div>
         )}
 
         <div className="p-4">
-          <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-[var(--muted)]">
             {[draft.condition, draft.year].filter(Boolean).join(" · ")}
           </div>
-          <div className="mt-1 text-[18px] font-medium text-[#E8E4DC]">
+          <div className="mt-1 font-display text-[18px] font-light text-[var(--platinum)]">
             {[draft.brand, draft.model].filter(Boolean).join(" ")}
           </div>
           {draft.reference && (
-            <div className="mt-0.5 text-[12px] text-[#8A8F9E]">
+            <div className="mt-0.5 text-[12px] text-[var(--muted)]">
               Ref. {draft.reference}
             </div>
           )}
-          <div className="mt-1 text-[16px] font-semibold text-[#C9A84C]">
+          <div className="mt-1 font-display text-[16px] font-light text-[var(--gold)]">
             {formatPrice(draft.askingPrice)}
           </div>
 
           {draft.description && (
-            <p className="mt-3 whitespace-pre-line text-[13px] leading-relaxed text-[#B7BAC4]">
+            <p className="mt-3 whitespace-pre-line text-[13px] leading-relaxed text-[var(--slate)]">
               {draft.description}
             </p>
           )}
@@ -179,8 +173,8 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
                   key={label}
                   className="flex justify-between gap-3 border-b border-white/5 py-1.5"
                 >
-                  <dt className="text-[12px] text-[#8A8F9E]">{label}</dt>
-                  <dd className="text-right text-[12px] text-[#E8E4DC]">{value}</dd>
+                  <dt className="text-[12px] text-[var(--muted)]">{label}</dt>
+                  <dd className="text-right text-[12px] text-[var(--platinum)]">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -189,26 +183,27 @@ export default function ReviewStep({ draft }: { draft: ListingDraft }) {
       </div>
 
       {error && (
-        <p
-          className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[13px] text-[#E8B4B4] text-center"
-          style={{ textAlign: "center" }}
-        >
+        <p className="mt-4 border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-center text-[13px] text-[var(--danger)]">
           {error}
         </p>
       )}
 
-      <button
-        onClick={publish}
-        disabled={publishing}
-        className={`mt-5 flex items-center gap-2 rounded-md bg-[#C9A84C] px-5 py-2.5 text-[13px] font-medium text-black hover:opacity-90 disabled:opacity-40 ${
-          publishing ? "cursor-wait" : ""
-        }`}
-      >
-        {publishing && (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-        )}
-        {publishing ? "Publishing…" : "Publish Listing"}
-      </button>
+      <p className="mb-4 mt-6 text-center font-display text-[15px] font-light italic text-[var(--muted)]">
+        Your watch is ready for its next collector.
+      </p>
+
+      <div className="flex justify-end">
+        <button
+          onClick={publish}
+          disabled={publishing}
+          className={`flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] hover:opacity-90 disabled:opacity-40 ${
+            publishing ? "cursor-wait" : ""
+          }`}
+        >
+          {publishing && <WatchSpinner size={16} />}
+          {publishing ? "Publishing…" : "Publish Listing"}
+        </button>
+      </div>
     </div>
   );
 }
