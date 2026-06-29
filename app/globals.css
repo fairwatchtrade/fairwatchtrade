@@ -33,6 +33,11 @@
      Never for instructional or informational text.
      Minimum readable text = --ghost (#4A4F5C). */
   --void:         #3D424F;
+  /* GOVERNANCE: --void is ONLY for placeholder: text, truly decorative
+     elements, and disabled states. Any text a user needs to read —
+     labels, hints, captions, "Soon" pills, progress step names,
+     nav items — floors at --ghost (#4A4F5C) minimum.
+     If a brief specifies --void on informational text, --ghost wins. */
 
   --gold-dim:     #9A7E3A;
   --gold-subtle:  rgba(201,168,76,0.45);
