@@ -145,7 +145,7 @@ export default function SellFlow() {
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
-                    className="bg-[var(--gold)] px-5 py-2 font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Continue
                   </button>
@@ -195,7 +195,7 @@ function ProgressBar({ step }: { step: number }) {
               <div
                 className={`mt-1 font-[Inter] text-[9px] uppercase tracking-[1.5px] ${
                   i === step
-                    ? "text-[var(--slate)]"
+                    ? "text-[var(--platinum)]"
                     : i < step
                       ? "text-[var(--ghost)]"
                       : "text-[var(--ghost)]"
@@ -326,7 +326,7 @@ function CurationStep({
 
       <div className="mt-4">
         <label className={label}>Brief provenance note</label>
-        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Given to me by my father, been in the family ever since…" />
+        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Service history, previous ownership, how you acquired it…" />
       </div>
 
       {draft.curationDecision === "fail" && (
@@ -341,7 +341,7 @@ function CurationStep({
       <button
         onClick={check}
         disabled={!ready || busy}
-        className={`mt-6 flex items-center gap-2 bg-[var(--gold)] px-6 py-[11px] font-[Inter] text-[10px] font-normal uppercase tracking-[2.5px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`mt-6 flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] font-[Inter] text-[10px] font-normal uppercase tracking-[2.5px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
           busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
         }`}
       >
@@ -361,6 +361,9 @@ function PhotosStep({
   patch: (p: Partial<ListingDraft>) => void;
   photoRef: RefObject<PhotoUploadHandle | null>;
 }) {
+  const [dragCount, setDragCount] = useState(0);
+  const dragOver = dragCount > 0;
+
   function onPhotos(metas: UploadedPhotoMeta[]) {
     const photos: ListingPhoto[] = metas
       .filter((m) => m.category)
@@ -391,7 +394,20 @@ function PhotosStep({
         This watch is on a bracelet (needs a full shot with the bracelet extended)
       </label>
 
-      <div className="mt-4">
+      <div
+        className={`mt-4 transition-all duration-200 ${
+          dragOver
+            ? "bg-[rgba(201,168,76,0.04)] shadow-[inset_0_0_0_1px_rgba(201,168,76,0.2)]"
+            : ""
+        }`}
+        onDragEnter={() => setDragCount((c) => c + 1)}
+        onDragLeave={() => setDragCount((c) => c - 1)}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragCount(0);
+        }}
+      >
         <PhotoUpload ref={photoRef} onChange={onPhotos} />
       </div>
     </div>
