@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
    ════════════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────────────
-   MOBILE NAV — the "watch roll" drawer  (v1.65b)
+   MOBILE NAV — the "watch roll" drawer  (v1.66)
 
    Left-edge drawer (76% width) that slides in over a dimmed peek strip (~24%).
    The wider peek makes the live page behind unmistakably visible — the drawer
@@ -35,6 +35,88 @@ import { usePathname } from "next/navigation";
    ──────────────────────────────────────────────────────────────────────── */
 
 type BadgeVariant = "green" | "gold" | "blue";
+
+/* Inline line-icons, one per nav item. Thin stroke to match Studio restraint.
+   Active = gold, inactive = muted, set by the caller via the `active` prop. */
+const ICON_PATHS: Record<string, React.ReactNode> = {
+  Browse: (
+    <>
+      <circle cx="7" cy="7" r="5.5" />
+      <circle cx="7" cy="7" r="1" />
+      <line x1="7" y1="1.5" x2="7" y2="3" />
+      <line x1="7" y1="11" x2="7" y2="12.5" />
+      <line x1="1.5" y1="7" x2="3" y2="7" />
+      <line x1="11" y1="7" x2="12.5" y2="7" />
+    </>
+  ),
+  "My Catalogue": (
+    <>
+      <path d="M7 3C5 3 3 3.5 3 5v7c0-1.5 2-2 4-2s4 .5 4 2V5c0-1.5-2-2-4-2z" />
+      <line x1="7" y1="3" x2="7" y2="10" />
+    </>
+  ),
+  "Saved Watches": <path d="M4 2h6a1 1 0 011 1v9l-4-2.5L3 12V3a1 1 0 011-1z" />,
+  "Sell a Watch": (
+    <>
+      <path d="M3 3h4l5 5-4 4-5-5V3z" />
+      <circle cx="5.5" cy="5.5" r="1" />
+    </>
+  ),
+  "My Listings": (
+    <>
+      <rect x="2" y="2" width="4" height="4" />
+      <rect x="8" y="2" width="4" height="4" />
+      <rect x="2" y="8" width="4" height="4" />
+      <rect x="8" y="8" width="4" height="4" />
+    </>
+  ),
+  Messages: (
+    <>
+      <rect x="2" y="4" width="10" height="8" rx="1" />
+      <path d="M2 4l5 5 5-5" />
+    </>
+  ),
+  Vault: (
+    <>
+      <circle cx="5" cy="7" r="3" />
+      <path d="M8 7h4M10 5v4" />
+    </>
+  ),
+  "Market Intel": (
+    <>
+      <rect x="2" y="8" width="2" height="4" />
+      <rect x="6" y="5" width="2" height="7" />
+      <rect x="10" y="2" width="2" height="10" />
+    </>
+  ),
+  Account: (
+    <>
+      <circle cx="7" cy="4" r="2.5" />
+      <path d="M2 13c0-3 2.5-5 5-5s5 2 5 5" />
+    </>
+  ),
+};
+
+function NavIcon({ label, active }: { label: string; active: boolean }) {
+  const paths = ICON_PATHS[label];
+  if (!paths) return null;
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke={active ? "var(--gold)" : "var(--muted)"}
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      {paths}
+    </svg>
+  );
+}
 
 function Badge({
   variant,
@@ -89,12 +171,6 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-const METALS = [
-  { label: "Gold", value: "$4,091" },
-  { label: "Silver", value: "$59.30" },
-  { label: "Platinum", value: "$1,625" },
-];
-
 export default function MobileNav({
   open,
   onClose,
@@ -139,7 +215,7 @@ export default function MobileNav({
           <div className="font-display text-[16px] font-light text-[var(--platinum)]">
             Welcome back.
           </div>
-          <div className="mt-1 text-[10px] tracking-[1px] text-[var(--platinum-dim)]">
+          <div className="mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
             Your catalogue is waiting.
           </div>
         </div>
@@ -164,7 +240,10 @@ export default function MobileNav({
                         : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
                     }`}
                   >
-                    <span>{item.label}</span>
+                    <span className="flex items-center gap-3">
+                      <NavIcon label={item.label} active={isActive} />
+                      <span>{item.label}</span>
+                    </span>
                     {item.badge && <Badge variant={item.badge.variant}>{item.badge.label}</Badge>}
                   </Link>
                 );
@@ -177,24 +256,11 @@ export default function MobileNav({
           <Link
             href="/account"
             onClick={onClose}
-            className="flex items-center border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
+            className="flex items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
           >
-            Account
+            <NavIcon label="Account" active={pathname === "/account"} />
+            <span>Account</span>
           </Link>
-        </div>
-
-        {/* Market strip — static placeholders (live values Phase 2) */}
-        <div className="mt-auto border-t border-[var(--border-faint)] px-5 py-4">
-          <div className="flex gap-5">
-            {METALS.map((m) => (
-              <div key={m.label}>
-                <div className="text-[7px] uppercase tracking-[2px] text-[var(--ghost)]">
-                  {m.label}
-                </div>
-                <div className="text-[11px] text-[var(--muted)]">{m.value}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
