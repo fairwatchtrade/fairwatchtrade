@@ -395,7 +395,10 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         sc.vault_families?.forEach((f) => f.vault_variants?.forEach((vv) => variants.push(vv)));
         variants.forEach((m, i) => {
           const n = Math.max(1, variants.length);
-          const ma = i * ((Math.PI * 2) / n) + tRef.current * 0.0006;
+          // Moons orbit — that is what makes it a galaxy. But VERY slowly:
+          // a serene, contemplative revolution you can dwell on and click,
+          // not a shooting gallery. The orbit stays; only the haste goes.
+          const ma = i * ((Math.PI * 2) / n) + tRef.current * 0.00008;
           objs.push({
             type: "model",
             variant: m,
