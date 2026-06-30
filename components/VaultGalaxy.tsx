@@ -88,9 +88,9 @@ function viewportFactor() {
   if (typeof window === "undefined") return 1;
   const w = window.innerWidth;
   if (w >= 1100) return 1;        // desktop — full immersion
-  if (w <= 480) return 0.42;      // phone — modest, POC-like spread
+  if (w <= 480) return 0.52;      // phone — modest, POC-like spread
   // tablet range: smooth interpolation between phone and desktop
-  return 0.42 + (w - 480) * ((1 - 0.42) / (1100 - 480));
+  return 0.52 + (w - 480) * ((1 - 0.52) / (1100 - 480));
 }
 function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 700;
@@ -165,7 +165,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const [query, setQuery] = useState("");
 
   // ── Engine refs (mutable, outside React render) ──
-  const openScale = isMobileViewport() ? 1.15 : 2.2;
+  const openScale = isMobileViewport() ? 0.9 : 2.2;
   const camRef = useRef({ x: 0, y: 0, scale: openScale });
   const targetRef = useRef({ x: 0, y: 0, scale: openScale });
   // Drag-to-pan state: tracks pointer drag so you can pull the universe around.
@@ -254,7 +254,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setCrumb("The gates are open");
     setHeroHidden(false);
     brightnessRef.current = {};
-    flyTo(0, 0, isMobileViewport() ? 1.15 : 2.2);
+    flyTo(0, 0, isMobileViewport() ? 0.9 : 2.2);
   }
 
   function historyBack() {
@@ -563,8 +563,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     // Mobile opens looser (lower scale) so the field reads as many stars,
     // not one giant glow.
     const mob = isMobileViewport();
-    flyTo(0, 0, mob ? 1.25 : 2.4);
-    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
+    flyTo(0, 0, mob ? 1.0 : 2.4);
+    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 0.9 : 2.2), 400);
 
     return () => {
       cancelAnimationFrame(raf);
