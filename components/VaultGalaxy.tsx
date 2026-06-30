@@ -361,7 +361,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
           refIndex: positioned.indexOf(sb),
           x: sb.x,
           y: sb.y,
-          z: 1,
+          z: sb.z,
           r: 12,
           label: sb.name,
           glow: 1.2,
@@ -376,7 +376,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
             collIdx: i,
             x: sb.x + Math.cos(a) * 66,
             y: sb.y + Math.sin(a) * 48,
-            z: 0.9,
+            z: sb.z,
             r: 8,
             label: c.name,
             glow: 0.95,
@@ -401,7 +401,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
             variant: m,
             x: cx + Math.cos(ma) * 34,
             y: cy + Math.sin(ma) * 26,
-            z: 0.75,
+            z: sb.z,
             r: 5.5,
             label: m.name,
             glow: 0.9,
@@ -430,14 +430,14 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       const detail = detailRef.current;
 
       if ((v === "collections" || v === "models") && sb) {
-        const c = screen({ x: sb.x, y: sb.y });
-        orbit(c.x, c.y, 66 * cam.scale, 48 * cam.scale, 0.13);
+        const c = screen({ x: sb.x, y: sb.y, z: sb.z });
+        orbit(c.x, c.y, 66 * cam.scale * sb.z, 48 * cam.scale * sb.z, 0.13);
       }
       if (v === "models" && sb && sc && detail) {
         const ci = detail.indexOf(sc);
         const a = -Math.PI / 2 + ci * ((Math.PI * 2) / Math.max(1, detail.length));
-        const p = screen({ x: sb.x + Math.cos(a) * 66, y: sb.y + Math.sin(a) * 48 });
-        orbit(p.x, p.y, 34 * cam.scale, 26 * cam.scale, 0.11);
+        const p = screen({ x: sb.x + Math.cos(a) * 66, y: sb.y + Math.sin(a) * 48, z: sb.z });
+        orbit(p.x, p.y, 34 * cam.scale * sb.z, 26 * cam.scale * sb.z, 0.11);
       }
 
       objectsRef.current.forEach((o) => {
