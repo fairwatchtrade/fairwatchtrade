@@ -9,12 +9,12 @@
 
 :root {
 
-  /* ── READABILITY FLOOR RULES ──
-     --muted (#6E7480) = absolute minimum for ANY text the user is meant to read.
-     --ghost (#4A4F5C) = disabled states and placeholders ONLY.
+  /* ── READABILITY FLOOR RULES (v1.71 — global legibility pass) ──
+     --muted (#818799) = absolute minimum for ANY text the user is meant to read.
+     --ghost (#646B7A) = disabled states and placeholders ONLY.
      --void  (#3D424F) = decorative and placeholder text ONLY. Never instructional.
-     --platinum-dim overrides to #D8D4CC at max-width: 520px.
-     --slate overrides to #969BAA at max-width: 520px.
+     Readable tiers raised site-wide for normal-monitor / sunlight legibility;
+     decorative tier (--void) held. Every page inherits from here.
      Never place readable text below --muted. ── */
 
   /* ── COLOR TOKENS ── */
@@ -23,20 +23,20 @@
   --surface:      #13151C;
   --surface-2:    #1A1D26;
   --platinum:     #E8E4DC;
-  --platinum-dim: #C2BEB6;
-  --slate:        #8A8F9E;
-  --muted:        #6E7480;
-  --ghost:        #4A4F5C;
+  --platinum-dim: #CFCBC3;
+  --slate:        #9CA1B0;
+  --muted:        #818799;
+  --ghost:        #646B7A;
 
   /* VOID FLOOR WARNING: #3D424F is below the readable floor.
      Use ONLY for decorative elements, placeholders, and disabled states.
      Never for instructional or informational text.
-     Minimum readable text = --ghost (#4A4F5C). */
+     Minimum readable text = --ghost (#646B7A). */
   --void:         #3D424F;
   /* GOVERNANCE: --void is ONLY for placeholder: text, truly decorative
      elements, and disabled states. Any text a user needs to read —
      labels, hints, captions, "Soon" pills, progress step names,
-     nav items — floors at --ghost (#4A4F5C) minimum.
+     nav items — floors at --ghost (#646B7A) minimum.
      If a brief specifies --void on informational text, --ghost wins. */
 
   --gold-dim:     #9A7E3A;
@@ -297,8 +297,10 @@ html, body {
 /* ── MOBILE TYPOGRAPHY FLOOR ── */
 @media (max-width: 520px) {
   :root {
-    --platinum-dim: #D8D4CC;  /* brightness bump for body copy on mobile */
-    --slate: #969BAA;          /* readable floor bump on mobile */
+    --platinum-dim: #D8D4CC;  /* still brighter than new base #CFCBC3 — kept */
+    /* --slate mobile override removed in v1.71: new base #9CA1B0 is already
+       brighter than the old mobile bump #969BAA, which would have inverted
+       (made slate darker on mobile). Base value now covers mobile. */
   }
 }
 /* ── SPACING SAFELIST — ensures common utilities are always compiled ── */
