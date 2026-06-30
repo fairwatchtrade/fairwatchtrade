@@ -634,12 +634,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         <div className="mb-[18px] text-[9px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
           The FairWatchTrade Vault
         </div>
-        <h1 className="mb-3 font-display text-[42px] font-light leading-[1.15] text-[var(--platinum)]">
+        <h1 className="mb-3 font-display text-[32px] font-light leading-[1.15] text-[var(--platinum)] sm:text-[42px]">
           What draws you <em className="italic text-[var(--gold)]">to a watch?</em>
         </h1>
         <p className="mx-auto max-w-[560px] font-display text-[17px] font-light italic leading-[1.6] text-[var(--slate)]">
-          Begin with curiosity. The Vault will illuminate a path through brands,
-          collections, and references.
+          Explore with curiosity.
         </p>
       </div>
 
@@ -767,7 +766,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
               if (e.key === "Enter") runSearch(query);
             }}
             placeholder="Try: architectural manual wind, Japanese independent, heritage chronograph…"
-            className="flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[21px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)]"
+            className="flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[15px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:text-[21px]"
           />
           <button onClick={() => runSearch(query)} className="fw-btn-primary">
             Explore
