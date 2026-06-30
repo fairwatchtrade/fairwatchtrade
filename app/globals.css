@@ -77,10 +77,18 @@
 }
 
 /* ── RESET ── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* v1.75: wrapped in @layer base so Tailwind v4 utilities (@layer utilities)
+   correctly override it. An UNLAYERED reset beats all layered styles per the
+   cascade-layers spec, which was silently zeroing raw padding/margin utilities
+   (px-*, pt-*, mx-*) — the root cause of the left-gutter clipping on /sell,
+   /account, and likely other pages. Layer order: theme, base, components,
+   utilities → utilities wins over base, as intended. */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 /* ── BASE ── */
