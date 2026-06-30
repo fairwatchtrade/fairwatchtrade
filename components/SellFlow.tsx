@@ -268,7 +268,7 @@ function CurationStep({
   }
 
   const input =
-    "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--void)] focus:border-[var(--border-gold)] focus:outline-none transition";
+    "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none transition";
   const label = "mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]";
 
   return (
@@ -287,7 +287,7 @@ function CurationStep({
             value={draft.brand}
             onChange={(brand, isCustom) => patch({ brand, customBrandFlag: isCustom })}
             inputClassName={input}
-            placeholder="Parmigiani Fleurier"
+            placeholder="e.g. Parmigiani Fleurier"
           />
         </div>
         <div>
@@ -298,16 +298,16 @@ function CurationStep({
             onChange={(model) => patch({ model })}
             brandName={draft.brand}
             inputClassName={input}
-            placeholder="Tonda Métrographe"
+            placeholder="e.g. Tonda Métrographe"
           />
         </div>
         <div>
           <label className={label}>Reference number</label>
-          <input id="reference" className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="PFC274-0000600" />
+          <input id="reference" className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="e.g. reference number" />
         </div>
         <div>
           <label className={label}>Year</label>
-          <input className={input} value={draft.year} onChange={(e) => patch({ year: e.target.value })} placeholder="2021" />
+          <input className={input} value={draft.year} onChange={(e) => patch({ year: e.target.value })} placeholder="e.g. 2021" />
         </div>
         <div>
           <label className={label}>Condition</label>
@@ -320,7 +320,7 @@ function CurationStep({
         </div>
         <div>
           <label className={label}>Asking price (USD)</label>
-          <input className={input} value={draft.askingPrice} onChange={(e) => patch({ askingPrice: e.target.value })} placeholder="7250" inputMode="numeric" />
+          <input className={input} value={draft.askingPrice} onChange={(e) => patch({ askingPrice: e.target.value })} placeholder="e.g. 7250" inputMode="numeric" />
         </div>
       </div>
 
