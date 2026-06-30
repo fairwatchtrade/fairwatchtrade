@@ -35,7 +35,7 @@ export default async function VaultReviewPage() {
   const { data: brands, error } = await supabase
     .from("vault_brands")
     .select(
-      "id, name, slug, country_of_origin, cluster_staging, cluster, independent_status, cluster_reviewed"
+      "id, name, slug, country_of_origin, independent_status, search_aliases, cluster, region, cluster_rationale, cluster_staging, region_staging, cluster_rationale_staging, cluster_reviewed"
     )
     .order("name");
 
