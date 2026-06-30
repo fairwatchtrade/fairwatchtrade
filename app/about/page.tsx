@@ -73,10 +73,10 @@ export default function AboutPage() {
             I was looking for the perfect Mother&apos;s Day gift for my wife — a
             moon phase, a particular mother-of-pearl dial, a design where every
             detail felt intentional. But the industry&apos;s search engines
-            forced me to shop by manufacturer first, rather than by the artistry
-            of the timepiece itself. It got to the point where I was writing
-            custom batch files just to search the market — scripts to scrape the
-            web for a single reference number or a specific dial color.
+            forced me to shop by manufacturer first, rather than by the design
+            itself. It got to the point where I was writing custom batch files
+            just to search the market — scripts to scrape the web for a single
+            reference number or a specific dial color.
           </p>
 
           <div className="fw-pull">
