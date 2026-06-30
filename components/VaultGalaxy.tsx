@@ -84,12 +84,17 @@ function generateGalaxyPosition(slug: string, index: number) {
   const seed = slug.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
   const angle = index * goldenAngle;
-  const radius = Math.sqrt(index) * 28;
-  const jitter = (seed % 17) - 8;
+  // Wide spread: the Vault is a universe — it must exceed the viewport in
+  // every direction so you can never frame the whole at once. The field is
+  // far larger than any screen; you are always WITHIN it, seeing only a part.
+  const radius = Math.sqrt(index) * 74 + 40;
+  const jitter = (seed % 31) - 15;
   return {
     x: Math.cos(angle) * radius + jitter,
     y: Math.sin(angle) * radius + jitter,
-    z: 0.5 + ((seed % 50) / 100),
+    // z is depth (0.4 near → 1.4 far) — drives parallax so movement feels
+    // like travelling through a volume, not panning a flat map.
+    z: 0.4 + ((seed % 100) / 100),
   };
 }
 
@@ -141,8 +146,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const [query, setQuery] = useState("");
 
   // ── Engine refs (mutable, outside React render) ──
-  const camRef = useRef({ x: 0, y: 0, scale: 1 });
-  const targetRef = useRef({ x: 0, y: 0, scale: 1 });
+  const camRef = useRef({ x: 0, y: 0, scale: 2.2 });
+  const targetRef = useRef({ x: 0, y: 0, scale: 2.2 });
   const objectsRef = useRef<EngineObject[]>([]);
   const tRef = useRef(0);
   const dprRef = useRef(1);
@@ -227,7 +232,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setCrumb("The gates are open");
     setHeroHidden(false);
     brightnessRef.current = {};
-    flyTo(0, 0, 1);
+    flyTo(0, 0, 2.2);
   }
 
   function historyBack() {
@@ -265,7 +270,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       }
     });
     brightnessRef.current = bmap;
-    if (best) flyTo((best as PositionedBrand).x * 0.25, (best as PositionedBrand).y * 0.25, 1.4);
+    if (best) flyTo((best as PositionedBrand).x, (best as PositionedBrand).y, 2.2);
   }
 
   // ── Canvas engine — ported from POC, runs once on mount ──
@@ -292,10 +297,15 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       const cam = camRef.current;
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2 + 10;
+      // Parallax: a star's apparent motion scales with its depth (z). Near
+      // stars (high z) sweep past faster than far stars (low z) as the camera
+      // moves — the field reads as a VOLUME you travel through, not a flat map
+      // you pan. This is what makes you feel inside the universe.
+      const depth = o.z || 1;
       return {
-        x: cx + (o.x - cam.x) * cam.scale,
-        y: cy + (o.y - cam.y) * cam.scale,
-        r: (o.r || 6) * cam.scale * (o.z || 1),
+        x: cx + (o.x - cam.x * depth) * cam.scale,
+        y: cy + (o.y - cam.y * depth) * cam.scale,
+        r: (o.r || 6) * cam.scale * depth,
       };
     }
 
@@ -486,7 +496,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     cv.addEventListener("click", onClick);
 
     // Opening drift, mirrors POC.
-    const opening = window.setTimeout(() => flyTo(0, 0, 1.08), 400);
+    // Open INSIDE the universe, not above it. Start among the stars at a
+    // scale where the field streams off all four edges — there is no
+    // god's-eye overview, ever. A gentle drift inward begins the experience.
+    flyTo(0, 0, 2.4);
+    const opening = window.setTimeout(() => flyTo(0, 0, 2.2), 400);
 
     return () => {
       cancelAnimationFrame(raf);
