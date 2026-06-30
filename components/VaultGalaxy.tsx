@@ -270,16 +270,19 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
 
   // ── Canvas engine — ported from POC, runs once on mount ──
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    const canvasEl = canvasRef.current;
+    const context = canvasEl?.getContext("2d");
+    if (!canvasEl || !context) return;
+    // Non-null locals the nested closures can safely capture.
+    const cv: HTMLCanvasElement = canvasEl;
+    const ctx: CanvasRenderingContext2D = context;
 
     let raf = 0;
 
     function resize() {
       dprRef.current = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dprRef.current;
-      canvas.height = window.innerHeight * dprRef.current;
+      cv.width = window.innerWidth * dprRef.current;
+      cv.height = window.innerHeight * dprRef.current;
       ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
     }
     window.addEventListener("resize", resize);
@@ -480,7 +483,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         enterVariant(h.variant);
       }
     }
-    canvas.addEventListener("click", onClick);
+    cv.addEventListener("click", onClick);
 
     // Opening drift, mirrors POC.
     const opening = window.setTimeout(() => flyTo(0, 0, 1.08), 400);
@@ -488,7 +491,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      canvas.removeEventListener("click", onClick);
+      cv.removeEventListener("click", onClick);
       window.clearTimeout(opening);
     };
     // positioned is stable (memoized on brands); engine binds once.
