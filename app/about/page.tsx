@@ -10,6 +10,8 @@
    The about page is done. Moving on.
    ──────────────────────────────────────────────────────────────────────── */
 
+import FounderSignature from "@/components/FounderSignature";
+
 export default function AboutPage() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 sm:py-40">
@@ -59,7 +61,7 @@ export default function AboutPage() {
             font-display: swap in Google Fonts URL. text-rendering: optimizeLegibility
             in globals.css. Paragraph spacing via .fw-body p. This is the approved
             Studio spec. Done. */}
-        <div className="fw-body font-display px-1 text-left text-[16.5px] font-light text-[var(--platinum-dim)]">
+        <div className="fw-body font-display px-1 text-left text-[14px] font-light text-[var(--platinum-dim)] sm:text-[16.5px]">
           <p>
             My name is William Mynatt. Long before I devoted my free time to
             collecting watches, I worked in IT infrastructure consulting in
@@ -125,10 +127,9 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* Signature — Cormorant, display moment */}
-        <div className="mt-9 px-1 text-right font-[Cormorant_Garamond] text-[15px] font-light italic text-[var(--muted)]">
-          — <span className="text-[var(--gold)] not-italic">William Mynatt</span>,
-          Founder
+        {/* Signature — William's actual hand, vectorized (FounderSignature). */}
+        <div className="mt-9 flex justify-end px-1">
+          <FounderSignature width={180} withRule className="text-[var(--platinum-dim)]" />
         </div>
       </div>
 
