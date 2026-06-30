@@ -154,6 +154,28 @@ This value must never change. It is the canary that proves the evaluation engine
 
 ---
 
+## The Moon Principle
+
+> **The moon should have detail like the item it represents.**
+
+The Vault Galaxy is the taxonomy made spatial — and the hierarchy is not flat:
+
+- **Star = Brand** — an entity, a maker, an idea.
+- **Planet = Collection** — a category, a product line, an organizing abstraction.
+- **Moon = Reference** — **the actual, specific, physical watch.** A real manufacturer reference number, a real dial, a real movement. The one that could be on a wrist right now.
+
+Descending star → planet → moon moves from *abstract* to *concrete*, from *concept* to *object*. The star is "who made it." The planet is "what family it belongs to." The moon is "**this exact watch, the one that exists in the world.**" The moon is the most important object in the galaxy, because it is the only one that is a real thing you can hold. Everything above it is organizational. The moon is real.
+
+**A moon's visual richness is a faithful function of its watch's actual complexity — never inflated, never flattened.** A simple field watch yields a simple moon. A Parmigiani with a hand-guilloché dial, a relief-finished movement, and a complication stack yields a moon with the depth to match. The rule polices both directions: a plain watch rendered as an ornate moon is a *lie* (it inflates what isn't there); a complicated, finely-finished watch rendered as a plain sphere is a *theft* (it hides truth the object actually has). The moon does not *depict* the watch's detail — it **carries** it.
+
+This makes the galaxy honest at the object level. A moon's richness becomes a truthful signal — "this piece has depth" or "this piece is clean and simple" — rendered the way the watch itself would tell you under a loupe. The detail is not a style setting; it is **driven by the reference data.** The spec grammar (movement, finishing, complications, dial treatment, materials, frequency) does not merely populate a card beside the moon — it **generates** the moon. The data becomes the surface. Each moon is a portrait of its specific reference, drawn at exactly the fidelity that reference deserves. Moons are never designed once and reused as generic objects.
+
+This is the object-level expression of the Self-Evident Standard: the moon's surface is *self-evident, not sacred* — it shows the watch's truth rather than asserting it. And it is the destination of every navigation rule. Rule #1 (discovery not exposition), travel-to-proximity, the reveal mechanic — all of it exists to deliver a person to a moon. The star and planet are the *path*. The moon is the *arrival*.
+
+You do not traverse the galaxy to look at a sun. You traverse it to reach **one specific watch** — rendered as truly as the watch itself.
+
+---
+
 ## The Closing Line
 
 At the bottom of the publish button on the sell flow, in Cormorant Garamond italic, centered:

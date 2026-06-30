@@ -111,3 +111,58 @@ POC — both of which exposed the whole field. No duck erred; the rule fell into
 the GAP between ducks. That gap is exactly what this document closes. A rule
 that lives in one duck's head is fragile; written here, it binds every future
 Vault flight and survives any single duck being out of the loop.
+
+## RULE #3 — Travel is to PROXIMITY, never to LOCATION (the navigation law)
+
+The universe is navigated by curiosity about the distant. A faraway star may
+be only a pixel of light — too far to name — and clicking it must let you
+TRAVEL there to find out what it is. This is the gesture that makes the galaxy
+feel infinite: the unseen, faint, distant point is a DESTINATION, not décor.
+
+But the critical distinction, the one that separates a living galaxy from a
+teleport-menu:
+
+**A travel-click flies you to the star's PROXIMITY, not its LOCATION.**
+
+- **Location** (WRONG): slams the camera onto the star, dead center, filling the
+  frame. You arrive ON TOP of it, isolated, the void and the neighbors gone.
+  That is teleportation to a fact — exposition, a database row with a spotlight.
+  The universe vanishes. You became a cursor.
+- **Proximity** (RIGHT): the camera JOURNEYS across the dark and arrives in the
+  star's NEIGHBORHOOD — the star ahead of you, its kin resolving around you, the
+  void still off the edges. That is ARRIVAL, not teleportation. You crossed real
+  distance and now stand in its region, a traveler, the universe intact. A
+  second, separate, deliberate act approaches/enters the star itself.
+
+Why proximity is non-negotiable:
+- It preserves Rule #1 — you still only see a part; arriving near does not frame
+  the whole.
+- It pays off Rule #2 — the JOURNEY reveals the neighborhood. As you approach,
+  the kin you didn't know were there fade in; you discover WHO the star lives
+  among by traveling to it. The crossing has content. You learn the map by
+  moving through it.
+- It keeps agency — you travel to the region, then YOU choose to approach. The
+  traveler stays a traveler, never a cursor.
+
+Two distinct gestures, never collapsed into one:
+1. **Travel-to-proximity** — click a (possibly distant, possibly pixel-faint)
+   star → camera journeys across the void → neighborhood resolves on approach →
+   arrive NEAR it, among its cluster, void still beyond.
+2. **Enter** — a second click approaches and drills into the brand
+   (collections → variants → reference).
+
+Implementation notes:
+- Distant/faint stars must be CLICKABLE even at pixel size (hit target generous
+  even when visually tiny) and must read as REACHABLE destinations, not as the
+  non-interactive decorative starfield twinkle. Distinguish "distant star you
+  can go to" from "background dust."
+- Travel-click ≠ drill-click. They are different interactions and must not be
+  conflated.
+- This feature WANTS clusters populated first — arriving at a distant star is
+  magic only if you land in a MEANINGFUL neighborhood. Travel to a random-scatter
+  star is just a long pan. Sequence: clusters → travel-to-proximity navigation →
+  rich destinations (Selene-relief moons + spec card).
+
+The word is PROXIMITY. If a future duck builds travel-to-location, it has killed
+the feature with one word. Proximity keeps you a traveler in a universe.
+Location makes you a cursor at a fact.
