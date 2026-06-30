@@ -339,7 +339,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       const detail = detailRef.current;
       const bmap = brightnessRef.current;
 
-      if (v === "brands" || v === "detail") {
+      if (v === "brands") {
         positioned.forEach((b, i) => {
           const glow = bmap[b.id] ?? b.brightness ?? 1;
           objs.push({
@@ -355,7 +355,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         });
       }
 
-      if ((v === "collections" || v === "models") && sb) {
+      if ((v === "collections" || v === "models" || v === "detail") && sb) {
         objs.push({
           type: "brandCore",
           refIndex: positioned.indexOf(sb),
@@ -384,7 +384,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         });
       }
 
-      if (v === "models" && sb && sc && detail) {
+      if ((v === "models" || v === "detail") && sb && sc && detail) {
         const cidx = detail.indexOf(sc);
         const a = -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
         const cx = sb.x + Math.cos(a) * 66;
@@ -429,11 +429,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       const sc = selCollRef.current;
       const detail = detailRef.current;
 
-      if ((v === "collections" || v === "models") && sb) {
+      if ((v === "collections" || v === "models" || v === "detail") && sb) {
         const c = screen({ x: sb.x, y: sb.y, z: sb.z });
         orbit(c.x, c.y, 66 * cam.scale * sb.z, 48 * cam.scale * sb.z, 0.13);
       }
-      if (v === "models" && sb && sc && detail) {
+      if ((v === "models" || v === "detail") && sb && sc && detail) {
         const ci = detail.indexOf(sc);
         const a = -Math.PI / 2 + ci * ((Math.PI * 2) / Math.max(1, detail.length));
         const p = screen({ x: sb.x + Math.cos(a) * 66, y: sb.y + Math.sin(a) * 48, z: sb.z });
