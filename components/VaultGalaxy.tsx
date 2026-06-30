@@ -271,9 +271,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   // ── Canvas engine — ported from POC, runs once on mount ──
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
     let raf = 0;
 
