@@ -79,6 +79,23 @@ type VaultCollection = {
 // A brand with its resolved galaxy position + runtime brightness.
 type PositionedBrand = VaultBrand & { x: number; y: number; z: number; brightness: number };
 
+// ── Viewport responsiveness ──
+// The Rule #1 immersion (wide spread, deep zoom) is tuned for desktop. On a
+// phone that same spread+zoom collapses into one giant glow ("the blob").
+// This factor tames spread and opening scale on narrow viewports so a phone
+// sees a modest, navigable field while desktop keeps the wide universe.
+function viewportFactor() {
+  if (typeof window === "undefined") return 1;
+  const w = window.innerWidth;
+  if (w >= 1100) return 1;        // desktop — full immersion
+  if (w <= 480) return 0.42;      // phone — modest, POC-like spread
+  // tablet range: smooth interpolation between phone and desktop
+  return 0.42 + (w - 480) * ((1 - 0.42) / (1100 - 480));
+}
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.innerWidth <= 700;
+}
+
 // ── Position generation — seeded spiral fallback (from the brief) ──
 function generateGalaxyPosition(slug: string, index: number) {
   const seed = slug.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -87,8 +104,9 @@ function generateGalaxyPosition(slug: string, index: number) {
   // Wide spread: the Vault is a universe — it must exceed the viewport in
   // every direction so you can never frame the whole at once. The field is
   // far larger than any screen; you are always WITHIN it, seeing only a part.
-  const radius = Math.sqrt(index) * 74 + 40;
-  const jitter = (seed % 31) - 15;
+  // Scaled by viewportFactor so phones get a tighter, navigable field.
+  const radius = (Math.sqrt(index) * 74 + 40) * viewportFactor();
+  const jitter = ((seed % 31) - 15) * viewportFactor();
   return {
     x: Math.cos(angle) * radius + jitter,
     y: Math.sin(angle) * radius + jitter,
@@ -127,8 +145,9 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     return brands.map((b, i) => {
       const hasCoords =
         b.galaxy_x !== null && b.galaxy_y !== null && b.galaxy_x !== undefined && b.galaxy_y !== undefined;
+      const vf = viewportFactor();
       const pos = hasCoords
-        ? { x: b.galaxy_x as number, y: b.galaxy_y as number, z: b.galaxy_z ?? 0.7 }
+        ? { x: (b.galaxy_x as number) * vf, y: (b.galaxy_y as number) * vf, z: b.galaxy_z ?? 0.7 }
         : generateGalaxyPosition(b.slug || String(i), i);
       return { ...b, ...pos, brightness: 1 };
     });
@@ -146,8 +165,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const [query, setQuery] = useState("");
 
   // ── Engine refs (mutable, outside React render) ──
-  const camRef = useRef({ x: 0, y: 0, scale: 2.2 });
-  const targetRef = useRef({ x: 0, y: 0, scale: 2.2 });
+  const openScale = isMobileViewport() ? 1.15 : 2.2;
+  const camRef = useRef({ x: 0, y: 0, scale: openScale });
+  const targetRef = useRef({ x: 0, y: 0, scale: openScale });
+  // Drag-to-pan state: tracks pointer drag so you can pull the universe around.
+  const dragRef = useRef({ active: false, moved: false, lastX: 0, lastY: 0 });
   const objectsRef = useRef<EngineObject[]>([]);
   const tRef = useRef(0);
   const dprRef = useRef(1);
@@ -232,7 +254,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setCrumb("The gates are open");
     setHeroHidden(false);
     brightnessRef.current = {};
-    flyTo(0, 0, 2.2);
+    flyTo(0, 0, isMobileViewport() ? 1.15 : 2.2);
   }
 
   function historyBack() {
@@ -447,13 +469,17 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         const p = screen(o);
         if (p.x < -80 || p.x > window.innerWidth + 80 || p.y < -80 || p.y > window.innerHeight + 80) return;
         const glow = o.glow || 1;
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, Math.max(16, p.r * 5));
+        const glowCap = isMobileViewport()
+          ? Math.min(window.innerWidth, window.innerHeight) * 0.18
+          : Infinity;
+        const glowR = Math.min(Math.max(16, p.r * 5), glowCap);
+        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
         grd.addColorStop(0, `rgba(201,168,76,${0.75 * glow})`);
         grd.addColorStop(0.25, `rgba(201,168,76,${0.22 * glow})`);
         grd.addColorStop(1, "rgba(201,168,76,0)");
         ctx.fillStyle = grd;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(16, p.r * 5), 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
@@ -473,9 +499,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     }
     draw();
 
-    function onClick(e: MouseEvent) {
-      const mx = e.clientX;
-      const my = e.clientY;
+    // ── Pointer: drag-to-pan + click-to-select (a drag suppresses the click) ──
+    function doSelect(mx: number, my: number) {
       let hit: EngineObject | null = null;
       let dist = 99999;
       objectsRef.current.forEach((o) => {
@@ -496,19 +521,57 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         enterVariant(h.variant);
       }
     }
-    cv.addEventListener("click", onClick);
+
+    function onPointerDown(e: PointerEvent) {
+      dragRef.current = { active: true, moved: false, lastX: e.clientX, lastY: e.clientY };
+    }
+    function onPointerMove(e: PointerEvent) {
+      const d = dragRef.current;
+      if (!d.active) return;
+      const dx = e.clientX - d.lastX;
+      const dy = e.clientY - d.lastY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
+      // Pan: move the camera target opposite the drag, divided by scale so the
+      // field tracks the cursor 1:1. You pull the universe around you.
+      const cam = camRef.current;
+      targetRef.current = {
+        x: targetRef.current.x - dx / cam.scale,
+        y: targetRef.current.y - dy / cam.scale,
+        scale: targetRef.current.scale,
+      };
+      // Keep the camera responsive mid-drag (don't wait for the lerp to catch up).
+      camRef.current = { ...camRef.current, x: cam.x - dx / cam.scale, y: cam.y - dy / cam.scale };
+      d.lastX = e.clientX;
+      d.lastY = e.clientY;
+    }
+    function onPointerUp(e: PointerEvent) {
+      const d = dragRef.current;
+      d.active = false;
+      // Only a true click (no meaningful drag) selects — a pan must not also
+      // fire a star select.
+      if (!d.moved) doSelect(e.clientX, e.clientY);
+    }
+
+    cv.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
 
     // Opening drift, mirrors POC.
     // Open INSIDE the universe, not above it. Start among the stars at a
     // scale where the field streams off all four edges — there is no
     // god's-eye overview, ever. A gentle drift inward begins the experience.
-    flyTo(0, 0, 2.4);
-    const opening = window.setTimeout(() => flyTo(0, 0, 2.2), 400);
+    // Mobile opens looser (lower scale) so the field reads as many stars,
+    // not one giant glow.
+    const mob = isMobileViewport();
+    flyTo(0, 0, mob ? 1.25 : 2.4);
+    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      cv.removeEventListener("click", onClick);
+      cv.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
       window.clearTimeout(opening);
     };
     // positioned is stable (memoized on brands); engine binds once.
@@ -533,6 +596,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         style={{
           background:
             "radial-gradient(circle at 50% 45%, #141824 0%, #090A10 45%, #03040A 100%)",
+          touchAction: "none",
+          cursor: "grab",
         }}
       />
 
@@ -580,7 +645,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
 
       {/* Detail / drill-down card */}
       {(view !== "brands" || selectedBrand) && (
-        <div className="fixed right-7 top-[90px] z-[7] w-[330px] border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.84)] p-5 backdrop-blur-md">
+        <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.84)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
           {loading ? (
             <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
               Illuminating the constellation…
