@@ -105,7 +105,7 @@ export default function DescriptionStep({
         onChange={(e) => onEdit(e.target.value)}
         placeholder="I bought this from the original owner in Geneva in 2019. The Abyss Blue dial shifts from near-black to deep ocean in daylight — photos never quite catch it. Wears smaller than its 40mm because of the short lugs…"
         className="mt-4 min-h-[160px] w-full resize-none border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] leading-relaxed text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none"
-        spellCheck={true}
+        spellCheck={false}
       />
       <div className={`mt-1 text-[12px] ${enough ? "text-[var(--muted)]" : "text-[var(--gold)]"}`}>
         {words} / {MIN_WORDS} words
