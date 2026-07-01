@@ -215,7 +215,12 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setHeroHidden(true);
     setHasEntered(true);
     setCrumb("Brand constellation · " + b.name);
-    flyTo(b.x, b.y, 2.35); // camera moves immediately; card fills when data lands
+    // Overshoot fix: the projection renders at screen.y = cy + (o.y - cam.y*z)*scale,
+    // so flying cam to (b.x, b.y) lands the brand at cy + b.y*(1 - z)*scale —
+    // centered ONLY when z≈1. Far/off-z brands overshot off-screen. Dividing the
+    // fly target by the brand's depth (b.z) makes it land dead-center for ANY z:
+    //   screen.y = cy + (b.y - (b.y/z)*z)*scale = cy. Verified.
+    flyTo(b.x / b.z, b.y / b.z, 2.35); // camera moves immediately; card fills when data lands
     setLoading(true);
     try {
       const res = await fetch(`/api/vault/${b.id}`);
@@ -236,7 +241,9 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     const n = Math.max(3, (detailRef.current?.length ?? 1));
     const a = -Math.PI / 2 + idx * ((Math.PI * 2) / n);
     setCrumb(b.name + " · " + c.name);
-    flyTo(b.x + Math.cos(a) * 58, b.y + Math.sin(a) * 42, 3.5);
+    // Same /z overshoot fix: the planet orbits at the brand's depth, so divide
+    // the whole (brand + orbital offset) target by b.z to land it dead-center.
+    flyTo((b.x + Math.cos(a) * 58) / b.z, (b.y + Math.sin(a) * 42) / b.z, 3.5);
   }
 
   function enterVariant(v: VaultVariant) {
@@ -296,7 +303,13 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       }
     });
     brightnessRef.current = bmap;
-    if (best) flyTo((best as PositionedBrand).x, (best as PositionedBrand).y, 2.2);
+    // Same /z overshoot fix as enterBrand — divide the search target by its depth
+    // so the flown-to brand lands centered regardless of z (was fine only for
+    // brands that happened to have z≈1).
+    if (best) {
+      const pb = best as PositionedBrand;
+      flyTo(pb.x / pb.z, pb.y / pb.z, 2.2);
+    }
   }
 
   // ── Canvas engine — ported from POC, runs once on mount ──
