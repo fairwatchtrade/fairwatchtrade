@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
+import WatchSpinner from "@/components/WatchSpinner";
 
 const MOVEMENT_TYPES = ["Automatic", "Manual Wind", "Quartz"];
 const CLOSURE_TYPES = [
@@ -102,12 +103,68 @@ const inputCls =
   "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
 const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
 
+/* Final Review support type — the shape the /api/validate-provenance route
+   returns when it has near-certain corrections to offer. */
+type ProvenanceReview = { corrected: string; issues: string[] };
+
+/* Word-level LCS diff between the seller's original note and the corrected
+   note. Returns ordered segments (including whitespace) with a `changed` flag
+   so Final Review can gild ONLY the tokens that actually changed. The full
+   corrected string is always reconstructed from these segments — if the diff
+   ever mis-aligns, the worst case is a cosmetic over/under-highlight, never a
+   lost or altered word. Splitting on (\s+) keeps whitespace as its own tokens
+   so exact spacing is preserved on reassembly. */
+function diffSegments(
+  original: string,
+  corrected: string
+): { text: string; changed: boolean }[] {
+  const a = original.split(/(\s+)/);
+  const b = corrected.split(/(\s+)/);
+  const n = a.length;
+  const m = b.length;
+  // dp[i][j] = LCS length of a[i:] and b[j:]
+  const dp: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(m + 1).fill(0)
+  );
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] =
+        a[i] === b[j]
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const out: { text: string; changed: boolean }[] = [];
+  let i = 0;
+  let j = 0;
+  while (j < m) {
+    if (i < n && a[i] === b[j]) {
+      out.push({ text: b[j], changed: false });
+      i++;
+      j++;
+    } else if (i < n && dp[i + 1][j] >= dp[i][j + 1]) {
+      // token present only in the original — a deletion; advance original.
+      i++;
+    } else {
+      // token present only in the corrected — an insertion/change; gild it.
+      out.push({ text: b[j], changed: true });
+      j++;
+    }
+  }
+  return out;
+}
+
 export default function DetailsStep({
   draft,
   patch,
+  onProceed,
 }: {
   draft: ListingDraft;
   patch: (p: Partial<ListingDraft>) => void;
+  /* DetailsStep owns its own async-gated Continue (like DescriptionStep): the
+     shared SellFlow Continue is suppressed on this step, and advancing runs
+     through the Final Review gate below. onProceed() moves to the next step. */
+  onProceed: () => void;
 }) {
   const d = draft.details;
   const set = <K extends keyof ListingDetails>(key: K, val: ListingDetails[K]) =>
@@ -117,6 +174,73 @@ export default function DetailsStep({
   const materialIsCustom =
     !!d.caseMaterial && !knownMaterials.includes(d.caseMaterial);
   const [otherMaterial, setOtherMaterial] = useState(materialIsCustom);
+
+  // ── Final Review (soft AI pass on the provenance note at Continue time) ──
+  // `reviewing` = API call in flight; `review` non-null = suggestions to show.
+  const [reviewing, setReviewing] = useState(false);
+  const [review, setReview] = useState<ProvenanceReview | null>(null);
+  const provenanceRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // The seller clicks Continue out of Details. An empty note advances at once
+  // (nothing to review). A non-empty note is checked by /api/validate-provenance;
+  // suggestions pause here for the seller's choice, a clean note advances
+  // silently. FAIL OPEN on any error — a network hiccup must never trap a seller
+  // on this step.
+  async function handleContinue() {
+    const note = (draft.provenanceNote ?? "").trim();
+    if (note.length === 0) {
+      onProceed();
+      return;
+    }
+    setReviewing(true);
+    try {
+      const res = await fetch("/api/validate-provenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provenanceNote: draft.provenanceNote }),
+      });
+      if (!res.ok) {
+        onProceed(); // fail open
+        return;
+      }
+      const data = await res.json();
+      if (data?.hasSuggestions === true && typeof data.corrected === "string") {
+        setReview({
+          corrected: data.corrected,
+          issues: Array.isArray(data.issues)
+            ? data.issues.filter((x: unknown): x is string => typeof x === "string")
+            : [],
+        });
+        // Do NOT advance — the seller chooses from the Final Review actions.
+      } else {
+        onProceed(); // no issues found
+      }
+    } catch {
+      onProceed(); // fail open
+    } finally {
+      setReviewing(false);
+    }
+  }
+
+  // Apply the corrected note, then advance. The original is only ever replaced
+  // by the seller's explicit choice here — never silently.
+  function applySuggestions() {
+    if (review) patch({ provenanceNote: review.corrected });
+    setReview(null);
+    onProceed();
+  }
+
+  // Keep the seller's note exactly as written, then advance.
+  function continueAsWritten() {
+    setReview(null);
+    onProceed();
+  }
+
+  // Dismiss the review and return the seller to their note. Does not advance.
+  function goBack() {
+    setReview(null);
+    requestAnimationFrame(() => provenanceRef.current?.focus());
+  }
 
   return (
     <div>
@@ -288,8 +412,14 @@ export default function DetailsStep({
         <MultiSelect label="Service / repair history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
 
         <div className="mt-4">
+          {/* draft.provenanceNote has TWO entry points by design: the curation
+              gate (CurationStep) and here in Chapter VI. Whatever the seller
+              typed at Curation pre-populates this field; Final Review checks
+              whatever is in the field at Continue time. Same field, two doors —
+              intentional, not a bug. */}
           <label className={labelCls}>Brief provenance note</label>
           <textarea
+            ref={provenanceRef}
             className={`${inputCls} min-h-[72px]`}
             value={draft.provenanceNote}
             onChange={(e) => patch({ provenanceNote: e.target.value })}
@@ -297,6 +427,92 @@ export default function DetailsStep({
             spellCheck={false}
           />
         </div>
+
+        {/* Final Review — inline assistance, never a blocker. Shown only when
+            the AI pass returns near-certain corrections. Gold, not red: this is
+            help, not a grade. */}
+        {review && (
+          <div className="mt-6 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-5 py-5">
+            <h3 className="font-display text-[17px] font-light text-[var(--platinum)]">
+              One last look
+            </h3>
+            <p className="mt-1 text-[13px] leading-[1.6] text-[var(--muted)]">
+              We noticed a few possible wording issues in your provenance note.
+              You can apply the suggestions or continue as written.
+            </p>
+
+            {/* The corrected note, with only the changed tokens gilded. */}
+            <div className="mt-4 whitespace-pre-wrap border-l border-[var(--border-gold)] bg-[rgba(7,8,12,0.35)] px-4 py-3 font-display text-[14px] font-light leading-[1.7] text-[var(--platinum)]">
+              {diffSegments(draft.provenanceNote, review.corrected).map((seg, k) =>
+                seg.changed && seg.text.trim().length > 0 ? (
+                  <span key={k} style={{ color: "#C9A84C" }}>
+                    {seg.text}
+                  </span>
+                ) : (
+                  <span key={k}>{seg.text}</span>
+                )
+              )}
+            </div>
+
+            {review.issues.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {review.issues.map((it, k) => (
+                  <li
+                    key={k}
+                    className="flex gap-2 text-[12px] leading-[1.5] text-[var(--muted)]"
+                  >
+                    <span style={{ color: "#C9A84C" }} aria-hidden="true">
+                      ·
+                    </span>
+                    <span>{it}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={applySuggestions}
+                className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--platinum)] transition hover:bg-[rgba(201,168,76,0.12)]"
+              >
+                Apply suggestions
+              </button>
+              <button
+                type="button"
+                onClick={continueAsWritten}
+                className="border border-[var(--border-mid)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+              >
+                Continue as written
+              </button>
+              <button
+                type="button"
+                onClick={goBack}
+                className="px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step Continue lives here (DetailsStep owns its async gate). Hidden
+            while Final Review is open, since the review's own actions advance. */}
+        {!review && (
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={handleContinue}
+              disabled={reviewing}
+              className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:opacity-60 ${
+                reviewing ? "cursor-wait" : ""
+              }`}
+            >
+              {reviewing && <WatchSpinner size={16} />}
+              {reviewing ? "Reviewing…" : "Continue"}
+            </button>
+          </div>
+        )}
       </Chapter>
     </div>
   );

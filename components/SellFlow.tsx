@@ -202,7 +202,13 @@ export default function SellFlow() {
           {step === 1 && (
             <PhotosStep draft={draft} patch={patch} photoRef={photoRef} />
           )}
-          {step === 2 && <DetailsStep draft={draft} patch={patch} />}
+          {step === 2 && (
+            <DetailsStep
+              draft={draft}
+              patch={patch}
+              onProceed={() => setStep(3)}
+            />
+          )}
           {step === 3 && (
             <DescriptionStep
               draft={draft}
@@ -229,7 +235,7 @@ export default function SellFlow() {
                 >
                   Back
                 </button>
-                {step < STEPS.length - 1 && step !== 3 && (
+                {step < STEPS.length - 1 && step !== 3 && step !== 2 && (
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
