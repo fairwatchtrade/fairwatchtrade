@@ -160,6 +160,8 @@ html, body {
   background: linear-gradient(to right, transparent, var(--gold), transparent);
   margin: 0 auto;
   opacity: 0.6;
+  pointer-events: none;
+  cursor: default;
 }
 .fw-rule-left {
   height: 1px;
