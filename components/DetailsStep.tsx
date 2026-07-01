@@ -99,7 +99,7 @@ const OPTION_STYLE: CSSProperties = {
 };
 
 const inputCls =
-  "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none";
+  "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:bg-[var(--gold-whisper)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
 const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
 
 export default function DetailsStep({
@@ -141,11 +141,11 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Movement frequency (optional)">
-            <input className={inputCls} value={d.movementFrequency ?? ""} onChange={(e) => set("movementFrequency", e.target.value)} placeholder="28,800 vph (4 Hz)" />
+            <input className={inputCls} value={d.movementFrequency ?? ""} onChange={(e) => set("movementFrequency", e.target.value)} placeholder="28,800 vph (4 Hz)" spellCheck={false} />
           </Field>
 
           <Field label="Calibre / movement reference (optional)">
-            <input className={inputCls} value={d.calibre ?? ""} onChange={(e) => set("calibre", e.target.value)} placeholder="e.g. Cal. 1020, Calibre 89" />
+            <input className={inputCls} value={d.calibre ?? ""} onChange={(e) => set("calibre", e.target.value)} placeholder="e.g. Cal. 1020, Calibre 89" spellCheck={false} />
           </Field>
 
           <Field label="Jewel count (optional)">
@@ -190,12 +190,12 @@ export default function DetailsStep({
               <option value="Other" style={OPTION_STYLE}>Other…</option>
             </select>
             {otherMaterial && (
-              <input className={`${inputCls} mt-2`} value={d.caseMaterial ?? ""} onChange={(e) => set("caseMaterial", e.target.value)} placeholder="e.g. Palladium" />
+              <input className={`${inputCls} mt-2`} value={d.caseMaterial ?? ""} onChange={(e) => set("caseMaterial", e.target.value)} placeholder="e.g. Palladium" spellCheck={false} />
             )}
           </Field>
 
           <Field label="Case color / finish">
-            <input className={inputCls} value={d.caseColorFinish ?? ""} onChange={(e) => set("caseColorFinish", e.target.value)} placeholder="Polished, brushed lugs" />
+            <input className={inputCls} value={d.caseColorFinish ?? ""} onChange={(e) => set("caseColorFinish", e.target.value)} placeholder="Polished, brushed lugs" spellCheck={true} />
           </Field>
 
           <Field label="Caseback type">
@@ -227,7 +227,7 @@ export default function DetailsStep({
       <Chapter numeral="III" title="The Dial & Hands" caption="Dial and crown." chapterKey="dial">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dial color / type">
-            <input className={inputCls} value={d.dialColorType ?? ""} onChange={(e) => set("dialColorType", e.target.value)} placeholder="Abyss Blue sunburst" />
+            <input className={inputCls} value={d.dialColorType ?? ""} onChange={(e) => set("dialColorType", e.target.value)} placeholder="Abyss Blue sunburst" spellCheck={true} />
           </Field>
 
           <div className="flex items-end pb-1">
@@ -294,6 +294,7 @@ export default function DetailsStep({
             value={draft.provenanceNote}
             onChange={(e) => patch({ provenanceNote: e.target.value })}
             placeholder="Service history, previous ownership, how you acquired it…"
+            spellCheck={true}
           />
         </div>
       </Chapter>

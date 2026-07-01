@@ -90,14 +90,38 @@ export default function SellFlow() {
   const [activeChapter, setActiveChapter] = useState<WatchChapter>("movement");
 
   // Watch the six chapter <section>s (id="chapter-*") while on the Details step.
-  // A chapter becomes active once it crosses ~40% into the viewport; the topmost
-  // qualifying section wins, so scrolling down lights the watch region by region.
+  // Three inputs drive the active chapter, so it's correct on ANY viewport:
+  //   1. IntersectionObserver — as a chapter crosses ~40% into the viewport.
+  //   2. An initial calc on mount — so the top chapters light on load without
+  //      waiting for a scroll (on a tall monitor several chapters are already in
+  //      view at load, and the observer alone leaves them dark until you scroll).
+  //   3. Focus — tabbing/clicking into any field lights that field's chapter,
+  //      so the watch tracks where you're actually working even without scrolling.
   useEffect(() => {
     if (step !== 2) return;
     const sections = Array.from(
       document.querySelectorAll<HTMLElement>("[data-chapter]")
     );
     if (sections.length === 0) return;
+
+    // Pick the chapter nearest the upper third of the viewport right now.
+    const pickByPosition = () => {
+      const anchor = window.innerHeight * 0.4;
+      let best: string | null = null;
+      let bestDist = Infinity;
+      for (const s of sections) {
+        const top = s.getBoundingClientRect().top;
+        const dist = Math.abs(top - anchor);
+        // Prefer sections at or above the anchor line (already "entered").
+        if (top <= anchor + 40 && dist < bestDist) {
+          bestDist = dist;
+          best = s.dataset.chapter ?? null;
+        }
+      }
+      // Fallback: nothing above the line yet → the first section.
+      if (!best) best = sections[0].dataset.chapter ?? null;
+      if (best) setActiveChapter(best as WatchChapter);
+    };
 
     const visible = new Map<string, number>();
     const observer = new IntersectionObserver(
@@ -108,17 +132,33 @@ export default function SellFlow() {
           else visible.delete(key);
         }
         if (visible.size > 0) {
-          // Topmost visible chapter wins — the one the reader is currently in.
           const top = [...visible.entries()].sort((a, b) => a[1] - b[1])[0][0];
           setActiveChapter(top as WatchChapter);
         }
       },
-      // Fire when a section is ~40% into the viewport (rootMargin trims the
-      // bottom 60% so a chapter "activates" as it reaches the upper-middle).
       { threshold: 0, rootMargin: "-40% 0px -60% 0px" }
     );
     sections.forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
+
+    // Focus backup: any field gaining focus lights its enclosing chapter. This
+    // makes the watch follow your attention (which field you're in), which is
+    // even more direct than scroll — and rescues chapters that never scroll
+    // through the threshold on a tall screen.
+    const onFocusIn = (e: FocusEvent) => {
+      const sec = (e.target as HTMLElement | null)?.closest?.("[data-chapter]");
+      const key = (sec as HTMLElement | null)?.dataset?.chapter;
+      if (key) setActiveChapter(key as WatchChapter);
+    };
+    document.addEventListener("focusin", onFocusIn);
+
+    // Initial calc on mount (rAF so layout has settled).
+    const raf = requestAnimationFrame(pickByPosition);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("focusin", onFocusIn);
+      cancelAnimationFrame(raf);
+    };
   }, [step]);
 
   // Page-level drag guard. Every drop on the page is preventDefault()'d so the
@@ -327,7 +367,7 @@ function CurationStep({
   }
 
   const input =
-    "w-full border-b border-[var(--border-mid)] bg-transparent px-0 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none transition";
+    "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--ghost)] focus-visible:border-[var(--gold)] focus-visible:bg-[var(--gold-whisper)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
   const label = "mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]";
 
   return (
@@ -389,7 +429,7 @@ function CurationStep({
 
       <div className="mt-4">
         <label className={label}>Brief provenance note</label>
-        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Service history, previous ownership, how you acquired it…" />
+        <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Service history, previous ownership, how you acquired it…" spellCheck={true} />
       </div>
 
       {draft.curationDecision === "fail" && (
