@@ -261,7 +261,11 @@ export default function SellFlow() {
               </div>
             </div>
           )}
-
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProgressBar({ step }: { step: number }) {
   return (
