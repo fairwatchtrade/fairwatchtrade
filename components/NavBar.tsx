@@ -8,7 +8,7 @@ import MobileNav from "@/components/MobileNav";
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop: wordmark left, Browse · Sell · Account · About right.
+   Desktop: wordmark left, Browse · Sell · Dashboard · Account · About right.
    Mobile (md:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
 
@@ -20,6 +20,7 @@ import MobileNav from "@/components/MobileNav";
 const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
   { label: "Sell", href: "/sell" },
+  { label: "Dashboard", href: "/dashboard" },
   { label: "Account", href: "/account" },
   { label: "About", href: "/about" },
 ];
