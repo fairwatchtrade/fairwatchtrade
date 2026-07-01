@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -24,6 +24,17 @@ import ModelCombobox from "@/components/ModelCombobox";
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
 const ROMAN = ["I", "II", "III", "IV", "V"] as const;
+
+/* Native <option> elements don't reliably inherit the form's dark styling — when
+   a <select> opens, the browser renders the option list with OS/browser defaults
+   (often a white menu), which made our light --platinum option text invisible
+   (white-on-white). Explicit hex bg + text on each <option> fixes it across
+   browsers. CSS variables are ignored for <option> in some browsers, so we use
+   concrete hex values that match --surface / --platinum. */
+const OPTION_STYLE: CSSProperties = {
+  backgroundColor: "#141821",
+  color: "#E8E4DC",
+};
 
 /* ── Curation call ───────────────────────────────────────────────────────
    /api/evaluate confirmed working (returns score + decision). Defensive reads
@@ -311,10 +322,14 @@ function CurationStep({
         </div>
         <div>
           <label className={label}>Condition</label>
-          <select className={input} value={draft.condition} onChange={(e) => patch({ condition: e.target.value as Condition })}>
-            <option value="">Select…</option>
+          <select
+            className={input}
+            value={draft.condition}
+            onChange={(e) => patch({ condition: e.target.value as Condition })}
+          >
+            <option value="" style={OPTION_STYLE}>Select…</option>
             {CONDITIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c} style={OPTION_STYLE}>{c}</option>
             ))}
           </select>
         </div>

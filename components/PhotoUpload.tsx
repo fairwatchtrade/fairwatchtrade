@@ -7,10 +7,22 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
+
+/* Native <option> elements don't inherit the form's dark styling — when a
+   <select> opens, the browser renders the option list with defaults (often a
+   white menu), making our light --platinum option text invisible
+   (white-on-white). Explicit hex bg + text fixes it; CSS variables are ignored
+   for <option> in some browsers, so we use concrete values matching
+   --surface / --platinum. */
+const OPTION_STYLE: CSSProperties = {
+  backgroundColor: "#141821",
+  color: "#E8E4DC",
+};
 
 export type UploadedPhotoMeta = {
   url: string;
@@ -233,9 +245,9 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                     it.category || it.isWristShot ? "border-[var(--border-subtle)]" : "border-[var(--border-gold)]"
                   }`}
                 >
-                  <option value="">Tag photo…</option>
+                  <option value="" style={OPTION_STYLE}>Tag photo…</option>
                   {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
+                    <option key={c.value} value={c.value} style={OPTION_STYLE}>
                       {c.required ? `${c.value} *` : c.value}
                     </option>
                   ))}
