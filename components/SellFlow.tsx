@@ -17,6 +17,7 @@ import PhotoUpload, {
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
+import WatchBlueprint, { type Layer } from "@/components/WatchBlueprint";
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
@@ -74,6 +75,99 @@ function mandatoryDone(d: ListingDraft): boolean {
   );
 }
 
+/* The six DetailsStep chapters, keyed by their `data-chapter` attribute values.
+   Drives which WatchBlueprint layer lights on the Details step. Previously
+   imported as `WatchChapter` from a ChapterWatch component that never shipped;
+   defined locally now so SellFlow owns its own type. */
+type WatchChapter =
+  | "movement"
+  | "case"
+  | "dial"
+  | "wearing"
+  | "complications"
+  | "provenance";
+
+/* ── WatchBlueprint wiring (v1.89) ───────────────────────────────────────
+   Maps the two data sources (tagged photos, filled chapters) onto the plate's
+   named layers. Note: GPT flagged these tables for eventual extraction to
+   lib/watchBlueprintMappings.ts once a second surface needs them — logged as a
+   future refactor; for v1.89 they live here. */
+
+// PhotoCategory strings → WatchBlueprint Layer names. Verified against
+// PhotoCategory in lib/scoring.ts and CATEGORY_OPTIONS in PhotoUpload.tsx.
+// "Wrist shot" and "Other" have no layer equivalent — omitted intentionally.
+// "Box" and "Papers/Warranty" both collapse to "provenance" — the title-block
+// layer, the record of the watch's life.
+const PHOTO_LAYER_MAP: Partial<Record<string, Layer>> = {
+  Dial: "dial",
+  Caseback: "case",
+  "Clasp/Pin Buckle": "clasp",
+  "Side/Lugs": "lugs",
+  Movement: "movement",
+  "Bracelet/Strap": "strap",
+  "Full watch, strap/bracelet extended": "strap",
+  "Papers/Warranty": "provenance",
+  Box: "provenance",
+};
+
+// DetailsStep data-chapter values → WatchBlueprint Layer names. Verified against
+// the chapterKey values in DetailsStep.tsx (movement/case/dial/wearing/
+// complications/provenance).
+const CHAPTER_LAYER_MAP: Partial<Record<string, Layer>> = {
+  movement: "movement",
+  case: "case",
+  dial: "dial",
+  wearing: "strap",
+  complications: "complications",
+  provenance: "provenance",
+};
+
+// All layers with a tagged photo — the `completed` prop on the Photos step.
+// A Set dedupes (several photos of the same category = one layer).
+function deriveCompletedLayersFromPhotos(photos: ListingDraft["photos"]): Layer[] {
+  const layers = new Set<Layer>();
+  for (const p of photos ?? []) {
+    const layer = PHOTO_LAYER_MAP[p.category as string];
+    if (layer) layers.add(layer);
+  }
+  return [...layers];
+}
+
+// The layer mapped from the most recently tagged photo — the `active` prop on
+// the Photos step. Walks newest → oldest, skipping untagged/unmapped photos.
+function deriveActiveLayerFromPhotos(
+  photos: ListingDraft["photos"]
+): Layer | undefined {
+  const list = photos ?? [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const layer = PHOTO_LAYER_MAP[list[i].category as string];
+    if (layer) return layer;
+  }
+  return undefined;
+}
+
+// Layers whose chapter has any content — the `completed` prop on the Details
+// step. Cumulative: it only ever grows as chapters fill in. Field names verified
+// against the actual ListingDetails fields written in DetailsStep.tsx (all
+// nested under draft.details; provenanceNote is top-level on the draft). lugs
+// have no chapter data — they light only under completed="all" on Publish.
+function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
+  const d = draft.details;
+  const layers: Layer[] = [];
+  if (d.movementType || d.calibre || d.movementFrequency || d.jewels || d.powerReserve)
+    layers.push("movement");
+  if (d.caseMaterial || d.caseSizeMm || d.crystalMaterial || d.casebackType)
+    layers.push("case");
+  if (d.dialColorType) layers.push("dial", "hands");
+  if (d.crownPresent) layers.push("crown");
+  if (d.closureType || d.braceletWristSize || d.originalStrapBracelet)
+    layers.push("strap", "clasp");
+  if (d.complications?.length) layers.push("complications");
+  if (draft.provenanceNote?.trim()) layers.push("provenance");
+  return layers;
+}
+
+
 export default function SellFlow() {
   const [draft, setDraft] = useState<ListingDraft>(emptyDraft);
   const [step, setStep] = useState(0);
@@ -86,7 +180,7 @@ export default function SellFlow() {
 
   // The companion watch's lit region, driven purely by which chapter is in view
   // on Step 3 (Details). No buttons — the scroll position is the input.
-  const [activeChapter, setActiveChapter] = useState("movement");
+  const [activeChapter, setActiveChapter] = useState<WatchChapter>("movement");
 
   // Watch the six chapter <section>s (id="chapter-*") while on the Details step.
   // Three inputs drive the active chapter, so it's correct on ANY viewport:
@@ -119,7 +213,7 @@ export default function SellFlow() {
       }
       // Fallback: nothing above the line yet → the first section.
       if (!best) best = sections[0].dataset.chapter ?? null;
-      if (best) setActiveChapter(best);
+      if (best) setActiveChapter(best as WatchChapter);
     };
 
     const visible = new Map<string, number>();
@@ -132,7 +226,7 @@ export default function SellFlow() {
         }
         if (visible.size > 0) {
           const top = [...visible.entries()].sort((a, b) => a[1] - b[1])[0][0];
-          setActiveChapter(top);
+          setActiveChapter(top as WatchChapter);
         }
       },
       { threshold: 0, rootMargin: "-40% 0px -60% 0px" }
@@ -146,7 +240,7 @@ export default function SellFlow() {
     const onFocusIn = (e: FocusEvent) => {
       const sec = (e.target as HTMLElement | null)?.closest?.("[data-chapter]");
       const key = (sec as HTMLElement | null)?.dataset?.chapter;
-      if (key) setActiveChapter(key);
+      if (key) setActiveChapter(key as WatchChapter);
     };
     document.addEventListener("focusin", onFocusIn);
 
@@ -248,7 +342,7 @@ export default function SellFlow() {
           )}
         </div>
 
-        <div className="md:sticky md:top-6 md:self-start md:pt-1">
+        <div className="md:sticky md:top-6 md:self-start md:pt-1 space-y-6">
           {draft.significanceScore != null ? (
             <ListingScoreMeter listing={toScoringState(draft)} />
           ) : (
@@ -259,6 +353,42 @@ export default function SellFlow() {
               <div className="mt-2 font-display text-[11px] italic text-[var(--ghost)]">
                 Appears after curation passes.
               </div>
+            </div>
+          )}
+
+          {/**
+           * WatchBlueprint is a companion to the seller.
+           * It should reinforce documentation, never compete with the form.
+           * Every instinct in UI development will be to make it move more. Resist.
+           * If users remember the blueprint, it should be because it quietly
+           * accompanied them through documenting a watch — not because it
+           * demanded attention.
+           */}
+
+          {/* WatchBlueprint — Photos step.
+           * Companion to the seller: layers fill gold as photos are tagged.
+           * Caseback tag flips the plate to reveal the reverse.
+           * WatchBlueprint is a companion, not a focal point. */}
+          {step === 1 && (
+            <div className="px-2 opacity-90">
+              <WatchBlueprint
+                completed={deriveCompletedLayersFromPhotos(draft.photos)}
+                active={deriveActiveLayerFromPhotos(draft.photos)}
+                autoRotateOnCaseback
+              />
+            </div>
+          )}
+
+          {/* WatchBlueprint — Details step (supersedes the former ChapterWatch).
+           * Active layer tracks the chapter the seller is currently in.
+           * Completed layers accumulate — they never reset.
+           * WatchBlueprint is a companion, not a focal point. */}
+          {step === 2 && (
+            <div className="px-2 opacity-90">
+              <WatchBlueprint
+                completed={deriveCompletedLayersFromDraft(draft)}
+                active={CHAPTER_LAYER_MAP[activeChapter] as Layer | undefined}
+              />
             </div>
           )}
         </div>
