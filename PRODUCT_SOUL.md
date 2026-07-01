@@ -187,6 +187,35 @@ That's the emotional destination of the entire platform. A seller spent time wri
 It honors the object. It honors the seller. It implies the buyer who's out there waiting.
 
 ---
+## The Engineering Plate
+
+FairWatchTrade has one canonical illustration: a technical engineering drawing of a watch in quartering view. It is not decorative. It is the visual language of the platform.
+
+The same drawing appears across every surface, driven by a single component:
+
+```tsx
+<WatchBlueprint
+  completed={["movement", "case", "dial"]}
+  active="dial"
+/>
+```
+
+Named layers: `movement · case · dial · hands · crown · lugs · strap · clasp · complications · provenance`
+
+At rest: ghost. `opacity-[0.06]`, platinum line work.  
+Active layer: gold. `opacity-[0.55]`, `#C9A84C`, 250ms ease.  
+Completed layers: faint gold. `opacity-[0.20]`.
+
+**The appearances:**
+- Photo Upload — fills gold as seller tags each category
+- Details Step — active layer tracks chapter scroll  
+- Publish — `completed="all"` quiet and whole in the right panel
+- Listing Detail — `completed="all"` faint background, nothing animates
+- Buyer Dashboard — partial completion as listing status
+- Vault Reference Card — ghosted plate behind specifications
+- Empty States — partial blueprint instead of generic illustration
+
+The plate is infrastructure, not artwork. Build it once, exceptionally well. Every page borrows from it.
 
 *FairWatchTrade — Built by a collector, for collectors.*
 *Sebring, Florida. June 2026.*

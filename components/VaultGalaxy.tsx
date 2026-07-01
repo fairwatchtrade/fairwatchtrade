@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE VAULT GALAXY — components/VaultGalaxy.tsx   (v1.84)
+   THE VAULT GALAXY — components/VaultGalaxy.tsx   (v1.85)
 
    The POC engine ported to real data. Canvas rendering, camera/zoom,
    click hit-detection, orbit rings, starfield, and search are ported
@@ -17,6 +17,11 @@ import { useEffect, useRef, useState, useMemo } from "react";
            collections, the card renders a graceful "still being mapped"
            state with a Return to Galaxy affordance. Never a dead end,
            never a blank stare.
+   v1.85 — Persistent Return to Galaxy exit. The only way out used to be
+           RESET buried in the search bar — invisible to a first-time
+           traveller. The top-left control zone now swaps: filter chips in
+           the galaxy, a quiet "← Return to Galaxy" exit in every drill
+           state (view !== "brands"). Mutually exclusive, so no collision.
 
      • The hardcoded DATA array → real `brands` prop (the stars).
      • Brand positions → AUTHORED galaxy_x/y/z when present, else a
@@ -635,21 +640,53 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         <div className="text-[10px] uppercase tracking-[2px] text-[var(--muted)]">{crumb}</div>
       </div>
 
-      {/* Filter chips */}
-      <div className="fixed left-7 top-[76px] z-[6] flex flex-wrap gap-2">
-        {FILTER_CHIPS.map((chip) => (
+      {/* Top-left control zone.
+          Global navigation changes where you are; workspace controls change what
+          you're doing. In the galaxy this slot offers discovery (filter chips).
+          Once drilled in, brand-search chips are contextually wrong, so the same
+          slot becomes the persistent way out — Return to Galaxy. The two are
+          mutually exclusive, so they never collide. */}
+
+      {/* Filter chips — galaxy (brands) view only */}
+      {view === "brands" && (
+        <div className="fixed left-7 top-[76px] z-[6] flex flex-wrap gap-2">
+          {FILTER_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => {
+                setQuery(chip.toLowerCase());
+                runSearch(chip.toLowerCase());
+              }}
+              className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Return to Galaxy — persistent exit, any drill state.
+          The only exit used to be RESET buried in the search bar; a first-time
+          traveller had no way to know it was there. This is the always-visible
+          way home. Quiet, but never hidden — legible over the starfield in
+          Florida sun (Readability-Floor-Governance). Calls resetGalaxy(), which
+          flies the camera to the origin and clears all drill state. */}
+      {view !== "brands" && (
+        <div className="fixed left-7 top-[76px] z-[6]">
           <button
-            key={chip}
-            onClick={() => {
-              setQuery(chip.toLowerCase());
-              runSearch(chip.toLowerCase());
-            }}
-            className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+            onClick={resetGalaxy}
+            aria-label="Return to the galaxy"
+            className="group flex items-center gap-2 border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.55)] px-3 py-2 backdrop-blur-md transition-colors hover:border-[var(--border-gold)]"
           >
-            {chip}
+            <span className="text-[13px] leading-none text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
+              ←
+            </span>
+            <span className="text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
+              Return to Galaxy
+            </span>
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Hero */}
       <div
