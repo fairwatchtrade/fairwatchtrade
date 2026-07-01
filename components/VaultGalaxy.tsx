@@ -3,11 +3,20 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE VAULT GALAXY — components/VaultGalaxy.tsx   (v1.70)
+   THE VAULT GALAXY — components/VaultGalaxy.tsx   (v1.84)
 
    The POC engine ported to real data. Canvas rendering, camera/zoom,
    click hit-detection, orbit rings, starfield, and search are ported
    faithfully from fairwatchtrade_vault_galaxy_poc-1.html. What changed:
+
+   v1.83 — flyTo overshoot fix: fly targets divided by brand depth (b.z)
+           in enterBrand / enterCollection / runSearch so a brand lands
+           dead-center for any z (see enterBrand comment for the math).
+   v1.84 — Askania empty-state: a brand with zero collections no longer
+           dead-ends on "Choose a planet." When the fetch returns no
+           collections, the card renders a graceful "still being mapped"
+           state with a Return to Galaxy affordance. Never a dead end,
+           never a blank stare.
 
      • The hardcoded DATA array → real `brands` prop (the stars).
      • Brand positions → AUTHORED galaxy_x/y/z when present, else a
@@ -745,6 +754,31 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
                 </div>
               )}
               <div className="mt-3 text-[10px] italic text-[var(--muted)]">Choose a moon.</div>
+            </>
+          ) : view === "collections" && selectedBrand && (brandDetail?.length ?? 0) === 0 ? (
+            /* Empty-state: a brand whose constellation has no collections yet.
+               The `loading` branch is checked first, so reaching here means the
+               fetch has resolved with nothing — a genuinely unmapped brand, not
+               a mid-load flicker. Never a dead end: always a way back. */
+            <>
+              <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                Manufacturer
+              </div>
+              <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                {selectedBrand.name}
+              </h2>
+              <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                This constellation is still being mapped.
+              </p>
+              <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                Every house in the Vault is charted by hand — {selectedBrand.name}
+                &apos;s collections are still to come.
+              </p>
+              <div className="mt-[18px]">
+                <button onClick={resetGalaxy} className="fw-btn-primary">
+                  Return to Galaxy
+                </button>
+              </div>
             </>
           ) : view === "collections" && selectedBrand ? (
             <>
