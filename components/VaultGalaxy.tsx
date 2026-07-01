@@ -79,39 +79,6 @@ type VaultCollection = {
 // A brand with its resolved galaxy position + runtime brightness.
 type PositionedBrand = VaultBrand & { x: number; y: number; z: number; brightness: number };
 
-// How far (in on-screen px) to drop a drilled-in star/planet below the screen
-// midline, so the objects that bloom around/below it stay in view instead of
-// being pushed up behind the top chrome. Applied in enterBrand/enterCollection,
-// divided by the target scale so the on-screen drop is roughly constant.
-const COMPOSE_DROP = 150;
-
-// Real orbits are never perfect circles or untilted ellipses (Kepler: an orbit
-// is an ellipse, and every system sits at its own inclination). A mathematically
-// perfect, axis-aligned ellipse reads as "computer default" to a knowledgeable
-// eye. This derives a stable per-brand orbital character from the brand slug:
-//   tilt  — the whole orbital plane is rotated by this angle
-//   ecc   — a small eccentricity multiplier so the two axes aren't a tidy ratio
-// Same seed → same character every render, so a brand's system is consistent.
-function orbitalCharacter(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const tilt = ((h % 360) / 360) * Math.PI * 2; // 0..2π, plane rotation
-  const ecc = 0.86 + ((h >> 4) % 100) / 100 * 0.3; // 0.86..1.16 axis stretch
-  return { tilt, ecc };
-}
-
-// Apply an orbital character (tilt + eccentricity) to a base (cos·rx, sin·ry)
-// offset, returning the rotated/stretched world offset. Keeps positioning (build)
-// and the drawn ring (orbit) in perfect agreement.
-function orbitOffset(angle: number, rx: number, ry: number, tilt: number, ecc: number) {
-  const ox = Math.cos(angle) * rx * ecc;
-  const oy = Math.sin(angle) * ry;
-  return {
-    dx: ox * Math.cos(tilt) - oy * Math.sin(tilt),
-    dy: ox * Math.sin(tilt) + oy * Math.cos(tilt),
-  };
-}
-
 // ── Viewport responsiveness ──
 // The Rule #1 immersion (wide spread, deep zoom) is tuned for desktop. On a
 // phone that same spread+zoom collapses into one giant glow ("the blob").
@@ -121,9 +88,9 @@ function viewportFactor() {
   if (typeof window === "undefined") return 1;
   const w = window.innerWidth;
   if (w >= 1100) return 1;        // desktop — full immersion
-  if (w <= 480) return 0.52;      // phone — modest, POC-like spread
+  if (w <= 480) return 0.42;      // phone — modest, POC-like spread
   // tablet range: smooth interpolation between phone and desktop
-  return 0.52 + (w - 480) * ((1 - 0.52) / (1100 - 480));
+  return 0.42 + (w - 480) * ((1 - 0.42) / (1100 - 480));
 }
 function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 700;
@@ -195,14 +162,13 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const [loading, setLoading] = useState(false);
   const [crumb, setCrumb] = useState("The gates are open");
   const [heroHidden, setHeroHidden] = useState(false);
-  // True once the user has drilled into their first brand. The back-button
-  // caution only appears after this — before the first entry there is nothing
-  // to warn about, and an unearned warning is just noise.
+  // True once the user has drilled into their first brand — gates the
+  // back-button caution so it only appears after there's something to warn about.
   const [hasEntered, setHasEntered] = useState(false);
   const [query, setQuery] = useState("");
 
   // ── Engine refs (mutable, outside React render) ──
-  const openScale = isMobileViewport() ? 0.9 : 2.2;
+  const openScale = isMobileViewport() ? 1.15 : 2.2;
   const camRef = useRef({ x: 0, y: 0, scale: openScale });
   const targetRef = useRef({ x: 0, y: 0, scale: openScale });
   // Drag-to-pan state: tracks pointer drag so you can pull the universe around.
@@ -249,7 +215,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setHeroHidden(true);
     setHasEntered(true);
     setCrumb("Brand constellation · " + b.name);
-    flyTo(b.x, b.y, 2.35); // card fills when data lands
+    flyTo(b.x, b.y, 2.35); // camera moves immediately; card fills when data lands
     setLoading(true);
     try {
       const res = await fetch(`/api/vault/${b.id}`);
@@ -270,11 +236,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     const n = Math.max(3, (detailRef.current?.length ?? 1));
     const a = -Math.PI / 2 + idx * ((Math.PI * 2) / n);
     setCrumb(b.name + " · " + c.name);
-    // Fly to the planet's ACTUAL (tilted) orbital position. Composition drop is
-    // handled at the projection (screen()) so it's uniform across all levels.
-    const bc = orbitalCharacter(b.id ?? b.name);
-    const off = orbitOffset(a, 66, 48, bc.tilt, bc.ecc);
-    flyTo(b.x + off.dx, b.y + off.dy, 3.5);
+    flyTo(b.x + Math.cos(a) * 58, b.y + Math.sin(a) * 42, 3.5);
   }
 
   function enterVariant(v: VaultVariant) {
@@ -296,7 +258,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setCrumb("The gates are open");
     setHeroHidden(false);
     brightnessRef.current = {};
-    flyTo(0, 0, isMobileViewport() ? 0.9 : 2.2);
+    flyTo(0, 0, isMobileViewport() ? 1.15 : 2.2);
   }
 
   function historyBack() {
@@ -360,13 +322,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     function screen(o: { x: number; y: number; z?: number; r?: number }) {
       const cam = camRef.current;
       const cx = window.innerWidth / 2;
-      // When drilled into a brand/planet/moon, shift the whole rendered scene
-      // DOWN so the focused object + the things blooming around it clear the top
-      // chrome instead of jamming against it. Doing this at the projection center
-      // (not via world-space target offsets) keeps the drop uniform across every
-      // level and immune to the depth/scale distortion in the camera term below.
-      const drilled = viewRef.current !== "brands";
-      const cy = window.innerHeight / 2 + 10 + (drilled ? COMPOSE_DROP : 0);
+      const cy = window.innerHeight / 2 + 10;
+      // Parallax: a star's apparent motion scales with its depth (z). Near
+      // stars (high z) sweep past faster than far stars (low z) as the camera
+      // moves — the field reads as a VOLUME you travel through, not a flat map
+      // you pan. This is what makes you feel inside the universe.
       const depth = o.z || 1;
       return {
         x: cx + (o.x - cam.x * depth) * cam.scale,
@@ -388,11 +348,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       }
     }
 
-    function orbit(cx: number, cy: number, rx: number, ry: number, a = 0.18, tilt = 0) {
+    function orbit(cx: number, cy: number, rx: number, ry: number, a = 0.18) {
       ctx.strokeStyle = `rgba(201,168,76,${a})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, tilt, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -433,17 +393,15 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
           glow: 1.2,
         });
         const colls = detail ?? [];
-        const bc = orbitalCharacter(sb.id ?? sb.name);
         colls.forEach((c, i) => {
           const n = Math.max(1, colls.length);
           const a = -Math.PI / 2 + i * ((Math.PI * 2) / n) + Math.sin(tRef.current * 0.0004) * 0.05;
-          const off = orbitOffset(a, 66, 48, bc.tilt, bc.ecc);
           objs.push({
             type: "collection",
             coll: c,
             collIdx: i,
-            x: sb.x + off.dx,
-            y: sb.y + off.dy,
+            x: sb.x + Math.cos(a) * 66,
+            y: sb.y + Math.sin(a) * 48,
             z: sb.z,
             r: 8,
             label: c.name,
@@ -453,31 +411,25 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       }
 
       if ((v === "models" || v === "detail") && sb && sc && detail) {
-        const bc = orbitalCharacter(sb.id ?? sb.name);
         const cidx = detail.indexOf(sc);
-        const ca = -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
-        const coff = orbitOffset(ca, 66, 48, bc.tilt, bc.ecc);
-        const cx = sb.x + coff.dx;
-        const cy = sb.y + coff.dy;
+        const a = -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
+        const cx = sb.x + Math.cos(a) * 66;
+        const cy = sb.y + Math.sin(a) * 48;
         // Moons = variants. Family is grouping metadata, not orbital — so we
         // flatten all variants across the collection's families into moons.
         const variants: VaultVariant[] = [];
         sc.vault_families?.forEach((f) => f.vault_variants?.forEach((vv) => variants.push(vv)));
-        // Moons inherit the brand's tilt but get their own slight eccentricity
-        // so a planet's moon-system isn't a copy of the planet's orbit.
-        const mecc = 0.9 + (bc.ecc - 0.86) * 0.5;
         variants.forEach((m, i) => {
           const n = Math.max(1, variants.length);
           // Moons orbit — that is what makes it a galaxy. But VERY slowly:
           // a serene, contemplative revolution you can dwell on and click,
           // not a shooting gallery. The orbit stays; only the haste goes.
           const ma = i * ((Math.PI * 2) / n) + tRef.current * 0.00008;
-          const moff = orbitOffset(ma, 34, 26, bc.tilt, mecc);
           objs.push({
             type: "model",
             variant: m,
-            x: cx + moff.dx,
-            y: cy + moff.dy,
+            x: cx + Math.cos(ma) * 34,
+            y: cy + Math.sin(ma) * 26,
             z: sb.z,
             r: 5.5,
             label: m.name,
@@ -507,18 +459,14 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
       const detail = detailRef.current;
 
       if ((v === "collections" || v === "models" || v === "detail") && sb) {
-        const bc = orbitalCharacter(sb.id ?? sb.name);
         const c = screen({ x: sb.x, y: sb.y, z: sb.z });
-        orbit(c.x, c.y, 66 * cam.scale * sb.z * bc.ecc, 48 * cam.scale * sb.z, 0.13, bc.tilt);
+        orbit(c.x, c.y, 66 * cam.scale * sb.z, 48 * cam.scale * sb.z, 0.13);
       }
       if ((v === "models" || v === "detail") && sb && sc && detail) {
-        const bc = orbitalCharacter(sb.id ?? sb.name);
         const ci = detail.indexOf(sc);
         const a = -Math.PI / 2 + ci * ((Math.PI * 2) / Math.max(1, detail.length));
-        const coff = orbitOffset(a, 66, 48, bc.tilt, bc.ecc);
-        const p = screen({ x: sb.x + coff.dx, y: sb.y + coff.dy, z: sb.z });
-        const mecc = 0.9 + (bc.ecc - 0.86) * 0.5;
-        orbit(p.x, p.y, 34 * cam.scale * sb.z * mecc, 26 * cam.scale * sb.z, 0.11, bc.tilt);
+        const p = screen({ x: sb.x + Math.cos(a) * 66, y: sb.y + Math.sin(a) * 48, z: sb.z });
+        orbit(p.x, p.y, 34 * cam.scale * sb.z, 26 * cam.scale * sb.z, 0.11);
       }
 
       objectsRef.current.forEach((o) => {
@@ -619,8 +567,8 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     // Mobile opens looser (lower scale) so the field reads as many stars,
     // not one giant glow.
     const mob = isMobileViewport();
-    flyTo(0, 0, mob ? 1.0 : 2.4);
-    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 0.9 : 2.2), 400);
+    flyTo(0, 0, mob ? 1.25 : 2.4);
+    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -690,11 +638,12 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         <div className="mb-[18px] text-[9px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
           The FairWatchTrade Vault
         </div>
-        <h1 className="mb-3 font-display text-[32px] font-light leading-[1.15] text-[var(--platinum)] sm:text-[42px]">
+        <h1 className="mb-3 font-display text-[42px] font-light leading-[1.15] text-[var(--platinum)]">
           What draws you <em className="italic text-[var(--gold)]">to a watch?</em>
         </h1>
         <p className="mx-auto max-w-[560px] font-display text-[17px] font-light italic leading-[1.6] text-[var(--slate)]">
-          Explore with curiosity.
+          Begin with curiosity. The Vault will illuminate a path through brands,
+          collections, and references.
         </p>
       </div>
 
@@ -822,7 +771,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
               if (e.key === "Enter") runSearch(query);
             }}
             placeholder="Try: architectural manual wind, Japanese independent, heritage chronograph…"
-            className="flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[15px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:text-[21px]"
+            className="flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[21px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)]"
           />
           <button onClick={() => runSearch(query)} className="fw-btn-primary">
             Explore
