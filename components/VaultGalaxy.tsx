@@ -249,12 +249,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     setHeroHidden(true);
     setHasEntered(true);
     setCrumb("Brand constellation · " + b.name);
-    // Center the camera slightly ABOVE the star (b.y - offset) so the star
-    // renders below the screen midline, leaving room for its collection planets
-    // which bloom downward/around it. Without this the star flew to dead-center
-    // and got shoved up against the top chrome with the whole lower screen empty.
-    // Offset is in world units (÷ target scale keeps the on-screen shift ~constant).
-    flyTo(b.x, b.y - COMPOSE_DROP / 2.35, 2.35); // card fills when data lands
+    flyTo(b.x, b.y, 2.35); // card fills when data lands
     setLoading(true);
     try {
       const res = await fetch(`/api/vault/${b.id}`);
@@ -275,11 +270,11 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     const n = Math.max(3, (detailRef.current?.length ?? 1));
     const a = -Math.PI / 2 + idx * ((Math.PI * 2) / n);
     setCrumb(b.name + " · " + c.name);
-    // Fly to the planet's ACTUAL (tilted) orbital position, then drop for
-    // composition so the planet + its blooming moons sit in the visible middle.
+    // Fly to the planet's ACTUAL (tilted) orbital position. Composition drop is
+    // handled at the projection (screen()) so it's uniform across all levels.
     const bc = orbitalCharacter(b.id ?? b.name);
     const off = orbitOffset(a, 66, 48, bc.tilt, bc.ecc);
-    flyTo(b.x + off.dx, b.y + off.dy - COMPOSE_DROP / 3.5, 3.5);
+    flyTo(b.x + off.dx, b.y + off.dy, 3.5);
   }
 
   function enterVariant(v: VaultVariant) {
@@ -365,11 +360,13 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     function screen(o: { x: number; y: number; z?: number; r?: number }) {
       const cam = camRef.current;
       const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2 + 10;
-      // Parallax: a star's apparent motion scales with its depth (z). Near
-      // stars (high z) sweep past faster than far stars (low z) as the camera
-      // moves — the field reads as a VOLUME you travel through, not a flat map
-      // you pan. This is what makes you feel inside the universe.
+      // When drilled into a brand/planet/moon, shift the whole rendered scene
+      // DOWN so the focused object + the things blooming around it clear the top
+      // chrome instead of jamming against it. Doing this at the projection center
+      // (not via world-space target offsets) keeps the drop uniform across every
+      // level and immune to the depth/scale distortion in the camera term below.
+      const drilled = viewRef.current !== "brands";
+      const cy = window.innerHeight / 2 + 10 + (drilled ? COMPOSE_DROP : 0);
       const depth = o.z || 1;
       return {
         x: cx + (o.x - cam.x * depth) * cam.scale,
