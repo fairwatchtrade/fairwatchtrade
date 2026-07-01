@@ -17,7 +17,6 @@ import PhotoUpload, {
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
-import ChapterWatch, { type WatchChapter } from "@/components/ChapterWatch";
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
@@ -87,7 +86,7 @@ export default function SellFlow() {
 
   // The companion watch's lit region, driven purely by which chapter is in view
   // on Step 3 (Details). No buttons — the scroll position is the input.
-  const [activeChapter, setActiveChapter] = useState<WatchChapter>("movement");
+  const [activeChapter, setActiveChapter] = useState("movement");
 
   // Watch the six chapter <section>s (id="chapter-*") while on the Details step.
   // Three inputs drive the active chapter, so it's correct on ANY viewport:
@@ -120,7 +119,7 @@ export default function SellFlow() {
       }
       // Fallback: nothing above the line yet → the first section.
       if (!best) best = sections[0].dataset.chapter ?? null;
-      if (best) setActiveChapter(best as WatchChapter);
+      if (best) setActiveChapter(best);
     };
 
     const visible = new Map<string, number>();
@@ -133,7 +132,7 @@ export default function SellFlow() {
         }
         if (visible.size > 0) {
           const top = [...visible.entries()].sort((a, b) => a[1] - b[1])[0][0];
-          setActiveChapter(top as WatchChapter);
+          setActiveChapter(top);
         }
       },
       { threshold: 0, rootMargin: "-40% 0px -60% 0px" }
@@ -147,7 +146,7 @@ export default function SellFlow() {
     const onFocusIn = (e: FocusEvent) => {
       const sec = (e.target as HTMLElement | null)?.closest?.("[data-chapter]");
       const key = (sec as HTMLElement | null)?.dataset?.chapter;
-      if (key) setActiveChapter(key as WatchChapter);
+      if (key) setActiveChapter(key);
     };
     document.addEventListener("focusin", onFocusIn);
 
@@ -263,21 +262,6 @@ export default function SellFlow() {
             </div>
           )}
 
-          {/* The companion watch — Step 3 only. It bleeds beyond the panel into
-              the negative space (the emptiness is part of the composition) and
-              lights each region as its chapter scrolls into view. */}
-          {step === 2 && (
-            <div className="pointer-events-none mt-8 hidden md:block">
-              <div className="relative -mr-24 -ml-4">
-                <ChapterWatch active={activeChapter} />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ProgressBar({ step }: { step: number }) {
   return (
