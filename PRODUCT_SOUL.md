@@ -76,6 +76,12 @@ Studio prototypes are designed as dark-room art pieces. Production runs on phone
 
 ---
 
+## Motion & Transition
+
+Every animation should feel like architecture responding, never software reacting.
+
+---
+
 ## Locked Product Features
 
 ### Dial Reveal
@@ -176,17 +182,6 @@ You do not traverse the galaxy to look at a sun. You traverse it to reach **one 
 
 ---
 
-## The Closing Line
-
-At the bottom of the publish button on the sell flow, in Cormorant Garamond italic, centered:
-
-> *"Your watch is ready for its next collector."*
-
-That's the emotional destination of the entire platform. A seller spent time writing their story, photographing every angle, filling in the specs. And at the end, before they press the gold button, the platform acknowledges what just happened.
-
-It honors the object. It honors the seller. It implies the buyer who's out there waiting.
-
----
 ## The Engineering Plate
 
 FairWatchTrade has one canonical illustration: a technical engineering drawing of a watch in quartering view. It is not decorative. It is the visual language of the platform.
@@ -208,7 +203,7 @@ Completed layers: faint gold. `opacity-[0.20]`.
 
 **The appearances:**
 - Photo Upload — fills gold as seller tags each category
-- Details Step — active layer tracks chapter scroll  
+- Details Step — active layer tracks chapter scroll
 - Publish — `completed="all"` quiet and whole in the right panel
 - Listing Detail — `completed="all"` faint background, nothing animates
 - Buyer Dashboard — partial completion as listing status
@@ -216,6 +211,24 @@ Completed layers: faint gold. `opacity-[0.20]`.
 - Empty States — partial blueprint instead of generic illustration
 
 The plate is infrastructure, not artwork. Build it once, exceptionally well. Every page borrows from it.
+
+*"Of course the drawing turns over — how else would you see the caseback?"*
+
+That is the standard every interaction on this component gets measured against before it ships. Inevitable rather than impressive. If it needs to be explained, it failed.
+
+---
+
+## The Closing Line
+
+At the bottom of the publish button on the sell flow, in Cormorant Garamond italic, centered:
+
+> *"Your watch is ready for its next collector."*
+
+That's the emotional destination of the entire platform. A seller spent time writing their story, photographing every angle, filling in the specs. And at the end, before they press the gold button, the platform acknowledges what just happened.
+
+It honors the object. It honors the seller. It implies the buyer who's out there waiting.
+
+---
 
 *FairWatchTrade — Built by a collector, for collectors.*
 *Sebring, Florida. June 2026.*
