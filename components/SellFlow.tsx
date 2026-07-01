@@ -17,6 +17,7 @@ import PhotoUpload, {
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
+import ChapterWatch, { type WatchChapter } from "@/components/ChapterWatch";
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
@@ -83,6 +84,42 @@ export default function SellFlow() {
   }
 
   const photoRef = useRef<PhotoUploadHandle | null>(null);
+
+  // The companion watch's lit region, driven purely by which chapter is in view
+  // on Step 3 (Details). No buttons — the scroll position is the input.
+  const [activeChapter, setActiveChapter] = useState<WatchChapter>("movement");
+
+  // Watch the six chapter <section>s (id="chapter-*") while on the Details step.
+  // A chapter becomes active once it crosses ~40% into the viewport; the topmost
+  // qualifying section wins, so scrolling down lights the watch region by region.
+  useEffect(() => {
+    if (step !== 2) return;
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-chapter]")
+    );
+    if (sections.length === 0) return;
+
+    const visible = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const key = (e.target as HTMLElement).dataset.chapter ?? "";
+          if (e.isIntersecting) visible.set(key, e.boundingClientRect.top);
+          else visible.delete(key);
+        }
+        if (visible.size > 0) {
+          // Topmost visible chapter wins — the one the reader is currently in.
+          const top = [...visible.entries()].sort((a, b) => a[1] - b[1])[0][0];
+          setActiveChapter(top as WatchChapter);
+        }
+      },
+      // Fire when a section is ~40% into the viewport (rootMargin trims the
+      // bottom 60% so a chapter "activates" as it reaches the upper-middle).
+      { threshold: 0, rootMargin: "-40% 0px -60% 0px" }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, [step]);
 
   // Page-level drag guard. Every drop on the page is preventDefault()'d so the
   // browser never opens a file in a new tab. If the drop landed inside the
@@ -166,7 +203,7 @@ export default function SellFlow() {
           )}
         </div>
 
-        <div className="md:pt-1">
+        <div className="md:sticky md:top-6 md:self-start md:pt-1">
           {draft.significanceScore != null ? (
             <ListingScoreMeter listing={toScoringState(draft)} />
           ) : (
@@ -176,6 +213,17 @@ export default function SellFlow() {
               </div>
               <div className="mt-2 font-display text-[11px] italic text-[var(--ghost)]">
                 Appears after curation passes.
+              </div>
+            </div>
+          )}
+
+          {/* The companion watch — Step 3 only. It bleeds beyond the panel into
+              the negative space (the emptiness is part of the composition) and
+              lights each region as its chapter scrolls into view. */}
+          {step === 2 && (
+            <div className="pointer-events-none mt-8 hidden md:block">
+              <div className="relative -mr-24 -ml-4">
+                <ChapterWatch active={activeChapter} />
               </div>
             </div>
           )}
