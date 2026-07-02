@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
+import WatchBlueprint from "@/components/WatchBlueprint";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v1.57)
@@ -142,7 +143,22 @@ export default async function ListingDetailPage({
 
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
-      <div className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
+        {/* WatchBlueprint — atmospheric background.
+            completed="all": this watch has been fully documented. Nothing
+            animates; it is simply present, behind the record of its life.
+            pointer-events-none + aria-hidden: decoration only, never
+            interferes with content and invisible to screen readers.
+            opacity-[0.04] is the ghost state taken further — a collector might
+            notice it subconsciously, never consciously. If it ever draws the
+            eye, drop the opacity further. */}
+        <div
+          className="pointer-events-none absolute right-0 top-24 w-[280px] opacity-[0.04]"
+          aria-hidden="true"
+        >
+          <WatchBlueprint completed="all" />
+        </div>
+
         {/* SECTION 1 — Media gallery */}
         {photoUrls.length > 0 && (
           <ListingGallery

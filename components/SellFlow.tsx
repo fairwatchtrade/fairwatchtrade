@@ -391,6 +391,28 @@ export default function SellFlow() {
               />
             </div>
           )}
+
+          {/* WatchBlueprint — Publish step.
+           * completed="all": the watch is whole, documented, ready to hand over.
+           * Nothing animates. Quiet and complete. opacity-75 keeps it more
+           * recessive than the working steps — the seller's eye is on Publish.
+           * WatchBlueprint is a companion, not a focal point. */}
+          {step === 4 && (
+            <div className="px-2 opacity-75">
+              <WatchBlueprint completed="all" />
+            </div>
+          )}
+
+          {/* WatchBlueprint — empty state for steps without a dedicated surface
+           * (Curation, Description). Ghost at rest with the movement layer
+           * faintly active as a placeholder — present without implying progress
+           * that hasn't happened. opacity-50: barely there.
+           * WatchBlueprint is a companion, not a focal point. */}
+          {(step === 0 || step === 3) && (
+            <div className="px-2 opacity-50">
+              <WatchBlueprint completed={[]} active="movement" />
+            </div>
+          )}
         </div>
       </div>
     </div>
