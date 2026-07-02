@@ -737,12 +737,14 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
         c.style.width = W + "px";
         c.style.height = H + "px";
       });
+      if (!veilCtx || !maskCtx) return;
       veilCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
       maskCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
       prerenderMask();
     }
 
     function drawVeil(now: number) {
+      if (!veilCtx) return;
       let p = 0;
       if (atlantisEnteredRef.current) {
         p = Math.min(1, (now - atlantisRevealStartRef.current) / 3000);
