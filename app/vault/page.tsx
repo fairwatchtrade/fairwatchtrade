@@ -1,25 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
-import AtlantisVaultEntrance from "@/components/AtlantisVaultEntrance";
+import VaultGalaxy from "@/components/VaultGalaxy";
 
-/* ────────────────────────────────────────────────────────────────────────
-   THE VAULT — /vault  (v1.96e)
+/* ════════════════════════════════════════════════════════════════════════
+   THE VAULT — app/vault/page.tsx   (v2.0)
 
-   The entrance. A server component, free and ungated. It fetches the same
-   brand universe the Galaxy uses and hands it to the Atlantis reveal, so the
-   field that lifts into view behind the veil IS the real archive — not a
-   preview. Crossing (the collector's own second choice) then navigates to
-   /vault/galaxy, the very same field, now live.
+   The Atlantis correction: /vault is now the viewing room AND the real
+   archive room. The working VaultGalaxy is mounted from first paint, and the
+   Atlantis curtain is only an overlay above it. No preview galaxy. No route
+   transition. No black flash. The thing behind the veil is the actual live
+   Vault universe.
 
-   The fetch here is INTENTIONALLY byte-identical to app/vault/galaxy/page.tsx
-   — same columns, same `.order("name")`, no secondary sort. That order is
-   load-bearing: any brand without authored galaxy_x/y/z is positioned by the
-   seeded spiral using its INDEX in this array, so the entrance and the galaxy
-   must resolve brands in the exact same order or the two fields would drift
-   apart. Do not add ordering the galaxy page doesn't have.
+   /vault/galaxy remains the direct-entry route for the same interactive
+   component with the entrance skipped.
 
-   VaultEntrance.tsx (the v1.91 static entrance) is left in place for
-   reference and is no longer rendered here.
-   ──────────────────────────────────────────────────────────────────────── */
+   PRIVACY: combined_score / significance_score / score_state are NEVER
+   selected here. PFC274 = 62 — the evaluate route is untouched.
+   ════════════════════════════════════════════════════════════════════════ */
 
 export default async function VaultPage() {
   const supabase = await createClient();
@@ -31,7 +27,7 @@ export default async function VaultPage() {
     )
     .order("name");
 
-  // Never reveal an empty ceremony — mirror the Galaxy's graceful fallback.
+  // Quiet fallback — never a broken canvas.
   if (error || !brands || brands.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[var(--ink-deep)] px-6 text-center">
@@ -47,5 +43,5 @@ export default async function VaultPage() {
     );
   }
 
-  return <AtlantisVaultEntrance brands={brands} />;
+  return <VaultGalaxy brands={brands} atlantisIntro />;
 }

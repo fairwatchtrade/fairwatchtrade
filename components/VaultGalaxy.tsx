@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
    THE VAULT GALAXY — components/VaultGalaxy.tsx   (v1.85)
@@ -152,7 +152,7 @@ function relevance(b: PositionedBrand, terms: string[]): number {
 const FILTER_CHIPS = ["Independent", "Architectural", "Japanese", "Manual wind", "Heritage"];
 
 // ── Reduced-motion preference — checked once at module level ──
-export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
+export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands: VaultBrand[]; atlantisIntro?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Resolve each brand's position once: authored coords win, spiral fallback.
@@ -176,7 +176,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const [brandDetail, setBrandDetail] = useState<VaultCollection[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [crumb, setCrumb] = useState("The gates are open");
-  const [heroHidden, setHeroHidden] = useState(false);
+  const [heroHidden, setHeroHidden] = useState(atlantisIntro);
   // True once the user has drilled into their first brand — gates the
   // back-button caution so it only appears after there's something to warn about.
   const [hasEntered, setHasEntered] = useState(false);
@@ -197,6 +197,20 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   const selCollRef = useRef(selectedCollection);
   const detailRef = useRef<VaultCollection[] | null>(brandDetail);
   const brightnessRef = useRef<Record<string, number>>({});
+
+  // ── Atlantis overlay state (v2.0) ─────────────────────────────────────
+  // /vault mounts the REAL working galaxy from first paint. Atlantis is only
+  // the viewing-room overlay: gates + veil above this same canvas. No route
+  // handoff, no preview field, no duplicate stars.
+  const [atlantisActive, setAtlantisActive] = useState(atlantisIntro);
+  const [atlantisIgnited, setAtlantisIgnited] = useState(false);
+  const [atlantisRevealing, setAtlantisRevealing] = useState(false);
+  const atlantisEnteredRef = useRef(false);
+  const atlantisRevealStartRef = useRef(0);
+  const veilCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const atlantisMaskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const atlantisRafRef = useRef<number>(0);
+  const atlantisTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => { viewRef.current = view; }, [view]);
   useEffect(() => { selBrandRef.current = selectedBrand; }, [selectedBrand]);
@@ -230,6 +244,47 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   function flyTo(x: number, y: number, scale: number) {
     targetRef.current = { x, y, scale };
   }
+
+  // ── Atlantis v2.0 — one click, curtain, automatic walk-in, no route ──
+  const startAtlantisReveal = useCallback(() => {
+    if (atlantisEnteredRef.current) return;
+    atlantisEnteredRef.current = true;
+    atlantisRevealStartRef.current = performance.now();
+
+    setAtlantisIgnited(true);
+
+    // Entrance UI yields while the veil lift is underway.
+    atlantisTimersRef.current.push(
+      window.setTimeout(() => setAtlantisRevealing(true), 620)
+    );
+
+    // KSC walk-in moment: once the curtain has largely lifted, move the
+    // already-mounted working galaxy closer. This is not a movie cut and not
+    // a route transition — it is the same room pulling forward.
+    atlantisTimersRef.current.push(
+      window.setTimeout(() => {
+        flyTo(0, 0, isMobileViewport() ? 1.38 : 2.68);
+      }, 2700)
+    );
+
+    // Hand control to the live galaxy. The canvas never unmounts; only the
+    // viewing-room overlay disappears. Bring the normal Galaxy UI in after the
+    // wall has yielded.
+    atlantisTimersRef.current.push(
+      window.setTimeout(() => {
+        setAtlantisActive(false);
+        setHeroHidden(false);
+      }, 3650)
+    );
+  }, []);
+
+  useEffect(() => {
+    const timers = atlantisTimersRef.current;
+    return () => {
+      timers.forEach(window.clearTimeout);
+      cancelAnimationFrame(atlantisRafRef.current);
+    };
+  }, []);
 
   // ── Drill-down: enter a brand (fetch its subtree) ──
   async function enterBrand(b: PositionedBrand) {
@@ -609,6 +664,137 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positioned]);
 
+
+  // ── Atlantis veil canvas — theater only; real Galaxy canvas is underneath ──
+  useEffect(() => {
+    if (!atlantisIntro || !atlantisActive) return;
+    const veilCanvas = veilCanvasRef.current;
+    if (!veilCanvas) return;
+
+    const veilCtx = veilCanvas.getContext("2d");
+    if (!veilCtx) return;
+
+    const maskCanvas = document.createElement("canvas");
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) return;
+    atlantisMaskCanvasRef.current = maskCanvas;
+
+    let W = 0;
+    let H = 0;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    function smoothstep(a: number, b: number, x: number): number {
+      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function easeOutCubic(x: number): number {
+      return 1 - Math.pow(1 - x, 3);
+    }
+
+    function prerenderMask() {
+      maskCtx.clearRect(0, 0, W, H);
+      const cx = W * 0.5;
+      const cy = H * 0.53;
+
+      const radial = maskCtx.createRadialGradient(cx, cy, 12, cx, cy, Math.min(W, H) * 0.43);
+      radial.addColorStop(0, "rgba(255,255,255,0.95)");
+      radial.addColorStop(0.24, "rgba(255,255,255,0.34)");
+      radial.addColorStop(0.64, "rgba(255,255,255,0.08)");
+      radial.addColorStop(1, "rgba(255,255,255,0)");
+      maskCtx.fillStyle = radial;
+      maskCtx.fillRect(0, 0, W, H);
+
+      const left = maskCtx.createLinearGradient(0, 0, W * 0.3, 0);
+      left.addColorStop(0, "rgba(255,255,255,0)");
+      left.addColorStop(0.42, "rgba(255,255,255,0.07)");
+      left.addColorStop(1, "rgba(255,255,255,0)");
+      maskCtx.fillStyle = left;
+      maskCtx.fillRect(0, 0, W * 0.32, H);
+
+      const right = maskCtx.createLinearGradient(W, 0, W * 0.7, 0);
+      right.addColorStop(0, "rgba(255,255,255,0)");
+      right.addColorStop(0.42, "rgba(255,255,255,0.07)");
+      right.addColorStop(1, "rgba(255,255,255,0)");
+      maskCtx.fillStyle = right;
+      maskCtx.fillRect(W * 0.68, 0, W * 0.32, H);
+
+      const rule = maskCtx.createLinearGradient(cx - 100, 0, cx + 100, 0);
+      rule.addColorStop(0, "rgba(255,255,255,0)");
+      rule.addColorStop(0.5, "rgba(255,255,255,0.78)");
+      rule.addColorStop(1, "rgba(255,255,255,0)");
+      maskCtx.fillStyle = rule;
+      maskCtx.fillRect(cx - 100, cy - 1, 200, 2);
+    }
+
+    function resizeVeil() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      [veilCanvas, maskCanvas].forEach((c) => {
+        c.width = Math.floor(W * DPR);
+        c.height = Math.floor(H * DPR);
+        c.style.width = W + "px";
+        c.style.height = H + "px";
+      });
+      veilCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      maskCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      prerenderMask();
+    }
+
+    function drawVeil(now: number) {
+      let p = 0;
+      if (atlantisEnteredRef.current) {
+        p = Math.min(1, (now - atlantisRevealStartRef.current) / 3000);
+      }
+
+      const peek = smoothstep(0.08, 0.34, p);
+      const lift = easeOutCubic(smoothstep(0.34, 0.96, p));
+      const coveredHeight = H * (1 - lift);
+
+      veilCtx.clearRect(0, 0, W, H);
+      veilCtx.fillStyle = atlantisEnteredRef.current
+        ? "rgba(13,15,20,0.985)"
+        : "rgba(13,15,20,0.997)";
+      veilCtx.fillRect(0, 0, W, coveredHeight);
+
+      if (peek > 0 && coveredHeight > 0) {
+        veilCtx.save();
+        veilCtx.globalCompositeOperation = "destination-out";
+        veilCtx.globalAlpha = 0.2 + peek * 0.7;
+        veilCtx.drawImage(maskCanvas, 0, 0, W, H);
+        veilCtx.restore();
+      }
+
+      if (lift > 0 && lift < 1) {
+        const y = coveredHeight;
+        const edge = veilCtx.createLinearGradient(0, y - 180, 0, y + 180);
+        edge.addColorStop(0, "rgba(13,15,20,0.97)");
+        edge.addColorStop(0.5, "rgba(13,15,20,0.50)");
+        edge.addColorStop(1, "rgba(13,15,20,0)");
+        veilCtx.fillStyle = edge;
+        veilCtx.fillRect(0, y - 185, W, 370);
+
+        // Very faint light seam: the edge of a physical screen catching light.
+        veilCtx.fillStyle = `rgba(201,168,76,${0.035 * (1 - lift)})`;
+        veilCtx.fillRect(0, y - 1, W, 1);
+      }
+    }
+
+    function frame(now: number) {
+      drawVeil(now);
+      atlantisRafRef.current = requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("resize", resizeVeil);
+    resizeVeil();
+    atlantisRafRef.current = requestAnimationFrame(frame);
+
+    return () => {
+      window.removeEventListener("resize", resizeVeil);
+      cancelAnimationFrame(atlantisRafRef.current);
+    };
+  }, [atlantisIntro, atlantisActive]);
+
   // ── Variant detail: gather references + the family it belongs to ──
   const variantFamily = useMemo(() => {
     if (!selectedVariant || !selectedCollection) return null;
@@ -621,7 +807,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
 
   return (
     <div
-      className="relative h-[calc(100vh-0px)] w-full overflow-hidden bg-[var(--ink-deep)]"
+      className="fixed inset-0 z-[60] h-screen w-full overflow-hidden bg-[var(--ink-deep)]"
     >
       <canvas
         ref={canvasRef}
@@ -634,6 +820,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         }}
       />
 
+      <div style={{ opacity: atlantisActive ? 0 : 1, pointerEvents: atlantisActive ? "none" : "auto", transition: "opacity 700ms ease" }}>
       {/* Crumb trail */}
       <div className="pointer-events-none fixed left-0 right-0 top-0 z-[5] flex items-center justify-between px-7 py-4">
         <div className="font-display text-[16px] text-[var(--platinum)]">
@@ -883,6 +1070,183 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
         {brands.length} manufacturers. A living catalogue of independent and heritage
         watchmaking.
       </div>
+      </div>
+
+      {atlantisActive && (
+        <>
+          <canvas
+            ref={veilCanvasRef}
+            aria-hidden="true"
+            className="fixed inset-0 z-[48] h-full w-full"
+            style={{ pointerEvents: "none" }}
+          />
+
+          <div
+            className="fixed inset-0 z-[49] flex flex-col bg-transparent"
+            style={{
+              opacity: atlantisRevealing ? 0 : 1,
+              transform: atlantisRevealing ? "translateY(-18px)" : "translateY(0)",
+              transition: "opacity 850ms ease, transform 850ms ease",
+              transitionDelay: atlantisRevealing ? "650ms" : "0ms",
+            }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.04] px-8 py-[18px]">
+              <div className="font-display text-[15px] font-normal text-[var(--platinum)]">
+                Fair<span className="text-[var(--gold)]">Watch</span>Trade
+              </div>
+              <div className="text-[9px] uppercase tracking-[2px] text-[#4A4F5C]">
+                ← Marketplace
+              </div>
+            </div>
+
+            <div className="relative flex flex-1 items-stretch">
+              <div
+                className="relative w-[88px] shrink-0"
+                style={{ opacity: atlantisIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}
+              >
+                <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
+                  <line x1="18" y1="20" x2="18" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
+                  <line x1="42" y1="48" x2="42" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <line x1="62" y1="70" x2="62" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
+                  <circle cx="18" cy="20" r="8" stroke="rgba(201,168,76,0.4)" strokeWidth="0.8" />
+                  <circle cx="18" cy="20" r="4" stroke="rgba(201,168,76,0.25)" strokeWidth="0.6" />
+                  <circle cx="18" cy="20" r="1.5" fill="rgba(201,168,76,0.5)" />
+                  <line x1="18" y1="48" x2="72" y2="48" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
+                  <rect x="10" y="58" width="68" height="72" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
+                  <circle cx="44" cy="94" r="20" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
+                  <circle cx="44" cy="94" r="12" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
+                  <line x1="18" y1="160" x2="72" y2="160" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <circle cx="36" cy="280" r="26" stroke="rgba(201,168,76,0.22)" strokeWidth="0.8" />
+                  <circle cx="36" cy="280" r="18" stroke="rgba(201,168,76,0.15)" strokeWidth="0.6" />
+                  <circle cx="36" cy="280" r="10" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
+                  <line x1="36" y1="254" x2="36" y2="260" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="36" y1="300" x2="36" y2="306" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="10" y1="280" x2="16" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="56" y1="280" x2="62" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="18" y1="400" x2="72" y2="400" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <rect x="10" y="430" width="68" height="60" stroke="rgba(201,168,76,0.07)" strokeWidth="0.4" />
+                  <line x1="18" y1="512" x2="72" y2="512" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
+                  <circle cx="18" cy="540" r="6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <rect x="58" y="0" width="30" height="560" fill="url(#vault-gfadeR)" />
+                  <defs>
+                    <linearGradient id="vault-gfadeR" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#0D0F14" stopOpacity="0" />
+                      <stop offset="100%" stopColor="#0D0F14" stopOpacity="1" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              <div className="flex flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center">
+                <div className="mb-9">
+                  <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
+                    <circle cx="18" cy="18" r="17" stroke="rgba(201,168,76,0.28)" strokeWidth="0.6" />
+                    <circle cx="18" cy="18" r="12" stroke="rgba(201,168,76,0.15)" strokeWidth="0.5" />
+                    <line x1="18" y1="4" x2="18" y2="7" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
+                    <line x1="18" y1="29" x2="18" y2="32" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
+                    <line x1="4" y1="18" x2="7" y2="18" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
+                    <line x1="29" y1="18" x2="32" y2="18" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
+                    <line x1="18" y1="18" x2="18" y2="8" stroke="rgba(232,228,220,0.55)" strokeWidth="0.7" />
+                    <line x1="18" y1="18" x2="23" y2="18" stroke="rgba(232,228,220,0.45)" strokeWidth="0.6" />
+                    <circle cx="18" cy="18" r="1.6" fill="#C9A84C" opacity="0.6" />
+                  </svg>
+                </div>
+
+                <div className="mb-8 text-[8px] uppercase tracking-[5px] text-[rgba(201,168,76,0.45)]">
+                  The FairWatchTrade Vault
+                </div>
+                <div className="font-display text-[30px] font-light leading-[1.35] tracking-[0.3px] text-[var(--platinum)]">
+                  What lies beyond these gates
+                </div>
+                <div className="mb-[6px] font-display text-[30px] font-light leading-[1.35] tracking-[0.3px] text-[var(--platinum)]">
+                  isn&apos;t data.
+                </div>
+                <div
+                  className="mb-9 font-display text-[30px] font-light italic leading-[1.35] tracking-[0.3px] text-[var(--gold)]"
+                  style={{
+                    textShadow: atlantisIgnited ? "0 0 18px rgba(201,168,76,0.22)" : "none",
+                    transition: "text-shadow 200ms ease",
+                  }}
+                >
+                  It&apos;s understanding.
+                </div>
+
+                <div
+                  style={{
+                    width: atlantisIgnited ? "76px" : "32px",
+                    height: "1px",
+                    background: "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)",
+                    margin: "0 auto 28px",
+                    filter: atlantisIgnited ? "brightness(1.85)" : "brightness(1)",
+                    transition: "width 200ms ease, filter 200ms ease",
+                  }}
+                />
+
+                <div className="mb-[52px] font-display text-[15px] font-light italic leading-[1.8] tracking-[0.2px] text-[var(--muted)]">
+                  A living archive, freely open to every collector.
+                </div>
+
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={startAtlantisReveal}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      startAtlantisReveal();
+                    }
+                  }}
+                  className="flex cursor-pointer select-none flex-col items-center"
+                  aria-label="Enter the FairWatchTrade Vault"
+                >
+                  <div className="h-8 w-px bg-gradient-to-b from-transparent to-[rgba(201,168,76,0.3)]" />
+                  <div className="py-2 text-[9px] uppercase tracking-[6px] text-[rgba(201,168,76,0.55)]">
+                    Enter
+                  </div>
+                  <div className="h-5 w-px bg-gradient-to-b from-[rgba(201,168,76,0.25)] to-transparent" />
+                </div>
+              </div>
+
+              <div
+                className="relative w-[88px] shrink-0"
+                style={{ opacity: atlantisIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}
+              >
+                <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
+                  <line x1="70" y1="20" x2="70" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
+                  <line x1="46" y1="48" x2="46" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <line x1="26" y1="70" x2="26" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
+                  <circle cx="70" cy="20" r="8" stroke="rgba(201,168,76,0.4)" strokeWidth="0.8" />
+                  <circle cx="70" cy="20" r="4" stroke="rgba(201,168,76,0.25)" strokeWidth="0.6" />
+                  <circle cx="70" cy="20" r="1.5" fill="rgba(201,168,76,0.5)" />
+                  <line x1="16" y1="48" x2="70" y2="48" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
+                  <rect x="10" y="58" width="68" height="72" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
+                  <circle cx="44" cy="94" r="20" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
+                  <circle cx="44" cy="94" r="12" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
+                  <line x1="16" y1="160" x2="70" y2="160" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <circle cx="52" cy="280" r="26" stroke="rgba(201,168,76,0.22)" strokeWidth="0.8" />
+                  <circle cx="52" cy="280" r="18" stroke="rgba(201,168,76,0.15)" strokeWidth="0.6" />
+                  <circle cx="52" cy="280" r="10" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
+                  <line x1="52" y1="254" x2="52" y2="260" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="52" y1="300" x2="52" y2="306" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="26" y1="280" x2="32" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="72" y1="280" x2="78" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <line x1="16" y1="400" x2="70" y2="400" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
+                  <rect x="10" y="430" width="68" height="60" stroke="rgba(201,168,76,0.07)" strokeWidth="0.4" />
+                  <line x1="16" y1="512" x2="70" y2="512" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
+                  <circle cx="70" cy="540" r="6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
+                  <rect x="0" y="0" width="30" height="560" fill="url(#vault-gfadeL)" />
+                  <defs>
+                    <linearGradient id="vault-gfadeL" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#0D0F14" stopOpacity="1" />
+                      <stop offset="100%" stopColor="#0D0F14" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
