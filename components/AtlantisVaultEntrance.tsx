@@ -4,13 +4,13 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE ATLANTIS REVEAL — components/AtlantisVaultEntrance.tsx   (v1.96e)
+   THE ATLANTIS REVEAL — components/AtlantisVaultEntrance.tsx   (v1.96g)
 
    The emotional centerpiece of the Vault — the moment the platform stops
    being a marketplace and becomes a place. The gates yield, the veil lifts,
    and the galaxy that was ALWAYS behind it is revealed.
 
-   v1.96e — the galaxy behind the veil is now the REAL one. The prototype's
+   v1.96g — the galaxy behind the veil is the REAL one. The prototype's
    procedural starfield (130 + 82 + 5) was scaffolding; the Atlantis contract
    ("the galaxy was always here") only holds if what lifts into view is the
    same archive the collector then enters. So the z-0 canvas now renders the
@@ -20,22 +20,19 @@ import { useRouter } from "next/navigation";
    with labels, controls, and interaction OFF. Cross into /vault/galaxy and it
    is the very same field, now live and interactive.
 
-   The curtain is prototype-derived; the galaxy is not. Everything else — the
-   dual-canvas veil, the off-screen mask compositing, the curtain lift, the two
-   crossings, and the route transition — is unchanged from v1.96.
+   The curtain is prototype-derived; the galaxy is not. The product version is intentionally reduced: one click, one curtain reveal,
+   then route into /vault/galaxy. No arrival sentence, no second crossing, no
+   lingering poetry.
 
-   Architecture — three layers, two canvases, one off-screen mask:
-     z-3  arrival text  — "The galaxy was always here."
+   Architecture — two visible layers, two canvases, one off-screen mask:
      z-2  .fw-vault     — the entrance UI (gates, headline, crossing)
      z-1  veilCanvas    — the veil (pointer-events: none)
      z-0  galaxyCanvas  — the real galaxy, behind the veil (always rendering)
           maskCanvas    — off-screen, never in the DOM, drives the reveal shape
 
-   TWO crossings, deliberately NOT collapsed:
-     Crossing 1 (startReveal)    — the threshold: ignite, then the veil lifts
-       over 2500ms while the entrance UI exits and the arrival line appears.
-     Crossing 2 (approachGalaxy) — the collector CHOOSES to approach, unlocked
-       at 3000ms; navigation to /vault/galaxy fires 700ms after they click.
+   ONE crossing:
+     startReveal() — the threshold: ignite, lift the veil over 2500ms, then
+       route to /vault/galaxy after the reveal completes.
 
    PFC274 = 62 — no evaluation logic here.
    ════════════════════════════════════════════════════════════════════════ */
@@ -89,9 +86,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
 
   const [isIgnited, setIsIgnited] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
-  const [arrivalVisible, setArrivalVisible] = useState(false);
-  const [canApproach, setCanApproach] = useState(false); // Crossing 2 unlocked at 3000ms
-  const [isApproaching, setIsApproaching] = useState(false); // Approach in progress
 
   const enteredRef = useRef(false);
   const revealStartRef = useRef(0);
@@ -99,37 +93,17 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
   const animFrameRef = useRef<number>(0);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // ── Crossing 1 — the threshold ────────────────────────────────────────
+  // ── The crossing — one clean threshold reveal ─────────────────────────
   const startReveal = useCallback(() => {
     if (enteredRef.current) return;
     enteredRef.current = true;
     revealStartRef.current = performance.now();
 
-    // Immediate: ignite — gates fade, rule brightens, headline glows.
     setIsIgnited(true);
-
-    // 620ms: the entrance UI begins its exit.
     timeoutsRef.current.push(setTimeout(() => setIsRevealing(true), 620));
+    timeoutsRef.current.push(setTimeout(() => router.push("/vault/galaxy"), 2750));
+  }, [router]);
 
-    // 1950ms: "The galaxy was always here."
-    timeoutsRef.current.push(setTimeout(() => setArrivalVisible(true), 1950));
-
-    // 3000ms: the second crossing unlocks. The collector is NOT taken into the
-    // galaxy — they CHOOSE to approach. That is the Atlantis moment.
-    timeoutsRef.current.push(setTimeout(() => setCanApproach(true), 3000));
-  }, []);
-
-  // ── Crossing 2 — the approach (the collector's choice) ────────────────
-  const approachGalaxy = useCallback(() => {
-    if (!canApproach || isApproaching) return;
-    setIsApproaching(true);
-    // 700ms visual push, then cross into the galaxy.
-    timeoutsRef.current.push(
-      setTimeout(() => router.push("/vault/galaxy"), 700)
-    );
-  }, [canApproach, isApproaching, router]);
-
-  // Clear any pending timeouts on unmount.
   useEffect(() => {
     const timeouts = timeoutsRef.current;
     return () => {
@@ -137,7 +111,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     };
   }, []);
 
-  // ── Canvas engine — real galaxy (z-0) + veil (z-1) + off-screen mask ──
   useEffect(() => {
     const galaxyCanvas = galaxyCanvasRef.current;
     const veilCanvas = veilCanvasRef.current;
@@ -147,7 +120,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     const veilCtx = veilCanvas.getContext("2d");
     if (!galaxyCtx || !veilCtx) return;
 
-    // Off-screen mask — never added to the DOM; used only for compositing.
     const maskCanvas = document.createElement("canvas");
     const maskCtx = maskCanvas.getContext("2d");
     if (!maskCtx) return;
@@ -157,9 +129,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     let H = 0;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
-    // ── Resolve brand positions once (authored coords win, spiral fallback) —
-    // identical to VaultGalaxy's `positioned` useMemo. Fixed at mount, like the
-    // real galaxy; the live projection re-centers on resize via cx/cy. ──
     const vf = viewportFactor();
     const positioned: PositionedEntry[] = brands.map((b, i) => {
       const hasCoords =
@@ -177,7 +146,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
       return generateGalaxyPosition(b.slug || String(i), i);
     });
 
-    // Opening camera — VaultGalaxy's at-rest state (cam 0,0, openScale).
     const mobile = isMobileViewport();
     const openScale = mobile ? 1.15 : 2.2;
 
@@ -217,54 +185,47 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
       maskCtx.fillRect(cx - 100, cy - 1, 200, 2);
     }
 
-    // The real galaxy at rest — same projection + gold-glow rendering as
-    // VaultGalaxy's "brands" view. Labels OFF (no fillText), interaction OFF.
     function drawGalaxy(now: number) {
       if (!galaxyCtx) return;
-      // Stars are dimmed behind the veil — the reveal is the payoff, not the preview.
-      const ENTRANCE_OPACITY_SCALE = 0.65;
       galaxyCtx.clearRect(0, 0, W, H);
       galaxyCtx.fillStyle = "#0D0F14";
       galaxyCtx.fillRect(0, 0, W, H);
 
-      // Ambient dust — VaultGalaxy.starfield() (120 drifting background stars).
       for (let i = 0; i < 120; i++) {
         const x = (i * 137.508 + Math.sin(now * 0.00008 + i) * 18) % W;
         const y = (i * 83.17 + Math.cos(now * 0.0001 + i) * 12) % H;
-        const a = (0.12 + 0.25 * Math.abs(Math.sin(now * 0.0005 + i))) * ENTRANCE_OPACITY_SCALE;
+        const a = (0.12 + 0.25 * Math.abs(Math.sin(now * 0.0005 + i))) * 0.65;
         galaxyCtx.fillStyle = `rgba(232,228,220,${a})`;
         galaxyCtx.beginPath();
         galaxyCtx.arc(x, y, i % 3 === 0 ? 1.2 : 0.7, 0, Math.PI * 2);
         galaxyCtx.fill();
       }
 
-      // Brand stars — VaultGalaxy projection (cam 0,0, openScale) + glow.
       const cx = W / 2;
       const cy = H / 2 + 10;
       const scale = openScale;
       const glowCap = mobile ? Math.min(W, H) * 0.18 : Infinity;
       positioned.forEach((b) => {
         const depth = b.z || 1;
-        const px = cx + b.x * scale; // cam.x = 0
-        const py = cy + b.y * scale; // cam.y = 0
-        const pr = 12 * scale * depth; // r = 7 + glow*5, glow = 1 -> 12
+        const px = cx + b.x * scale;
+        const py = cy + b.y * scale;
+        const pr = 12 * scale * depth;
         if (px < -80 || px > W + 80 || py < -80 || py > H + 80) return;
 
         const glowR = Math.min(Math.max(16, pr * 5), glowCap);
         const grd = galaxyCtx.createRadialGradient(px, py, 0, px, py, glowR);
-        grd.addColorStop(0, `rgba(201,168,76,${0.75 * ENTRANCE_OPACITY_SCALE})`);
-        grd.addColorStop(0.25, `rgba(201,168,76,${0.22 * ENTRANCE_OPACITY_SCALE})`);
+        grd.addColorStop(0, `rgba(201,168,76,${0.75 * 0.65})`);
+        grd.addColorStop(0.25, `rgba(201,168,76,${0.22 * 0.65})`);
         grd.addColorStop(1, "rgba(201,168,76,0)");
         galaxyCtx.fillStyle = grd;
         galaxyCtx.beginPath();
         galaxyCtx.arc(px, py, glowR, 0, Math.PI * 2);
         galaxyCtx.fill();
 
-        galaxyCtx.fillStyle = `rgba(201,168,76,${0.9 * ENTRANCE_OPACITY_SCALE})`;
+        galaxyCtx.fillStyle = `rgba(201,168,76,${0.9 * 0.65})`;
         galaxyCtx.beginPath();
         galaxyCtx.arc(px, py, Math.max(2.5, pr), 0, Math.PI * 2);
         galaxyCtx.fill();
-        // Labels OFF — the entrance is ambient until the collector approaches.
       });
     }
 
@@ -288,7 +249,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
       veilCtx.fillStyle = enteredRef.current ? "rgba(13,15,20,0.985)" : "rgba(13,15,20,0.997)";
       veilCtx.fillRect(0, 0, W, coveredHeight);
 
-      // Phase 1 — the galaxy peeks through the mask shape, center-first.
       if (peek > 0 && coveredHeight > 0) {
         veilCtx.save();
         veilCtx.globalCompositeOperation = "destination-out";
@@ -297,15 +257,14 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
         veilCtx.restore();
       }
 
-      // Phase 2 — a soft hem gradient follows the lifting edge.
       if (lift > 0 && lift < 1) {
         const y = coveredHeight;
-        const edge = veilCtx.createLinearGradient(0, y - 95, 0, y + 95);
+        const edge = veilCtx.createLinearGradient(0, y - 180, 0, y + 180);
         edge.addColorStop(0, "rgba(13,15,20,0.97)");
         edge.addColorStop(0.5, "rgba(13,15,20,0.50)");
         edge.addColorStop(1, "rgba(13,15,20,0)");
         veilCtx.fillStyle = edge;
-        veilCtx.fillRect(0, y - 100, W, 200);
+        veilCtx.fillRect(0, y - 185, W, 370);
       }
     }
 
@@ -328,8 +287,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
       galaxyCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
       veilCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
       maskCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      // Brands are world-positioned; only the mask depends on W/H. The galaxy
-      // projection re-centers automatically each frame via cx/cy.
       prerenderMask();
     }
 
@@ -346,14 +303,13 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
   return (
     <div
       ref={stageRef}
-      onClick={canApproach ? approachGalaxy : undefined}
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 60,
         background: "#0D0F14",
         overflow: "hidden",
-        cursor: canApproach ? "pointer" : "default",
+        cursor: "default",
       }}
     >
       <canvas
@@ -383,7 +339,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
         }}
       />
 
-      {/* .fw-vault — the entrance UI (yields upward as the veil lifts) */}
       <div
         style={{
           position: "absolute",
@@ -397,7 +352,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
           transitionDelay: isRevealing ? "650ms" : "0ms",
         }}
       >
-        {/* nav */}
         <div
           style={{
             padding: "18px 32px",
@@ -416,9 +370,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
           </div>
         </div>
 
-        {/* gate + center + gate */}
         <div style={{ flex: 1, display: "flex", alignItems: "stretch", position: "relative" }}>
-          {/* Left gate — 88px, yields to opacity 0.12 on ignite */}
           <div style={{ width: "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}>
             <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
               <line x1="18" y1="20" x2="18" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
@@ -453,19 +405,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             </svg>
           </div>
 
-          {/* Center */}
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "40px 32px 48px",
-              textAlign: "center",
-            }}
-          >
-            {/* FW mark */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 32px 48px", textAlign: "center" }}>
             <div style={{ marginBottom: "36px" }}>
               <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
                 <circle cx="18" cy="18" r="17" stroke="rgba(201,168,76,0.28)" strokeWidth="0.6" />
@@ -489,50 +429,21 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "30px", fontWeight: 300, lineHeight: 1.35, letterSpacing: "0.3px", color: "#E8E4DC", marginBottom: "6px" }}>
               isn&apos;t data.
             </div>
-            <div
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "30px",
-                fontWeight: 300,
-                lineHeight: 1.35,
-                letterSpacing: "0.3px",
-                color: "#C9A84C",
-                fontStyle: "italic",
-                marginBottom: "36px",
-                textShadow: isIgnited ? "0 0 18px rgba(201,168,76,0.22)" : "none",
-                transition: "text-shadow 200ms ease",
-              }}
-            >
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "30px", fontWeight: 300, lineHeight: 1.35, letterSpacing: "0.3px", color: "#C9A84C", fontStyle: "italic", marginBottom: "36px", textShadow: isIgnited ? "0 0 18px rgba(201,168,76,0.22)" : "none", transition: "text-shadow 200ms ease" }}>
               It&apos;s understanding.
             </div>
 
-            {/* Gold rule — brightens and widens on ignite */}
-            <div
-              style={{
-                width: isIgnited ? "76px" : "32px",
-                height: "1px",
-                background: "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)",
-                margin: "0 auto 28px",
-                filter: isIgnited ? "brightness(1.85)" : "brightness(1)",
-                transition: "width 200ms ease, filter 200ms ease",
-              }}
-            />
+            <div style={{ width: isIgnited ? "76px" : "32px", height: "1px", background: "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)", margin: "0 auto 28px", filter: isIgnited ? "brightness(1.85)" : "brightness(1)", transition: "width 200ms ease, filter 200ms ease" }} />
 
             <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "15px", fontWeight: 300, fontStyle: "italic", color: "#8A8F9E", lineHeight: 1.8, marginBottom: "52px", letterSpacing: "0.2px" }}>
               A living archive, freely open to every collector.
             </div>
 
-            {/* The crossing — not a button, not a link. A crossing. */}
             <div
               role="button"
               tabIndex={0}
               onClick={startReveal}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  startReveal();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startReveal(); } }}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}
               aria-label="Enter the FairWatchTrade Vault"
             >
@@ -544,7 +455,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             </div>
           </div>
 
-          {/* Right gate — 88px mirror, yields on ignite */}
           <div style={{ width: "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}>
             <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
               <line x1="70" y1="20" x2="70" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
@@ -571,7 +481,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
               <circle cx="70" cy="540" r="6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
               <rect x="0" y="0" width="30" height="560" fill="url(#vault-gfadeL)" />
               <defs>
-                {/* Prototype had y1="="0" here — corrected to y1="0". */}
                 <linearGradient id="vault-gfadeL" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="#0D0F14" stopOpacity="1" />
                   <stop offset="100%" stopColor="#0D0F14" stopOpacity="0" />
@@ -580,30 +489,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             </svg>
           </div>
         </div>
-      </div>
-
-      {/* Arrival text — appears as the veil lifts and the entrance exits */}
-      <div
-        style={{
-          position: "absolute",
-          zIndex: 3,
-          left: "50%",
-          top: "52%",
-          transform: "translate(-50%, -50%)",
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "17px",
-          fontStyle: "italic",
-          fontWeight: 300,
-          color: "rgba(201,168,76,0.58)",
-          opacity: arrivalVisible ? 1 : 0,
-          letterSpacing: "0.6px",
-          pointerEvents: "none",
-          transition: "opacity 1200ms ease",
-          textAlign: "center",
-          whiteSpace: "nowrap",
-        }}
-      >
-        The galaxy was always here.
       </div>
     </div>
   );
