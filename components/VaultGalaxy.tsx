@@ -222,9 +222,9 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
   useEffect(() => {
     const mob = isMobileViewport();
     flyTo(0, 0, mob ? 1.25 : 2.4);
-    const t = setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
+    const t = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
     setCrumb("Welcome to the Galaxy");
-    return () => clearTimeout(t);
+    return () => window.clearTimeout(t);
   }, []);
 
   type EngineObject = {
@@ -255,14 +255,14 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
 
     // Entrance UI yields while the veil lift is underway.
     atlantisTimersRef.current.push(
-      setTimeout(() => setAtlantisRevealing(true), 620)
+      window.setTimeout(() => setAtlantisRevealing(true), 620)
     );
 
     // KSC walk-in moment: once the curtain has largely lifted, move the
     // already-mounted working galaxy closer. This is not a movie cut and not
     // a route transition — it is the same room pulling forward.
     atlantisTimersRef.current.push(
-      setTimeout(() => {
+      window.setTimeout(() => {
         flyTo(0, 0, isMobileViewport() ? 1.38 : 2.68);
       }, 2700)
     );
@@ -271,7 +271,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     // viewing-room overlay disappears. Bring the normal Galaxy UI in after the
     // wall has yielded.
     atlantisTimersRef.current.push(
-      setTimeout(() => {
+      window.setTimeout(() => {
         setAtlantisActive(false);
         setHeroHidden(false);
       }, 3650)
@@ -281,7 +281,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
   useEffect(() => {
     const timers = atlantisTimersRef.current;
     return () => {
-      timers.forEach(clearTimeout);
+      timers.forEach(window.clearTimeout);
       cancelAnimationFrame(atlantisRafRef.current);
     };
   }, []);
@@ -693,6 +693,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     }
 
     function prerenderMask() {
+      if (!maskCtx) return;
       maskCtx.clearRect(0, 0, W, H);
       const cx = W * 0.5;
       const cy = H * 0.53;
