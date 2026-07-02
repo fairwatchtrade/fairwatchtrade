@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
 import SiteFooter from "@/components/SiteFooter";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,11 +10,34 @@ export const metadata: Metadata = {
   description: "A marketplace for independent and boutique watchmakers. One flat 5% fee. No games.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Server owns the initial unread count so the bell badge never flashes on
+  // mount. Wrapped fail-safe: the root layout must never crash the whole site
+  // over a notifications hiccup — worst case is simply no bell.
+  let authed = false;
+  let initialUnreadCount = 0;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authed = !!user;
+    if (user) {
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
+      initialUnreadCount = count ?? 0;
+    }
+  } catch {
+    // Fail-safe — no bell rather than a broken layout.
+  }
+
   return (
     <html lang="en">
       <body>
@@ -25,7 +49,7 @@ export default function RootLayout({
           The market strip does NOT own top-0 itself — the header does.
         */}
         <header className="sticky top-0 z-50">
-          <NavBar />
+          <NavBar authed={authed} initialUnreadCount={initialUnreadCount} />
           <MarketBar />
         </header>
         {children}

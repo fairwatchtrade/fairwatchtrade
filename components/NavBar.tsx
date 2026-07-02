@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import MobileNav from "@/components/MobileNav";
+import NotificationsBell from "@/components/NotificationsBell";
 
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop: wordmark left, Browse · Sell · Dashboard · Account · About right.
+   Desktop: wordmark left, Browse · Sell · Dashboard · Vault · Account · About right.
    Mobile (md:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
 
@@ -21,6 +22,7 @@ const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
   { label: "Sell", href: "/sell" },
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Vault", href: "/vault" },
   { label: "Account", href: "/account" },
   { label: "About", href: "/about" },
 ];
@@ -39,7 +41,13 @@ function Wordmark({ onClick }: { onClick?: () => void }) {
   );
 }
 
-export default function NavBar() {
+export default function NavBar({
+  authed = false,
+  initialUnreadCount = 0,
+}: {
+  authed?: boolean;
+  initialUnreadCount?: number;
+} = {}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -63,6 +71,8 @@ export default function NavBar() {
               {item.label}
             </Link>
           ))}
+          {/* Bell — authenticated users only; count seeded server-side. */}
+          {authed && <NotificationsBell initialUnreadCount={initialUnreadCount} />}
         </div>
 
         {/* Mobile hamburger */}
