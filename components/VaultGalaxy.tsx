@@ -731,7 +731,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     function resizeVeil() {
       W = window.innerWidth;
       H = window.innerHeight;
-      [veilCanvas, maskCanvas].forEach((c) => {
+      [veilCanvas, maskCanvas].filter((c): c is HTMLCanvasElement => c !== null).forEach((c) => {
         c.width = Math.floor(W * DPR);
         c.height = Math.floor(H * DPR);
         c.style.width = W + "px";
