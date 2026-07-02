@@ -188,6 +188,7 @@ export default function AtlantisVaultEntrance() {
     }
 
     function prerenderMask() {
+      if (!maskCtx) return;
       maskCtx.clearRect(0, 0, W, H);
       const cx = W * 0.5;
       const cy = H * 0.53;
@@ -223,6 +224,7 @@ export default function AtlantisVaultEntrance() {
     }
 
     function drawGalaxy(now: number) {
+      if (!galaxyCtx) return;
       galaxyCtx.clearRect(0, 0, W, H);
       galaxyCtx.fillStyle = "#0D0F14";
       galaxyCtx.fillRect(0, 0, W, H);
@@ -253,6 +255,7 @@ export default function AtlantisVaultEntrance() {
     }
 
     function drawVeil(now: number) {
+      if (!veilCtx) return;
       let p = 0;
       if (enteredRef.current) p = Math.min(1, (now - revealStartRef.current) / 2500);
       const peek = smoothstep(0.08, 0.34, p);
@@ -291,6 +294,7 @@ export default function AtlantisVaultEntrance() {
     }
 
     function resize() {
+      if (!galaxyCanvas || !veilCanvas || !galaxyCtx || !veilCtx || !maskCtx) return;
       W = window.innerWidth;
       H = window.innerHeight;
       [galaxyCanvas, veilCanvas, maskCanvas].forEach((c) => {
