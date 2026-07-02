@@ -151,8 +151,32 @@ function relevance(b: PositionedBrand, terms: string[]): number {
 
 const FILTER_CHIPS = ["Independent", "Architectural", "Japanese", "Manual wind", "Heritage"];
 
-export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
+// ── Reduced-motion preference — checked once at module level ──
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export default function VaultGalaxy({ brands, brandCount, collectionCount, referenceCount }: {
+  brands: VaultBrand[];
+  brandCount: number;
+  collectionCount: number;
+  referenceCount: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // ── Intro state machine ──
+  // "threshold" → question screen → "screen1" → brand count → "screen2"
+  // → reference count → "ready" → galaxy live. Only ever moves forward.
+  // No cookies, no localStorage — asked every visit.
+  type IntroState = "threshold" | "screen1" | "screen2" | "ready";
+  const [introState, setIntroState] = useState<IntroState>("threshold");
+  const introStateRef = useRef<IntroState>("threshold");
+  useEffect(() => { introStateRef.current = introState; }, [introState]);
+
+  // All skip paths call one function — one destination, no drift.
+  function handleSkip() {
+    setIntroState("ready");
+  }
 
   // Resolve each brand's position once: authored coords win, spiral fallback.
   const positioned = useMemo<PositionedBrand[]>(() => {
@@ -201,6 +225,29 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
   useEffect(() => { selBrandRef.current = selectedBrand; }, [selectedBrand]);
   useEffect(() => { selCollRef.current = selectedCollection; }, [selectedCollection]);
   useEffect(() => { detailRef.current = brandDetail; }, [brandDetail]);
+
+  // ── Opening drift — fires once when canvas becomes ready ──
+  // Extracted from the canvas useEffect so it runs independently of the
+  // rAF loop startup. flyTo refs targetRef.current, safe to call here.
+  useEffect(() => {
+    if (introState !== "ready") return;
+    const mob = isMobileViewport();
+    flyTo(0, 0, mob ? 1.25 : 2.4);
+    const t = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
+    setCrumb("Welcome to the Galaxy");
+    return () => window.clearTimeout(t);
+  }, [introState]);
+
+  // ── ESC key handler — skip after threshold ──
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && introStateRef.current !== "threshold") {
+        handleSkip();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   type EngineObject = {
     type: "brand" | "brandCore" | "collection" | "model";
@@ -328,6 +375,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
 
   // ── Canvas engine — ported from POC, runs once on mount ──
   useEffect(() => {
+    if (introState !== "ready") return; // canvas does not start until intro completes
     const canvasEl = canvasRef.current;
     const context = canvasEl?.getContext("2d");
     if (!canvasEl || !context) return;
@@ -532,6 +580,7 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
 
     // ── Pointer: drag-to-pan + click-to-select (a drag suppresses the click) ──
     function doSelect(mx: number, my: number) {
+      if (introStateRef.current !== "ready") return; // no interaction during intro
       let hit: EngineObject | null = null;
       let dist = 99999;
       objectsRef.current.forEach((o) => {
@@ -587,27 +636,16 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
 
-    // Opening drift, mirrors POC.
-    // Open INSIDE the universe, not above it. Start among the stars at a
-    // scale where the field streams off all four edges — there is no
-    // god's-eye overview, ever. A gentle drift inward begins the experience.
-    // Mobile opens looser (lower scale) so the field reads as many stars,
-    // not one giant glow.
-    const mob = isMobileViewport();
-    flyTo(0, 0, mob ? 1.25 : 2.4);
-    const opening = window.setTimeout(() => flyTo(0, 0, mob ? 1.15 : 2.2), 400);
-
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       cv.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
-      window.clearTimeout(opening);
     };
     // positioned is stable (memoized on brands); engine binds once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [positioned]);
+  }, [positioned, introState]);
 
   // ── Variant detail: gather references + the family it belongs to ──
   const variantFamily = useMemo(() => {
@@ -619,8 +657,37 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
     );
   }, [selectedVariant, selectedCollection]);
 
+  // ── Count-up animation hook ──
+  function useCountUp(target: number, active: boolean, duration = 600): number {
+    const [count, setCount] = useState(0);
+    useEffect(() => {
+      if (!active || prefersReducedMotion) {
+        setCount(target);
+        return;
+      }
+      const start = performance.now();
+      function step(now: number) {
+        const p = Math.min(1, (now - start) / duration);
+        setCount(Math.round(p * target));
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }, [active, target, duration]);
+    return count;
+  }
+
+  function formatCount(n: number): string {
+    return n.toLocaleString("en-US");
+  }
+
+  const brandCountDisplay = useCountUp(brandCount, introState === "screen1");
+  const refCountDisplay = useCountUp(referenceCount, introState === "screen2");
+
   return (
-    <div className="relative h-[calc(100vh-0px)] w-full overflow-hidden bg-[var(--ink-deep)]">
+    <div
+      className="relative h-[calc(100vh-0px)] w-full overflow-hidden bg-[var(--ink-deep)]"
+      onClick={introState !== "threshold" && introState !== "ready" ? handleSkip : undefined}
+    >
       <canvas
         ref={canvasRef}
         className="fixed inset-0 h-full w-full"
@@ -631,6 +698,120 @@ export default function VaultGalaxy({ brands }: { brands: VaultBrand[] }) {
           cursor: "grab",
         }}
       />
+
+      {/* ── Intro screens — z-20, above canvas and all galaxy UI ── */}
+
+      {/* Threshold — "Is this your first visit to the Vault?" Static. No animation. */}
+      {introState === "threshold" && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 20,
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+          }}
+          aria-live="polite"
+        >
+          <div
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: "17px", fontStyle: "italic", fontWeight: 300,
+              color: "rgba(232,228,220,0.65)",
+              letterSpacing: "0.4px",
+              marginBottom: "52px",
+              textAlign: "center",
+            }}
+          >
+            Is this your first visit to the Vault?
+          </div>
+          <div
+            style={{
+              display: "flex", flexDirection: "column",
+              alignItems: "center", gap: "22px",
+            }}
+          >
+            <button
+              onClick={() => setIntroState("screen1")}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "13px", fontWeight: 300,
+                color: "rgba(201,168,76,0.75)",
+                letterSpacing: "4px", textTransform: "uppercase",
+                padding: "8px 0",
+              }}
+            >
+              First time.
+            </button>
+            <button
+              onClick={handleSkip}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "13px", fontWeight: 300,
+                color: "rgba(232,228,220,0.28)",
+                letterSpacing: "4px", textTransform: "uppercase",
+                padding: "8px 0",
+              }}
+            >
+              I know the way.
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Screen 1 — brand count, 0→N over 600ms */}
+      {introState === "screen1" && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+          onClick={handleSkip}
+        >
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "64px", fontWeight: 300, color: "rgba(201,168,76,0.85)", letterSpacing: "-1px", lineHeight: 1, marginBottom: "16px" }}>
+            {formatCount(brandCountDisplay)}
+          </div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "14px", fontStyle: "italic", fontWeight: 300, color: "rgba(232,228,220,0.45)", letterSpacing: "0.3px", marginBottom: "64px" }}>
+            Independent &amp; Heritage Houses
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIntroState("screen2"); }}
+            style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "9px", color: "rgba(232,228,220,0.3)", letterSpacing: "3px", textTransform: "uppercase", padding: "8px 0", marginBottom: "16px" }}
+          >
+            Continue →
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleSkip(); }}
+            style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "9px", color: "rgba(232,228,220,0.18)", letterSpacing: "2px", textTransform: "uppercase", padding: "4px 0" }}
+          >
+            Skip →
+          </button>
+        </div>
+      )}
+
+      {/* Screen 2 — reference count, 0→N over 600ms */}
+      {introState === "screen2" && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+          onClick={handleSkip}
+        >
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "64px", fontWeight: 300, color: "rgba(201,168,76,0.85)", letterSpacing: "-1px", lineHeight: 1, marginBottom: "16px" }}>
+            {formatCount(refCountDisplay)}
+          </div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "14px", fontStyle: "italic", fontWeight: 300, color: "rgba(232,228,220,0.45)", letterSpacing: "0.3px", marginBottom: "64px" }}>
+            Thousands of Collector References
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIntroState("ready"); }}
+            style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "9px", color: "rgba(232,228,220,0.3)", letterSpacing: "3px", textTransform: "uppercase", padding: "8px 0", marginBottom: "16px" }}
+          >
+            Enter the Galaxy →
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleSkip(); }}
+            style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "9px", color: "rgba(232,228,220,0.18)", letterSpacing: "2px", textTransform: "uppercase", padding: "4px 0" }}
+          >
+            Skip →
+          </button>
+        </div>
+      )}
 
       {/* Crumb trail */}
       <div className="pointer-events-none fixed left-0 right-0 top-0 z-[5] flex items-center justify-between px-7 py-4">

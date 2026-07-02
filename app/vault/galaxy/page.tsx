@@ -2,33 +2,41 @@ import { createClient } from "@/lib/supabase/server";
 import VaultGalaxy from "@/components/VaultGalaxy";
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE VAULT — app/vault/page.tsx   (v1.70)
+   THE VAULT GALAXY — app/vault/galaxy/page.tsx   (v1.97)
 
-   Server component. Fetches all brands (the galaxy's stars), including their
-   AUTHORED galaxy coordinates (galaxy_x/y/z, cluster). Stored coordinates win;
-   VaultGalaxy falls back to a seeded spiral only for brands whose coords are
-   null. Passes the brand array to the client galaxy.
+   Server component. Fetches brands + catalogue counts for the intro
+   sequence in parallel (Promise.all — never sequential). Counts are real
+   Supabase values, never hardcoded. Passes all four props to VaultGalaxy.
 
-   Scope (v1.70): the POC engine ported to real data — the abstract gold-glow
-   galaxy, 3-body (brand=star, collection=planet, variant=moon), drill-down,
-   search. The photoreal moons / gates / rich detail card are later flights.
-
-   NOTE: assumes `@/lib/supabase/server` createClient() (the SSR pattern used
-   across the app). Adjust only the import + call if the helper differs.
+   PRIVACY: combined_score / significance_score / score_state are NEVER
+   selected here. PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-export default async function VaultPage() {
+export default async function VaultGalaxyPage() {
   const supabase = await createClient();
 
-  const { data: brands, error } = await supabase
-    .from("vault_brands")
-    .select(
-      "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
-    )
-    .order("name");
+  const [brandsResult, collectionCountResult, referenceCountResult] =
+    await Promise.all([
+      supabase
+        .from("vault_brands")
+        .select(
+          "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
+        )
+        .order("name"),
+      supabase
+        .from("vault_collections")
+        .select("*", { count: "exact", head: true }),
+      supabase
+        .from("vault_references")
+        .select("*", { count: "exact", head: true }),
+    ]);
+
+  const brands = brandsResult.data ?? [];
+  const collectionCount = collectionCountResult.count ?? 0;
+  const referenceCount = referenceCountResult.count ?? 0;
 
   // Quiet fallback — never a broken canvas.
-  if (error || !brands || brands.length === 0) {
+  if (brandsResult.error || brands.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[var(--ink-deep)] px-6 text-center">
         <div className="mb-3 text-[8px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
@@ -43,5 +51,12 @@ export default async function VaultPage() {
     );
   }
 
-  return <VaultGalaxy brands={brands} />;
+  return (
+    <VaultGalaxy
+      brands={brands}
+      brandCount={brands.length}
+      collectionCount={collectionCount}
+      referenceCount={referenceCount}
+    />
+  );
 }
