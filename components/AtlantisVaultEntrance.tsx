@@ -221,6 +221,8 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     // VaultGalaxy's "brands" view. Labels OFF (no fillText), interaction OFF.
     function drawGalaxy(now: number) {
       if (!galaxyCtx) return;
+      // Stars are dimmed behind the veil — the reveal is the payoff, not the preview.
+      const ENTRANCE_OPACITY_SCALE = 0.65;
       galaxyCtx.clearRect(0, 0, W, H);
       galaxyCtx.fillStyle = "#0D0F14";
       galaxyCtx.fillRect(0, 0, W, H);
@@ -229,7 +231,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
       for (let i = 0; i < 120; i++) {
         const x = (i * 137.508 + Math.sin(now * 0.00008 + i) * 18) % W;
         const y = (i * 83.17 + Math.cos(now * 0.0001 + i) * 12) % H;
-        const a = 0.12 + 0.25 * Math.abs(Math.sin(now * 0.0005 + i));
+        const a = (0.12 + 0.25 * Math.abs(Math.sin(now * 0.0005 + i))) * ENTRANCE_OPACITY_SCALE;
         galaxyCtx.fillStyle = `rgba(232,228,220,${a})`;
         galaxyCtx.beginPath();
         galaxyCtx.arc(x, y, i % 3 === 0 ? 1.2 : 0.7, 0, Math.PI * 2);
@@ -250,15 +252,15 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
 
         const glowR = Math.min(Math.max(16, pr * 5), glowCap);
         const grd = galaxyCtx.createRadialGradient(px, py, 0, px, py, glowR);
-        grd.addColorStop(0, "rgba(201,168,76,0.75)");
-        grd.addColorStop(0.25, "rgba(201,168,76,0.22)");
+        grd.addColorStop(0, `rgba(201,168,76,${0.75 * ENTRANCE_OPACITY_SCALE})`);
+        grd.addColorStop(0.25, `rgba(201,168,76,${0.22 * ENTRANCE_OPACITY_SCALE})`);
         grd.addColorStop(1, "rgba(201,168,76,0)");
         galaxyCtx.fillStyle = grd;
         galaxyCtx.beginPath();
         galaxyCtx.arc(px, py, glowR, 0, Math.PI * 2);
         galaxyCtx.fill();
 
-        galaxyCtx.fillStyle = "rgba(201,168,76,0.9)";
+        galaxyCtx.fillStyle = `rgba(201,168,76,${0.9 * ENTRANCE_OPACITY_SCALE})`;
         galaxyCtx.beginPath();
         galaxyCtx.arc(px, py, Math.max(2.5, pr), 0, Math.PI * 2);
         galaxyCtx.fill();
