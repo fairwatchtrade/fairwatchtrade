@@ -1,5 +1,3 @@
-import type { MetadataRoute } from "next";
-
 /* ════════════════════════════════════════════════════════════════════════
    PRE-LAUNCH: block ALL search-engine indexing while the site is mid-build.
 
