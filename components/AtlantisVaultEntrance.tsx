@@ -279,7 +279,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     function drawVeil(now: number) {
       if (!veilCtx) return;
       let p = 0;
-      if (enteredRef.current) p = Math.min(1, (now - revealStartRef.current) / 2500);
+      if (enteredRef.current) p = Math.min(1, (now - revealStartRef.current) / 3000);
       const peek = smoothstep(0.08, 0.34, p);
       const lift = easeOutCubic(smoothstep(0.34, 0.96, p));
       const coveredHeight = H * (1 - lift);
