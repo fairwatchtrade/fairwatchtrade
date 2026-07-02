@@ -136,8 +136,8 @@ export default function HomepageClient({ listings }: { listings: ListingRow[] })
         className="relative z-[1] flex flex-col items-center px-6 text-center"
         style={{ paddingTop: "48px", paddingBottom: "24px" }}
       >
-        {/* Clock — shrunk to 80px, ambient not centerpiece */}
-        <div className="mx-auto mb-6 w-full max-w-[80px]">
+        {/* Clock — 110px, ambient not centerpiece */}
+        <div className="mx-auto mb-6 w-full max-w-[110px]">
           <svg
             viewBox="0 0 220 220"
             fill="none"
@@ -195,7 +195,7 @@ export default function HomepageClient({ listings }: { listings: ListingRow[] })
         {listings.length === 0 ? (
           <div className="py-16 text-center">
             <div className="font-display text-[14px] font-light italic text-[var(--ghost)]">
-              No listings yet.
+              The marketplace is quiet today.
             </div>
           </div>
         ) : (
