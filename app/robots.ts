@@ -15,6 +15,8 @@ import type { MetadataRoute } from "next";
      public pages, keep /sell, /api, and any internal routes disallowed) and
      set a real sitemap URL.
    ════════════════════════════════════════════════════════════════════════ */
+import type { MetadataRoute } from "next";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
