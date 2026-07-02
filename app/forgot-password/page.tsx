@@ -5,11 +5,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   FORGOT PASSWORD — app/forgot-password/page.tsx   (v1.68)
+   FORGOT PASSWORD — app/forgot-password/page.tsx   (v1.90b)
 
    Sends a Supabase reset link, then redirects the recovery flow to
    /reset-password. Left panel is the shared auth statement — verbatim from
    /login and /signup, never changes. Readability: labels & copy at --muted+.
+
+   v1.90b: setError fallback guards against raw object renders — error.message
+   with "Something went wrong" fallback; error display guards typeof string.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function ForgotPasswordPage() {
@@ -29,7 +32,7 @@ export default function ForgotPasswordPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(error?.message ?? "Something went wrong. Please try again.");
       setBusy(false);
       return;
     }
@@ -184,7 +187,7 @@ export default function ForgotPasswordPage() {
                   {busy ? "Sending…" : "Send Reset Link"}
                 </button>
 
-                {error && (
+                {error && typeof error === "string" && (
                   <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
                     {error}
                   </div>
