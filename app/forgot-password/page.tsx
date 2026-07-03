@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   FORGOT PASSWORD — app/forgot-password/page.tsx   (v1.90b)
+   FORGOT PASSWORD — app/forgot-password/page.tsx   (v2.0f)
 
    Sends a Supabase reset link, then redirects the recovery flow to
    /reset-password. Left panel is the shared auth statement — verbatim from
@@ -163,7 +163,9 @@ export default function ForgotPasswordPage() {
                 <div className="mb-8 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
                   Enter your email and we&apos;ll send you a reset link.
                 </div>
-                <div className="mb-7 h-px bg-gradient-to-r from-[rgba(201,168,76,0.2)] to-transparent" />
+                {/* v2.0f: solid 48px gold hash — intentional, not the old
+                    gradient-to-transparent that read as a partial/accidental rule. */}
+                <div className="mb-7 h-px w-12 bg-[var(--gold-subtle)]" />
 
                 <div className="mb-7">
                   <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
@@ -193,6 +195,9 @@ export default function ForgotPasswordPage() {
                   </div>
                 )}
 
+                {/* v2.0f: "Remember it?" stays here — the user hasn't started a
+                    reset yet, so a path back to sign-in is useful (unlike
+                    reset-password, where it abandons a live recovery session). */}
                 <div className="text-center text-[9px] text-[var(--muted)]">
                   Remember it?{" "}
                   <Link href="/login" className="text-[var(--slate)]">

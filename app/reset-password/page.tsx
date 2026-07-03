@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   RESET PASSWORD — app/reset-password/page.tsx   (v1.68)
+   RESET PASSWORD — app/reset-password/page.tsx   (v2.0f)
 
    The destination of the reset email link. Supabase establishes a recovery
    session from the link's URL fragment on load; updateUser() then sets the new
@@ -175,7 +175,9 @@ export default function ResetPasswordPage() {
                 <div className="mb-8 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
                   Make it something you&apos;ll remember.
                 </div>
-                <div className="mb-7 h-px bg-gradient-to-r from-[rgba(201,168,76,0.2)] to-transparent" />
+                {/* v2.0f: solid 48px gold hash — intentional, not the old
+                    gradient-to-transparent that read as a partial/accidental rule. */}
+                <div className="mb-7 h-px w-12 bg-[var(--gold-subtle)]" />
 
                 <div className="mb-5">
                   <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
@@ -223,13 +225,9 @@ export default function ResetPasswordPage() {
                     {error}
                   </div>
                 )}
-
-                <div className="text-center text-[9px] text-[var(--muted)]">
-                  Remember it after all?{" "}
-                  <Link href="/login" className="text-[var(--slate)]">
-                    Sign in →
-                  </Link>
-                </div>
+                {/* v2.0f: "Remember it after all? Sign in →" removed — at this
+                    step the user holds a live recovery session; sending them to
+                    /login abandons it. The path forward is Update Password. */}
               </>
             )}
           </div>
