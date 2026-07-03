@@ -233,7 +233,10 @@ html, body {
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-mid);
+  /* Legibility fix: input underline was --border-mid (8% white) — too faint
+     to see where to type. Raised to a clearly-visible gold at rest, deepening
+     to stronger gold on focus. Surgical: only .fw-input changed. */
+  border-bottom: 1px solid rgba(201,168,76,0.30);
   padding: 8px 0;
   font-family: 'Cormorant Garamond', serif;
   font-size: 16px;
