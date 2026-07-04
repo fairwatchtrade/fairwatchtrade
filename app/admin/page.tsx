@@ -12,9 +12,13 @@ import AdminDashboard, { type AdminListing } from "@/components/AdminDashboard";
    middleware gate. Anyone who isn't the founder is silently redirected to /;
    the route simply doesn't exist for them (no error, no "unauthorized" page).
 
-   PRIVACY: combined_score / significance_score / score_state are NEVER
-   selected here (admin isn't buyer-facing, but there's no Phase-1 need, so
-   they stay out of scope). PFC274 = 62 — the evaluate route is untouched.
+   PRIVACY: combined_score / significance_score / score_state are NEVER shown
+   on BUYER-FACING surfaces (protects the curation engine from gaming). The
+   founder admin DOES see significance_score here — catching an anomalous score
+   (e.g. anything that shouldn't be possible under the engine's floor) is part
+   of "what needs my attention." Admin is gated to a single founder UID, so this
+   is the operator viewing their own data, not a buyer leak. PFC274 = 62 — the
+   evaluate route is untouched.
    ──────────────────────────────────────────────────────────────────────── */
 
 const ADMIN_USER_ID = "77a6893a-54fe-4373-9bf7-3327d0ba69cf";
@@ -29,11 +33,11 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  // Full inventory, newest first — powers both the stat cards and the table.
+  // Full inventory, newest first — powers the attention queue, stat cards, and table.
   const { data: listingsData } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, condition, asking_price, status, created_at, seller_id"
+      "id, brand, model, reference, condition, asking_price, status, created_at, seller_id, completeness_score, significance_score, description_passed_ai, custom_brand_flag"
     )
     .order("created_at", { ascending: false });
 

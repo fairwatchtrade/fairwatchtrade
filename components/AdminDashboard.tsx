@@ -25,7 +25,31 @@ export type AdminListing = {
   status: string;
   created_at: string;
   seller_id: string;
+  // Operations-Center attention fields (fetched by app/admin/page.tsx).
+  completeness_score: number | null;
+  significance_score: number | null;
+  description_passed_ai: boolean | null;
+  custom_brand_flag: boolean | null;
 };
+
+// One number, whole page updates. Tune after real listings arrive.
+const LOW_COMPLETENESS_THRESHOLD = 12;
+
+// A listing "needs attention" if any of these are true.
+function isFlagged(l: AdminListing): boolean {
+  return (
+    l.description_passed_ai === false ||
+    l.custom_brand_flag === true ||
+    (l.completeness_score ?? 99) < LOW_COMPLETENESS_THRESHOLD
+  );
+}
+function problemRank(l: AdminListing): number {
+  return (
+    (l.description_passed_ai === false ? 1 : 0) +
+    (l.custom_brand_flag === true ? 1 : 0) +
+    ((l.completeness_score ?? 99) < LOW_COMPLETENESS_THRESHOLD ? 1 : 0)
+  );
+}
 
 type Counts = {
   published: number;
@@ -116,6 +140,49 @@ export default function AdminDashboard({
     { label: "Notifications sent", value: counts.notifications, color: "muted" },
   ];
 
+  /* ── ZONE 1: NEEDS ATTENTION (work queue) ──────────────────────────────
+     Config array — each item only renders if count > 0. Add a watch item =
+     add one object. This is the hero: "what do I do first?" */
+  const aiFailed = listings.filter((l) => l.description_passed_ai === false);
+  const lowCompleteness = listings.filter(
+    (l) => (l.completeness_score ?? 99) < LOW_COMPLETENESS_THRESHOLD
+  );
+  const customBrand = listings.filter((l) => l.custom_brand_flag === true);
+
+  const attentionItems = [
+    {
+      key: "ai",
+      count: aiFailed.length,
+      label: (n: number) =>
+        `${n} listing${n === 1 ? "" : "s"} failed AI description review`,
+    },
+    {
+      key: "completeness",
+      count: lowCompleteness.length,
+      label: (n: number) =>
+        `${n} listing${n === 1 ? "" : "s"} under completeness threshold (${LOW_COMPLETENESS_THRESHOLD})`,
+    },
+    {
+      key: "custom",
+      count: customBrand.length,
+      label: (n: number) =>
+        `${n} custom-brand submission${n === 1 ? "" : "s"} to verify`,
+    },
+    {
+      key: "new24h",
+      count: counts.last24h,
+      label: (n: number) =>
+        `${n} new listing${n === 1 ? "" : "s"} in last 24 hours`,
+    },
+  ].filter((i) => i.count > 0);
+
+  // Explorer rows: problems float to the top, then newest first.
+  const sortedListings = [...listings].sort((a, b) => {
+    const pr = problemRank(b) - problemRank(a);
+    if (pr !== 0) return pr;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       {/* Header */}
@@ -129,6 +196,58 @@ export default function AdminDashboard({
       </div>
 
       <div className="px-8 py-8">
+        {/* ── ZONE 1: NEEDS ATTENTION — the work queue, always first ── */}
+        <section
+          className={`mb-10 border bg-[var(--surface)] ${
+            attentionItems.length
+              ? "border-[var(--border-subtle)] border-l-2 border-l-[var(--danger)]"
+              : "border-[var(--border-faint)]"
+          }`}
+        >
+          <div className="px-5 py-3">
+            <div
+              className={`text-[9px] uppercase tracking-[2.5px] ${
+                attentionItems.length
+                  ? "text-[var(--danger)]"
+                  : "text-[var(--gold-subtle)]"
+              }`}
+            >
+              {attentionItems.length
+                ? "Needs Attention"
+                : "Nothing Needs Attention"}
+            </div>
+            {attentionItems.length > 0 ? (
+              <ul className="mt-3 divide-y divide-white/5">
+                {attentionItems.map((item) => (
+                  <li
+                    key={item.key}
+                    className="flex items-center justify-between py-2.5"
+                  >
+                    <span className="text-[13px] text-[var(--platinum)]">
+                      {item.label(item.count)}
+                    </span>
+                    <a
+                      href="#explorer"
+                      className="border border-[var(--border-subtle)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-subtle)] hover:text-[var(--gold)]"
+                    >
+                      Review →
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mt-2 font-display text-[12px] italic text-[var(--ghost)]">
+                Queue is clear — no AI failures, completeness gaps, or
+                custom-brand submissions pending.
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── ZONE 2: MARKETPLACE HEALTH — informational cards ── */}
+        <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+          Marketplace Health
+        </div>
         {/* Stat cards — 2 col mobile, 3 tablet, 6 desktop */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {stats.map((s) => (
@@ -150,10 +269,11 @@ export default function AdminDashboard({
           ))}
         </div>
 
-        {/* Listings table — full inventory */}
-        <section className="mt-10">
+        {/* ── ZONE 3: MARKETPLACE EXPLORER — the operator table ── */}
+        <section id="explorer" className="mt-10">
           <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-            Listings · {listings.length} total
+            Marketplace Explorer · {listings.length} listing
+            {listings.length === 1 ? "" : "s"} · problems first
           </div>
 
           {listings.length === 0 ? (
@@ -170,45 +290,96 @@ export default function AdminDashboard({
                     <th className="px-4 py-3 font-normal">Reference</th>
                     <th className="px-4 py-3 font-normal">Seller</th>
                     <th className="px-4 py-3 font-normal">Status</th>
+                    <th className="px-4 py-3 font-normal">Compl.</th>
+                    <th className="px-4 py-3 font-normal">Signif.</th>
+                    <th className="px-4 py-3 font-normal">AI</th>
+                    <th className="px-4 py-3 font-normal">Custom</th>
                     <th className="px-4 py-3 font-normal">Price</th>
                     <th className="px-4 py-3 font-normal">Created</th>
                     <th className="px-4 py-3 font-normal">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {listings.map((l) => (
-                    <tr key={l.id} className="border-b border-white/5">
-                      <td className="px-4 py-3 text-[12px] text-[var(--platinum)]">
-                        {l.brand}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-[var(--muted)]">
-                        {l.model ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-[var(--slate)]">
-                        {l.reference}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-[var(--slate)]">
-                        {sellerMap[l.seller_id] ?? "Unknown"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusPill status={l.status} />
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-[var(--platinum-dim)]">
-                        {formatPrice(Number(l.asking_price))}
-                      </td>
-                      <td className="px-4 py-3 text-[11px] text-[var(--muted)]">
-                        {formatRelativeDate(l.created_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/listings/${l.id}`}
-                          className="text-[11px] uppercase tracking-[1.5px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
+                  {sortedListings.map((l) => {
+                    const low =
+                      (l.completeness_score ?? 99) < LOW_COMPLETENESS_THRESHOLD;
+                    const aiFail = l.description_passed_ai === false;
+                    const custom = l.custom_brand_flag === true;
+                    return (
+                      <tr
+                        key={l.id}
+                        className={`border-b border-white/5 ${
+                          isFlagged(l) ? "bg-[var(--danger)]/[0.06]" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-[12px] text-[var(--platinum)]">
+                          {l.brand}
+                        </td>
+                        <td className="px-4 py-3 text-[12px] text-[var(--muted)]">
+                          {l.model ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[12px] text-[var(--slate)]">
+                          {l.reference}
+                        </td>
+                        <td className="px-4 py-3 text-[12px] text-[var(--slate)]">
+                          {sellerMap[l.seller_id] ?? "Unknown"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusPill status={l.status} />
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-[12px] ${
+                            low
+                              ? "font-semibold text-[var(--danger)]"
+                              : "text-[var(--platinum-dim)]"
+                          }`}
                         >
-                          View →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                          {l.completeness_score ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[12px] text-[var(--platinum-dim)]">
+                          {l.significance_score ?? "—"}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-[12px] font-semibold ${
+                            aiFail
+                              ? "text-[var(--danger)]"
+                              : l.description_passed_ai === true
+                              ? "text-[var(--platinum-dim)]"
+                              : "text-[var(--ghost)]"
+                          }`}
+                        >
+                          {aiFail
+                            ? "✗"
+                            : l.description_passed_ai === true
+                            ? "✓"
+                            : "—"}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-[11px] uppercase tracking-[1px] ${
+                            custom
+                              ? "font-semibold text-[var(--gold)]"
+                              : "text-[var(--ghost)]"
+                          }`}
+                        >
+                          {custom ? "Flag" : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[12px] text-[var(--platinum-dim)]">
+                          {formatPrice(Number(l.asking_price))}
+                        </td>
+                        <td className="px-4 py-3 text-[11px] text-[var(--muted)]">
+                          {formatRelativeDate(l.created_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/listings/${l.id}`}
+                            className="text-[11px] uppercase tracking-[1.5px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
+                          >
+                            Open →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
