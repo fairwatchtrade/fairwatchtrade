@@ -71,8 +71,9 @@ type Listing = {
 const PHOTO_ORDER = [
   "Dial",
   "Caseback",
-  "Side/Lugs",
-  "Movement",
+  "Non-Crown Side",
+  "Crown Side",
+  "Movement (closeup)",
   "Full watch, strap/bracelet extended",
   "Clasp/Pin Buckle",
   "Box",
