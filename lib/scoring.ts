@@ -26,11 +26,11 @@
 export type PhotoCategory =
   | "Dial"
   | "Caseback"
-  | "Side/Lugs"
+  | "Non-Crown Side"
+  | "Crown Side"
   | "Movement"
   | "Bracelet/Strap"
-  | "Full watch, strap/bracelet extended"
-  | "Clasp/Pin Buckle"
+  | "Clasp"
   | "Box"
   | "Papers/Warranty"
   | "Other";
@@ -60,7 +60,7 @@ export type ListingState = {
 
 /* ── Tunable weights (Part 2). Sum defines COMPLETENESS_MAX. ─────────────── */
 export const COMPLETENESS = {
-  mandatoryPhotos: 6, // Dial + Caseback + Clasp/Pin Buckle (+ full strap/bracelet-extended shot if on a bracelet)
+  mandatoryPhotos: 6, // Dial + Caseback + Clasp (+ both bracelet sides if applicable)
   wristShot: 3,
   movementShown: 2, // a Movement / exhibition-back shot — collector-relevant
   fullDocumentation: 5, // scaled by DOC_POINTS below — the CLAIM
@@ -87,18 +87,18 @@ const DOC_POINTS: Record<DocumentationStatus, number> = {
 };
 
 /* ── Mandatory photo set ─────────────────────────────────────────────────
-   Required to go live (Dial, Caseback, Clasp/Pin Buckle; plus one full strap/bracelet-
-   extended shot if the watch is on a bracelet). Also the first rung of the
-   completeness bonus. */
+   Required to go live (Dial, Caseback, Clasp; both bracelet sides if the
+   watch is on a bracelet). Also the first rung of the completeness bonus. */
 function hasMandatoryPhotos(s: ListingState): boolean {
   const cats = new Set(s.photoCategories);
-  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp/Pin Buckle");
+  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp");
   if (!base) return false;
   if (s.hasBracelet) {
-    // One full shot with the strap/bracelet fully extended — shows the whole
-    // band's length and condition in a single frame, works for any closure
-    // type (no fold-over vs. deployment branching needed).
-    return cats.has("Full watch, strap/bracelet extended");
+    // "both LEFT and RIGHT side shown separately" → at least two strap shots.
+    const braceletShots = s.photoCategories.filter(
+      (c) => c === "Bracelet/Strap"
+    ).length;
+    return braceletShots >= 2;
   }
   return true;
 }
@@ -131,7 +131,7 @@ export function scoreCompleteness(s: ListingState): CompletenessResult {
     max: COMPLETENESS.mandatoryPhotos,
     done: mandatoryDone,
     hint: s.hasBracelet
-      ? "Dial, caseback, clasp, and a full shot with the strap/bracelet extended"
+      ? "Dial, caseback, clasp, and both bracelet sides"
       : "Dial, caseback, and clasp",
   });
 
