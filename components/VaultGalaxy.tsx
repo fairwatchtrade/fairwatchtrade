@@ -91,7 +91,12 @@ type VaultCollection = {
 };
 
 // A brand with its resolved galaxy position + runtime brightness.
-type PositionedBrand = VaultBrand & { x: number; y: number; z: number; brightness: number };
+type PositionedBrand = VaultBrand & {
+  x: number;
+  y: number;
+  z: number;
+  brightness: number;
+};
 
 // ── Viewport responsiveness ──
 // The Rule #1 immersion (wide spread, deep zoom) is tuned for desktop. On a
@@ -101,14 +106,33 @@ type PositionedBrand = VaultBrand & { x: number; y: number; z: number; brightnes
 function viewportFactor() {
   if (typeof window === "undefined") return 1;
   const w = window.innerWidth;
-  if (w >= 1100) return 1;        // desktop — full immersion
-  if (w <= 480) return 0.42;      // phone — modest, POC-like spread
+  if (w >= 1100) return 1; // desktop — full immersion
+  if (w <= 480) return 0.42; // phone — modest, POC-like spread
   // tablet range: smooth interpolation between phone and desktop
   return 0.42 + (w - 480) * ((1 - 0.42) / (1100 - 480));
 }
 function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 700;
 }
+
+// ── Mobile visual scale helpers ──
+// Mobile uses the same universe, but through a smaller instrument. Because
+// viewportFactor() compresses brand positions on phones, radius/glow must also
+// compress or the galaxy turns into oversized bubbles.
+function mobileStarScale() {
+  return isMobileViewport() ? 0.6 : 1;
+}
+function mobileGlowScale() {
+  return isMobileViewport() ? 0.52 : 1;
+}
+
+// TODO(vault-galaxy-depth): Give positioned brands deterministic 3–4 depth
+// shelves rather than a smooth random z spread. This will make the interactive
+// brand field feel like a volume without changing authored brand locations.
+// TODO(vault-starfield): Replace the single wallpaper starfield with layered
+// ultra-distant / mid / near background stars with very subtle parallax.
+// TODO(vault-stellar-identity): Add deterministic star archetypes per brand
+// (minor photosphere/granulation/corona variation), avoiding color spectacle.
 
 // ── Position generation — seeded spiral fallback (from the brief) ──
 function generateGalaxyPosition(slug: string, index: number) {
@@ -126,7 +150,7 @@ function generateGalaxyPosition(slug: string, index: number) {
     y: Math.sin(angle) * radius + jitter,
     // z is depth (0.4 near → 1.4 far) — drives parallax so movement feels
     // like travelling through a volume, not panning a flat map.
-    z: 0.4 + ((seed % 100) / 100),
+    z: 0.4 + (seed % 100) / 100,
   };
 }
 
@@ -149,31 +173,73 @@ function relevance(b: PositionedBrand, terms: string[]): number {
   return Math.max(0.18, s / Math.max(1, terms.length));
 }
 
-const FILTER_CHIPS = ["Independent", "Architectural", "Japanese", "Manual wind", "Heritage"];
+const FILTER_CHIPS = [
+  "Independent",
+  "Architectural",
+  "Japanese",
+  "Manual wind",
+  "Heritage",
+];
 
 // ── Reduced-motion preference — checked once at module level ──
-export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands: VaultBrand[]; atlantisIntro?: boolean }) {
+export default function VaultGalaxy({
+  brands,
+  atlantisIntro = false,
+}: {
+  brands: VaultBrand[];
+  atlantisIntro?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [viewportVersion, setViewportVersion] = useState(0);
 
   // Resolve each brand's position once: authored coords win, spiral fallback.
   const positioned = useMemo<PositionedBrand[]>(() => {
     return brands.map((b, i) => {
       const hasCoords =
-        b.galaxy_x !== null && b.galaxy_y !== null && b.galaxy_x !== undefined && b.galaxy_y !== undefined;
+        b.galaxy_x !== null &&
+        b.galaxy_y !== null &&
+        b.galaxy_x !== undefined &&
+        b.galaxy_y !== undefined;
       const vf = viewportFactor();
       const pos = hasCoords
-        ? { x: (b.galaxy_x as number) * vf, y: (b.galaxy_y as number) * vf, z: b.galaxy_z ?? 0.7 }
+        ? {
+            x: (b.galaxy_x as number) * vf,
+            y: (b.galaxy_y as number) * vf,
+            z: b.galaxy_z ?? 0.7,
+          }
         : generateGalaxyPosition(b.slug || String(i), i);
       return { ...b, ...pos, brightness: 1 };
     });
-  }, [brands]);
+  }, [brands, viewportVersion]);
+
+  const galaxyPanBounds: { x: number; y: number } = useMemo(() => {
+    if (!positioned.length) return { x: 260, y: 260 };
+    const maxX = Math.max(...positioned.map((b) => Math.abs(b.x)));
+    const maxY = Math.max(...positioned.map((b) => Math.abs(b.y)));
+
+    // Keep a generous hidden margin beyond the outermost authored star.
+    // The user can wander, but should never discover a literal empty edge.
+    return {
+      x: Math.max(260, maxX * 1.35),
+      y: Math.max(260, maxY * 1.35),
+    };
+  }, [positioned]);
 
   // ── React-surfaced state (drives the DOM card/crumb/hero) ──
-  const [view, setView] = useState<"brands" | "collections" | "models" | "detail">("brands");
-  const [selectedBrand, setSelectedBrand] = useState<PositionedBrand | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<VaultCollection | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<VaultVariant | null>(null);
-  const [brandDetail, setBrandDetail] = useState<VaultCollection[] | null>(null);
+  const [view, setView] = useState<
+    "brands" | "collections" | "models" | "detail"
+  >("brands");
+  const [selectedBrand, setSelectedBrand] = useState<PositionedBrand | null>(
+    null,
+  );
+  const [selectedCollection, setSelectedCollection] =
+    useState<VaultCollection | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<VaultVariant | null>(
+    null,
+  );
+  const [brandDetail, setBrandDetail] = useState<VaultCollection[] | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [crumb, setCrumb] = useState("The gates are open");
   const [heroHidden, setHeroHidden] = useState(atlantisIntro);
@@ -212,10 +278,45 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
   const atlantisRafRef = useRef<number>(0);
   const atlantisTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  useEffect(() => { viewRef.current = view; }, [view]);
-  useEffect(() => { selBrandRef.current = selectedBrand; }, [selectedBrand]);
-  useEffect(() => { selCollRef.current = selectedCollection; }, [selectedCollection]);
-  useEffect(() => { detailRef.current = brandDetail; }, [brandDetail]);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+  useEffect(() => {
+    selBrandRef.current = selectedBrand;
+  }, [selectedBrand]);
+  useEffect(() => {
+    selCollRef.current = selectedCollection;
+  }, [selectedCollection]);
+  useEffect(() => {
+    detailRef.current = brandDetail;
+  }, [brandDetail]);
+
+  // ── Viewport/orientation recompute ────────────────────────────────────
+  // viewportFactor() depends on window.innerWidth, and positioned stars are
+  // memoized. Without this, rotating a phone can leave stale mobile positions.
+  // Debounced so a desktop resize drag does not rebuild the universe constantly.
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refreshViewport = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setViewportVersion((v) => v + 1);
+        const nextScale = isMobileViewport() ? 1.15 : 2.2;
+        targetRef.current = { x: 0, y: 0, scale: nextScale };
+        camRef.current = { ...camRef.current, scale: nextScale };
+      }, 180);
+    };
+
+    window.addEventListener("resize", refreshViewport);
+    window.addEventListener("orientationchange", refreshViewport);
+
+    return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      window.removeEventListener("resize", refreshViewport);
+      window.removeEventListener("orientationchange", refreshViewport);
+    };
+  }, []);
 
   // ── Opening drift — fires once on mount ──
   // flyTo refs targetRef.current, safe to call here.
@@ -241,8 +342,16 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     glow: number;
   };
 
+  function clampCameraTarget(x: number, y: number) {
+    return {
+      x: Math.max(-galaxyPanBounds.x, Math.min(galaxyPanBounds.x, x)),
+      y: Math.max(-galaxyPanBounds.y, Math.min(galaxyPanBounds.y, y)),
+    };
+  }
+
   function flyTo(x: number, y: number, scale: number) {
-    targetRef.current = { x, y, scale };
+    const clamped = clampCameraTarget(x, y);
+    targetRef.current = { ...clamped, scale };
   }
 
   // ── Atlantis v2.0 — one click, curtain, automatic walk-in, no route ──
@@ -255,7 +364,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
 
     // Entrance UI yields while the veil lift is underway.
     atlantisTimersRef.current.push(
-      setTimeout(() => setAtlantisRevealing(true), 620)
+      setTimeout(() => setAtlantisRevealing(true), 620),
     );
 
     // KSC walk-in moment: once the curtain has largely lifted, move the
@@ -264,7 +373,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     atlantisTimersRef.current.push(
       setTimeout(() => {
         flyTo(0, 0, isMobileViewport() ? 1.38 : 2.68);
-      }, 2700)
+      }, 2700),
     );
 
     // Hand control to the live galaxy. The canvas never unmounts; only the
@@ -274,7 +383,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
       setTimeout(() => {
         setAtlantisActive(false);
         setHeroHidden(false);
-      }, 3650)
+      }, 3650),
     );
   }, []);
 
@@ -318,7 +427,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     setSelectedCollection(c);
     setSelectedVariant(null);
     setView("models");
-    const n = Math.max(3, (detailRef.current?.length ?? 1));
+    const n = Math.max(3, detailRef.current?.length ?? 1);
     const a = -Math.PI / 2 + idx * ((Math.PI * 2) / n);
     setCrumb(b.name + " · " + c.name);
     // Same /z overshoot fix: the planet orbits at the brand's depth, so divide
@@ -362,14 +471,19 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
 
   // ── Search — ported from POC ──
   function runSearch(raw: string) {
-    const terms = raw.toLowerCase().split(/[\s,]+/).filter(Boolean);
+    const terms = raw
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .filter(Boolean);
     setView("brands");
     setSelectedBrand(null);
     setSelectedCollection(null);
     setSelectedVariant(null);
     setBrandDetail(null);
     setHeroHidden(true);
-    setCrumb(terms.length ? "Galaxy arranged by curiosity" : "The gates are open");
+    setCrumb(
+      terms.length ? "Galaxy arranged by curiosity" : "The gates are open",
+    );
 
     const bmap: Record<string, number> = {};
     let best: PositionedBrand | null = null;
@@ -431,8 +545,10 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     function starfield() {
       const t = tRef.current;
       for (let i = 0; i < 120; i++) {
-        const x = (i * 137.508 + Math.sin(t * 0.00008 + i) * 18) % window.innerWidth;
-        const y = (i * 83.17 + Math.cos(t * 0.0001 + i) * 12) % window.innerHeight;
+        const x =
+          (i * 137.508 + Math.sin(t * 0.00008 + i) * 18) % window.innerWidth;
+        const y =
+          (i * 83.17 + Math.cos(t * 0.0001 + i) * 12) % window.innerHeight;
         const a = 0.12 + 0.25 * Math.abs(Math.sin(t * 0.0005 + i));
         ctx.fillStyle = `rgba(232,228,220,${a})`;
         ctx.beginPath();
@@ -467,7 +583,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
             x: b.x,
             y: b.y,
             z: b.z,
-            r: 7 + glow * 5,
+            r: (6 + glow * 4) * mobileStarScale(),
             label: b.name,
             glow,
           });
@@ -481,14 +597,17 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
           x: sb.x,
           y: sb.y,
           z: sb.z,
-          r: 12,
+          r: 10.5 * mobileStarScale(),
           label: sb.name,
           glow: 1.2,
         });
         const colls = detail ?? [];
         colls.forEach((c, i) => {
           const n = Math.max(1, colls.length);
-          const a = -Math.PI / 2 + i * ((Math.PI * 2) / n) + Math.sin(tRef.current * 0.0004) * 0.05;
+          const a =
+            -Math.PI / 2 +
+            i * ((Math.PI * 2) / n) +
+            Math.sin(tRef.current * 0.0004) * 0.05;
           objs.push({
             type: "collection",
             coll: c,
@@ -496,7 +615,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
             x: sb.x + Math.cos(a) * 66,
             y: sb.y + Math.sin(a) * 48,
             z: sb.z,
-            r: 8,
+            r: 7 * mobileStarScale(),
             label: c.name,
             glow: 0.95,
           });
@@ -505,13 +624,16 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
 
       if ((v === "models" || v === "detail") && sb && sc && detail) {
         const cidx = detail.indexOf(sc);
-        const a = -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
+        const a =
+          -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
         const cx = sb.x + Math.cos(a) * 66;
         const cy = sb.y + Math.sin(a) * 48;
         // Moons = variants. Family is grouping metadata, not orbital — so we
         // flatten all variants across the collection's families into moons.
         const variants: VaultVariant[] = [];
-        sc.vault_families?.forEach((f) => f.vault_variants?.forEach((vv) => variants.push(vv)));
+        sc.vault_families?.forEach((f) =>
+          f.vault_variants?.forEach((vv) => variants.push(vv)),
+        );
         variants.forEach((m, i) => {
           const n = Math.max(1, variants.length);
           // Moons orbit — that is what makes it a galaxy. But VERY slowly:
@@ -524,7 +646,7 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
             x: cx + Math.cos(ma) * 34,
             y: cy + Math.sin(ma) * 26,
             z: sb.z,
-            r: 5.5,
+            r: 4.8 * mobileStarScale(),
             label: m.name,
             glow: 0.9,
           });
@@ -557,19 +679,34 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
       }
       if ((v === "models" || v === "detail") && sb && sc && detail) {
         const ci = detail.indexOf(sc);
-        const a = -Math.PI / 2 + ci * ((Math.PI * 2) / Math.max(1, detail.length));
-        const p = screen({ x: sb.x + Math.cos(a) * 66, y: sb.y + Math.sin(a) * 48, z: sb.z });
+        const a =
+          -Math.PI / 2 + ci * ((Math.PI * 2) / Math.max(1, detail.length));
+        const p = screen({
+          x: sb.x + Math.cos(a) * 66,
+          y: sb.y + Math.sin(a) * 48,
+          z: sb.z,
+        });
         orbit(p.x, p.y, 34 * cam.scale * sb.z, 26 * cam.scale * sb.z, 0.11);
       }
 
       objectsRef.current.forEach((o) => {
         const p = screen(o);
-        if (p.x < -80 || p.x > window.innerWidth + 80 || p.y < -80 || p.y > window.innerHeight + 80) return;
+        if (
+          p.x < -80 ||
+          p.x > window.innerWidth + 80 ||
+          p.y < -80 ||
+          p.y > window.innerHeight + 80
+        )
+          return;
         const glow = o.glow || 1;
         const glowCap = isMobileViewport()
-          ? Math.min(window.innerWidth, window.innerHeight) * 0.18
+          ? Math.min(window.innerWidth, window.innerHeight) * 0.105
           : Infinity;
-        const glowR = Math.min(Math.max(16, p.r * 5), glowCap);
+        const minGlowR = isMobileViewport() ? 9 : 16;
+        const glowR = Math.min(
+          Math.max(minGlowR, p.r * 4.25 * mobileGlowScale()),
+          glowCap,
+        );
         const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
         grd.addColorStop(0, `rgba(201,168,76,${0.75 * glow})`);
         grd.addColorStop(0.25, `rgba(201,168,76,${0.22 * glow})`);
@@ -579,16 +716,28 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
         ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
+        ctx.fillStyle =
+          o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
         ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(2.5, p.r), 0, Math.PI * 2);
+        ctx.arc(
+          p.x,
+          p.y,
+          Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
+          0,
+          Math.PI * 2,
+        );
         ctx.fill();
 
         if (cam.scale > 1.25 || o.type === "brand" || o.type === "brandCore") {
           ctx.font = `${o.type === "brandCore" ? 18 : 13}px 'Cormorant Garamond', serif`;
           ctx.textAlign = "center";
           ctx.fillStyle = "rgba(232,228,220,.9)";
-          ctx.fillText(o.label, p.x, p.y - p.r - 12);
+          const labelX = Math.max(24, Math.min(window.innerWidth - 24, p.x));
+          const labelY = Math.max(
+            26,
+            Math.min(window.innerHeight - 24, p.y - p.r - 12),
+          );
+          ctx.fillText(o.label, labelX, labelY);
         }
       });
 
@@ -612,7 +761,11 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
       const h = hit as EngineObject;
       if (h.type === "brand" || h.type === "brandCore") {
         if (h.refIndex !== undefined) enterBrand(positioned[h.refIndex]);
-      } else if (h.type === "collection" && h.coll !== undefined && h.collIdx !== undefined) {
+      } else if (
+        h.type === "collection" &&
+        h.coll !== undefined &&
+        h.collIdx !== undefined
+      ) {
         enterCollection(h.coll, h.collIdx);
       } else if (h.type === "model" && h.variant !== undefined) {
         enterVariant(h.variant);
@@ -620,7 +773,12 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     }
 
     function onPointerDown(e: PointerEvent) {
-      dragRef.current = { active: true, moved: false, lastX: e.clientX, lastY: e.clientY };
+      dragRef.current = {
+        active: true,
+        moved: false,
+        lastX: e.clientX,
+        lastY: e.clientY,
+      };
     }
     function onPointerMove(e: PointerEvent) {
       const d = dragRef.current;
@@ -631,13 +789,24 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
       // Pan: move the camera target opposite the drag, divided by scale so the
       // field tracks the cursor 1:1. You pull the universe around you.
       const cam = camRef.current;
+      const nextTarget = clampCameraTarget(
+        targetRef.current.x - dx / cam.scale,
+        targetRef.current.y - dy / cam.scale,
+      );
       targetRef.current = {
-        x: targetRef.current.x - dx / cam.scale,
-        y: targetRef.current.y - dy / cam.scale,
+        ...nextTarget,
         scale: targetRef.current.scale,
       };
+
       // Keep the camera responsive mid-drag (don't wait for the lerp to catch up).
-      camRef.current = { ...camRef.current, x: cam.x - dx / cam.scale, y: cam.y - dy / cam.scale };
+      const nextCam = clampCameraTarget(
+        cam.x - dx / cam.scale,
+        cam.y - dy / cam.scale,
+      );
+      camRef.current = {
+        ...camRef.current,
+        ...nextCam,
+      };
       d.lastX = e.clientX;
       d.lastY = e.clientY;
     }
@@ -663,7 +832,6 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     // positioned is stable (memoized on brands); engine binds once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positioned]);
-
 
   // ── Atlantis veil canvas — theater only; real Galaxy canvas is underneath ──
   useEffect(() => {
@@ -698,7 +866,14 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
       const cx = W * 0.5;
       const cy = H * 0.53;
 
-      const radial = maskCtx.createRadialGradient(cx, cy, 12, cx, cy, Math.min(W, H) * 0.43);
+      const radial = maskCtx.createRadialGradient(
+        cx,
+        cy,
+        12,
+        cx,
+        cy,
+        Math.min(W, H) * 0.43,
+      );
       radial.addColorStop(0, "rgba(255,255,255,0.95)");
       radial.addColorStop(0.24, "rgba(255,255,255,0.34)");
       radial.addColorStop(0.64, "rgba(255,255,255,0.08)");
@@ -731,12 +906,14 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     function resizeVeil() {
       W = window.innerWidth;
       H = window.innerHeight;
-      [veilCanvas, maskCanvas].filter((c): c is HTMLCanvasElement => c !== null).forEach((c) => {
-        c.width = Math.floor(W * DPR);
-        c.height = Math.floor(H * DPR);
-        c.style.width = W + "px";
-        c.style.height = H + "px";
-      });
+      [veilCanvas, maskCanvas]
+        .filter((c): c is HTMLCanvasElement => c !== null)
+        .forEach((c) => {
+          c.width = Math.floor(W * DPR);
+          c.height = Math.floor(H * DPR);
+          c.style.width = W + "px";
+          c.style.height = H + "px";
+        });
       if (!veilCtx || !maskCtx) return;
       veilCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
       maskCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -803,15 +980,13 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
     if (!selectedVariant || !selectedCollection) return null;
     return (
       selectedCollection.vault_families?.find((f) =>
-        f.vault_variants?.some((v) => v.id === selectedVariant.id)
+        f.vault_variants?.some((v) => v.id === selectedVariant.id),
       ) ?? null
     );
   }, [selectedVariant, selectedCollection]);
 
   return (
-    <div
-      className="fixed inset-0 z-[60] h-screen w-full overflow-hidden bg-[var(--ink-deep)]"
-    >
+    <div className="fixed inset-0 z-[60] h-screen w-full select-none overflow-hidden bg-[var(--ink-deep)]">
       <canvas
         ref={canvasRef}
         className="fixed inset-0 h-full w-full"
@@ -823,256 +998,278 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
         }}
       />
 
-      <div style={{ opacity: atlantisActive ? 0 : 1, pointerEvents: atlantisActive ? "none" : "auto", transition: "opacity 700ms ease" }}>
-      {/* Crumb trail */}
-      <div className="pointer-events-none fixed left-0 right-0 top-0 z-[5] flex items-center justify-between px-7 py-4">
-        <div className="font-display text-[16px] text-[var(--platinum)]">
-          Fair<span className="text-[var(--gold)]">Watch</span>Trade Vault
+      <div
+        style={{
+          opacity: atlantisActive ? 0 : 1,
+          pointerEvents: atlantisActive ? "none" : "auto",
+          transition: "opacity 700ms ease",
+        }}
+      >
+        {/* Crumb trail */}
+        <div className="pointer-events-none fixed left-0 right-0 top-0 z-[5] flex items-start justify-between gap-4 px-4 py-4 sm:items-center sm:px-7">
+          <div className="shrink-0 font-display text-[14px] text-[var(--platinum)] sm:text-[16px]">
+            Fair<span className="text-[var(--gold)]">Watch</span>Trade Vault
+          </div>
+          <div className="max-w-[45vw] truncate text-right text-[8px] uppercase tracking-[1.6px] text-[var(--muted)] sm:max-w-none sm:text-[10px] sm:tracking-[2px]">
+            {crumb}
+          </div>
         </div>
-        <div className="text-[10px] uppercase tracking-[2px] text-[var(--muted)]">{crumb}</div>
-      </div>
 
-      {/* Top-left control zone.
+        {/* Top-left control zone.
           Global navigation changes where you are; workspace controls change what
           you're doing. In the galaxy this slot offers discovery (filter chips).
           Once drilled in, brand-search chips are contextually wrong, so the same
           slot becomes the persistent way out — Return to Galaxy. The two are
           mutually exclusive, so they never collide. */}
 
-      {/* Filter chips — galaxy (brands) view only */}
-      {view === "brands" && (
-        <div className="fixed left-7 top-[76px] z-[6] flex flex-wrap gap-2">
-          {FILTER_CHIPS.map((chip) => (
-            <button
-              key={chip}
-              onClick={() => {
-                setQuery(chip.toLowerCase());
-                runSearch(chip.toLowerCase());
-              }}
-              className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Filter chips — galaxy (brands) view only */}
+        {view === "brands" && (
+          <div className="fixed left-4 top-[64px] z-[6] flex max-w-[calc(100%-32px)] flex-wrap gap-2 sm:left-7 sm:top-[76px]">
+            {FILTER_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                onClick={() => {
+                  setQuery(chip.toLowerCase());
+                  runSearch(chip.toLowerCase());
+                }}
+                className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Return to Galaxy — persistent exit, any drill state.
+        {/* Return to Galaxy — persistent exit, any drill state.
           The only exit used to be RESET buried in the search bar; a first-time
           traveller had no way to know it was there. This is the always-visible
           way home. Quiet, but never hidden — legible over the starfield in
           Florida sun (Readability-Floor-Governance). Calls resetGalaxy(), which
           flies the camera to the origin and clears all drill state. */}
-      {view !== "brands" && (
-        <div className="fixed left-7 top-[76px] z-[6]">
-          <button
-            onClick={resetGalaxy}
-            aria-label="Return to the galaxy"
-            className="group flex items-center gap-2 border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.55)] px-3 py-2 backdrop-blur-md transition-colors hover:border-[var(--border-gold)]"
-          >
-            <span className="text-[13px] leading-none text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
-              ←
-            </span>
-            <span className="text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
-              Return to Galaxy
-            </span>
-          </button>
-        </div>
-      )}
+        {view !== "brands" && (
+          <div className="fixed left-4 top-[64px] z-[6] sm:left-7 sm:top-[76px]">
+            <button
+              onClick={resetGalaxy}
+              aria-label="Return to the galaxy"
+              className="group flex items-center gap-2 border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.55)] px-3 py-2 backdrop-blur-md transition-colors hover:border-[var(--border-gold)]"
+            >
+              <span className="text-[13px] leading-none text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
+                ←
+              </span>
+              <span className="text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
+                Return to Galaxy
+              </span>
+            </button>
+          </div>
+        )}
 
-      {/* Hero */}
-      <div
-        className={`pointer-events-none fixed left-1/2 top-[13%] z-[4] w-[min(760px,calc(100%-40px))] -translate-x-1/2 text-center transition-all duration-700 ${
-          heroHidden ? "-translate-y-4 opacity-0" : "opacity-100"
-        }`}
-      >
-        <div className="mb-[18px] text-[9px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
-          The FairWatchTrade Vault
+        {/* Hero */}
+        <div
+          className={`pointer-events-none fixed left-1/2 top-[13%] z-[4] w-[min(760px,calc(100%-40px))] -translate-x-1/2 text-center transition-all duration-700 max-sm:hidden ${
+            heroHidden ? "-translate-y-4 opacity-0" : "opacity-100"
+          }`}
+        >
+          <div className="mb-[18px] text-[9px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
+            The FairWatchTrade Vault
+          </div>
+          <h1 className="mb-3 font-display text-[42px] font-light leading-[1.15] text-[var(--platinum)]">
+            What draws you{" "}
+            <em className="italic text-[var(--gold)]">to a watch?</em>
+          </h1>
+          <p className="mx-auto max-w-[560px] font-display text-[17px] font-light italic leading-[1.6] text-[var(--slate)]">
+            Begin with curiosity. The Vault will illuminate a path through
+            brands, collections, and references.
+          </p>
         </div>
-        <h1 className="mb-3 font-display text-[42px] font-light leading-[1.15] text-[var(--platinum)]">
-          What draws you <em className="italic text-[var(--gold)]">to a watch?</em>
-        </h1>
-        <p className="mx-auto max-w-[560px] font-display text-[17px] font-light italic leading-[1.6] text-[var(--slate)]">
-          Begin with curiosity. The Vault will illuminate a path through brands,
-          collections, and references.
-        </p>
-      </div>
 
-      {/* Detail / drill-down card */}
-      {(view !== "brands" || selectedBrand) && (
-        <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.84)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
-          {loading ? (
-            <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
-              Illuminating the constellation…
-            </p>
-          ) : view === "detail" && selectedVariant ? (
-            <>
-              <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-                Reference card
-              </div>
-              <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
-                {selectedVariant.name}
-              </h2>
-              {variantFamily && (
-                <div className="mb-2 text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
-                  {variantFamily.name}
+        {/* Detail / drill-down card */}
+        {(view !== "brands" || selectedBrand) && (
+          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.84)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-[108px] max-sm:max-h-[calc(100vh-278px)] max-sm:overflow-y-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
+            {loading ? (
+              <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
+                Illuminating the constellation…
+              </p>
+            ) : view === "detail" && selectedVariant ? (
+              <>
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                  Reference card
                 </div>
-              )}
-              {selectedVariant.description && (
-                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
-                  {selectedVariant.description}
-                </p>
-              )}
-              {selectedVariant.notes && (
-                <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
-                  {selectedVariant.notes}
-                </p>
-              )}
-              {selectedVariant.vault_references?.length > 0 && (
-                <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
-                  <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
-                    References
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                  {selectedVariant.name}
+                </h2>
+                {variantFamily && (
+                  <div className="mb-2 text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                    {variantFamily.name}
                   </div>
-                  {selectedVariant.vault_references.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-baseline justify-between gap-4 py-1 text-[12px] text-[var(--slate)]"
-                    >
-                      <span>{r.reference ?? "—"}</span>
+                )}
+                {selectedVariant.description && (
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                    {selectedVariant.description}
+                  </p>
+                )}
+                {selectedVariant.notes && (
+                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                    {selectedVariant.notes}
+                  </p>
+                )}
+                {selectedVariant.vault_references?.length > 0 && (
+                  <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
+                    <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+                      References
                     </div>
-                  ))}
-                </div>
-              )}
-              <div className="mt-[18px] flex gap-2">
-                <button onClick={resetGalaxy} className="fw-btn-primary">
-                  Return to Galaxy
-                </button>
-                <button onClick={historyBack} className="fw-btn-secondary">
-                  Back
-                </button>
-              </div>
-            </>
-          ) : view === "models" && selectedCollection ? (
-            <>
-              <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-                {selectedBrand?.name}
-              </div>
-              <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
-                {selectedCollection.name}
-              </h2>
-              {selectedCollection.description && (
-                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
-                  {selectedCollection.description}
-                </p>
-              )}
-              {/* Family groupings surfaced here (not as orbital bodies) */}
-              {selectedCollection.vault_families?.length > 0 && (
-                <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
-                  <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
-                    Families
+                    {selectedVariant.vault_references.map((r) => (
+                      <div
+                        key={r.id}
+                        className="flex items-baseline justify-between gap-4 py-1 text-[12px] text-[var(--slate)]"
+                      >
+                        <span>{r.reference ?? "—"}</span>
+                      </div>
+                    ))}
                   </div>
-                  {selectedCollection.vault_families.map((f) => (
-                    <div key={f.id} className="py-1 text-[12px] text-[var(--slate)]">
-                      {f.name}
-                      <span className="text-[var(--muted)]">
-                        {" "}
-                        · {f.vault_variants?.length ?? 0}
-                      </span>
-                    </div>
-                  ))}
+                )}
+                <div className="mt-[18px] flex gap-2">
+                  <button onClick={resetGalaxy} className="fw-btn-primary">
+                    Return to Galaxy
+                  </button>
+                  <button onClick={historyBack} className="fw-btn-secondary">
+                    Back
+                  </button>
                 </div>
-              )}
-              <div className="mt-3 text-[10px] italic text-[var(--muted)]">Choose a moon.</div>
-            </>
-          ) : view === "collections" && selectedBrand && (brandDetail?.length ?? 0) === 0 ? (
-            /* Empty-state: a brand whose constellation has no collections yet.
+              </>
+            ) : view === "models" && selectedCollection ? (
+              <>
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                  {selectedBrand?.name}
+                </div>
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                  {selectedCollection.name}
+                </h2>
+                {selectedCollection.description && (
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                    {selectedCollection.description}
+                  </p>
+                )}
+                {/* Family groupings surfaced here (not as orbital bodies) */}
+                {selectedCollection.vault_families?.length > 0 && (
+                  <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
+                    <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+                      Families
+                    </div>
+                    {selectedCollection.vault_families.map((f) => (
+                      <div
+                        key={f.id}
+                        className="py-1 text-[12px] text-[var(--slate)]"
+                      >
+                        {f.name}
+                        <span className="text-[var(--muted)]">
+                          {" "}
+                          · {f.vault_variants?.length ?? 0}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3 text-[10px] italic text-[var(--muted)]">
+                  Choose a moon.
+                </div>
+              </>
+            ) : view === "collections" &&
+              selectedBrand &&
+              (brandDetail?.length ?? 0) === 0 ? (
+              /* Empty-state: a brand whose constellation has no collections yet.
                The `loading` branch is checked first, so reaching here means the
                fetch has resolved with nothing — a genuinely unmapped brand, not
                a mid-load flicker. Never a dead end: always a way back. */
-            <>
-              <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-                Manufacturer
-              </div>
-              <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
-                {selectedBrand.name}
-              </h2>
-              <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
-                This constellation is still being mapped.
-              </p>
-              <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
-                Every house in the Vault is charted by hand — {selectedBrand.name}
-                &apos;s collections are still to come.
-              </p>
-              <div className="mt-[18px]">
-                <button onClick={resetGalaxy} className="fw-btn-primary">
-                  Return to Galaxy
-                </button>
-              </div>
-            </>
-          ) : view === "collections" && selectedBrand ? (
-            <>
-              <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-                Manufacturer
-              </div>
-              <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
-                {selectedBrand.name}
-              </h2>
-              {selectedBrand.description && (
-                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
-                  {selectedBrand.description}
-                </p>
-              )}
-              <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
-                <div className="flex justify-between py-1">
-                  <span>Collections</span>
-                  <span className="text-[var(--platinum-dim)]">{brandDetail?.length ?? 0}</span>
+              <>
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                  Manufacturer
                 </div>
-                <div className="mt-1 italic tracking-normal">Choose a planet.</div>
-              </div>
-            </>
-          ) : null}
-        </div>
-      )}
-
-      {/* Search bar */}
-      <div className="fixed bottom-[42px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] -translate-x-1/2 border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-[14px] backdrop-blur-lg">
-        <label className="mb-[10px] block text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-          What interests you today?
-        </label>
-        <div className="flex flex-wrap gap-[10px]">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") runSearch(query);
-            }}
-            placeholder="Try: architectural manual wind, Japanese independent, heritage chronograph…"
-            className="flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[21px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)]"
-          />
-          <button onClick={() => runSearch(query)} className="fw-btn-primary">
-            Explore
-          </button>
-          <button onClick={resetGalaxy} className="fw-btn-secondary">
-            Reset
-          </button>
-        </div>
-        <p className="mt-[10px] text-[11px] leading-[1.5] text-[var(--muted)]">
-          Click a star to fly toward a brand. Click a planet to enter a collection. Click a
-          moon to reach the reference card.
-        </p>
-        {hasEntered && view !== "brands" && (
-          <p className="mt-[7px] text-[11px] font-medium leading-[1.5] text-[#E0A845]">
-            Use <span className="uppercase tracking-[1px]">Reset</span> to step back — not your
-            browser&apos;s back button, which will exit the Vault.
-          </p>
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                  {selectedBrand.name}
+                </h2>
+                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                  This constellation is still being mapped.
+                </p>
+                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                  Every house in the Vault is charted by hand —{" "}
+                  {selectedBrand.name}
+                  &apos;s collections are still to come.
+                </p>
+                <div className="mt-[18px]">
+                  <button onClick={resetGalaxy} className="fw-btn-primary">
+                    Return to Galaxy
+                  </button>
+                </div>
+              </>
+            ) : view === "collections" && selectedBrand ? (
+              <>
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                  Manufacturer
+                </div>
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                  {selectedBrand.name}
+                </h2>
+                {selectedBrand.description && (
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                    {selectedBrand.description}
+                  </p>
+                )}
+                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
+                  <div className="flex justify-between py-1">
+                    <span>Collections</span>
+                    <span className="text-[var(--platinum-dim)]">
+                      {brandDetail?.length ?? 0}
+                    </span>
+                  </div>
+                  <div className="mt-1 italic tracking-normal">
+                    Choose a planet.
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
         )}
-      </div>
 
-      {/* Quiet disclosure line */}
-      <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[9px] italic text-[var(--ghost)]">
-        {brands.length} manufacturers. A living catalogue of independent and heritage
-        watchmaking.
-      </div>
+        {/* Search bar */}
+        <div className="fixed bottom-[34px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] -translate-x-1/2 border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-3 backdrop-blur-lg sm:bottom-[42px] sm:p-[14px]">
+          <label className="mb-[10px] block text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            What interests you today?
+          </label>
+          <div className="flex flex-wrap gap-[10px]">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runSearch(query);
+              }}
+              placeholder="Try: architectural manual wind, Japanese independent, heritage chronograph…"
+              className="min-w-0 flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[17px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:text-[21px]"
+            />
+            <button onClick={() => runSearch(query)} className="fw-btn-primary">
+              Explore
+            </button>
+            <button onClick={resetGalaxy} className="fw-btn-secondary">
+              Reset
+            </button>
+          </div>
+          <p className="mt-[10px] text-[11px] leading-[1.5] text-[var(--muted)]">
+            Click a star to fly toward a brand. Click a planet to enter a
+            collection. Click a moon to reach the reference card.
+          </p>
+          {hasEntered && view !== "brands" && (
+            <p className="mt-[7px] text-[11px] font-medium leading-[1.5] text-[#E0A845]">
+              Use <span className="uppercase tracking-[1px]">Reset</span> to
+              step back — not your browser&apos;s back button, which will exit
+              the Vault.
+            </p>
+          )}
+        </div>
+
+        {/* Quiet disclosure line */}
+        <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[9px] italic text-[var(--ghost)]">
+          {brands.length} manufacturers. A living catalogue of independent and
+          heritage watchmaking.
+        </div>
       </div>
 
       {atlantisActive && (
@@ -1088,7 +1285,9 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
             className="fixed inset-0 z-[49] flex flex-col bg-transparent"
             style={{
               opacity: atlantisRevealing ? 0 : 1,
-              transform: atlantisRevealing ? "translateY(-18px)" : "translateY(0)",
+              transform: atlantisRevealing
+                ? "translateY(-18px)"
+                : "translateY(0)",
               transition: "opacity 850ms ease, transform 850ms ease",
               transitionDelay: atlantisRevealing ? "650ms" : "0ms",
             }}
@@ -1105,34 +1304,194 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
             <div className="relative flex flex-1 items-stretch">
               <div
                 className="relative w-[88px] shrink-0"
-                style={{ opacity: atlantisIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}
+                style={{
+                  opacity: atlantisIgnited ? 0.12 : 1,
+                  transition: "opacity 700ms ease",
+                }}
               >
-                <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
-                  <line x1="18" y1="20" x2="18" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
-                  <line x1="42" y1="48" x2="42" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <line x1="62" y1="70" x2="62" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
-                  <circle cx="18" cy="20" r="8" stroke="rgba(201,168,76,0.4)" strokeWidth="0.8" />
-                  <circle cx="18" cy="20" r="4" stroke="rgba(201,168,76,0.25)" strokeWidth="0.6" />
+                <svg
+                  viewBox="0 0 88 560"
+                  fill="none"
+                  width="88"
+                  style={{ height: "100%", minHeight: "480px" }}
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <line
+                    x1="18"
+                    y1="20"
+                    x2="18"
+                    y2="540"
+                    stroke="rgba(201,168,76,0.28)"
+                    strokeWidth="1.2"
+                  />
+                  <line
+                    x1="42"
+                    y1="48"
+                    x2="42"
+                    y2="512"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="62"
+                    y1="70"
+                    x2="62"
+                    y2="490"
+                    stroke="rgba(201,168,76,0.1)"
+                    strokeWidth="0.5"
+                  />
+                  <circle
+                    cx="18"
+                    cy="20"
+                    r="8"
+                    stroke="rgba(201,168,76,0.4)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="18"
+                    cy="20"
+                    r="4"
+                    stroke="rgba(201,168,76,0.25)"
+                    strokeWidth="0.6"
+                  />
                   <circle cx="18" cy="20" r="1.5" fill="rgba(201,168,76,0.5)" />
-                  <line x1="18" y1="48" x2="72" y2="48" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
-                  <rect x="10" y="58" width="68" height="72" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
-                  <circle cx="44" cy="94" r="20" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
-                  <circle cx="44" cy="94" r="12" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
-                  <line x1="18" y1="160" x2="72" y2="160" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <circle cx="36" cy="280" r="26" stroke="rgba(201,168,76,0.22)" strokeWidth="0.8" />
-                  <circle cx="36" cy="280" r="18" stroke="rgba(201,168,76,0.15)" strokeWidth="0.6" />
-                  <circle cx="36" cy="280" r="10" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
-                  <line x1="36" y1="254" x2="36" y2="260" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="36" y1="300" x2="36" y2="306" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="10" y1="280" x2="16" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="56" y1="280" x2="62" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="18" y1="400" x2="72" y2="400" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <rect x="10" y="430" width="68" height="60" stroke="rgba(201,168,76,0.07)" strokeWidth="0.4" />
-                  <line x1="18" y1="512" x2="72" y2="512" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
-                  <circle cx="18" cy="540" r="6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <rect x="58" y="0" width="30" height="560" fill="url(#vault-gfadeR)" />
+                  <line
+                    x1="18"
+                    y1="48"
+                    x2="72"
+                    y2="48"
+                    stroke="rgba(201,168,76,0.2)"
+                    strokeWidth="0.8"
+                  />
+                  <rect
+                    x="10"
+                    y="58"
+                    width="68"
+                    height="72"
+                    stroke="rgba(201,168,76,0.08)"
+                    strokeWidth="0.4"
+                  />
+                  <circle
+                    cx="44"
+                    cy="94"
+                    r="20"
+                    stroke="rgba(201,168,76,0.12)"
+                    strokeWidth="0.5"
+                  />
+                  <circle
+                    cx="44"
+                    cy="94"
+                    r="12"
+                    stroke="rgba(201,168,76,0.08)"
+                    strokeWidth="0.4"
+                  />
+                  <line
+                    x1="18"
+                    y1="160"
+                    x2="72"
+                    y2="160"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <circle
+                    cx="36"
+                    cy="280"
+                    r="26"
+                    stroke="rgba(201,168,76,0.22)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="36"
+                    cy="280"
+                    r="18"
+                    stroke="rgba(201,168,76,0.15)"
+                    strokeWidth="0.6"
+                  />
+                  <circle
+                    cx="36"
+                    cy="280"
+                    r="10"
+                    stroke="rgba(201,168,76,0.12)"
+                    strokeWidth="0.5"
+                  />
+                  <line
+                    x1="36"
+                    y1="254"
+                    x2="36"
+                    y2="260"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="36"
+                    y1="300"
+                    x2="36"
+                    y2="306"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="10"
+                    y1="280"
+                    x2="16"
+                    y2="280"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="56"
+                    y1="280"
+                    x2="62"
+                    y2="280"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="18"
+                    y1="400"
+                    x2="72"
+                    y2="400"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <rect
+                    x="10"
+                    y="430"
+                    width="68"
+                    height="60"
+                    stroke="rgba(201,168,76,0.07)"
+                    strokeWidth="0.4"
+                  />
+                  <line
+                    x1="18"
+                    y1="512"
+                    x2="72"
+                    y2="512"
+                    stroke="rgba(201,168,76,0.2)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="18"
+                    cy="540"
+                    r="6"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <rect
+                    x="58"
+                    y="0"
+                    width="30"
+                    height="560"
+                    fill="url(#vault-gfadeR)"
+                  />
                   <defs>
-                    <linearGradient id="vault-gfadeR" x1="0" y1="0" x2="1" y2="0">
+                    <linearGradient
+                      id="vault-gfadeR"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="0"
+                    >
                       <stop offset="0%" stopColor="#0D0F14" stopOpacity="0" />
                       <stop offset="100%" stopColor="#0D0F14" stopOpacity="1" />
                     </linearGradient>
@@ -1143,15 +1502,75 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
               <div className="flex flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center">
                 <div className="mb-9">
                   <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
-                    <circle cx="18" cy="18" r="17" stroke="rgba(201,168,76,0.28)" strokeWidth="0.6" />
-                    <circle cx="18" cy="18" r="12" stroke="rgba(201,168,76,0.15)" strokeWidth="0.5" />
-                    <line x1="18" y1="4" x2="18" y2="7" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
-                    <line x1="18" y1="29" x2="18" y2="32" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
-                    <line x1="4" y1="18" x2="7" y2="18" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
-                    <line x1="29" y1="18" x2="32" y2="18" stroke="rgba(201,168,76,0.45)" strokeWidth="0.7" />
-                    <line x1="18" y1="18" x2="18" y2="8" stroke="rgba(232,228,220,0.55)" strokeWidth="0.7" />
-                    <line x1="18" y1="18" x2="23" y2="18" stroke="rgba(232,228,220,0.45)" strokeWidth="0.6" />
-                    <circle cx="18" cy="18" r="1.6" fill="#C9A84C" opacity="0.6" />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="17"
+                      stroke="rgba(201,168,76,0.28)"
+                      strokeWidth="0.6"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="12"
+                      stroke="rgba(201,168,76,0.15)"
+                      strokeWidth="0.5"
+                    />
+                    <line
+                      x1="18"
+                      y1="4"
+                      x2="18"
+                      y2="7"
+                      stroke="rgba(201,168,76,0.45)"
+                      strokeWidth="0.7"
+                    />
+                    <line
+                      x1="18"
+                      y1="29"
+                      x2="18"
+                      y2="32"
+                      stroke="rgba(201,168,76,0.45)"
+                      strokeWidth="0.7"
+                    />
+                    <line
+                      x1="4"
+                      y1="18"
+                      x2="7"
+                      y2="18"
+                      stroke="rgba(201,168,76,0.45)"
+                      strokeWidth="0.7"
+                    />
+                    <line
+                      x1="29"
+                      y1="18"
+                      x2="32"
+                      y2="18"
+                      stroke="rgba(201,168,76,0.45)"
+                      strokeWidth="0.7"
+                    />
+                    <line
+                      x1="18"
+                      y1="18"
+                      x2="18"
+                      y2="8"
+                      stroke="rgba(232,228,220,0.55)"
+                      strokeWidth="0.7"
+                    />
+                    <line
+                      x1="18"
+                      y1="18"
+                      x2="23"
+                      y2="18"
+                      stroke="rgba(232,228,220,0.45)"
+                      strokeWidth="0.6"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="1.6"
+                      fill="#C9A84C"
+                      opacity="0.6"
+                    />
                   </svg>
                 </div>
 
@@ -1167,7 +1586,9 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
                 <div
                   className="mb-9 font-display text-[30px] font-light italic leading-[1.35] tracking-[0.3px] text-[var(--gold)]"
                   style={{
-                    textShadow: atlantisIgnited ? "0 0 18px rgba(201,168,76,0.22)" : "none",
+                    textShadow: atlantisIgnited
+                      ? "0 0 18px rgba(201,168,76,0.22)"
+                      : "none",
                     transition: "text-shadow 200ms ease",
                   }}
                 >
@@ -1178,9 +1599,12 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
                   style={{
                     width: atlantisIgnited ? "76px" : "32px",
                     height: "1px",
-                    background: "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)",
+                    background:
+                      "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)",
                     margin: "0 auto 28px",
-                    filter: atlantisIgnited ? "brightness(1.85)" : "brightness(1)",
+                    filter: atlantisIgnited
+                      ? "brightness(1.85)"
+                      : "brightness(1)",
                     transition: "width 200ms ease, filter 200ms ease",
                   }}
                 />
@@ -1212,34 +1636,194 @@ export default function VaultGalaxy({ brands, atlantisIntro = false }: { brands:
 
               <div
                 className="relative w-[88px] shrink-0"
-                style={{ opacity: atlantisIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}
+                style={{
+                  opacity: atlantisIgnited ? 0.12 : 1,
+                  transition: "opacity 700ms ease",
+                }}
               >
-                <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
-                  <line x1="70" y1="20" x2="70" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
-                  <line x1="46" y1="48" x2="46" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <line x1="26" y1="70" x2="26" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
-                  <circle cx="70" cy="20" r="8" stroke="rgba(201,168,76,0.4)" strokeWidth="0.8" />
-                  <circle cx="70" cy="20" r="4" stroke="rgba(201,168,76,0.25)" strokeWidth="0.6" />
+                <svg
+                  viewBox="0 0 88 560"
+                  fill="none"
+                  width="88"
+                  style={{ height: "100%", minHeight: "480px" }}
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <line
+                    x1="70"
+                    y1="20"
+                    x2="70"
+                    y2="540"
+                    stroke="rgba(201,168,76,0.28)"
+                    strokeWidth="1.2"
+                  />
+                  <line
+                    x1="46"
+                    y1="48"
+                    x2="46"
+                    y2="512"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="26"
+                    y1="70"
+                    x2="26"
+                    y2="490"
+                    stroke="rgba(201,168,76,0.1)"
+                    strokeWidth="0.5"
+                  />
+                  <circle
+                    cx="70"
+                    cy="20"
+                    r="8"
+                    stroke="rgba(201,168,76,0.4)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="70"
+                    cy="20"
+                    r="4"
+                    stroke="rgba(201,168,76,0.25)"
+                    strokeWidth="0.6"
+                  />
                   <circle cx="70" cy="20" r="1.5" fill="rgba(201,168,76,0.5)" />
-                  <line x1="16" y1="48" x2="70" y2="48" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
-                  <rect x="10" y="58" width="68" height="72" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
-                  <circle cx="44" cy="94" r="20" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
-                  <circle cx="44" cy="94" r="12" stroke="rgba(201,168,76,0.08)" strokeWidth="0.4" />
-                  <line x1="16" y1="160" x2="70" y2="160" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <circle cx="52" cy="280" r="26" stroke="rgba(201,168,76,0.22)" strokeWidth="0.8" />
-                  <circle cx="52" cy="280" r="18" stroke="rgba(201,168,76,0.15)" strokeWidth="0.6" />
-                  <circle cx="52" cy="280" r="10" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
-                  <line x1="52" y1="254" x2="52" y2="260" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="52" y1="300" x2="52" y2="306" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="26" y1="280" x2="32" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="72" y1="280" x2="78" y2="280" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <line x1="16" y1="400" x2="70" y2="400" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
-                  <rect x="10" y="430" width="68" height="60" stroke="rgba(201,168,76,0.07)" strokeWidth="0.4" />
-                  <line x1="16" y1="512" x2="70" y2="512" stroke="rgba(201,168,76,0.2)" strokeWidth="0.8" />
-                  <circle cx="70" cy="540" r="6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.7" />
-                  <rect x="0" y="0" width="30" height="560" fill="url(#vault-gfadeL)" />
+                  <line
+                    x1="16"
+                    y1="48"
+                    x2="70"
+                    y2="48"
+                    stroke="rgba(201,168,76,0.2)"
+                    strokeWidth="0.8"
+                  />
+                  <rect
+                    x="10"
+                    y="58"
+                    width="68"
+                    height="72"
+                    stroke="rgba(201,168,76,0.08)"
+                    strokeWidth="0.4"
+                  />
+                  <circle
+                    cx="44"
+                    cy="94"
+                    r="20"
+                    stroke="rgba(201,168,76,0.12)"
+                    strokeWidth="0.5"
+                  />
+                  <circle
+                    cx="44"
+                    cy="94"
+                    r="12"
+                    stroke="rgba(201,168,76,0.08)"
+                    strokeWidth="0.4"
+                  />
+                  <line
+                    x1="16"
+                    y1="160"
+                    x2="70"
+                    y2="160"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <circle
+                    cx="52"
+                    cy="280"
+                    r="26"
+                    stroke="rgba(201,168,76,0.22)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="52"
+                    cy="280"
+                    r="18"
+                    stroke="rgba(201,168,76,0.15)"
+                    strokeWidth="0.6"
+                  />
+                  <circle
+                    cx="52"
+                    cy="280"
+                    r="10"
+                    stroke="rgba(201,168,76,0.12)"
+                    strokeWidth="0.5"
+                  />
+                  <line
+                    x1="52"
+                    y1="254"
+                    x2="52"
+                    y2="260"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="52"
+                    y1="300"
+                    x2="52"
+                    y2="306"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="26"
+                    y1="280"
+                    x2="32"
+                    y2="280"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="72"
+                    y1="280"
+                    x2="78"
+                    y2="280"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="16"
+                    y1="400"
+                    x2="70"
+                    y2="400"
+                    stroke="rgba(201,168,76,0.16)"
+                    strokeWidth="0.7"
+                  />
+                  <rect
+                    x="10"
+                    y="430"
+                    width="68"
+                    height="60"
+                    stroke="rgba(201,168,76,0.07)"
+                    strokeWidth="0.4"
+                  />
+                  <line
+                    x1="16"
+                    y1="512"
+                    x2="70"
+                    y2="512"
+                    stroke="rgba(201,168,76,0.2)"
+                    strokeWidth="0.8"
+                  />
+                  <circle
+                    cx="70"
+                    cy="540"
+                    r="6"
+                    stroke="rgba(201,168,76,0.3)"
+                    strokeWidth="0.7"
+                  />
+                  <rect
+                    x="0"
+                    y="0"
+                    width="30"
+                    height="560"
+                    fill="url(#vault-gfadeL)"
+                  />
                   <defs>
-                    <linearGradient id="vault-gfadeL" x1="0" y1="0" x2="1" y2="0">
+                    <linearGradient
+                      id="vault-gfadeL"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="0"
+                    >
                       <stop offset="0%" stopColor="#0D0F14" stopOpacity="1" />
                       <stop offset="100%" stopColor="#0D0F14" stopOpacity="0" />
                     </linearGradient>
