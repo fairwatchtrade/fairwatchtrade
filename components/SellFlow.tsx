@@ -102,9 +102,13 @@ const PHOTO_LAYER_MAP: Partial<Record<string, Layer>> = {
   Dial: "dial",
   Caseback: "case",
   "Clasp/Pin Buckle": "clasp",
+  // "Side/Lugs" retired in v2.0j → split into the two side shots below.
+  // Layer names verified against the Layer union in WatchBlueprint.tsx:
+  // there is no "side" layer — the non-crown profile lights "lugs" (as the
+  // old Side/Lugs did), and the crown side lights the dedicated "crown" layer.
   "Non-Crown Side": "lugs",
   "Crown Side": "crown",
-  Movement: "movement",
+  "Movement (closeup)": "movement",
   "Bracelet/Strap": "strap",
   "Full watch, strap/bracelet extended": "strap",
   "Papers/Warranty": "provenance",

@@ -28,9 +28,10 @@ export type PhotoCategory =
   | "Caseback"
   | "Non-Crown Side"
   | "Crown Side"
-  | "Movement"
+  | "Movement (closeup)"
   | "Bracelet/Strap"
-  | "Clasp"
+  | "Full watch, strap/bracelet extended"
+  | "Clasp/Pin Buckle"
   | "Box"
   | "Papers/Warranty"
   | "Other";
@@ -87,18 +88,14 @@ const DOC_POINTS: Record<DocumentationStatus, number> = {
 };
 
 /* ── Mandatory photo set ─────────────────────────────────────────────────
-   Required to go live (Dial, Caseback, Clasp; both bracelet sides if the
-   watch is on a bracelet). Also the first rung of the completeness bonus. */
+   Required to go live (Dial, Caseback, Clasp/Pin Buckle; full extended shot if on a bracelet). */
 function hasMandatoryPhotos(s: ListingState): boolean {
   const cats = new Set(s.photoCategories);
-  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp");
+  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp/Pin Buckle");
   if (!base) return false;
   if (s.hasBracelet) {
     // "both LEFT and RIGHT side shown separately" → at least two strap shots.
-    const braceletShots = s.photoCategories.filter(
-      (c) => c === "Bracelet/Strap"
-    ).length;
-    return braceletShots >= 2;
+    return cats.has("Full watch, strap/bracelet extended");
   }
   return true;
 }
@@ -146,7 +143,7 @@ export function scoreCompleteness(s: ListingState): CompletenessResult {
   });
 
   // 3. Movement shown
-  const movementShown = s.photoCategories.includes("Movement");
+  const movementShown = s.photoCategories.includes("Movement (closeup)");
   items.push({
     key: "movement",
     label: "Movement shown",
