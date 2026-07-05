@@ -42,6 +42,12 @@ export type DocumentationStatus =
   | "Box Only"
   | "Watch Only";
 
+/** How the watch is being sold — the mobile wizard's Screen 0 declaration.
+ *  Optional on ListingState: the desktop flow never sets it, so desktop
+ *  behavior is unchanged. "head_only" is the one state that changes the
+ *  mandatory gate (no clasp/buckle exists to photograph). */
+export type SaleState = "bracelet" | "strap" | "head_only" | "other";
+
 /** Everything the scorer needs about a listing-in-progress. */
 export type ListingState = {
   /** Part 1, 0–100, from the existing evaluation engine. */
@@ -50,6 +56,9 @@ export type ListingState = {
   photoCategories: PhotoCategory[];
   /** Does the watch ship on a bracelet? Drives the mandatory bracelet shots. */
   hasBracelet: boolean;
+  /** v2.2 — explicit sale-state declaration (mobile wizard Screen 0).
+   *  Absent = legacy/desktop behavior (clasp always required). */
+  saleState?: SaleState;
   /** A wrist shot was included. (Wrist shots live under "Other", so the
    *  upload UI flags this separately rather than inferring from category.) */
   hasWristShot: boolean;
@@ -91,7 +100,15 @@ const DOC_POINTS: Record<DocumentationStatus, number> = {
    Required to go live (Dial, Caseback, Clasp/Pin Buckle; full extended shot if on a bracelet). */
 function hasMandatoryPhotos(s: ListingState): boolean {
   const cats = new Set(s.photoCategories);
-  const base = cats.has("Dial") && cats.has("Caseback") && cats.has("Clasp/Pin Buckle");
+  // v2.2 sale-state ruling: a head-only watch has no clasp or buckle to
+  // photograph, so the clasp requirement lifts for that one state. Every
+  // other state — and every legacy caller that doesn't set saleState —
+  // keeps the original gate exactly.
+  const claspRequired = s.saleState !== "head_only";
+  const base =
+    cats.has("Dial") &&
+    cats.has("Caseback") &&
+    (!claspRequired || cats.has("Clasp/Pin Buckle"));
   if (!base) return false;
   if (s.hasBracelet) {
     // "both LEFT and RIGHT side shown separately" → at least two strap shots.
@@ -127,9 +144,12 @@ export function scoreCompleteness(s: ListingState): CompletenessResult {
     earned: mandatoryDone ? COMPLETENESS.mandatoryPhotos : 0,
     max: COMPLETENESS.mandatoryPhotos,
     done: mandatoryDone,
-    hint: s.hasBracelet
-      ? "Dial, caseback, clasp, and both bracelet sides"
-      : "Dial, caseback, and clasp",
+    hint:
+      s.saleState === "head_only"
+        ? "Dial and caseback"
+        : s.hasBracelet
+          ? "Dial, caseback, clasp, and both bracelet sides"
+          : "Dial, caseback, and clasp",
   });
 
   // 2. Wrist shot
