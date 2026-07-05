@@ -151,7 +151,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Browse", href: "/browse" },
       { label: "My Catalogue", href: "/catalogue" },
-      { label: "Saved Watches", href: "/buyer", badge: { variant: "gold", label: "Soon" } },
+      { label: "Saved Watches", href: "/catalogue", badge: { variant: "gold", label: "Soon" } },
     ],
   },
   {
