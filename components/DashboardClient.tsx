@@ -192,7 +192,7 @@ export default function DashboardClient({
             <NavItem href="/dashboard" active>
               Dashboard
             </NavItem>
-            <NavItem href="/account">Account</NavItem>
+            <NavItem href="/account">Seller Workspace</NavItem>
             <NavItem href="/sell">Sell</NavItem>
           </NavSection>
         </div>
