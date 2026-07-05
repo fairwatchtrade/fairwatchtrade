@@ -169,6 +169,9 @@ type MediaMeta = {
   original_hash: string;
   privacy_review_requested: boolean;
   is_wrist_shot: boolean;
+  /** Phase 5 — per-photo AI verdict. hard_fail never lands here (those
+   *  photos are never added). Sent additively at publish. */
+  ai_review_status: "pending" | "passed" | "soft_fail";
 };
 
 /* ── Curation — the desktop contract, mirrored defensively ── */
@@ -249,6 +252,15 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   const [optionalIndex, setOptionalIndex] = useState(0);
   const [optionalActive, setOptionalActive] = useState(false);
 
+  // Phase 5 — AI review + privacy processing state.
+  // hardFail: plain-language banner over a remounted live camera.
+  // retakeNonce: bumps the CameraCapture key so a hard fail reopens live.
+  // badgeForfeited: one soft fail = badge gone for this attempt; the draft
+  // and publish are untouched (the badge is a reward, never a gate).
+  const [hardFail, setHardFail] = useState<string | null>(null);
+  const [retakeNonce, setRetakeNonce] = useState(0);
+  const [badgeForfeited, setBadgeForfeited] = useState(false);
+
   // Session (badge infrastructure — its failure never blocks the flow)
   const [captureSessionId, setCaptureSessionId] = useState<string | null>(null);
   const sessionDeadRef = useRef(false);
@@ -295,6 +307,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         setOptionalIndex(saved.optionalIndex ?? 0);
         setOptionalActive(saved.optionalActive ?? false);
         setCaptureSessionId(saved.captureSessionId ?? null);
+        setBadgeForfeited(saved.badgeForfeited === true);
         setReferenceInput(saved.draft.reference ?? "");
         setNotesInput(saved.draft.provenanceNote ?? "");
         setBrandQuery(saved.draft.brand ?? "");
@@ -325,10 +338,11 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           optionalIndex,
           optionalActive,
           captureSessionId,
+          badgeForfeited,
         })
       );
     } catch {}
-  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId]);
+  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited]);
 
   /* ── Session lifecycle — best-effort, never blocking ── */
   const ensureSession = useCallback(async () => {
@@ -448,8 +462,87 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   }, [draft, identityComplete, startCapture]);
 
   /* ── Capture confirmation — the dual-write metadata accumulates here ── */
+  /* ── Phase 5 · blur late-swap — fire-and-forget with a callback. The
+        seller advances immediately; when the processed image lands, its URL
+        replaces the original in BOTH the draft photos (what the listing
+        shows) and the media metadata (what the server records). If the
+        seller publishes before it resolves, the original stands — fail-open,
+        never a wait. Silent by design: the seller is never told. ── */
+  const SERIAL_CATEGORIES: PhotoCategory[] = ["Caseback", "Non-Crown Side"];
+
+  const fireBlurSerial = useCallback((category: PhotoCategory, originalUrl: string, originalPathname: string) => {
+    fetch("/api/blur-serial", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoUrl: originalUrl, category }),
+    })
+      .then((r) => r.json())
+      .then((j: { processedUrl?: string; pathname?: string; blurred?: boolean }) => {
+        if (!j || j.blurred !== true || !j.processedUrl) return;
+        const newUrl = j.processedUrl;
+        const newPath = j.pathname || originalPathname;
+        setDraft((d) => ({
+          ...d,
+          photos: d.photos.map((p) =>
+            p.photo.pathname === originalPathname
+              ? { ...p, photo: { url: newUrl, pathname: newPath } }
+              : p
+          ),
+        }));
+        setMediaMeta((m) =>
+          m.map((entry) =>
+            entry.storage_path === originalPathname
+              ? { ...entry, storage_path: newPath }
+              : entry
+          )
+        );
+      })
+      .catch(() => {
+        /* silent — original stands */
+      });
+  }, []);
+
+  /* ── Capture confirmation — review gate, then the dual-write metadata ── */
   const handleConfirmed = useCallback(
     (step: CaptureStep) => async (cap: ConfirmedCapture) => {
+      // Phase 5 · Step A — AI review, awaited inside the camera's Uploading
+      // state. Fail-open on any error: infra never blocks a seller.
+      const review: { result: string; reason: string } = await fetch(
+        "/api/wizard-photo-review",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            photoUrl: cap.url,
+            category: step.category,
+            captureSource: "live_camera",
+          }),
+        }
+      )
+        .then((r) => r.json())
+        .catch(() => ({ result: "passed", reason: "" }));
+
+      if (review.result === "hard_fail") {
+        // Block: the photo is never added to the draft. The camera remounts
+        // live (retakeNonce) under a plain-language banner. Draft untouched.
+        setHardFail(
+          `${step.category} photo couldn't be verified — ${
+            review.reason || "the watch isn't clearly visible"
+          }. Please retake.`
+        );
+        setRetakeNonce((n) => n + 1);
+        return;
+      }
+
+      const verdict: MediaMeta["ai_review_status"] =
+        review.result === "soft_fail" ? "soft_fail" : "passed";
+      if (verdict === "soft_fail") {
+        // One soft fail forfeits the badge for this attempt — publish and
+        // draft are unaffected. Admin sees the verdict in media metadata.
+        setBadgeForfeited(true);
+      }
+      setHardFail(null);
+
       setDraft((d) => ({
         ...d,
         photos: [
@@ -472,8 +565,16 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           original_hash: cap.originalHash,
           privacy_review_requested: step.privacyReview,
           is_wrist_shot: step.isWristShot === true,
+          ai_review_status: verdict,
         },
       ]);
+
+      // Phase 5 · Step B — blur-serial, fire-and-forget for serial-adjacent
+      // categories. The seller advances now; the swap happens when it lands.
+      if (SERIAL_CATEGORIES.includes(step.category)) {
+        fireBlurSerial(step.category, cap.url, cap.pathname);
+      }
+
       heartbeat(step.category);
 
       if (!optionalActive) {
@@ -493,7 +594,8 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         }
       }
     },
-    [captureIndex, captureSteps.length, captureSessionId, heartbeat, optionalActive, optionalIndex, optionalSteps.length]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [captureIndex, captureSteps.length, captureSessionId, fireBlurSerial, heartbeat, optionalActive, optionalIndex, optionalSteps.length]
   );
 
   const skipCurrent = useCallback(() => {
@@ -549,7 +651,11 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           //    the amended route (badge verification + listing_media writes
           //    happen SERVER-side; client claims are never trusted). ──
           publish_request_id: publishRequestIdRef.current,
-          capture_session_id: captureSessionId,
+          // Phase 5 — a soft-failed session forfeits the badge: withholding
+          // the session id makes the server's badge check fail closed while
+          // the publish itself is untouched. Verdicts still travel in
+          // media_meta for the admin trail.
+          capture_session_id: badgeForfeited ? null : captureSessionId,
           device_session_token: getDeviceToken(),
           sale_state: saleState,
           media_meta: mediaMeta,
@@ -606,6 +712,9 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     setReferenceInput("");
     setNotesInput("");
     setPreflight({ state: "idle" });
+    setHardFail(null);
+    setRetakeNonce(0);
+    setBadgeForfeited(false);
     publishRequestIdRef.current = "";
     setPublishError(null);
   }, []);
@@ -824,22 +933,34 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     // is never crashed and no state is set during render.
     const step = captureSteps[Math.min(captureIndex, captureSteps.length - 1)];
     return (
-      <CameraCapture
-        key={`m-${step.category}`}
-        category={step.category}
-        overlay={step.overlay}
-        instruction={step.instruction}
-        subInstruction={step.subInstruction}
-        stepLabel={`${captureIndex + 1} of ${captureSteps.length}`}
-        onConfirmed={handleConfirmed(step)}
-        onCancel={
-          step.skippable
-            ? skipCurrent
-            : captureIndex === 0
-              ? () => setStage("identity")
-              : undefined
-        }
-      />
+      <>
+        {hardFail && (
+          <div className="fixed left-0 right-0 top-0 z-[60] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm">
+            <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+              One more try
+            </div>
+            <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+              {hardFail}
+            </div>
+          </div>
+        )}
+        <CameraCapture
+          key={`m-${step.category}-${retakeNonce}`}
+          category={step.category}
+          overlay={step.overlay}
+          instruction={step.instruction}
+          subInstruction={step.subInstruction}
+          stepLabel={`${captureIndex + 1} of ${captureSteps.length}`}
+          onConfirmed={handleConfirmed(step)}
+          onCancel={
+            step.skippable
+              ? skipCurrent
+              : captureIndex === 0
+                ? () => setStage("identity")
+                : undefined
+          }
+        />
+      </>
     );
   }
 
@@ -878,15 +999,27 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   if (stage === "capture_optional") {
     const step = optionalSteps[Math.min(optionalIndex, optionalSteps.length - 1)];
     return (
-      <CameraCapture
-        key={`o-${step.category}-${optionalIndex}`}
-        category={step.category}
-        overlay={step.overlay}
-        instruction={step.instruction}
-        subInstruction={step.subInstruction}
-        onConfirmed={handleConfirmed(step)}
-        onCancel={() => setStage("optional")}
-      />
+      <>
+        {hardFail && (
+          <div className="fixed left-0 right-0 top-0 z-[60] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm">
+            <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+              One more try
+            </div>
+            <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+              {hardFail}
+            </div>
+          </div>
+        )}
+        <CameraCapture
+          key={`o-${step.category}-${optionalIndex}-${retakeNonce}`}
+          category={step.category}
+          overlay={step.overlay}
+          instruction={step.instruction}
+          subInstruction={step.subInstruction}
+          onConfirmed={handleConfirmed(step)}
+          onCancel={() => setStage("optional")}
+        />
+      </>
     );
   }
 
