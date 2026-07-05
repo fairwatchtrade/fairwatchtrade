@@ -9,7 +9,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop: wordmark left, Browse · Sell · Dashboard · Vault · Account · About right.
+   Desktop: wordmark left, Browse · Sell · Catalogue · Vault · Account · About right.
    Mobile (md:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
 
@@ -21,7 +21,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
   { label: "Sell", href: "/sell" },
-  { label: "Dashboard", href: "/dashboard" },
+  { label: "Catalogue", href: "/catalogue" },
   { label: "Vault", href: "/vault" },
   { label: "Account", href: "/account" },
   { label: "About", href: "/about" },
