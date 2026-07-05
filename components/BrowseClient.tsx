@@ -281,7 +281,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         onToggle={toggleCaseSize}
       />
       <FacetGroup
-        title="Movement Type"
+        title="Movement"
         facets={movementFacets}
         selected={selectedMovements}
         onToggle={toggleMovement}
@@ -299,7 +299,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         onToggle={toggleDial}
       />
       <FacetGroup
-        title="Documentation"
+        title="Box & Papers"
         facets={docFacets}
         selected={selectedDocs}
         onToggle={toggleDoc}
@@ -328,14 +328,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           onClick={() => setIsFilterOpen((v) => !v)}
           className="hidden items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] transition hover:border-[#C9A84C]/40 md:inline-flex"
         >
-          {isFilterOpen ? "Hide filters" : "Show filters"}
+          {isFilterOpen ? "Hide" : "Refine"}
         </button>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
           className="inline-flex items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] md:hidden"
         >
-          Filters
+          Refine
         </button>
       </div>
 
@@ -390,7 +390,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         <div className="min-w-0 flex-1">
           {paginated.length === 0 ? (
             <p className="text-[14px] text-[var(--slate)]">
-              No listings match these filters.
+              No watches match your selection.
             </p>
           ) : (
             <div className={`grid gap-px bg-[var(--border-faint)] ${gridCols === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
