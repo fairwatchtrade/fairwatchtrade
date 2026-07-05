@@ -58,8 +58,8 @@ const STATUS_LABELS: Record<string, string> = {
 // Left-panel modules — GLOBAL nav. No counts here. Labels use the prototype's
 // shorter forms so they fit the 152px panel without wrapping.
 const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
-  { id: "dashboard", label: "Dashboard", soon: false },
-  { id: "inventory", label: "Inventory", soon: false },
+  { id: "dashboard", label: "Overview", soon: false },
+  { id: "inventory", label: "Listings", soon: false },
   { id: "market", label: "Market Intel", soon: true },
   { id: "messages", label: "Messages", soon: true },
   { id: "analytics", label: "Analytics", soon: true },
@@ -297,7 +297,7 @@ export default function AccountDashboard({
     rejected: listings.filter((l) => l.status === "rejected").length,
   };
 
-  const moduleTitle = activeModule === "dashboard" ? "Dashboard" : "Inventory";
+  const moduleTitle = activeModule === "dashboard" ? "Overview" : "Listings";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -369,7 +369,7 @@ export default function AccountDashboard({
             <div className="mb-4 flex items-center justify-between">
               {/* Mobile is Inventory-only; desktop reflects the active module. */}
               <h2 className="font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)]">
-                <span className="md:hidden">Inventory</span>
+                <span className="md:hidden">Listings</span>
                 <span className="hidden md:inline">{moduleTitle}</span>
               </h2>
               <Link
