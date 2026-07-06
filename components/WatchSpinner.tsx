@@ -34,7 +34,7 @@ export default function WatchSpinner({
         xmlns="http://www.w3.org/2000/svg"
       >
         {/* Dial face — dark, so it reads on gold buttons AND dark panels */}
-        <circle cx="20" cy="20" r="18" fill="#15110A" />
+        <circle cx="20" cy="20" r="18" fill="#495B74" />
         {/* Champagne-gold rim */}
         <circle cx="20" cy="20" r="18" fill="none" stroke="#C9A84C" strokeWidth="2" />
         {/* Gold hour ticks */}
