@@ -190,6 +190,7 @@ export default function VaultGalaxy({
   atlantisIntro?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [viewportVersion, setViewportVersion] = useState(0);
 
   // Resolve each brand's position once: authored coords win, spiral fallback.
   const positioned = useMemo<PositionedBrand[]>(() => {
@@ -209,7 +210,20 @@ export default function VaultGalaxy({
         : generateGalaxyPosition(b.slug || String(i), i);
       return { ...b, ...pos, brightness: 1 };
     });
-  }, [brands]);
+  }, [brands, viewportVersion]);
+
+  const galaxyPanBounds: { x: number; y: number } = useMemo(() => {
+    if (!positioned.length) return { x: 260, y: 260 };
+    const maxX = Math.max(...positioned.map((b) => Math.abs(b.x)));
+    const maxY = Math.max(...positioned.map((b) => Math.abs(b.y)));
+
+    // Keep a generous hidden margin beyond the outermost authored star.
+    // The user can wander, but should never discover a literal empty edge.
+    return {
+      x: Math.max(260, maxX * 1.35),
+      y: Math.max(260, maxY * 1.35),
+    };
+  }, [positioned]);
 
   // ── React-surfaced state (drives the DOM card/crumb/hero) ──
   const [view, setView] = useState<
@@ -277,6 +291,33 @@ export default function VaultGalaxy({
     detailRef.current = brandDetail;
   }, [brandDetail]);
 
+  // ── Viewport/orientation recompute ────────────────────────────────────
+  // viewportFactor() depends on window.innerWidth, and positioned stars are
+  // memoized. Without this, rotating a phone can leave stale mobile positions.
+  // Debounced so a desktop resize drag does not rebuild the universe constantly.
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refreshViewport = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setViewportVersion((v) => v + 1);
+        const nextScale = isMobileViewport() ? 1.15 : 2.2;
+        targetRef.current = { x: 0, y: 0, scale: nextScale };
+        camRef.current = { ...camRef.current, scale: nextScale };
+      }, 180);
+    };
+
+    window.addEventListener("resize", refreshViewport);
+    window.addEventListener("orientationchange", refreshViewport);
+
+    return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      window.removeEventListener("resize", refreshViewport);
+      window.removeEventListener("orientationchange", refreshViewport);
+    };
+  }, []);
+
   // ── Opening drift — fires once on mount ──
   // flyTo refs targetRef.current, safe to call here.
   useEffect(() => {
@@ -301,8 +342,16 @@ export default function VaultGalaxy({
     glow: number;
   };
 
+  function clampCameraTarget(x: number, y: number) {
+    return {
+      x: Math.max(-galaxyPanBounds.x, Math.min(galaxyPanBounds.x, x)),
+      y: Math.max(-galaxyPanBounds.y, Math.min(galaxyPanBounds.y, y)),
+    };
+  }
+
   function flyTo(x: number, y: number, scale: number) {
-    targetRef.current = { x, y, scale };
+    const clamped = clampCameraTarget(x, y);
+    targetRef.current = { ...clamped, scale };
   }
 
   // ── Atlantis v2.0 — one click, curtain, automatic walk-in, no route ──
@@ -740,16 +789,23 @@ export default function VaultGalaxy({
       // Pan: move the camera target opposite the drag, divided by scale so the
       // field tracks the cursor 1:1. You pull the universe around you.
       const cam = camRef.current;
+      const nextTarget = clampCameraTarget(
+        targetRef.current.x - dx / cam.scale,
+        targetRef.current.y - dy / cam.scale,
+      );
       targetRef.current = {
-        x: targetRef.current.x - dx / cam.scale,
-        y: targetRef.current.y - dy / cam.scale,
+        ...nextTarget,
         scale: targetRef.current.scale,
       };
+
       // Keep the camera responsive mid-drag (don't wait for the lerp to catch up).
+      const nextCam = clampCameraTarget(
+        cam.x - dx / cam.scale,
+        cam.y - dy / cam.scale,
+      );
       camRef.current = {
         ...camRef.current,
-        x: cam.x - dx / cam.scale,
-        y: cam.y - dy / cam.scale,
+        ...nextCam,
       };
       d.lastX = e.clientX;
       d.lastY = e.clientY;
