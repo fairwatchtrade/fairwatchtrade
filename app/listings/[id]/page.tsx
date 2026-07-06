@@ -15,15 +15,23 @@ import WatchBlueprint from "@/components/WatchBlueprint";
    etc.) are NEVER rendered here — they are seller-only. Only buyer-safe
    fields below reach the markup.
 
-   Five-section layout (top → bottom):
+   Six-section layout (top → bottom):
      1. Media gallery (hero w/ brand·model overlay + thumbnail strip)
      2. Identity block — brand+model, Ref., Box & Papers badge, snapshot pills
      3. Collector Snapshot — prominent two-column spec grid
      4. Technical Specifications — remaining specs, never duplicating §3
      5. From the Seller — full description, mb-8 reserve for the message stream
-     Price  ← absolute last in-flow element
+     6. Price, then (buyer-only) Start Purchase Request / pending-status badge
+        ← these are now the last in-flow elements
    The message bar is position:fixed (viewport-pinned), so it is NOT part of
-   the scrolling content flow — price remains the last in-flow element.
+   the scrolling content flow.
+
+   v2.4a: added an owner-aware "Start Purchase Request" action directly below
+   Price, hidden when the viewer is the listing's own seller, plus a
+   buyer-facing badge when the viewer already has a pending request on this
+   listing. This supersedes the prior "Price is the absolute last in-flow
+   element" invariant from v1.57 — flagged as a deliberate change, not a
+   silent drift, since that line was a documented architectural invariant.
 
    v1.57: Studio design-system token migration. No logic, data, scoring,
    privacy, or photo-sort changes — className/layout only.
@@ -117,6 +125,27 @@ export default async function ListingDetailPage({
     .single();
 
   const sellerName = sellerProfile?.display_name ?? "FairWatchTrade Seller";
+
+  // Owner-aware button visibility — the seller shouldn't see their own
+  // listing's "Start Purchase Request" action.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isOwner = !!user && user.id === listing.seller_id;
+
+  // Buyer's own most recent request on this listing, if any — now that
+  // created_at is confirmed, we can order and pick the latest regardless of
+  // status (a buyer may have a declined request followed by a new one).
+  const { data: myLatestRequest } = user
+    ? await supabase
+        .from("purchase_requests")
+        .select("status")
+        .eq("listing_id", listing.id)
+        .eq("buyer_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   // Photos: keep only entries that actually carry a URL, so category-based
   // hero detection and the URL list stay index-aligned.
@@ -280,13 +309,46 @@ export default async function ListingDetailPage({
           </section>
         )}
 
-        {/* PRICE — absolute last rendered element in page content */}
+        {/* PRICE — last in-flow element before the buyer action below */}
         <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
           <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
           <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
             Asking Price · 5% platform fee applies
           </p>
         </div>
+
+        {/* START PURCHASE REQUEST — buyer-only, owner-aware. Hidden entirely
+            for the listing's own seller. A pending or accepted request hides
+            the button (a second pending request would just 409; an accepted
+            one has already moved past this step). A declined request shows
+            a small note but still allows a new attempt — declined doesn't
+            trip the exclusivity rule. */}
+        {!isOwner && (
+          <div className="mt-6 space-y-3">
+            {myLatestRequest?.status === "declined" && (
+              <div className="inline-block border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
+                Your previous request was declined
+              </div>
+            )}
+
+            {myLatestRequest?.status === "pending" ? (
+              <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                Your request is pending
+              </div>
+            ) : myLatestRequest?.status === "accepted" ? (
+              <div className="inline-block border border-[var(--success)] bg-[rgba(120,200,140,0.05)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--success)]">
+                Your request was accepted
+              </div>
+            ) : (
+              <Link
+                href={`/listings/${listing.id}/purchase-request`}
+                className="inline-block bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90"
+              >
+                Start Purchase Request
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       {/* COLLECTOR'S DRAWER — Phase 2
