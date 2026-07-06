@@ -15,7 +15,13 @@ import { useState } from "react";
    self-contained and ready to be dropped in once that's resolved.
    ──────────────────────────────────────────────────────────────────────── */
 
-export default function DialReveal({ photoUrl }: { photoUrl: string }) {
+export default function DialReveal({
+  photoUrl,
+  className,
+}: {
+  photoUrl: string;
+  className?: string;
+}) {
   const [value, setValue] = useState(50); // 0-100, 50 = neutral
   const [active, setActive] = useState(false);
 
@@ -37,7 +43,7 @@ export default function DialReveal({ photoUrl }: { photoUrl: string }) {
       <img
         src={photoUrl}
         alt=""
-        className="w-full transition-[filter] duration-200"
+        className={className ?? "w-full transition-[filter] duration-200"}
         style={{
           filter: active
             ? `brightness(${brightness}) contrast(${contrast})`
