@@ -126,6 +126,64 @@ function mobileGlowScale() {
   return isMobileViewport() ? 0.52 : 1;
 }
 
+/* ── Curated star images (v2.4n) ──────────────────────────────────────────
+   20 hand-picked textures in public/stars/. Every brand gets a STABLE,
+   hash-based assignment — the same star on every load, never reshuffled.
+   star_01 is Parmigiani Fleurier's dedicated star: excluded from the
+   general pool, unreachable by hash coincidence. The glow gradient stays;
+   images layer over it. Verified against the real folder + Supabase slug.
+   ──────────────────────────────────────────────────────────────────────── */
+
+// Reserved stars — permanently excluded from the general hash pool.
+// star_01 is Parmigiani Fleurier's dedicated star. No other brand may
+// ever receive it, even by hash coincidence.
+const STAR_EXCEPTIONS: Record<string, string> = {
+  "parmigiani-fleurier": "/stars/star_01.png",
+};
+
+// The general pool — every non-exception brand gets a stable, hash-based
+// assignment from this list. star_01 is deliberately NOT in this array.
+const STAR_POOL: string[] = [
+  "/stars/star_02.png",
+  "/stars/star_03.png",
+  "/stars/star_05.png",
+  "/stars/star_06.png",
+  "/stars/star_07.png",
+  "/stars/star_08.png",
+  "/stars/star_09.png",
+  "/stars/star_11.png",
+  "/stars/star_12.png",
+  "/stars/star_14.png",
+  "/stars/star_16.png",
+  "/stars/star_17.png",
+  "/stars/star_18.png",
+  "/stars/star_50.png",
+  "/stars/star_56.png",
+  "/stars/star_58.png",
+  "/stars/star_62.png",
+  "/stars/star_64.png",
+  "/stars/star_66.png",
+];
+
+// Simple deterministic string hash — same input always produces the same
+// output. This is what makes assignment "stable" (never reshuffles on
+// reload) rather than random.
+function hashSlug(slug: string): number {
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) {
+    hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function getStarImagePath(slug: string): string {
+  const exception = STAR_EXCEPTIONS[slug];
+  if (exception) return exception;
+
+  const index = hashSlug(slug) % STAR_POOL.length;
+  return STAR_POOL[index];
+}
+
 // TODO(vault-galaxy-depth): Give positioned brands deterministic 3–4 depth
 // shelves rather than a smooth random z spread. This will make the interactive
 // brand field feel like a volume without changing authored brand locations.
@@ -190,6 +248,29 @@ export default function VaultGalaxy({
   atlantisIntro?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // v2.4n — curated star images, preloaded once. Progressive per-image:
+  // the draw loop checks each image's own .complete/.naturalWidth every
+  // frame (rAF already runs continuously), so no React state, no barrier,
+  // and no stale-closure risk in the canvas effect. A star renders its
+  // image the moment that ONE file is ready; a broken file means that one
+  // star keeps its procedural circle forever. Nothing waits on anything.
+  const starImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  useEffect(() => {
+    const allPaths = [
+      ...new Set([...Object.values(STAR_EXCEPTIONS), ...STAR_POOL]),
+    ];
+    allPaths.forEach((path) => {
+      const img = new Image();
+      img.src = path;
+      starImagesRef.current.set(path, img);
+    });
+    const mapAtMount = starImagesRef.current;
+    return () => {
+      mapAtMount.clear();
+    };
+  }, []);
   const [viewportVersion, setViewportVersion] = useState(0);
 
   // Resolve each brand's position once: authored coords win, spiral fallback.
@@ -728,17 +809,54 @@ export default function VaultGalaxy({
         ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle =
-          o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
-        ctx.beginPath();
-        ctx.arc(
-          p.x,
-          p.y,
-          Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
+        // v2.4n — curated star image over the glow for brand stars.
+        const isBrandStar = o.type === "brand" || o.type === "brandCore";
+        const starBrand =
+          isBrandStar && o.refIndex !== undefined
+            ? positioned[o.refIndex]
+            : undefined;
+
+        if (starBrand) {
+          const imagePath = getStarImagePath(starBrand.slug);
+          const img = starImagesRef.current.get(imagePath);
+
+          if (img && img.complete && img.naturalWidth > 0) {
+            const drawSize =
+              Math.max(isMobileViewport() ? 1.6 : 2.2, p.r) * 2;
+            ctx.drawImage(
+              img,
+              p.x - drawSize / 2,
+              p.y - drawSize / 2,
+              drawSize,
+              drawSize,
+            );
+          } else {
+            // Image not ready yet — procedural circle this frame only.
+            ctx.fillStyle = "rgba(201,168,76,.9)";
+            ctx.beginPath();
+            ctx.arc(
+              p.x,
+              p.y,
+              Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
+              0,
+              Math.PI * 2,
+            );
+            ctx.fill();
+          }
+        } else {
+          // Models/moons (and collections) — unchanged procedural render.
+          ctx.fillStyle =
+            o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
+          ctx.beginPath();
+          ctx.arc(
+            p.x,
+            p.y,
+            Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
 
         if (cam.scale > 1.25 || o.type === "brand" || o.type === "brandCore") {
           ctx.font = `${o.type === "brandCore" ? 18 : 13}px 'Cormorant Garamond', serif`;
