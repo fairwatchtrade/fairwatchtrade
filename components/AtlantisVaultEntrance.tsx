@@ -322,23 +322,6 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
         cursor: "default",
       }}
     >
-      {/* v2.4k TEMPORARY DIAGNOSTIC — instrumentation only, NOT a fix.
-          Remove in the next pass once the mobile gates question is answered. */}
-      <div
-        style={{
-          position: "fixed",
-          top: 4,
-          left: 4,
-          zIndex: 99999,
-          background: "red",
-          color: "white",
-          padding: "4px 6px",
-          fontSize: "12px",
-        }}
-      >
-        mobile:{String(isMobile)} w:
-        {typeof window !== "undefined" ? window.innerWidth : "SSR"}
-      </div>
       <canvas
         ref={galaxyCanvasRef}
         aria-hidden="true"
