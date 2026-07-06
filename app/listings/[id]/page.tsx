@@ -65,6 +65,8 @@ type Listing = {
   description: string;
   created_at: string;
   status: string;
+  in_hand_verified?: boolean;
+  verified_at?: string | null;
 };
 
 // Buyer-facing photo display order by category; anything unlisted sorts last.
@@ -193,6 +195,30 @@ export default async function ListingDetailPage({
               <span className="inline-flex border border-[var(--border-gold)] px-3 py-1 text-[11px] uppercase tracking-[1px] text-[var(--gold)]">
                 Box &amp; Papers ✓
               </span>
+            </div>
+          )}
+
+          {listing.in_hand_verified && (
+            <div className="mt-3 flex items-start gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+              <span className="mt-[2px] text-[var(--gold)] opacity-80" aria-hidden="true">🛡️</span>
+              <div>
+                <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                  In Hand Verified
+                  {listing.verified_at && (
+                    <span className="ml-2 text-[var(--ghost)]">
+                      · {new Date(listing.verified_at).toLocaleDateString("en-US", {
+                          month: "long", day: "numeric", year: "numeric"
+                        })}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
+                  Photos captured live at time of listing.{" "}
+                  <span className="text-[var(--ghost)]">
+                    FairWatchTrade verifies possession, not authenticity.
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

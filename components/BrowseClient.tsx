@@ -34,6 +34,7 @@ type ListingRow = {
   sold?: boolean; // optional on the row; defaults false if absent
   weeks_featured?: number; // optional on the row; defaults 0 if absent
   status: string;
+  in_hand_verified?: boolean;
 };
 
 function formatPrice(value: number): string {
@@ -409,6 +410,16 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     href={`/listings/${row.id}`}
                     className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
+                    {row.in_hand_verified && (
+                      <div
+                        title="In Hand Verified"
+                        className="absolute top-2 right-2 text-[var(--gold)] opacity-70"
+                        aria-label="In Hand Verified"
+                      >
+                        🛡️
+                      </div>
+                    )}
+
                     {/* Dial / image area */}
                     <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
                       {hero ? (
