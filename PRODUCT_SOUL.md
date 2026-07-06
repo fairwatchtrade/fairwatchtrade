@@ -154,7 +154,7 @@ This value must never change. It is the canary that proves the evaluation engine
 - `BLOB_READ_WRITE_TOKEN` — never add
 - File delivery: always complete files top-to-bottom, never snippets
 - Git: always from `C:\Dev\fairwatchtrade` root
-- Version numbers: one continuous sequence from v1.8 anchor
+- Version numbers: one continuous sequence from v1.8 anchor. **Every commit gets one, no exceptions — including small bundles, polish passes, and single-file fixes.** A commit without a version tag is a permanent gap in the project's own memory of itself; it cannot be added after the fact without rewriting git history. (Logged after a bundle shipped unversioned mid-v2.2 — the sequence continues as if it were versioned, but that actual commit message never will be. This is the cost of skipping the rule once.)
 - Destination path at bottom of every file delivery, above canary note
 - Stop and flag architectural conflicts before writing a single line
 
@@ -232,3 +232,112 @@ It honors the object. It honors the seller. It implies the buyer who's out there
 
 *FairWatchTrade — Built by a collector, for collectors.*
 *Sebring, Florida. June 2026.*
+
+---
+
+## FairWatchTrade Correspondence
+
+*Every conversation deserves a home.*
+
+Most marketplaces separate conversations from the object they are about. Weeks later, buyers search an inbox trying to remember which watch they were discussing.
+
+FairWatchTrade does the opposite.
+
+Conversations remain attached to their natural home.
+
+A question about a watch belongs with that watch.
+A relationship between two dealers belongs with the dealer.
+
+The inbox is not the destination. It is simply a table of contents.
+
+---
+
+### Two Homes
+
+**The Listing**
+
+Every conversation about a specific watch lives on that listing. Questions. Additional photographs. Negotiation. Shipping clarification. Service history.
+
+Months later — the conversation is still there because the watch is still there.
+
+*The listing remembers.*
+
+**The Dealer**
+
+Dealer-to-dealer conversations are different. They are not about one watch. They are about trust. Relationships. Inventory. Future opportunities.
+
+Those conversations belong to the dealer profile itself.
+
+*The dealer remembers.*
+
+---
+
+### Correspondence
+
+Not Messages. Not Chat. Not DMs.
+
+**Correspondence.**
+
+Collectors correspond. Dealers correspond.
+
+The word slows the interaction just enough to feel intentional.
+
+---
+
+### The Inbox
+
+The inbox exists only to answer one question:
+
+*"Where have I been talking?"*
+
+It is never the destination. Every entry simply returns you home. Back to the listing. Back to the dealer. Back to the context.
+
+---
+
+### Commerce With Memory
+
+Dealer A writes: *"Looking for an early Datograph."*
+
+Three months pass.
+
+Dealer B lists one.
+
+FairWatchTrade quietly notices: *"A dealer you've corresponded with recently has listed a watch matching a previous inquiry."*
+
+No AI pretending to be clever. No surveillance. Just the platform remembering the relationships its users created.
+
+The network becomes more valuable because it remembers.
+
+---
+
+### The Governing Rule
+
+> **Conversations belong where the subject lives.**
+
+That sentence governs everything. It tells every future developer where new communication features should go. Not in a generic inbox. Not in a chat silo. Always back to the thing — or the person — they're actually about.
+
+This sits alongside the Vault philosophy and the Self-Evident Standard. Those describe how FairWatchTrade thinks. This describes how FairWatchTrade **remembers**.
+
+That's not a messaging feature. That's the character of the marketplace.
+
+---
+
+### Left Nav Vocabulary
+
+```
+Catalogue
+Listings
+Sales
+Correspondence
+```
+
+Slower. Intentional. Like letters between collectors.
+
+---
+
+### Schema Principle
+
+`message_threads.listing_id` is nullable. A null listing_id means the conversation belongs to the dealer relationship, not a specific watch. That single nullable field is the architectural expression of the two-home principle.
+
+One schema. Two homes. No generic inbox.
+
