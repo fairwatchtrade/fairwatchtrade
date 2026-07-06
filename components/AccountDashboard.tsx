@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -26,6 +26,11 @@ import Link from "next/link";
    state is wired so rows can show a selected treatment now.
    ──────────────────────────────────────────────────────────────────────── */
 
+type ListingPhoto = {
+  photo: { url: string };
+  category: string;
+};
+
 export type AccountListing = {
   id: string;
   brand: string;
@@ -35,6 +40,7 @@ export type AccountListing = {
   asking_price: number;
   status: string;
   created_at: string;
+  photos?: ListingPhoto[];
 };
 
 type ModuleId = "dashboard" | "inventory" | "market" | "messages" | "analytics";
@@ -54,6 +60,12 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: "Rejected",
   draft: "Draft",
 };
+
+function dialThumbUrl(photos?: ListingPhoto[]): string | null {
+  if (!Array.isArray(photos) || photos.length === 0) return null;
+  const dial = photos.find((p) => p?.category === "Dial");
+  return (dial ?? photos[0])?.photo?.url ?? null;
+}
 
 // Left-panel modules — GLOBAL nav. No counts here. Labels use the prototype's
 // shorter forms so they fit the 152px panel without wrapping.
@@ -89,15 +101,20 @@ function ListingRow({
   const inner = (
     <div
       onClick={() => onSelect(row.id)}
-      className={`relative flex cursor-pointer items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[14px] transition hover:bg-[rgba(255,255,255,0.02)] ${
+      className={`relative flex cursor-pointer items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px] transition hover:bg-[rgba(255,255,255,0.02)] ${
         selected
           ? "bg-[rgba(201,168,76,0.04)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
           : ""
       }`}
     >
-      {/* Dial thumbnail placeholder — 36×36 */}
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[var(--border-faint)] bg-[var(--surface)]">
-        <div className="h-4 w-4 rounded-full border border-[var(--border-subtle)]" />
+      {/* Dial thumbnail — real photo when available, placeholder circle otherwise */}
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
+        {dialThumbUrl(row.photos) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dialThumbUrl(row.photos)!} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-4 w-4 rounded-full border border-[var(--border-subtle)]" />
+        )}
       </div>
 
       {/* Info */}
@@ -167,7 +184,7 @@ function DashboardView({
         {kpis.map((kpi) => (
           <div
             key={kpi.label}
-            className="flex-1 border-r border-[var(--border-faint)] px-6 py-4 last:border-r-0"
+            className="flex-1 border-r border-[var(--border-faint)] px-6 py-6 last:border-r-0"
           >
             <div className="text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
               {kpi.label}
@@ -287,14 +304,28 @@ export default function AccountDashboard({
   const [activeTab, setActiveTab] = useState<TabId>("published");
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Counts derived from the prop — no new queries.
+  // Client-side filter — all listings already loaded as a prop, no new query.
+  const searchFiltered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return listings;
+    return listings.filter(
+      (l) =>
+        l.brand.toLowerCase().includes(q) ||
+        (l.model ?? "").toLowerCase().includes(q) ||
+        l.reference.toLowerCase().includes(q)
+    );
+  }, [listings, searchQuery]);
+
+  // Counts derived from the search-filtered set, so the stat strip and tab
+  // counts reflect the active search.
   const counts: Counts = {
-    total: listings.length,
-    active: listings.filter((l) => l.status === "published").length,
-    draft: listings.filter((l) => l.status === "draft").length,
-    pending: listings.filter((l) => l.status === "pending").length,
-    rejected: listings.filter((l) => l.status === "rejected").length,
+    total: searchFiltered.length,
+    active: searchFiltered.filter((l) => l.status === "published").length,
+    draft: searchFiltered.filter((l) => l.status === "draft").length,
+    pending: searchFiltered.filter((l) => l.status === "pending").length,
+    rejected: searchFiltered.filter((l) => l.status === "rejected").length,
   };
 
   const moduleTitle = activeModule === "dashboard" ? "Overview" : "Listings";
@@ -303,7 +334,7 @@ export default function AccountDashboard({
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       <div className="flex">
         {/* LEFT CONTROL PANEL — desktop only. Global nav: changes WHERE you are. */}
-        <aside className="hidden min-h-screen w-[152px] shrink-0 flex-col border-r border-[var(--border-faint)] bg-[var(--ink)] pt-7 pb-6 md:flex">
+        <aside className="hidden min-h-screen w-[176px] shrink-0 flex-col border-r border-[var(--border-faint)] bg-[var(--ink)] pt-7 pb-6 md:flex">
           {/* Header zone */}
           <div className="mb-5 px-5">
             <div className="text-[8px] uppercase tracking-[3px] text-[var(--ghost)]">
@@ -312,6 +343,17 @@ export default function AccountDashboard({
             <div className="mt-[3px] text-[9px] uppercase tracking-[2px] text-[var(--gold)]">
               Your Workspace
             </div>
+          </div>
+
+          {/* Search — filters own listings client-side, no new query */}
+          <div className="mb-4 px-5">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your listings…"
+              className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+            />
           </div>
 
           {/* Module nav — no counts */}
@@ -336,7 +378,7 @@ export default function AccountDashboard({
                   key={m.id}
                   type="button"
                   onClick={() => setActiveModule(m.id)}
-                  className={`relative flex w-full items-center justify-between px-5 py-[9px] text-left text-[11px] tracking-[0.5px] transition ${
+                  className={`relative flex w-full items-center justify-between px-5 py-[10px] text-left text-[10px] tracking-[1px] transition ${
                     isActive
                       ? "border-l-2 border-[var(--gold)] text-[var(--platinum)]"
                       : "border-l-2 border-transparent text-[var(--muted)] hover:text-[var(--slate)]"
@@ -384,7 +426,7 @@ export default function AccountDashboard({
           {/* Mobile: Inventory only — no module switching (panel hidden). */}
           <div className="md:hidden">
             <InventoryView
-              listings={listings}
+              listings={searchFiltered}
               counts={counts}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -397,14 +439,14 @@ export default function AccountDashboard({
           <div className="hidden md:block">
             {activeModule === "dashboard" ? (
               <DashboardView
-                listings={listings}
+                listings={searchFiltered}
                 counts={counts}
                 selectedListing={selectedListing}
                 onSelect={setSelectedListing}
               />
             ) : (
               <InventoryView
-                listings={listings}
+                listings={searchFiltered}
                 counts={counts}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}

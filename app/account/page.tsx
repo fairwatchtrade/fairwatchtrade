@@ -31,7 +31,7 @@ export default async function AccountPage() {
 
   const { data, error } = await supabase
     .from("listings")
-    .select("id, brand, model, reference, condition, asking_price, status, created_at")
+    .select("id, brand, model, reference, condition, asking_price, status, created_at, photos")
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 
