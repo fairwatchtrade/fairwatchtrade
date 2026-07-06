@@ -257,6 +257,14 @@ export default function VaultGalaxy({
   // star keeps its procedural circle forever. Nothing waits on anything.
   const starImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
+  // v2.4q — feathered star sprites, built ONCE per image and cached.
+  // Each entry is an offscreen canvas: the PNG with a destination-in
+  // radial mask feathering only the outer 20% of the radius (opaque to
+  // 0.80). Built lazily on first draw after the image loads; the draw
+  // loop then blits the cached canvas — zero per-frame compositing.
+  // A ref, not React state, per the brief.
+  const maskedStarsRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+
   useEffect(() => {
     const allPaths = [
       ...new Set([...Object.values(STAR_EXCEPTIONS), ...STAR_POOL]),
@@ -267,8 +275,10 @@ export default function VaultGalaxy({
       starImagesRef.current.set(path, img);
     });
     const mapAtMount = starImagesRef.current;
+    const masksAtMount = maskedStarsRef.current;
     return () => {
       mapAtMount.clear();
+      masksAtMount.clear();
     };
   }, []);
   const [viewportVersion, setViewportVersion] = useState(0);
@@ -823,33 +833,61 @@ export default function VaultGalaxy({
           if (img && img.complete && img.naturalWidth > 0) {
             const drawSize =
               Math.max(isMobileViewport() ? 1.6 : 2.2, p.r) * 2;
-            // v2.4p — circular clip: the PNGs stay square files, but only
-            // pixels inside the star's circle may render. Kills the sprite
-            // corners without another destructive asset pass. Clip applies
-            // to image-rendered brand/brandCore ONLY; the glow beneath and
-            // every procedural branch are outside the save/restore pair.
-            ctx.save();
+            // v2.4q — feathered radial mask replaces the v2.4p hard clip.
+            // The sprite is composited ONCE onto an offscreen canvas with a
+            // destination-in radial gradient: fully opaque to 80% of the
+            // radius, dissolving to transparent at the edge. Only the outer
+            // band feathers — inner detail stays sharp. The cached result is
+            // blitted scaled (feather is proportional, so scaling preserves
+            // it). The procedural halo above is NEVER touched by this mask.
+            let masked = maskedStarsRef.current.get(imagePath);
+            if (!masked) {
+              const M = 256; // fixed mask resolution, scaled at blit
+              const off = document.createElement("canvas");
+              off.width = M;
+              off.height = M;
+              const offCtx = off.getContext("2d");
+              if (offCtx) {
+                offCtx.drawImage(img, 0, 0, M, M);
+                offCtx.globalCompositeOperation = "destination-in";
+                const grad = offCtx.createRadialGradient(
+                  M / 2,
+                  M / 2,
+                  (M / 2) * 0.8, // fully opaque out to here
+                  M / 2,
+                  M / 2,
+                  M / 2, // fades to transparent by the edge
+                );
+                grad.addColorStop(0, "rgba(255,255,255,1)");
+                grad.addColorStop(1, "rgba(255,255,255,0)");
+                offCtx.fillStyle = grad;
+                offCtx.fillRect(0, 0, M, M);
+                maskedStarsRef.current.set(imagePath, off);
+                masked = off;
+              }
+            }
 
-            ctx.beginPath();
-            ctx.arc(
-              p.x,
-              p.y,
-              drawSize / 2,
-              0,
-              Math.PI * 2,
-            );
-            ctx.closePath();
-            ctx.clip();
-
-            ctx.drawImage(
-              img,
-              p.x - drawSize / 2,
-              p.y - drawSize / 2,
-              drawSize,
-              drawSize,
-            );
-
-            ctx.restore();
+            if (masked) {
+              ctx.drawImage(
+                masked,
+                p.x - drawSize / 2,
+                p.y - drawSize / 2,
+                drawSize,
+                drawSize,
+              );
+            } else {
+              // Offscreen context unavailable — procedural circle, as ever.
+              ctx.fillStyle = "rgba(201,168,76,.9)";
+              ctx.beginPath();
+              ctx.arc(
+                p.x,
+                p.y,
+                Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
+                0,
+                Math.PI * 2,
+              );
+              ctx.fill();
+            }
           } else {
             // Image not ready yet — procedural circle this frame only.
             ctx.fillStyle = "rgba(201,168,76,.9)";
