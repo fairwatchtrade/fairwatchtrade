@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
@@ -67,6 +68,7 @@ type Listing = {
   status: string;
   in_hand_verified?: boolean;
   verified_at?: string | null;
+  seller_id: string;
 };
 
 // Buyer-facing photo display order by category; anything unlisted sorts last.
@@ -105,6 +107,17 @@ export default async function ListingDetailPage({
   const listing = data as Listing;
   const details = (listing.details ?? {}) as ListingDetails;
 
+  // Seller display name — same profiles/display_name/id-join pattern already
+  // confirmed working in app/sellers/[id]/page.tsx. Fails open to a generic
+  // label rather than erroring if the profile row is missing.
+  const { data: sellerProfile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", listing.seller_id)
+    .single();
+
+  const sellerName = sellerProfile?.display_name ?? "FairWatchTrade Seller";
+
   // Photos: keep only entries that actually carry a URL, so category-based
   // hero detection and the URL list stay index-aligned.
   const allPhotos = Array.isArray(listing.photos) ? listing.photos : [];
@@ -122,6 +135,12 @@ export default async function ListingDetailPage({
   const dialIdx = sorted.findIndex((p) => p?.category === "Dial");
   const heroIndex = dialIdx >= 0 ? dialIdx : 0;
   const heroUrl = photoUrls[heroIndex] ?? photoUrls[0] ?? null;
+
+  // Dial Reveal needs the dial photo specifically, independent of whichever
+  // photo is currently the hero — in practice heroUrl usually IS the dial
+  // photo, but this must not be assumed structurally.
+  const dialPhoto = sorted.find((p) => p?.category === "Dial");
+  const dialPhotoUrl = dialPhoto?.photo.url ?? null;
 
   // Header title.
   const title = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
@@ -189,6 +208,12 @@ export default async function ListingDetailPage({
           <p className="mt-1 text-[13px] tracking-[0.5px] text-[var(--muted)]">
             Ref. {listing.reference}
           </p>
+          <Link
+            href={`/sellers/${listing.seller_id}`}
+            className="mt-1 inline-block text-[11px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+          >
+            Sold by {sellerName} →
+          </Link>
 
           {showBoxPapers && (
             <div className="mt-2">

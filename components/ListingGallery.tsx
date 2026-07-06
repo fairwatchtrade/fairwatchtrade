@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import DialReveal from "@/components/DialReveal";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING GALLERY — buyer-facing photo viewer (v1.22)
@@ -15,11 +16,13 @@ export default function ListingGallery({
   photos,
   initialIndex = 0,
   brandLabel,
+  dialUrl,
 }: {
   photos: string[];
   initialIndex?: number;
   brandLabel: string;
   modelLabel: string | null;
+  dialUrl?: string | null;
 }) {
   const safeInitial =
     initialIndex >= 0 && initialIndex < photos.length ? initialIndex : 0;
@@ -34,7 +37,14 @@ export default function ListingGallery({
       {/* Hero — large, full-width */}
       <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#0D0F14]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
+        {dialUrl && heroUrl === dialUrl ? (
+          <DialReveal
+            photoUrl={heroUrl}
+            className="max-h-[60vh] w-full rounded-lg object-contain transition-[filter] duration-200"
+          />
+        ) : (
+          <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
+        )}
         <div className="pointer-events-none absolute left-3 top-2 text-[10px] font-light uppercase tracking-[0.15em] text-[#E8E4DC]/60">
           {brandLabel}
         </div>
