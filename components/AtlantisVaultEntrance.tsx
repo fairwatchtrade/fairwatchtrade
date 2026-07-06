@@ -322,6 +322,23 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
         cursor: "default",
       }}
     >
+      {/* v2.4k TEMPORARY DIAGNOSTIC — instrumentation only, NOT a fix.
+          Remove in the next pass once the mobile gates question is answered. */}
+      <div
+        style={{
+          position: "fixed",
+          top: 4,
+          left: 4,
+          zIndex: 99999,
+          background: "red",
+          color: "white",
+          padding: "4px 6px",
+          fontSize: "12px",
+        }}
+      >
+        mobile:{String(isMobile)} w:
+        {typeof window !== "undefined" ? window.innerWidth : "SSR"}
+      </div>
       <canvas
         ref={galaxyCanvasRef}
         aria-hidden="true"
@@ -457,11 +474,11 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
               style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}
               aria-label="Enter the FairWatchTrade Vault"
             >
-              <div style={{ width: "1px", height: "32px", background: "linear-gradient(to bottom, transparent, rgba(201,168,76,0.3))" }} />
-              <div style={{ fontSize: "9px", letterSpacing: "6px", color: "rgba(201,168,76,0.55)", textTransform: "uppercase", padding: "8px 0" }}>
+              <div style={{ width: "1px", height: "32px", background: "linear-gradient(to bottom, transparent, rgba(201,168,76,0.36))" }} />
+              <div style={{ fontSize: "9px", letterSpacing: "6px", color: "rgba(201,168,76,0.78)", textTransform: "uppercase", padding: "8px 0" }}>
                 Enter
               </div>
-              <div style={{ width: "1px", height: "20px", background: "linear-gradient(to bottom, rgba(201,168,76,0.25), transparent)" }} />
+              <div style={{ width: "1px", height: "20px", background: "linear-gradient(to bottom, rgba(201,168,76,0.30), transparent)" }} />
             </div>
           </div>
 
