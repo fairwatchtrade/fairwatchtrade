@@ -442,7 +442,19 @@ export default function VaultGalaxy({
     setSelectedVariant(v);
     setView("detail");
     setCrumb(b.name + " · " + c.name + " · " + v.name);
-    flyTo(camRef.current.x, camRef.current.y, 5.2);
+    // v2.4d: fly to the PLANET this moon orbits — not to camRef's mid-flight
+    // position, which froze the camera wherever the previous flight happened
+    // to be (the selected moon could land entirely off-screen, so a moon tap
+    // produced no visible response beyond the crumb). Moons orbit within
+    // 34/26 world units of their planet, so centering the planet at 5.2×
+    // always frames the moon. Placement math mirrors build() exactly
+    // (66/48 offsets, n = max(1, len)), with the same /b.z overshoot fix
+    // enterBrand and enterCollection use.
+    const detail = detailRef.current ?? [];
+    const cidx = Math.max(0, detail.indexOf(c));
+    const a =
+      -Math.PI / 2 + cidx * ((Math.PI * 2) / Math.max(1, detail.length));
+    flyTo((b.x + Math.cos(a) * 66) / b.z, (b.y + Math.sin(a) * 48) / b.z, 5.2);
   }
 
   function resetGalaxy() {
@@ -746,18 +758,36 @@ export default function VaultGalaxy({
     draw();
 
     // ── Pointer: drag-to-pan + click-to-select (a drag suppresses the click) ──
+    // Selection cooldown (v2.4d): view/objects update instantly on selection,
+    // but the camera lerps toward its target for ~1.5s. A rapid second tap
+    // (habitual on mobile, where there is no hover feedback) used to land in
+    // the NEW world at the OLD screen coordinates — often on a moon that had
+    // just swept under the finger — jumping straight to the detail card. A
+    // successful selection now opens a 450ms window in which further taps are
+    // ignored. Empty-space taps never start the cooldown.
+    let lastSelectAt = 0;
     function doSelect(mx: number, my: number) {
+      if (performance.now() - lastSelectAt < 450) return;
       let hit: EngineObject | null = null;
-      let dist = 99999;
+      // Normalized ranking (v2.4d): candidates are ranked by distance in
+      // units of their own hit radius, not raw pixels. In the compressed
+      // mobile field the fixed 18px zones overlap, and raw-distance ranking
+      // let a barely-visible moon beat the planet the finger was plainly on.
+      // Normalizing means the visually larger / truly nearer object wins the
+      // tie. Zone size (finger-friendly 18px floor) is unchanged.
+      let best = Infinity;
       objectsRef.current.forEach((o) => {
         const p = screen(o);
         const d = Math.hypot(mx - p.x, my - p.y);
-        if (d < Math.max(18, p.r + 10) && d < dist) {
+        const zone = Math.max(18, p.r + 10);
+        const norm = d / (p.r + 10);
+        if (d < zone && norm < best) {
           hit = o;
-          dist = d;
+          best = norm;
         }
       });
       if (!hit) return;
+      lastSelectAt = performance.now();
       const h = hit as EngineObject;
       if (h.type === "brand" || h.type === "brandCore") {
         if (h.refIndex !== undefined) enterBrand(positioned[h.refIndex]);
