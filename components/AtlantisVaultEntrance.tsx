@@ -86,6 +86,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
 
   const [isIgnited, setIsIgnited] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const enteredRef = useRef(false);
   const revealStartRef = useRef(0);
@@ -109,6 +110,15 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
     return () => {
       timeouts.forEach(clearTimeout);
     };
+  }, []);
+
+  // Responsive gate width (v2.4i): SSR-safe — first render assumes desktop
+  // (88px), then syncs to the real viewport on mount and tracks resizes.
+  useEffect(() => {
+    setIsMobile(isMobileViewport());
+    const handleResize = () => setIsMobile(isMobileViewport());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -371,8 +381,8 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
         </div>
 
         <div style={{ flex: 1, display: "flex", alignItems: "stretch", position: "relative" }}>
-          <div style={{ width: "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}>
-            <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
+          <div style={{ width: isMobile ? "48px" : "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease, width 300ms ease" }}>
+            <svg viewBox="0 0 88 560" fill="none" width="100%" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
               <line x1="18" y1="20" x2="18" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
               <line x1="42" y1="48" x2="42" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
               <line x1="62" y1="70" x2="62" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
@@ -405,7 +415,7 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             </svg>
           </div>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 32px 48px", textAlign: "center" }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 32px 48px", textAlign: "center" }}>
             <div style={{ marginBottom: "36px" }}>
               <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
                 <circle cx="18" cy="18" r="17" stroke="rgba(201,168,76,0.28)" strokeWidth="0.6" />
@@ -455,8 +465,8 @@ export default function AtlantisVaultEntrance({ brands }: { brands: VaultBrand[]
             </div>
           </div>
 
-          <div style={{ width: "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease" }}>
-            <svg viewBox="0 0 88 560" fill="none" width="88" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
+          <div style={{ width: isMobile ? "48px" : "88px", flexShrink: 0, position: "relative", opacity: isIgnited ? 0.12 : 1, transition: "opacity 700ms ease, width 300ms ease" }}>
+            <svg viewBox="0 0 88 560" fill="none" width="100%" style={{ height: "100%", minHeight: "480px" }} preserveAspectRatio="xMidYMid meet">
               <line x1="70" y1="20" x2="70" y2="540" stroke="rgba(201,168,76,0.28)" strokeWidth="1.2" />
               <line x1="46" y1="48" x2="46" y2="512" stroke="rgba(201,168,76,0.16)" strokeWidth="0.7" />
               <line x1="26" y1="70" x2="26" y2="490" stroke="rgba(201,168,76,0.1)" strokeWidth="0.5" />
