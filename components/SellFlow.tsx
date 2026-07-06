@@ -480,6 +480,16 @@ function ProgressBar({ step }: { step: number }) {
   );
 }
 
+// Extremely generous heuristic — only flags references that are clearly
+// too short or contain no alphanumeric structure at all. This must almost
+// never fire on a real reference number. Advisory only, never blocks.
+function looksLikeWeakReference(ref: string): boolean {
+  const trimmed = ref.trim();
+  if (trimmed.length < 3) return true;
+  if (!/[a-zA-Z0-9]/.test(trimmed)) return true;
+  return false;
+}
+
 function CurationStep({
   draft,
   patch,
@@ -491,6 +501,7 @@ function CurationStep({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [refHint, setRefHint] = useState(false);
 
   const ready =
     draft.brand.trim() &&
@@ -553,7 +564,22 @@ function CurationStep({
         </div>
         <div>
           <label className={label}>Reference number</label>
-          <input id="reference" className={input} value={draft.reference} onChange={(e) => patch({ reference: e.target.value })} placeholder="e.g. reference number" />
+          <input
+            id="reference"
+            className={input}
+            value={draft.reference}
+            onChange={(e) => {
+              patch({ reference: e.target.value });
+              if (refHint) setRefHint(false);
+            }}
+            onBlur={() => setRefHint(looksLikeWeakReference(draft.reference))}
+            placeholder="e.g. reference number"
+          />
+          {refHint && draft.reference.trim().length > 0 && (
+            <p className="mt-1 text-[11px] italic text-[var(--gold-subtle)]">
+              That reference number looks a little short — double-check it before continuing.
+            </p>
+          )}
         </div>
         <div>
           <label className={label}>Year</label>

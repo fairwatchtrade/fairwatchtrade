@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -66,6 +66,12 @@ const SERVICE = [
   "Recently serviced",
   "Unpolished / original",
   "Polished",
+];
+const DIAL_COLOR_SUGGESTIONS = [
+  "Black", "White", "Silver", "Blue", "Champagne", "Green",
+  "Grey", "Salmon", "Brown", "Burgundy", "Ivory", "Cream",
+  "Anthracite", "Slate", "Chocolate", "Navy", "Abyss Blue",
+  "Sunburst Blue", "Sunburst Grey", "Mother of Pearl", "Meteorite",
 ];
 
 /* Mutual-exclusion rules for Service/repair history (option (b) — expressive):
@@ -152,6 +158,48 @@ function diffSegments(
     }
   }
   return out;
+}
+
+function DialColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [focused, setFocused] = useState(false);
+  const suggestions = useMemo(() => {
+    const q = value.trim().toLowerCase();
+    if (!q) return DIAL_COLOR_SUGGESTIONS.slice(0, 6);
+    return DIAL_COLOR_SUGGESTIONS.filter((c) => c.toLowerCase().includes(q)).slice(0, 6);
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <input
+        className={inputCls}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        placeholder="Abyss Blue sunburst"
+        spellCheck={false}
+        autoComplete="off"
+      />
+      {focused && suggestions.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full border border-[var(--border-mid)] bg-[var(--ink)]">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(s);
+                setFocused(false);
+              }}
+              className="block w-full px-3 py-2 text-left text-[13px] text-[var(--platinum)] hover:bg-[rgba(201,168,76,0.06)]"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DetailsStep({
@@ -288,11 +336,11 @@ export default function DetailsStep({
       <Chapter numeral="II" title="The Case" caption="Case dimensions and materials." chapterKey="case">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Case size (mm)">
-            <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} placeholder="40" inputMode="decimal" />
+            <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} placeholder="e.g. 40" inputMode="decimal" />
           </Field>
 
           <Field label="Case thickness (mm, optional)">
-            <input className={inputCls} value={d.caseThicknessMm ?? ""} onChange={(e) => set("caseThicknessMm", e.target.value)} placeholder="8.7" inputMode="decimal" />
+            <input className={inputCls} value={d.caseThicknessMm ?? ""} onChange={(e) => set("caseThicknessMm", e.target.value)} placeholder="e.g. 8.7" inputMode="decimal" />
           </Field>
 
           <Field label="Case material">
@@ -351,7 +399,7 @@ export default function DetailsStep({
       <Chapter numeral="III" title="The Dial & Hands" caption="Dial and crown." chapterKey="dial">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dial color / type">
-            <input className={inputCls} value={d.dialColorType ?? ""} onChange={(e) => set("dialColorType", e.target.value)} placeholder="Abyss Blue sunburst" spellCheck={false} />
+            <DialColorField value={d.dialColorType ?? ""} onChange={(v) => set("dialColorType", v)} />
           </Field>
 
           <div className="flex items-end pb-1">
