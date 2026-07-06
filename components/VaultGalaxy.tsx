@@ -120,10 +120,10 @@ function isMobileViewport() {
 // viewportFactor() compresses brand positions on phones, radius/glow must also
 // compress or the galaxy turns into oversized bubbles.
 function mobileStarScale() {
-  return isMobileViewport() ? 0.42 : 1;
+  return isMobileViewport() ? 0.6 : 1;
 }
 function mobileGlowScale() {
-  return isMobileViewport() ? 0.38 : 1;
+  return isMobileViewport() ? 0.52 : 1;
 }
 
 // TODO(vault-galaxy-depth): Give positioned brands deterministic 3–4 depth
@@ -700,7 +700,7 @@ export default function VaultGalaxy({
           return;
         const glow = o.glow || 1;
         const glowCap = isMobileViewport()
-          ? Math.min(window.innerWidth, window.innerHeight) * 0.075
+          ? Math.min(window.innerWidth, window.innerHeight) * 0.105
           : Infinity;
         const minGlowR = isMobileViewport() ? 9 : 16;
         const glowR = Math.min(
