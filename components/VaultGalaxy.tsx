@@ -823,6 +823,24 @@ export default function VaultGalaxy({
           if (img && img.complete && img.naturalWidth > 0) {
             const drawSize =
               Math.max(isMobileViewport() ? 1.6 : 2.2, p.r) * 2;
+            // v2.4p — circular clip: the PNGs stay square files, but only
+            // pixels inside the star's circle may render. Kills the sprite
+            // corners without another destructive asset pass. Clip applies
+            // to image-rendered brand/brandCore ONLY; the glow beneath and
+            // every procedural branch are outside the save/restore pair.
+            ctx.save();
+
+            ctx.beginPath();
+            ctx.arc(
+              p.x,
+              p.y,
+              drawSize / 2,
+              0,
+              Math.PI * 2,
+            );
+            ctx.closePath();
+            ctx.clip();
+
             ctx.drawImage(
               img,
               p.x - drawSize / 2,
@@ -830,6 +848,8 @@ export default function VaultGalaxy({
               drawSize,
               drawSize,
             );
+
+            ctx.restore();
           } else {
             // Image not ready yet — procedural circle this frame only.
             ctx.fillStyle = "rgba(201,168,76,.9)";
