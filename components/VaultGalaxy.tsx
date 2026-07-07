@@ -1391,7 +1391,12 @@ export default function VaultGalaxy({
 
         {/* Detail / drill-down card */}
         {(view !== "brands" || selectedBrand) && (
-          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.84)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-[108px] max-sm:max-h-[calc(100vh-278px)] max-sm:overflow-y-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
+          /* v2.4v — blue smoked glass: the card is an overlay in the
+             Observatory, not a wall. Translucent ink-blue tint + subtle
+             backdrop blur lets the planet and its moons read faintly
+             through. Surface treatment only; the future detail-drawer
+             adds beneath without reworking this surface. */
+          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-[108px] max-sm:max-h-[calc(100vh-278px)] max-sm:overflow-y-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
             {loading ? (
               <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
                 Illuminating the constellation…
