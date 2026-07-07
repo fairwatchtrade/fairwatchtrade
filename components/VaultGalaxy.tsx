@@ -1705,7 +1705,13 @@ export default function VaultGalaxy({
                 </svg>
               </div>
 
-              <div className="flex flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center">
+              {/* v2.4r — min-w-0: without it this flex-1 column's CSS
+                  minimum is min-content (measured 249px at a 390px viewport
+                  vs 214px available), so the row overflowed and ejected the
+                  right gate past the viewport edge. min-w-0 lets the column
+                  shrink; the text wraps; both gates stand. Evidence:
+                  row.scrollW 425 vs clientW 390, right gate edge at 425. */}
+              <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center">
                 <div className="mb-9">
                   <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
                     <circle
