@@ -126,6 +126,12 @@ function mobileGlowScale() {
   return isMobileViewport() ? 0.52 : 1;
 }
 
+/* ── Selected-moon horological indicator (v2.4t) ─────────────────────────
+   One full sweep of the stopwatch hand takes this long. THE single tuning
+   knob for the selector's motion character — restrained, alive, unhurried.
+   Range ruled sensible: 8–15s. */
+const SELECTOR_SWEEP_MS = 12000;
+
 /* ── Curated star images (v2.4n) ──────────────────────────────────────────
    20 hand-picked textures in public/stars/. Every brand gets a STABLE,
    hash-based assignment — the same star on every load, never reshuffled.
@@ -348,6 +354,9 @@ export default function VaultGalaxy({
   const objectsRef = useRef<EngineObject[]>([]);
   const tRef = useRef(0);
   const dprRef = useRef(1);
+  // v2.4t — selected-moon indicator state for the draw loop.
+  const selVariantRef = useRef<VaultVariant | null>(null);
+  const selectorStartRef = useRef(0);
   // Mirror state into refs so the rAF loop reads current values without re-binding.
   const viewRef = useRef(view);
   const selBrandRef = useRef(selectedBrand);
@@ -381,6 +390,15 @@ export default function VaultGalaxy({
   useEffect(() => {
     detailRef.current = brandDetail;
   }, [brandDetail]);
+  // v2.4t — selection mirrored for the rAF loop (house pattern, same as
+  // viewRef/selCollRef above; the long-lived canvas effect never rebinds).
+  // The start stamp makes the hand begin deterministically at 12 o'clock
+  // on every new selection — motion IS the acknowledgement. One ref, no
+  // state machinery.
+  useEffect(() => {
+    selVariantRef.current = selectedVariant;
+    if (selectedVariant) selectorStartRef.current = performance.now();
+  }, [selectedVariant]);
 
   // ── Viewport/orientation recompute ────────────────────────────────────
   // viewportFactor() depends on window.innerWidth, and positioned stars are
@@ -914,6 +932,84 @@ export default function VaultGalaxy({
             Math.PI * 2,
           );
           ctx.fill();
+
+          /* ── v2.4t · selected-moon horological indicator ──────────────
+             Identity-attached: exact variant id match, never position or
+             proximity. Drawn in the same pass as the moon, so it follows
+             the orbit to the pixel. Anatomy per the approved reference:
+             a thin dial, 12 five-minute marks whose inner tips end just
+             shy of the moon body, one pivot, one stopwatch hand sweeping
+             on elapsed time. No 1-minute hashes, no reticle, no glow. */
+          const selV = selVariantRef.current;
+          if (
+            o.type === "model" &&
+            o.variant &&
+            selV &&
+            o.variant.id === selV.id
+          ) {
+            // Geometry derives from the projected moon radius so the tight
+            // relationship holds at every zoom; the floor keeps the dial
+            // legible when a distant moon projects tiny.
+            const body = Math.max(isMobileViewport() ? 1.6 : 2.2, p.r);
+            const base = Math.max(body, 3);
+            const markInner = base * 1.14; // just shy of the moon body
+            const markOuter = base * 1.42;
+            const dialR = base * 1.5;
+            const handLen = base * 1.34;
+
+            ctx.save();
+
+            // 1 · dial boundary — one thin circle
+            ctx.strokeStyle = "rgba(201,168,76,0.30)";
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, dialR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 2 · twelve five-minute marks, pointing inward
+            ctx.strokeStyle = "rgba(201,168,76,0.55)";
+            ctx.lineWidth = 0.8;
+            for (let m = 0; m < 12; m++) {
+              const a = (m / 12) * Math.PI * 2 - Math.PI / 2;
+              ctx.beginPath();
+              ctx.moveTo(
+                p.x + Math.cos(a) * markInner,
+                p.y + Math.sin(a) * markInner,
+              );
+              ctx.lineTo(
+                p.x + Math.cos(a) * markOuter,
+                p.y + Math.sin(a) * markOuter,
+              );
+              ctx.stroke();
+            }
+
+            // 3 · center pivot
+            ctx.fillStyle = "rgba(201,168,76,0.8)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, Math.max(0.7, base * 0.14), 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4 · the stopwatch hand — elapsed-time sweep, starts at 12
+            //     on every fresh selection. Never frame-count, never ticks.
+            const elapsed = performance.now() - selectorStartRef.current;
+            const handA =
+              ((elapsed % SELECTOR_SWEEP_MS) / SELECTOR_SWEEP_MS) *
+                Math.PI *
+                2 -
+              Math.PI / 2;
+            ctx.strokeStyle = "rgba(232,228,220,0.75)";
+            ctx.lineWidth = 0.9;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(
+              p.x + Math.cos(handA) * handLen,
+              p.y + Math.sin(handA) * handLen,
+            );
+            ctx.stroke();
+
+            ctx.restore();
+          }
         }
 
         if (cam.scale > 1.25 || o.type === "brand" || o.type === "brandCore") {
