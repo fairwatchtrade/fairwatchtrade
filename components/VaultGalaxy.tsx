@@ -149,6 +149,47 @@ const GALAXY_ANCHOR_BRANDS: Set<string> = new Set([
   "grand-seiko",
   "greubel-forsey",
 ]);
+
+/* ── Curated mobile-visible set (v2.5a · addendum to v2.4x) ─────────────
+   Label-eligible by default on MOBILE broad Galaxy only — the supporting
+   constellation around the eight anchors. Same viewport-fit, edge, and
+   collision rules as everything else; an actual Tier 1 anchor still wins
+   a collision. NOT merged into GALAXY_ANCHOR_BRANDS (those are always
+   visible everywhere; these are mobile-broad-Galaxy only). Every slug
+   below was resolved against the live vault_brands table — never guessed.
+   Rolex is deliberately absent: it is already a Tier 1 anchor.
+   Ten names from the ruling remain unseeded in vault_brands (Bucherer,
+   Erard, Speake-Marin, Mido, Wempe, Maurice Lacroix, Louis Moinet,
+   Bell & Ross, Armin Strom, Antoine Martin) — they join here in one line
+   each once seeded. Credor stands in for Eichi per William's ruling. */
+const MOBILE_CURATED_VISIBLE_SLUGS: Set<string> = new Set([
+  "audemars-piguet",
+  "blancpain",
+  "bovet",
+  "breitling",
+  "bulgari",
+  "cartier",
+  "credor",
+  "franck-muller",
+  "glash-tte-original",
+  "h-moser-cie",
+  "hautlence",
+  "hublot",
+  "iwc-schaffhausen",
+  "kari-voutilainen",
+  "krayon",
+  "laurent-ferrier",
+  "mb-f",
+  "montblanc",
+  "nomos-glash-tte",
+  "omega",
+  "oris",
+  "panerai",
+  "piaget",
+  "richard-mille",
+  "ulysse-nardin",
+  "vacheron-constantin",
+]);
 const TIER3_LABEL_ZOOM_IN = 2.0;
 const TIER3_LABEL_ZOOM_OUT = 1.85;
 const LABEL_EDGE_PAD = 18;
@@ -1179,7 +1220,16 @@ export default function VaultGalaxy({
               fontPx = 9;
               drawAlpha = alpha;
               priority = hovered ? 5 : 3;
-            } else if (tier3On) {
+            } else if (
+              tier3On ||
+              // v2.5a — curated mobile set: eligible by default on mobile
+              // broad Galaxy, rendered in the quiet passive tier so the
+              // eight anchors stay visually senior. Desktop unchanged
+              // (mobile-gated). Same fit/collision pipeline downstream.
+              (mobile &&
+                c.slug !== null &&
+                MOBILE_CURATED_VISIBLE_SLUGS.has(c.slug))
+            ) {
               font = "400 9px 'Cormorant Garamond', serif";
               fill = "#9CA1B0";
               fontPx = 9;
