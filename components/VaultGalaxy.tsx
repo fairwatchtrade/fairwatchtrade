@@ -132,6 +132,32 @@ function mobileGlowScale() {
    Range ruled sensible: 8–15s. */
 const SELECTOR_SWEEP_MS = 12000;
 
+/* ── Three-tier label system (v2.4x) ────────────────────────────────────
+   Tier 1: editorial anchor brands — the North Stars, always eligible.
+   Tier 2: every other brand — desktop proximity reveal only.
+   Tier 3: all brands persist once the camera is genuinely close
+   (hysteresis so the boundary never flickers). All tiers still pass
+   off-screen, edge-fit, and collision suppression before drawing. */
+// Editorial curatorial decision, NOT a database score. Ruled by William.
+const GALAXY_ANCHOR_BRANDS: Set<string> = new Set([
+  "breguet",
+  "patek-philippe",
+  "rolex",
+  "parmigiani-fleurier",
+  "fp-journe",
+  "a-lange-sohne",
+  "grand-seiko",
+  "greubel-forsey",
+]);
+const TIER3_LABEL_ZOOM_IN = 2.0;
+const TIER3_LABEL_ZOOM_OUT = 1.85;
+const LABEL_EDGE_PAD = 18;
+const LABEL_COLLISION_GAP = 5;
+const PROXIMITY_MIN_RADIUS = 32;
+const PROXIMITY_STAR_MULTIPLIER = 3.0;
+const PROXIMITY_FADE_IN_MS = 150;
+const PROXIMITY_FADE_OUT_MS = 280;
+
 /* ── Curated star images (v2.4n) ──────────────────────────────────────────
    20 hand-picked textures in public/stars/. Every brand gets a STABLE,
    hash-based assignment — the same star on every load, never reshuffled.
@@ -354,6 +380,14 @@ export default function VaultGalaxy({
   const objectsRef = useRef<EngineObject[]>([]);
   const tRef = useRef(0);
   const dprRef = useRef(1);
+  // v2.4x — label-system state for the rAF loop. pointerPosRef tracks the
+  // raw cursor independent of dragRef (never repurpose drag state);
+  // tier3ShownRef persists the zoom hysteresis; proximityAlphaRef holds
+  // per-brand fade levels; labelFrameTsRef supplies dt for the fades.
+  const pointerPosRef = useRef<{ x: number; y: number } | null>(null);
+  const tier3ShownRef = useRef(false);
+  const proximityAlphaRef = useRef<Map<string, number>>(new Map());
+  const labelFrameTsRef = useRef(0);
   // v2.4t — selected-moon indicator state for the draw loop.
   const selVariantRef = useRef<VaultVariant | null>(null);
   const selectorStartRef = useRef(0);
@@ -778,6 +812,17 @@ export default function VaultGalaxy({
     }
 
     function draw() {
+      // v2.4x — labels are decided in a dedicated pass after the object
+      // loop; candidates collect here. Bodies/selector render untouched.
+      const labelCands: {
+        text: string;
+        x: number;
+        y: number;
+        r: number;
+        isBrand: boolean;
+        isCore: boolean;
+        slug: string | null;
+      }[] = [];
       tRef.current = performance.now();
       const cam = camRef.current;
       const target = targetRef.current;
@@ -1017,18 +1062,202 @@ export default function VaultGalaxy({
           }
         }
 
-        if (cam.scale > 1.25 || o.type === "brand" || o.type === "brandCore") {
-          ctx.font = `${o.type === "brandCore" ? 18 : 13}px 'Cormorant Garamond', serif`;
-          ctx.textAlign = "center";
-          ctx.fillStyle = "rgba(232,228,220,.9)";
-          const labelX = Math.max(24, Math.min(window.innerWidth - 24, p.x));
-          const labelY = Math.max(
-            26,
-            Math.min(window.innerHeight - 24, p.y - p.r - 12),
-          );
-          ctx.fillText(o.label, labelX, labelY);
-        }
+        // v2.4x — no inline fillText: collect a candidate; the tier pass
+        // below decides. Iteration order of this loop is unchanged (the
+        // selected-moon indicator depends on it).
+        labelCands.push({
+          text: o.label,
+          x: p.x,
+          y: p.y - p.r - 12,
+          r: p.r,
+          isBrand: o.type === "brand",
+          isCore: o.type === "brandCore",
+          slug:
+            (o.type === "brand" || o.type === "brandCore") &&
+            o.refIndex !== undefined
+              ? positioned[o.refIndex].slug
+              : null,
+        });
       });
+
+      /* ── v2.4x · three-tier label pass ────────────────────────────────
+         A label may disappear. It may not lie about where its star is.
+         Off-screen stars get NO label; nothing is ever clamped or slid.
+         Priority: interaction > anchor > passive; center distance is a
+         tie-breaker ONLY. Significance tier: skipped — no score exists
+         in this component's data (flagged, not fabricated). */
+      {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const nowTs = performance.now();
+        const dt = Math.min(50, nowTs - (labelFrameTsRef.current || nowTs));
+        labelFrameTsRef.current = nowTs;
+
+        // Tier 3 hysteresis — persisted, updated once per frame.
+        if (!tier3ShownRef.current && cam.scale >= TIER3_LABEL_ZOOM_IN) {
+          tier3ShownRef.current = true;
+        } else if (
+          tier3ShownRef.current &&
+          cam.scale < TIER3_LABEL_ZOOM_OUT
+        ) {
+          tier3ShownRef.current = false;
+        }
+        const tier3On = tier3ShownRef.current;
+        const mobile = isMobileViewport();
+        const ptr = pointerPosRef.current;
+
+        type RankedLabel = {
+          text: string;
+          x: number;
+          y: number;
+          font: string;
+          fill: string;
+          alpha: number;
+          priority: number;
+          centerD: number;
+          box: { l: number; t: number; r: number; b: number };
+        };
+        const rankedLabels: RankedLabel[] = [];
+
+        for (const c of labelCands) {
+          // Off-screen: suppress entirely (the product law above).
+          if (c.x < 0 || c.x > vw || c.y < 0 || c.y > vh) continue;
+
+          // Tier 2 proximity alpha — desktop brands only, asymmetric fade
+          // (slower out than in, so nearby stars don't blink nervously).
+          let alpha = 0;
+          let hovered = false;
+          if (c.isBrand && c.slug) {
+            const cur = proximityAlphaRef.current.get(c.slug) ?? 0;
+            let target = 0;
+            if (!mobile && ptr) {
+              const pr = Math.max(
+                PROXIMITY_MIN_RADIUS,
+                c.r * PROXIMITY_STAR_MULTIPLIER,
+              );
+              const dx = ptr.x - c.x;
+              const dy = ptr.y - (c.y + c.r + 12);
+              if (dx * dx + dy * dy <= pr * pr) target = 1;
+            }
+            const rate =
+              target > cur
+                ? dt / PROXIMITY_FADE_IN_MS
+                : dt / PROXIMITY_FADE_OUT_MS;
+            const next =
+              target > cur
+                ? Math.min(1, cur + rate)
+                : Math.max(0, cur - rate);
+            proximityAlphaRef.current.set(c.slug, next);
+            hovered = next > 0.5;
+            alpha = next;
+          }
+
+          const isAnchor =
+            c.isBrand && c.slug !== null && GALAXY_ANCHOR_BRANDS.has(c.slug);
+
+          let font = "";
+          let fill = "";
+          let drawAlpha = 1;
+          let priority = 0;
+          let fontPx = 13;
+
+          if (c.isCore) {
+            // Selected-brand center — existing look, top of the stack.
+            font = "18px 'Cormorant Garamond', serif";
+            fill = "rgba(232,228,220,.9)";
+            fontPx = 18;
+            priority = 6;
+          } else if (c.isBrand) {
+            if (isAnchor) {
+              font = "500 10px 'Cormorant Garamond', serif";
+              fill = hovered ? "#E8E4DC" : "#B8BBC4";
+              fontPx = 10;
+              priority = hovered ? 5 : 4;
+            } else if (!mobile && alpha > 0.02) {
+              font = "400 9px 'Cormorant Garamond', serif";
+              fill = "#D8DADF";
+              fontPx = 9;
+              drawAlpha = alpha;
+              priority = hovered ? 5 : 3;
+            } else if (tier3On) {
+              font = "400 9px 'Cormorant Garamond', serif";
+              fill = "#9CA1B0";
+              fontPx = 9;
+              priority = 3;
+            } else {
+              continue; // Tier 2 at rest — hidden
+            }
+          } else {
+            // Models/collections inside a system — existing zoom rule and
+            // typography, now with honest off-screen/edge/collision rules.
+            if (cam.scale <= 1.25) continue;
+            font = "13px 'Cormorant Garamond', serif";
+            fill = "rgba(232,228,220,.9)";
+            fontPx = 13;
+            priority = 2;
+          }
+
+          // Edge-fit: a label that cannot fully fit inside the pad is
+          // suppressed, never slid (that's clamping in a different coat).
+          ctx.font = font;
+          const w = ctx.measureText(c.text).width;
+          const box = {
+            l: c.x - w / 2,
+            t: c.y - fontPx,
+            r: c.x + w / 2,
+            b: c.y + 3,
+          };
+          if (
+            box.l < LABEL_EDGE_PAD ||
+            box.r > vw - LABEL_EDGE_PAD ||
+            box.t < LABEL_EDGE_PAD ||
+            box.b > vh - LABEL_EDGE_PAD
+          ) {
+            continue;
+          }
+
+          rankedLabels.push({
+            text: c.text,
+            x: c.x,
+            y: c.y,
+            font,
+            fill,
+            alpha: drawAlpha,
+            priority,
+            centerD: Math.hypot(c.x - vw / 2, c.y - vh / 2),
+            box,
+          });
+        }
+
+        // Highest priority first; center distance breaks ties only.
+        rankedLabels.sort(
+          (a, b) => b.priority - a.priority || a.centerD - b.centerD,
+        );
+        const accepted: RankedLabel[] = [];
+        for (const cand of rankedLabels) {
+          let collides = false;
+          for (const acc of accepted) {
+            if (
+              cand.box.l < acc.box.r + LABEL_COLLISION_GAP &&
+              cand.box.r > acc.box.l - LABEL_COLLISION_GAP &&
+              cand.box.t < acc.box.b + LABEL_COLLISION_GAP &&
+              cand.box.b > acc.box.t - LABEL_COLLISION_GAP
+            ) {
+              collides = true;
+              break;
+            }
+          }
+          if (!collides) accepted.push(cand);
+        }
+        ctx.textAlign = "center";
+        for (const l of accepted) {
+          ctx.font = l.font;
+          ctx.globalAlpha = l.alpha;
+          ctx.fillStyle = l.fill;
+          ctx.fillText(l.text, l.x, l.y);
+        }
+        ctx.globalAlpha = 1;
+      }
 
       raf = requestAnimationFrame(draw);
     }
@@ -1088,6 +1317,9 @@ export default function VaultGalaxy({
       };
     }
     function onPointerMove(e: PointerEvent) {
+      // v2.4x — raw cursor for Tier 2 proximity. Additive only: recorded
+      // before the drag early-out, fully independent of doSelect/dragRef.
+      pointerPosRef.current = { x: e.clientX, y: e.clientY };
       const d = dragRef.current;
       if (!d.active) return;
       const dx = e.clientX - d.lastX;
