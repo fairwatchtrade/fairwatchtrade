@@ -38,7 +38,12 @@ function countdown(ms: number) {
 
 export default function MarketBar() {
   const metals = useMetals();
-  const [now, setNow] = useState(0);
+  // v2.4z — initialize with REAL time. useState(0) meant the first render
+  // evaluated statusOf() against the Unix epoch: every expired auction
+  // read as "upcoming" for one second, then the first tick emptied the
+  // filter — the ghost flash. Product law: an expired auction may
+  // disappear. It may not come back from 1970 for one second first.
+  const [now, setNow] = useState(() => Date.now());
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,10 +95,16 @@ export default function MarketBar() {
           ))}
         </div>
 
-        <div className="my-2 w-px shrink-0 self-stretch bg-white/10" />
+        {/* v2.4z — zero live/upcoming auctions: the auction chrome
+            (divider, arrows, strip) collapses entirely rather than
+            leaving arrows pointing at nothing. No placeholder auctions,
+            nothing resurrected — the metals bar stands alone, intact. */}
+        {ordered.length > 0 && (
+          <>
+            <div className="my-2 w-px shrink-0 self-stretch bg-white/10" />
 
-        <button
-          onClick={() => scroll(-1)}
+            <button
+              onClick={() => scroll(-1)}
           aria-label="Scroll auctions left"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[#8A8F9E] hover:bg-white/5"
         >
@@ -129,7 +140,14 @@ export default function MarketBar() {
                   {live ? (
                     <span className="text-[12px] font-medium text-emerald-400">Live now</span>
                   ) : (
-                    <span className="text-[12px] font-medium tabular-nums text-[#E8E4DC]">
+                    <span
+                      className="text-[12px] font-medium tabular-nums text-[#E8E4DC]"
+                      // v2.4z — server render and client hydrate read Date.now()
+                      // moments apart; the countdown text may differ by a minute
+                      // across that gap. Time-sensitive text is the textbook case
+                      // for suppressing the warning on THIS node only.
+                      suppressHydrationWarning
+                    >
                       {countdown(Date.parse(a.start) - now)}
                     </span>
                   )}
@@ -146,6 +164,8 @@ export default function MarketBar() {
         >
           ›
         </button>
+          </>
+        )}
       </div>
     </div>
   );
