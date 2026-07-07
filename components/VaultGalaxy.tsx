@@ -1711,8 +1711,8 @@ export default function VaultGalaxy({
                   right gate past the viewport edge. min-w-0 lets the column
                   shrink; the text wraps; both gates stand. Evidence:
                   row.scrollW 425 vs clientW 390, right gate edge at 425. */}
-              <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center">
-                <div className="mb-9">
+              <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-8 pb-12 pt-10 text-center max-sm:pb-6 max-sm:pt-4">
+                <div className="mb-9 max-sm:mb-5">
                   <svg viewBox="0 0 36 36" fill="none" width="28" height="28">
                     <circle
                       cx="18"
@@ -1786,7 +1786,7 @@ export default function VaultGalaxy({
                   </svg>
                 </div>
 
-                <div className="mb-8 text-[8px] uppercase tracking-[5px] text-[rgba(201,168,76,0.45)]">
+                <div className="mb-8 text-[8px] uppercase tracking-[5px] text-[rgba(201,168,76,0.45)] max-sm:mb-4">
                   The FairWatchTrade Vault
                 </div>
                 <div className="font-display text-[30px] font-light leading-[1.35] tracking-[0.3px] text-[var(--platinum)]">
@@ -1796,7 +1796,7 @@ export default function VaultGalaxy({
                   isn&apos;t data.
                 </div>
                 <div
-                  className="mb-9 font-display text-[30px] font-light italic leading-[1.35] tracking-[0.3px] text-[var(--gold)]"
+                  className="mb-9 font-display text-[30px] font-light italic leading-[1.35] tracking-[0.3px] text-[var(--gold)] max-sm:mb-5"
                   style={{
                     textShadow: atlantisIgnited
                       ? "0 0 18px rgba(201,168,76,0.22)"
@@ -1808,12 +1808,12 @@ export default function VaultGalaxy({
                 </div>
 
                 <div
+                  className="mx-auto mb-7 max-sm:mb-4"
                   style={{
                     width: atlantisIgnited ? "76px" : "32px",
                     height: "1px",
                     background:
                       "linear-gradient(to right, transparent, rgba(201,168,76,0.5), transparent)",
-                    margin: "0 auto 28px",
                     filter: atlantisIgnited
                       ? "brightness(1.85)"
                       : "brightness(1)",
@@ -1821,10 +1821,10 @@ export default function VaultGalaxy({
                   }}
                 />
 
-                <div className="mb-[52px] font-display text-[15px] font-light italic leading-[1.8] tracking-[0.2px] text-[var(--muted)]">
-                  A living archive, freely open to every collector.
-                </div>
-
+                {/* v2.4s — the crossing sits where the invitation lands:
+                    Enter directly after the headline, archive statement
+                    below it like a museum plaque. Click/keyboard behavior
+                    byte-identical to before the move. */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -1835,7 +1835,7 @@ export default function VaultGalaxy({
                       startAtlantisReveal();
                     }
                   }}
-                  className="flex cursor-pointer select-none flex-col items-center"
+                  className="mb-8 flex cursor-pointer select-none flex-col items-center max-sm:mb-5"
                   aria-label="Enter the FairWatchTrade Vault"
                 >
                   <div className="h-8 w-px bg-gradient-to-b from-transparent to-[rgba(201,168,76,0.3)]" />
@@ -1843,6 +1843,10 @@ export default function VaultGalaxy({
                     Enter
                   </div>
                   <div className="h-5 w-px bg-gradient-to-b from-[rgba(201,168,76,0.25)] to-transparent" />
+                </div>
+
+                <div className="font-display text-[15px] font-light italic leading-[1.8] tracking-[0.2px] text-[var(--muted)]">
+                  A living archive, freely open to every collector.
                 </div>
               </div>
 
