@@ -176,6 +176,9 @@ function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
 export default function SellFlow() {
   const [draft, setDraft] = useState<ListingDraft>(emptyDraft);
   const [step, setStep] = useState(0);
+  // v2.4y — reference advisory lives at flow level so an unresolved
+  // advisory can repeat at Review without touching ReviewStep itself.
+  const [refAdvisory, setRefAdvisory] = useState<RefAdvisory | null>(null);
 
   function patch(p: Partial<ListingDraft>) {
     setDraft((d) => ({ ...d, ...p }));
@@ -295,7 +298,13 @@ export default function SellFlow() {
           className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-8"
         >
           {step === 0 && (
-            <CurationStep draft={draft} patch={patch} onPass={() => setStep(1)} />
+            <CurationStep
+              draft={draft}
+              patch={patch}
+              onPass={() => setStep(1)}
+              advisory={refAdvisory}
+              setAdvisory={setRefAdvisory}
+            />
           )}
           {step === 1 && (
             <PhotosStep draft={draft} patch={patch} photoRef={photoRef} />
@@ -314,7 +323,19 @@ export default function SellFlow() {
               onProceed={() => setStep(4)}
             />
           )}
-          {step === 4 && <ReviewStep draft={draft} />}
+          {step === 4 && (
+            <>
+              {/* v2.4y — an advisory unresolved at Review repeats here;
+                  cleared or consistent means silence. ReviewStep itself
+                  is untouched. */}
+              {refAdvisory && refAdvisory.kind !== "consistent" && (
+                <p className="mb-3 text-[11px] italic text-[var(--gold-subtle)]">
+                  {refAdvisory.message}
+                </p>
+              )}
+              <ReviewStep draft={draft} />
+            </>
+          )}
 
           {step > 0 && (
             <div className="mt-6">
@@ -490,18 +511,107 @@ function looksLikeWeakReference(ref: string): boolean {
   return false;
 }
 
+/* ── Reference advisory (v2.4y) ──────────────────────────────────────────
+   ONE advisory state for the reference field, fed by two deliberate layers:
+   1. the local heuristic above (cheap, generous) — fires alone, no API call
+   2. /api/validate-reference (loose AI plausibility, brand-required /
+      model-optional) — only when the local layer passes
+   A single render slot means the two layers can never contradict each
+   other in the UI. "consistent" renders SILENCE — no badge, no checkmark,
+   no manufactured confidence. Advisory only; never a block, never a
+   penalty. Missing data is honest; this check never accuses. */
+export type RefAdvisory = {
+  kind: "weak_local" | "uncertain" | "possible_mismatch" | "consistent";
+  message: string;
+};
+
 function CurationStep({
   draft,
   patch,
   onPass,
+  advisory,
+  setAdvisory,
 }: {
   draft: ListingDraft;
   patch: (p: Partial<ListingDraft>) => void;
   onPass: () => void;
+  advisory: RefAdvisory | null;
+  setAdvisory: (a: RefAdvisory | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [refHint, setRefHint] = useState(false);
+  // v2.4y — reference-check pipeline: local-first, then AI, one advisory.
+  // Debounced on blur, cached by (brand|model|reference), stale responses
+  // dropped by sequence. The API key never appears client-side — the
+  // server route owns trust, this component only submits evidence.
+  const checkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checkSeqRef = useRef(0);
+  const refCheckCacheRef = useRef<Map<string, RefAdvisory>>(new Map());
+
+  function runReferenceCheck() {
+    if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
+    const ref = draft.reference.trim();
+    if (!ref) {
+      setAdvisory(null);
+      return;
+    }
+    // Layer 1 — local heuristic (v2.3). Obviously malformed: local
+    // advisory, NO API call.
+    if (looksLikeWeakReference(ref)) {
+      setAdvisory({
+        kind: "weak_local",
+        message:
+          "That reference number looks a little short — double-check it before continuing.",
+      });
+      return;
+    }
+    // Layer 2 — loose AI plausibility. Brand is required context; model
+    // rides along when present but is never required.
+    const brand = draft.brand.trim();
+    if (!brand) {
+      setAdvisory(null);
+      return;
+    }
+    const key = `${brand}|${draft.model.trim()}|${ref}`;
+    const cached = refCheckCacheRef.current.get(key);
+    if (cached) {
+      setAdvisory(cached);
+      return;
+    }
+    checkTimerRef.current = setTimeout(async () => {
+      const seq = ++checkSeqRef.current;
+      try {
+        const res = await fetch("/api/validate-reference", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brand, model: draft.model.trim(), reference: ref }),
+        });
+        const data = await res.json().catch(() => null);
+        if (seq !== checkSeqRef.current) return; // stale — a newer check owns the field
+        let adv: RefAdvisory;
+        if (data?.verdict === "possible_mismatch") {
+          adv = {
+            kind: "possible_mismatch",
+            message:
+              "This reference may not match the selected brand or model. Worth checking before continuing.",
+          };
+        } else if (data?.verdict === "uncertain") {
+          adv = {
+            kind: "uncertain",
+            message:
+              "We couldn't confidently assess this reference. Please double-check it before publishing.",
+          };
+        } else {
+          // looks_consistent — and fail-open lands here too: silence.
+          adv = { kind: "consistent", message: "" };
+        }
+        refCheckCacheRef.current.set(key, adv);
+        setAdvisory(adv);
+      } catch {
+        if (seq === checkSeqRef.current) setAdvisory({ kind: "consistent", message: "" });
+      }
+    }, 350);
+  }
 
   const ready =
     draft.brand.trim() &&
@@ -570,14 +680,14 @@ function CurationStep({
             value={draft.reference}
             onChange={(e) => {
               patch({ reference: e.target.value });
-              if (refHint) setRefHint(false);
+              if (advisory) setAdvisory(null); // editing clears — never nags mid-typing
             }}
-            onBlur={() => setRefHint(looksLikeWeakReference(draft.reference))}
+            onBlur={runReferenceCheck}
             placeholder="e.g. reference number"
           />
-          {refHint && draft.reference.trim().length > 0 && (
+          {advisory && advisory.kind !== "consistent" && (
             <p className="mt-1 text-[11px] italic text-[var(--gold-subtle)]">
-              That reference number looks a little short — double-check it before continuing.
+              {advisory.message}
             </p>
           )}
         </div>
