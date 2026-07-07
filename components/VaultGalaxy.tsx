@@ -1396,17 +1396,24 @@ export default function VaultGalaxy({
              backdrop blur lets the planet and its moons read faintly
              through. Surface treatment only; the future detail-drawer
              adds beneath without reworking this surface. */
-          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:bottom-[150px] max-sm:left-4 max-sm:right-4 max-sm:top-[108px] max-sm:max-h-[calc(100vh-278px)] max-sm:overflow-y-auto sm:right-7 sm:top-[90px] sm:w-[330px]">
+          /* v2.4w — mobile footprint rebuild: the sheet becomes a plaque.
+             Mobile geometry was top-[108px]+bottom-[150px]+left-4+right-4 =
+             a pinned near-full-screen panel. Now: upper-right, fixed width
+             210px, height driven by compact content (~60-110px exploring;
+             taller only in detail where references earn it). No bottom pin,
+             no max-h, no scroll region — so no invisible shell, no pointer
+             trap. Desktop classes (sm:) byte-identical: sacred this pass. */
+          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:right-3 max-sm:top-[64px] max-sm:w-[210px] max-sm:p-3 sm:right-7 sm:top-[90px] sm:w-[330px]">
             {loading ? (
               <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
                 Illuminating the constellation…
               </p>
             ) : view === "detail" && selectedVariant ? (
               <>
-                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)] max-sm:hidden">
                   Reference card
                 </div>
-                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedVariant.name}
                 </h2>
                 {variantFamily && (
@@ -1415,12 +1422,12 @@ export default function VaultGalaxy({
                   </div>
                 )}
                 {selectedVariant.description && (
-                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
                     {selectedVariant.description}
                   </p>
                 )}
                 {selectedVariant.notes && (
-                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)] max-sm:hidden">
                     {selectedVariant.notes}
                   </p>
                 )}
@@ -1453,17 +1460,17 @@ export default function VaultGalaxy({
                 <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
                   {selectedBrand?.name}
                 </div>
-                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedCollection.name}
                 </h2>
                 {selectedCollection.description && (
-                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
                     {selectedCollection.description}
                   </p>
                 )}
                 {/* Family groupings surfaced here (not as orbital bodies) */}
                 {selectedCollection.vault_families?.length > 0 && (
-                  <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
+                  <div className="mt-3 border-t border-[var(--border-faint)] pt-3 max-sm:hidden">
                     <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
                       Families
                     </div>
@@ -1481,7 +1488,7 @@ export default function VaultGalaxy({
                     ))}
                   </div>
                 )}
-                <div className="mt-3 text-[10px] italic text-[var(--muted)]">
+                <div className="mt-3 text-[10px] italic text-[var(--muted)] max-sm:hidden">
                   Choose a moon.
                 </div>
               </>
@@ -1493,21 +1500,21 @@ export default function VaultGalaxy({
                fetch has resolved with nothing — a genuinely unmapped brand, not
                a mid-load flicker. Never a dead end: always a way back. */
               <>
-                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)] max-sm:hidden">
                   Manufacturer
                 </div>
-                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedBrand.name}
                 </h2>
-                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
                   This constellation is still being mapped.
                 </p>
-                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)] max-sm:hidden">
                   Every house in the Vault is charted by hand —{" "}
                   {selectedBrand.name}
                   &apos;s collections are still to come.
                 </p>
-                <div className="mt-[18px]">
+                <div className="mt-[18px] max-sm:hidden">
                   <button onClick={resetGalaxy} className="fw-btn-primary">
                     Return to Galaxy
                   </button>
@@ -1515,18 +1522,18 @@ export default function VaultGalaxy({
               </>
             ) : view === "collections" && selectedBrand ? (
               <>
-                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)] max-sm:hidden">
                   Manufacturer
                 </div>
-                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)]">
+                <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedBrand.name}
                 </h2>
                 {selectedBrand.description && (
-                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
                     {selectedBrand.description}
                   </p>
                 )}
-                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
+                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[10px] uppercase tracking-[1px] text-[var(--muted)] max-sm:hidden">
                   <div className="flex justify-between py-1">
                     <span>Collections</span>
                     <span className="text-[var(--platinum-dim)]">
@@ -1543,7 +1550,14 @@ export default function VaultGalaxy({
         )}
 
         {/* Search bar */}
-        <div className="fixed bottom-[34px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] -translate-x-1/2 border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-3 backdrop-blur-lg sm:bottom-[42px] sm:p-[14px]">
+        {/* v2.4w — inside a selected system on mobile, the search panel
+            yields the floor to planets and moons; broad-galaxy browsing and
+            desktop keep it exactly as before. */}
+        <div
+          className={`fixed bottom-[34px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] -translate-x-1/2 border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-3 backdrop-blur-lg sm:bottom-[42px] sm:p-[14px] ${
+            view !== "brands" ? "max-sm:hidden" : ""
+          }`}
+        >
           <label className="mb-[10px] block text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             What interests you today?
           </label>
