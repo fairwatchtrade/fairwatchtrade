@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useMetals } from "@/lib/useMetals";
 import { statusOf, type Auction } from "@/lib/auctions";
-import auctionsData from "@/data/auctions.json";
 
-const auctions = auctionsData as Auction[];
+/* v2.5b — the seam. MarketBar no longer imports data/auctions.json;
+   it consumes GET /api/auctions, the abstraction boundary. The UI never
+   knows (and must never care) where auction data came from — when the
+   backend becomes a table, importers, or feeds, this component does not
+   change. The endpoint pre-filters "past" server-side against real
+   time; the client-side statusOf() below remains only as the live-
+   session updater (an auction ending while the tab sits open still
+   drops; one starting still flips to Live). */
 
 const DOT: Record<string, string> = {
   gold: "bg-amber-600",
@@ -38,6 +44,7 @@ function countdown(ms: number) {
 
 export default function MarketBar() {
   const metals = useMetals();
+  const [auctions, setAuctions] = useState<Auction[]>([]);
   // v2.4z — initialize with REAL time. useState(0) meant the first render
   // evaluated statusOf() against the Unix epoch: every expired auction
   // read as "upcoming" for one second, then the first tick emptied the
@@ -49,6 +56,25 @@ export default function MarketBar() {
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // v2.5b — fetch through the contract. Fail-open to []: on any error the
+  // auction chrome simply collapses (the v2.4z empty state), the metals
+  // stand, nothing crashes, nothing ghosts.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auctions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.auctions)) return;
+        setAuctions(data.auctions as Auction[]);
+      })
+      .catch(() => {
+        /* fail-open — empty chrome, never a crash */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const ordered = auctions

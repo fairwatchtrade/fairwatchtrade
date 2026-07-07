@@ -19,24 +19,15 @@
     "onlineOnly": false
   },
   {
-    "id": "phillips-geneva-xvi-2026",
-    "house": "Phillips",
-    "sale": "Geneva Watch Auction XVI",
-    "city": "Geneva",
-    "start": "2026-06-24T09:00:00Z",
-    "catalogUrl": "https://www.phillips.com/watches",
-    "onlineOnly": false
+    "id": "bonhams-ny-discovery-of-time-2026-06",
+    "house": "Bonhams",
+    "sale": "Discovery of Time — Fine Watches",
+    "city": "New York",
+    "start": "2026-06-14T16:00:00Z",
+    "end": "2026-06-16T16:00:00Z",
+    "catalogUrl": "https://www.bonhams.com/auction/32648/new-york-fine-watches-discovery-of-time/",
+    "onlineOnly": true
   },
-  {
-  "id": "bonhams-ny-discovery-of-time-2026-06",
-  "house": "Bonhams",
-  "sale": "Discovery of Time — Fine Watches",
-  "city": "New York",
-  "start": "2026-06-14T16:00:00Z",
-  "end": "2026-06-16T16:00:00Z",
-  "catalogUrl": "https://www.bonhams.com/auction/32648/new-york-fine-watches-discovery-of-time/",
-  "onlineOnly": true
-},
   {
     "id": "antiquorum-Monaco-2026-28",
     "house": "Antiquorum",
@@ -44,6 +35,36 @@
     "city": "Monaco",
     "start": "2026-06-28T10:00:00Z",
     "catalogUrl": "https://www.antiquorum.swiss/en/auctions",
+    "onlineOnly": false
+  },
+  {
+    "id": "phillips-geneva-online-2026-09",
+    "house": "Phillips",
+    "sale": "Geneva Online Session",
+    "city": "Geneva",
+    "start": "2026-09-04",
+    "end": "2026-09-11",
+    "catalogUrl": "https://www.phillips.com/watches",
+    "onlineOnly": true
+  },
+  {
+    "id": "phillips-hong-kong-online-2026-09",
+    "house": "Phillips",
+    "sale": "Hong Kong Online Session",
+    "city": "Hong Kong",
+    "start": "2026-09-17",
+    "end": "2026-09-24",
+    "catalogUrl": "https://www.phillips.com/watches",
+    "onlineOnly": true
+  },
+  {
+    "id": "phillips-hong-kong-live-2026-11",
+    "house": "Phillips",
+    "sale": "Hong Kong Live Weekend",
+    "city": "Hong Kong",
+    "start": "2026-11-21",
+    "end": "2026-11-22",
+    "catalogUrl": "https://www.phillips.com/watches",
     "onlineOnly": false
   }
 ]
