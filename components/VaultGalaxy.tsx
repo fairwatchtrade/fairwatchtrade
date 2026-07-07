@@ -971,10 +971,15 @@ export default function VaultGalaxy({
             ctx.lineWidth = 0.8;
             for (let m = 0; m < 12; m++) {
               const a = (m / 12) * Math.PI * 2 - Math.PI / 2;
+              // v2.4u — mark hierarchy: quarters (12/3/6/9) keep full
+              // length; the other eight start further out — clearly
+              // subordinate, unmistakably a clock face. Cardinal tips
+              // still end just shy of the moon body (1.14), unchanged.
+              const inner = m % 3 === 0 ? markInner : base * 1.24;
               ctx.beginPath();
               ctx.moveTo(
-                p.x + Math.cos(a) * markInner,
-                p.y + Math.sin(a) * markInner,
+                p.x + Math.cos(a) * inner,
+                p.y + Math.sin(a) * inner,
               );
               ctx.lineTo(
                 p.x + Math.cos(a) * markOuter,
