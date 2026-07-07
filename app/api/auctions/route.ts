@@ -1,17 +1,32 @@
 import { NextResponse } from "next/server";
-import { statusOf, type Auction } from "@/lib/auctions";
+import { createClient } from "@/lib/supabase/server";
+import {
+  normalizeSourceUrl,
+  statusOf,
+  type Auction,
+} from "@/lib/auctions";
 import auctionsData from "@/data/auctions.json";
 
 /* ════════════════════════════════════════════════════════════════════════
-   GET /api/auctions — the auction data CONTRACT   (v2.5b)
+   GET /api/auctions — the auction data CONTRACT   (v2.5b · merged v2.5d)
 
    This route is not the source. It is the abstraction boundary.
 
-   Today it reads data/auctions.json (the manual source, unchanged). Later
-   it can read an auction_events table, admin entries, or official feeds —
-   and the UI never knows, because the UI consumes THIS contract and never
-   imports the data directly. MarketBar must never care where auction data
-   came from; that is the entire point of this seam.
+   v2.5d — TWO sources now feed the seam, merged under the migration law:
+     data/auctions.json  +  auction_events (Supabase, admin paste-to-parse)
+   Both normalize to the same contract; duplicates resolve with the
+   TABLE winning. JSON is NOT retired by the existence of table rows —
+   it retires later, deliberately, once the table is mature. The UI
+   never knows any of this; it consumes THIS contract and never imports
+   data directly. MarketBar must never care where auction data came
+   from; that is the entire point of this seam.
+
+   Merge identity (dedupe), in order — table wins on any match:
+     1. normalized URL: a JSON entry's catalogUrl equals a table row's
+        source_url_normalized or normalized catalog_url
+     2. composite: house + title/sale (case-insensitive) + same UTC
+        calendar day of start + city/location (case-insensitive)
+   (normalizeSourceUrl is the shared law in @/lib/auctions.)
 
    ── THE CONTRACT (stable — future backends must satisfy exactly this) ──
    200 OK:
@@ -101,13 +116,85 @@ function normalize(raw: unknown, now: number): AuctionOut | null {
   };
 }
 
+type EventRow = {
+  id: string;
+  auction_house: string;
+  auction_title: string;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  catalog_url: string | null;
+  source_url_normalized: string | null;
+  online_only: boolean | null;
+};
+
+/** auction_events row → the same raw shape normalize() already accepts. */
+function rowToRaw(r: EventRow) {
+  return {
+    id: `db-${r.id}`,
+    house: r.auction_house,
+    sale: r.auction_title,
+    city: r.location ?? "",
+    start: r.starts_at,
+    end: r.ends_at ?? undefined,
+    catalogUrl: r.catalog_url ?? undefined,
+    onlineOnly: r.online_only === true,
+  };
+}
+
+const dayOf = (iso: string) => iso.slice(0, 10);
+const ci = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+
 export async function GET() {
   const now = Date.now();
 
-  const source: unknown[] = Array.isArray(auctionsData) ? auctionsData : [];
-  const auctions = source
+  // Source 2 (v2.5d): admin-entered table rows. A read failure fails open
+  // to JSON-only — the bar never goes dark because the table hiccuped.
+  let eventRows: EventRow[] = [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("auction_events")
+      .select(
+        "id, auction_house, auction_title, location, starts_at, ends_at, catalog_url, source_url_normalized, online_only"
+      );
+    if (Array.isArray(data)) eventRows = data as EventRow[];
+  } catch {
+    /* fail open — JSON-only this response */
+  }
+
+  const tableAuctions = eventRows
+    .map((r) => normalize(rowToRaw(r), now))
+    .filter((a): a is AuctionOut => a !== null);
+
+  // Merge law: JSON entries survive UNLESS a table row claims the same
+  // identity — then the table wins. JSON is never dropped wholesale.
+  const jsonSource: unknown[] = Array.isArray(auctionsData) ? auctionsData : [];
+  const jsonAuctions = jsonSource
     .map((r) => normalize(r, now))
     .filter((a): a is AuctionOut => a !== null)
+    .filter((j) => {
+      const jUrl = j.catalogUrl ? normalizeSourceUrl(j.catalogUrl) : null;
+      const claimedByTable = eventRows.some((row) => {
+        // 1 · normalized-URL identity
+        if (jUrl) {
+          const rowCat = row.catalog_url ? normalizeSourceUrl(row.catalog_url) : null;
+          if (row.source_url_normalized === jUrl || (rowCat !== null && rowCat === jUrl)) {
+            return true;
+          }
+        }
+        // 2 · composite identity — house + title + same UTC day + location
+        return (
+          ci(row.auction_house) === ci(j.house) &&
+          ci(row.auction_title) === ci(j.sale) &&
+          dayOf(row.starts_at) === dayOf(j.start) &&
+          ci(row.location) === ci(j.city)
+        );
+      });
+      return !claimedByTable; // table wins; unclaimed JSON entries survive
+    });
+
+  const auctions = [...tableAuctions, ...jsonAuctions]
     .sort((a, b) => {
       const la = a.status === "live";
       const lb = b.status === "live";
