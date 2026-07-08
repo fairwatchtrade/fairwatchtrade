@@ -47,15 +47,20 @@ export default async function SellerProfilePage({
   const { id } = await params;
   const supabase = await createClient();
 
-  // Profile — select ONLY display-safe columns. strikes and
-  // new_listings_paused_until are deliberately NOT selected.
-  const { data: seller } = await supabase
-    .from("profiles")
-    .select("id, display_name, created_at")
-    .eq("id", id)
-    .single();
+const { data: seller, error: sellerError } = await supabase
+  .from("public_seller_profiles")
+  .select("id, display_name, created_at")
+  .eq("id", id)
+  .single();
 
-  if (!seller) notFound();
+if (sellerError) {
+  console.error("Seller profile query error:", {
+    code: sellerError.code,
+    message: sellerError.message,
+  });
+}
+
+if (!seller) notFound();
 
   // Listings — FK is seller_id (confirmed). We select combined_score here ONLY
   // to compute the quality signal server-side; it is NOT forwarded to the card
