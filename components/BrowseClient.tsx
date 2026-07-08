@@ -4,13 +4,23 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
-   BROWSE CLIENT — client-side facet filtering shell for /browse (v1.55)
+   BROWSE CLIENT — client-side facet filtering shell for /browse (v1.57)
 
    Receives the already-ranked listings from the server page and renders the
    Studio filter sidebar (desktop) / overlay (mobile) plus the card grid.
    Filter/facet logic, toggle functions, and useMemo hooks are preserved
    verbatim from v1.28 — only the visual/layout chrome is restyled, plus
    grid-width and page-size controls.
+
+   v1.57 — Phase 1: Gallery View / Collector View toggle + Collector's
+   Workbench. Core design law: "Gallery View is for seeing watches.
+   Collector View is for understanding watches. The left rail is for
+   narrowing watches." Movement and Case Size MOVED out of the ordinary
+   rail into the Workbench — one control, one location, never duplicated.
+   Beat Rate/Power Reserve values are confirmed to exist but not confirmed
+   clean; normalizeVph()/normalizePowerReserve() below are DISPLAY-ONLY
+   transforms (the stored listings.details values are never rewritten) —
+   same established pattern as sizeLabel() already uses for case size.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -28,7 +38,15 @@ type ListingRow = {
   condition: string;
   asking_price: number;
   photos: ListingPhoto[];
-  details?: { dialColorType?: string; caseMaterial?: string; documentation?: string; caseSizeMm?: string; movementType?: string } | null;
+  details?: {
+    dialColorType?: string;
+    caseMaterial?: string;
+    documentation?: string;
+    caseSizeMm?: string;
+    movementType?: string;
+    movementFrequency?: string; // Beat Rate / VPH — heterogeneous raw formats
+    powerReserve?: string; // heterogeneous raw formats
+  } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
@@ -61,6 +79,41 @@ function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [stri
 function sizeLabel(value?: string): string {
   if (!value) return "";
   return value.includes("mm") ? value : `${value}mm`;
+}
+
+// v1.57 — Beat Rate / VPH: display-only normalization. Stored values are
+// confirmed heterogeneous ("28800" | "28,800 vph" | "4 Hz"). Hz is left as
+// Hz (a real, different unit — never silently converted to vph). A
+// recognizable vph number is reformatted with a thousands separator so
+// "28800" and "28,800 vph" collapse to ONE facet instead of two. Anything
+// unrecognized displays exactly as stored — never dropped, never guessed.
+// The SAME output feeds both the facet label and the filter-match value
+// (the sizeLabel pattern above), so display and filtering never disagree.
+function beatRateLabel(value?: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const hz = trimmed.match(/(\d+(?:\.\d+)?)\s*hz/i);
+  if (hz) return `${hz[1]} Hz`;
+  const num = trimmed.match(/[\d,]+/);
+  if (num) {
+    const n = Number(num[0].replace(/,/g, ""));
+    if (Number.isFinite(n) && n > 0) return `${n.toLocaleString("en-US")} vph`;
+  }
+  return trimmed; // unrecognized format — shown as-is, not fabricated
+}
+
+// v1.57 — Power Reserve: same display-only law. Stored values are confirmed
+// heterogeneous ("42 hours" | "dual barrel 42 hour reserve" | "approx. 42h").
+// Extract the number preceding an hour-unit; unrecognized text passes
+// through unchanged rather than being silently discarded.
+function powerReserveLabel(value?: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const hrs = trimmed.match(/(\d+(?:\.\d+)?)\s*h(?:our)?s?\b/i);
+  if (hrs) return `${hrs[1]} hours`;
+  return trimmed;
 }
 
 function FacetGroup({
@@ -128,10 +181,18 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [gridCols, setGridCols] = useState<3 | 4>(3);
   const [pageSize, setPageSize] = useState<20 | 40 | "all">(20);
+  // v1.57 — orthogonal to grid width/page size: Collector View adds
+  // understanding (specs), it never removes what Gallery View shows.
+  const [viewMode, setViewMode] = useState<"gallery" | "collector">("gallery");
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
   const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
   const [selectedMovements, setSelectedMovements] = useState<Set<string>>(new Set());
+  // v1.57 — Workbench-only facets (never rendered in the ordinary rail).
+  const [selectedBeatRates, setSelectedBeatRates] = useState<Set<string>>(new Set());
+  const [selectedPowerReserves, setSelectedPowerReserves] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
   const [selectedDials, setSelectedDials] = useState<Set<string>>(new Set());
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
@@ -147,6 +208,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   );
   const movementFacets = useMemo(
     () => countBy(listings, (l) => l.details?.movementType ?? ""),
+    [listings]
+  );
+  const beatRateFacets = useMemo(
+    () => countBy(listings, (l) => beatRateLabel(l.details?.movementFrequency)),
+    [listings]
+  );
+  const powerReserveFacets = useMemo(
+    () => countBy(listings, (l) => powerReserveLabel(l.details?.powerReserve)),
     [listings]
   );
   const materialFacets = useMemo(
@@ -174,6 +243,12 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         const movementOk =
           selectedMovements.size === 0 ||
           selectedMovements.has(l.details?.movementType ?? "");
+        const beatRateOk =
+          selectedBeatRates.size === 0 ||
+          selectedBeatRates.has(beatRateLabel(l.details?.movementFrequency));
+        const powerReserveOk =
+          selectedPowerReserves.size === 0 ||
+          selectedPowerReserves.has(powerReserveLabel(l.details?.powerReserve));
         const materialOk =
           selectedMaterials.size === 0 ||
           selectedMaterials.has(l.details?.caseMaterial ?? "");
@@ -188,6 +263,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           condOk &&
           sizeOk &&
           movementOk &&
+          beatRateOk &&
+          powerReserveOk &&
           materialOk &&
           dialOk &&
           docOk
@@ -199,6 +276,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       selectedConditions,
       selectedCaseSizes,
       selectedMovements,
+      selectedBeatRates,
+      selectedPowerReserves,
       selectedMaterials,
       selectedDials,
       selectedDocs,
@@ -239,6 +318,22 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       return next;
     });
 
+  const toggleBeatRate = (value: string) =>
+    setSelectedBeatRates((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  const togglePowerReserve = (value: string) =>
+    setSelectedPowerReserves((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
   const toggleMaterial = (value: string) =>
     setSelectedMaterials((prev) => {
       const next = new Set(prev);
@@ -263,6 +358,9 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       return next;
     });
 
+  // v1.57 — the rail: ORDINARY narrowing only. Movement and Case Size have
+  // moved out entirely (see Workbench below) — one control, one location,
+  // never rendered in both places per the Phase 1 architectural correction.
   const facetList = (
     <div>
       {/* Filter intro */}
@@ -276,16 +374,10 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       </div>
 
       <FacetGroup
-        title="Case Size"
-        facets={caseSizeFacets}
-        selected={selectedCaseSizes}
-        onToggle={toggleCaseSize}
-      />
-      <FacetGroup
-        title="Movement"
-        facets={movementFacets}
-        selected={selectedMovements}
-        onToggle={toggleMovement}
+        title="Brand"
+        facets={brandFacets}
+        selected={selectedBrands}
+        onToggle={toggleBrand}
       />
       <FacetGroup
         title="Case Material"
@@ -306,16 +398,44 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         onToggle={toggleDoc}
       />
       <FacetGroup
-        title="Brand"
-        facets={brandFacets}
-        selected={selectedBrands}
-        onToggle={toggleBrand}
-      />
-      <FacetGroup
         title="Condition"
         facets={conditionFacets}
         selected={selectedConditions}
         onToggle={toggleCondition}
+      />
+
+      {/* v1.57 — Collector's Workbench: a distinct, visually separate group.
+          Per the core design law, this is NOT the narrowing rail — it is
+          collector-specific criteria, reusing the identical FacetGroup /
+          countBy / toggle-handler pattern as every rail facet above. */}
+      <div className="mx-[18px] mb-[22px] border-t border-[var(--border-faint)] pt-5">
+        <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+          Collector&apos;s Workbench
+        </div>
+      </div>
+      <FacetGroup
+        title="Case Size"
+        facets={caseSizeFacets}
+        selected={selectedCaseSizes}
+        onToggle={toggleCaseSize}
+      />
+      <FacetGroup
+        title="Movement"
+        facets={movementFacets}
+        selected={selectedMovements}
+        onToggle={toggleMovement}
+      />
+      <FacetGroup
+        title="Beat Rate"
+        facets={beatRateFacets}
+        selected={selectedBeatRates}
+        onToggle={toggleBeatRate}
+      />
+      <FacetGroup
+        title="Power Reserve"
+        facets={powerReserveFacets}
+        selected={selectedPowerReserves}
+        onToggle={togglePowerReserve}
       />
     </div>
   );
@@ -340,23 +460,47 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         </button>
       </div>
 
-      {/* Layout controls bar — grid width + page size */}
+      {/* Layout controls bar — grid width + view mode + page size.
+          v1.57 — the Gallery/Collector toggle sits alongside grid width:
+          both are orthogonal display controls, neither replaces the other. */}
       <div className="mt-6 flex items-center justify-between border-b border-[var(--border-faint)] pb-4">
-        <div className="flex items-center gap-1">
-          {([3, 4] as const).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setGridCols(n)}
-              className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
-                gridCols === n
-                  ? "border-[var(--border-gold)] text-[var(--gold)]"
-                  : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
-              }`}
-            >
-              {n}-wide
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
+            {([3, 4] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setGridCols(n)}
+                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                  gridCols === n
+                    ? "border-[var(--border-gold)] text-[var(--gold)]"
+                    : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                }`}
+              >
+                {n}-wide
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1 border-l border-[var(--border-faint)] pl-4">
+            {([
+              { key: "gallery", label: "Gallery" },
+              { key: "collector", label: "Collector" },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setViewMode(key)}
+                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                  viewMode === key
+                    ? "border-[var(--border-gold)] text-[var(--gold)]"
+                    : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-1">
@@ -403,6 +547,19 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                 const attrs = parts.join(" · ") || null;
                 const doc = row.details?.documentation;
                 const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
+                // v1.57 — Collector View adds understanding without removing
+                // anything Gallery View shows: a static spec line, distinct
+                // from (and untouched) the HOVER ENRICHMENT slot below.
+                const workbenchParts = [
+                  row.details?.movementType,
+                  sizeLabel(row.details?.caseSizeMm) || null,
+                  beatRateLabel(row.details?.movementFrequency) || null,
+                  powerReserveLabel(row.details?.powerReserve) || null,
+                ].filter(Boolean);
+                const workbenchLine =
+                  viewMode === "collector" && workbenchParts.length > 0
+                    ? workbenchParts.join(" · ")
+                    : null;
 
                 return (
                   <Link
@@ -462,6 +619,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
                       {formatPrice(Number(row.asking_price))}
                     </div>
+
+                    {/* Collector View spec line — v1.57 Phase 1. Static
+                        addition, not the future hover-enrichment feature. */}
+                    {workbenchLine && (
+                      <div className="mt-2 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+                        {workbenchLine}
+                      </div>
+                    )}
 
                     {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
                     {/* <div className="fw-hover-enrichment"> ... </div> */}

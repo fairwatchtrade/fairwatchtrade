@@ -2,7 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import BrowseClient from "@/components/BrowseClient";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC BROWSE — /browse  (v1.56)
+   PUBLIC BROWSE — /browse  (v1.57)
+
+   v1.57 — Phase 1 (Browse Gallery/Collector View + Collector's Workbench):
+   details type widened to match what BrowseClient.tsx already expects/reads
+   (caseSizeMm/movementType were already flowing through select("*") but
+   untyped here; movementFrequency/powerReserve are newly consumed by the
+   Workbench). Type-only change — the query itself is unchanged, still
+   select("*"), no migration, no new columns.
 
    Buyer-facing storefront. Fetches every published listing and hands the
    full set to BrowseClient, which owns filtering, faceting, layout controls,
@@ -32,7 +39,15 @@ type ListingRow = {
   condition: string;
   asking_price: number;
   photos: ListingPhoto[];
-  details?: { dialColorType?: string; caseMaterial?: string; documentation?: string } | null;
+  details?: {
+    dialColorType?: string;
+    caseMaterial?: string;
+    documentation?: string;
+    caseSizeMm?: string;
+    movementType?: string;
+    movementFrequency?: string;
+    powerReserve?: string;
+  } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
