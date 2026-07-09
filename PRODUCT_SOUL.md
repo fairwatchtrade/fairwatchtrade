@@ -237,9 +237,9 @@ It honors the object. It honors the seller. It implies the buyer who's out there
 
 ## FairWatchTrade Correspondence
 
-*Every conversation deserves a home.*
+**
 
-Most marketplaces separate conversations from the object they are about. Weeks later, buyers search an inbox trying to remember which watch they were discussing.
+Most marEvery conversation deserves a home.ketplaces separate conversations from the object they are about. Weeks later, buyers search an inbox trying to remember which watch they were discussing.
 
 FairWatchTrade does the opposite.
 
@@ -334,6 +334,17 @@ Correspondence
 Slower. Intentional. Like letters between collectors.
 
 ---
+### FairWatchTrade QA Law
+
+Crawler facts first. AI interpretation second.
+
+The crawler gathers evidence: route behavior, redirects, 
+visible links, destination status. The triage agent 
+separates real defects from suspicious behavior from 
+expected auth behavior from unproven shared causes.
+
+Do not let the AI invent certainty the crawl did not establish.
+
 
 ### Schema Principle
 
@@ -341,3 +352,34 @@ Slower. Intentional. Like letters between collectors.
 
 One schema. Two homes. No generic inbox.
 
+### Collector Impressions 
+
+FairWatchTrade does not collect ordinary reviews. It collects Collector Impressions.
+A transaction builds trust.
+A Collector Impression builds knowledge.
+Dealer photographs answer: "What am I buying?"
+Collector Impressions answer: "What is it like to live with?"
+The goal is to leave every watch a little better understood than it was before.
+
+Locked vocabulary:
+Product UI always says: "Leave Your Collector Impression"
+Never: "Leave a Review" — not in buttons, not in emails, not in prompts.
+External explanations may use the word "review" only when necessary for clarity to a non-collector audience.
+
+Governing principles:
+
+Collector Impressions belong to verified purchases only. No transaction, no impression.
+One genuine wrist shot is more valuable than ten staged photographs.
+Never interrogate the collector. The wizard takes one minute.
+The Listing Wizard begins a watch's story. The Collector Impression Wizard completes its first chapter.
+Collector Impressions are not Yelp reviews. They are collector knowledge.
+
+
+The Wrist Shot:
+Dealer photographs show the watch for sale.
+Collector Wrist Shots show the watch being lived with.
+That distinction is everything.
+
+Collector Impression Wizard v1.0 spec approved July 9, 2026. Design Gate required before implementation. Payment infrastructure prerequisite.
+
+Drop that at the bottom of PRODUCT_SOUL.md and push:
