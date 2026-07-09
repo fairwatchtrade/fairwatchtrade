@@ -32,6 +32,12 @@ import Link from "next/link";
    width row; forced into a 3-wide grid cell, the data stack becomes
    cramped exactly the way the mobile fix was trying to prevent.
 
+   v1.63 — Collector row polish: spec plate width pinned via inline style
+   (the max-w utility was being ignored in the live build, letting values
+   drift toward the price); watch photo enlarged to a portrait frame
+   (120×150 mobile / 150×190 desktop, object-cover) to match the approved
+   concept. No data, field, or logic changes.
+
    v1.62 — Collector View becomes a research tool. Three-zone row (photo /
    identity+capped-specs+Snapshot-trigger / price+Compare+Add-to-Catalogue).
    Collector Snapshot: inline absolute overlay, one-open-at-a-time, no layout
@@ -815,14 +821,19 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                       isSnapshotOpen ? "z-30" : "z-0"
                     }`}
                   >
-                    {/* Photo (left) — links to detail. */}
+                    {/* Photo (left) — links to detail. v1.63: enlarged to a
+                        portrait frame (was 84×84) to match the approved concept
+                        — the watch photo now carries real presence beside the
+                        spec plate. Responsive so it doesn't crowd phone widths.
+                        object-cover fills the frame edge-to-edge (was contain);
+                        revert to object-contain if any hero crops awkwardly. */}
                     <Link
                       href={`/listings/${row.id}`}
-                      className="flex h-[84px] w-[84px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90"
+                      className="flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={hero} alt="" className="h-full w-full object-contain" />
+                        <img src={hero} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--ghost)]">
                           No photo
@@ -856,10 +867,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         </div>
                       </Link>
 
-                      {/* Spec plate — width-capped so each label↔value pair
-                          stays together and never stretches across a wide
-                          monitor (brief §1). Fields/normalizers unchanged. */}
-                      <div className="max-w-[380px]">
+                      {/* Spec plate — width-pinned so each label↔value pair
+                          stays close and never stretches across the row (brief
+                          §1). v1.63: the utility cap (max-w-[380px]) was being
+                          ignored in the live build, letting values drift toward
+                          the price column — so the width is pinned with an
+                          inline style here, which the browser honors
+                          unconditionally. Fields/normalizers unchanged. */}
+                      <div style={{ maxWidth: 420 }}>
                         <SpecRow label="Case Size" value={sizeLabel(row.details?.caseSizeMm) || null} />
                         <SpecRow label="Movement" value={row.details?.movementType ?? null} />
                         <SpecRow label="Beat Rate" value={beatRateLabel(row.details?.movementFrequency) || null} />
