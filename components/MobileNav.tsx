@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 /* ════════════════════════════════════════════════════════════════════════
    NAV DRAWER — hamburger-triggered site navigation, every page.
@@ -174,11 +175,26 @@ const SECTIONS: NavSection[] = [
 export default function MobileNav({
   open,
   onClose,
+  authed = false,
 }: {
   open: boolean;
   onClose: () => void;
+  authed?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // v2.5 — Sign Out, mobile. Mirrors NavBar's desktop handler exactly (no
+  // shared hook introduced — the brief didn't ask for one, and the logic is
+  // three lines). Not bound by the login "no forced redirect" law — this is
+  // a deliberate user action, not a post-login side effect.
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    onClose();
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <div
@@ -261,6 +277,24 @@ export default function MobileNav({
             <NavIcon label="Account" active={pathname === "/account"} />
             <span>Account</span>
           </Link>
+
+          {/* v2.5 — Sign Out, logged-in users only. The brief's referenced
+              --ghost styling doesn't actually apply to interactive nav items
+              in this file (only to the close "×" and the pull-hint copy), so
+              this instead follows the real established pattern for a
+              below-divider secondary action — the Account link just above —
+              with the hover color swapped to --danger to match the desktop
+              dropdown's Sign Out treatment for consistency across surfaces. */}
+          {authed && (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-left text-[13px] text-[var(--muted)] transition hover:text-[var(--danger)]"
+            >
+              <span className="w-[14px] shrink-0" aria-hidden="true" />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
       </div>
 
