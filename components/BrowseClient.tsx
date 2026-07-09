@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -33,6 +33,10 @@ import { createClient } from "@/lib/supabase/client";
    (small thumbnail left, DOMINANT data stack right) depends on a full-
    width row; forced into a 3-wide grid cell, the data stack becomes
    cramped exactly the way the mobile fix was trying to prevent.
+
+   v2.5d — savedIds now seeds from the real saved_watches table on Browse
+   mount (was session-only in v2.5c). Skips entirely when logged out — no
+   behavior change for anonymous browsing. Save/unsave logic untouched.
 
    v2.5c — Add to Catalogue WIRED. saved_watches table created (verified
    nothing existed: no table, no migration history, no profiles column).
@@ -326,15 +330,39 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   // Compare is selection-only this phase (no compare screen yet). The Set is
   // the workflow-preparation surface the future compare view will read from.
   const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
-  // v2.5c — Add to Catalogue is now wired to the real saved_watches table.
-  // savedIds tracks which listings THIS session has confirmed-saved, purely
-  // for button state (→ "Saved"); it is not re-fetched from the server on
-  // mount, so a listing saved in a prior session won't show as saved here
-  // until the page re-fetches — acceptable for this phase, matching the
-  // brief's scope (persistence + surfacing in /catalogue, not a full
-  // saved-state sync back into Browse).
+  // v2.5d — savedIds now seeds from the database on mount (was session-only
+  // in v2.5c, which read as broken even though saves persisted correctly —
+  // /catalogue always showed them right, Browse just didn't know yet).
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const router = useRouter();
+
+  // v2.5d — one query on load. Skips entirely if not logged in, so savedIds
+  // stays empty exactly as before — no behavior change for anonymous
+  // browsing. Does not touch save/unsave logic, only seeds initial state.
+  useEffect(() => {
+    let cancelled = false;
+    async function seedSavedIds() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("saved_watches")
+        .select("listing_id")
+        .eq("user_id", user.id);
+
+      if (!cancelled && !error && Array.isArray(data)) {
+        setSavedIds(new Set(data.map((r) => r.listing_id as string)));
+      }
+    }
+    seedSavedIds();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
   const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
