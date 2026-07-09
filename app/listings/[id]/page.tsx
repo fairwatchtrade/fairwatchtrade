@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
+import ListingCorrespondence from "@/components/ListingCorrespondence";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v1.57)
@@ -309,6 +310,23 @@ export default async function ListingDetailPage({
           </section>
         )}
 
+        {/* CORRESPONDENCE — v2.7, Surface 1 per the final ruling. The
+            reserved Section 5 message-stream slot becomes the conversation's
+            canonical home: history + composer, permanently attached to this
+            listing. The component also owns the fixed bottom entry bar
+            (replacing the disabled shell that previously sat at the end of
+            this file). Renders nothing at all for the listing's own seller. */}
+        <ListingCorrespondence
+          listingId={listing.id}
+          brand={listing.brand}
+          model={listing.model}
+          reference={listing.reference}
+          priceText={priceText}
+          heroUrl={heroUrl}
+          authed={!!user}
+          isOwner={isOwner}
+        />
+
         {/* PRICE — last in-flow element before the buyer action below */}
         <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
           <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
@@ -364,48 +382,10 @@ export default async function ListingDetailPage({
           Aesthetics & motion owned by Ducky 3 — build to the prototype.
           Activation: when CollectorsDrawer component exists. */}
 
-      {/* MESSAGE THREAD SHELL — fixed to viewport bottom. UI only, no backend.
-          FUTURE FLIGHT: messaging is not wired this pass. Input is non-functional,
-          Send button remains disabled. Do not wire without a messaging brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--ink)]">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 py-3 sm:px-8">
-          {/* Left — anchored snapshot (dial thumb, brand, reference, price) */}
-          <div className="flex min-w-0 items-center gap-3">
-            {heroUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={heroUrl}
-                alt=""
-                className="h-10 w-10 shrink-0 border border-[var(--border-subtle)] object-cover"
-              />
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-[12px] font-medium text-[var(--platinum)]">
-                {listing.brand}
-              </p>
-              <p className="truncate text-[11px] text-[var(--muted)]">
-                Ref. {listing.reference} · {priceText}
-              </p>
-            </div>
-          </div>
-
-          {/* Right — message input + disabled Send (wired in a future flight) */}
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              type="text"
-              placeholder="Message seller…"
-              className="min-w-0 flex-1 border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
-            />
-            <button
-              type="button"
-              disabled
-              className="shrink-0 cursor-not-allowed border border-[var(--border-gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-40"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* MESSAGE BAR — v2.7: the disabled shell that lived here is retired.
+          The live entry bar is rendered by <ListingCorrespondence /> above
+          (fixed positioning makes render location irrelevant), wired per the
+          final Surface 1 ruling. */}
     </main>
   );
 }
