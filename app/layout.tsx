@@ -5,6 +5,11 @@ import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
+// Footer session-status — temporary, founder-only pre-launch tooling.
+// Reuses the exact founder/admin check already established in
+// /admin/vault-review and /admin/auctions — no new auth mechanism.
+const ADMIN_EMAIL = "jmynatt74@gmail.com";
+
 export const metadata: Metadata = {
   title: "FairWatchTrade — Coming Soon",
   description: "A marketplace for independent and boutique watchmakers. One flat 5% fee. No games.",
@@ -20,6 +25,12 @@ export default async function RootLayout({
   // over a notifications hiccup — worst case is simply no bell.
   let authed = false;
   let initialUnreadCount = 0;
+  // Footer session-status state — plumbed alongside the existing auth read
+  // so there is one auth round-trip, not two. isAdmin is a pure string
+  // comparison against user.email and never depends on the profiles query,
+  // so it stays correct even if the display_name lookup below fails.
+  let footerDisplayName: string | null = null;
+  let footerIsAdmin = false;
   try {
     const supabase = await createClient();
     const {
@@ -27,6 +38,20 @@ export default async function RootLayout({
     } = await supabase.auth.getUser();
     authed = !!user;
     if (user) {
+      footerIsAdmin = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      footerDisplayName = user.email ?? null; // baseline fallback per brief
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.display_name) footerDisplayName = profile.display_name;
+      } catch {
+        // display_name is best-effort only — email fallback already set
+        // above, so a profile-fetch hiccup never breaks the footer status.
+      }
+
       const { count } = await supabase
         .from("notifications")
         .select("*", { count: "exact", head: true })
@@ -35,7 +60,7 @@ export default async function RootLayout({
       initialUnreadCount = count ?? 0;
     }
   } catch {
-    // Fail-safe — no bell rather than a broken layout.
+    // Fail-safe — no bell, no footer status, rather than a broken layout.
   }
 
   return (
@@ -53,7 +78,11 @@ export default async function RootLayout({
           <MarketBar />
         </header>
         {children}
-        <SiteFooter />
+        <SiteFooter
+          authed={authed}
+          displayName={footerDisplayName}
+          isAdmin={footerIsAdmin}
+        />
       </body>
     </html>
   );
