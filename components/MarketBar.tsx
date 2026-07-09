@@ -54,7 +54,9 @@ export default function MarketBar() {
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    // v2.5c — was 1000ms, a leftover local/debug value. 30s is plenty for a
+    // countdown display; no design concern, no discussion needed per brief.
+    const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
   }, []);
 

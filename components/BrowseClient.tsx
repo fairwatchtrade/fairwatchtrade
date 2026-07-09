@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
    BROWSE CLIENT — client-side facet filtering shell for /browse (v1.57)
@@ -31,6 +33,13 @@ import Link from "next/link";
    (small thumbnail left, DOMINANT data stack right) depends on a full-
    width row; forced into a 3-wide grid cell, the data stack becomes
    cramped exactly the way the mobile fix was trying to prevent.
+
+   v2.5c — Add to Catalogue WIRED. saved_watches table created (verified
+   nothing existed: no table, no migration history, no profiles column).
+   Client-side insert via @/lib/supabase/client, same pattern as login page /
+   NavBar Sign Out. Logged-out click → /login?callbackUrl=/browse (reuses the
+   auth-flow-correction shipped this session). Duplicate-save is a harmless
+   upsert no-op. Button shows a confirmed "Saved" state per session.
 
    v1.63 — Collector row polish: spec plate width pinned via inline style
    (the max-w utility was being ignored in the live build, letting values
@@ -317,6 +326,15 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   // Compare is selection-only this phase (no compare screen yet). The Set is
   // the workflow-preparation surface the future compare view will read from.
   const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
+  // v2.5c — Add to Catalogue is now wired to the real saved_watches table.
+  // savedIds tracks which listings THIS session has confirmed-saved, purely
+  // for button state (→ "Saved"); it is not re-fetched from the server on
+  // mount, so a listing saved in a prior session won't show as saved here
+  // until the page re-fetches — acceptable for this phase, matching the
+  // brief's scope (persistence + surfacing in /catalogue, not a full
+  // saved-state sync back into Browse).
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const router = useRouter();
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
   const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
@@ -431,20 +449,40 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       return next;
     });
 
-  // v1.62 — Add to Catalogue: DELIBERATELY NOT WIRED.
-  // The vocabulary lock requires this to save into the EXISTING Saved Watches
-  // mechanism under /catalogue and to create no new tables. A Supabase read
-  // (this build) confirmed there is NO saved-watches store in the database
-  // (no table, no column on profiles). Until the real Saved Watches mechanism
-  // is provided — client store, hook, or route that /catalogue already uses —
-  // this handler intentionally does nothing rather than guess an insert or
-  // fake success. The button is placed and styled; its behavior is pending.
-  const handleAddToCatalogue = (id: string) => {
-    // TODO(v1.62-BLOCKED): call the existing Saved Watches save function here.
-    console.warn(
-      "[FairWatchTrade] Add to Catalogue is not yet wired — Saved Watches mechanism pending. Listing:",
-      id
-    );
+  // v2.5c — Add to Catalogue: WIRED. The saved_watches table now exists
+  // (verified via Supabase: no table, no migration history, no profiles
+  // column — genuinely nothing before this build; created fresh, RLS
+  // enabled, own-row-only policies). This writes directly from the client,
+  // same pattern as the login page and NavBar's Sign Out already use
+  // (@/lib/supabase/client). Logged-out click sends the user to /login with
+  // callbackUrl=/browse, reusing the exact auth-flow-correction mechanism
+  // shipped this session — login honors it and returns them here.
+  const handleAddToCatalogue = async (id: string) => {
+    if (savedIds.has(id)) return; // already saved this session — no-op
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/login?callbackUrl=/browse");
+      return;
+    }
+
+    // upsert + ignoreDuplicates: idempotent against the (user_id, listing_id)
+    // primary key — re-saving an already-saved watch is a harmless no-op,
+    // never a thrown error surfaced to the collector.
+    const { error } = await supabase
+      .from("saved_watches")
+      .upsert({ user_id: user.id, listing_id: id }, { onConflict: "user_id,listing_id", ignoreDuplicates: true });
+
+    if (error) {
+      console.error("[FairWatchTrade] Add to Catalogue failed:", error);
+      return;
+    }
+
+    setSavedIds((prev) => new Set(prev).add(id));
   };
 
   const toggleBrand = (value: string) =>
@@ -929,17 +967,29 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                           Compare
                         </button>
 
-                        {/* Add to Catalogue — placed & styled per the locked
-                            vocabulary, but NOT yet wired: no Saved Watches
-                            store exists yet (verified). handleAddToCatalogue
-                            is a deliberate no-op until that mechanism is
-                            provided — see its definition above. */}
+                        {/* Add to Catalogue — v2.5c: WIRED to the real
+                            saved_watches table. Shows a confirmed state
+                            once saved this session; re-click is a no-op
+                            (handleAddToCatalogue short-circuits on savedIds). */}
                         <button
                           type="button"
                           onClick={() => handleAddToCatalogue(row.id)}
-                          className="mt-[10px] flex w-full items-center gap-1 border border-[var(--border-subtle)] px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+                          disabled={savedIds.has(row.id)}
+                          className={`mt-[10px] flex w-full items-center gap-1 border px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] transition ${
+                            savedIds.has(row.id)
+                              ? "cursor-default border-[var(--border-gold)] text-[var(--gold)]"
+                              : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                          }`}
                         >
-                          <span className="text-[var(--gold-subtle)]">＋</span> Add to Catalogue
+                          {savedIds.has(row.id) ? (
+                            <>
+                              <span>✓</span> Saved
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[var(--gold-subtle)]">＋</span> Add to Catalogue
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

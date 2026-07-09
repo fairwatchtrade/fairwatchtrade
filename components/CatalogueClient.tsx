@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   CATALOGUE CLIENT — the buyer's Catalogue  (v2.1c)
+   CATALOGUE CLIENT — the buyer's Catalogue  (v2.5c)
 
    Answers one question: "What happened while I was away?" Every element is
    secondary to that except the Catalogue Match hero, which answers it
-   directly. Catalogue and saved-watches are Phase 2 — their tables don't
-   exist yet, so they render honest empty shells. No fabricated matches, no
-   placeholder watches.
+   directly. My Catalogue (reference tracking) is still Phase 2 — its table
+   doesn't exist yet, so it renders an honest empty shell. Saved Watches is
+   now real (v2.5c): fetched client-side from saved_watches, joined to
+   listings. No fabricated matches, no placeholder watches.
 
    ANTI-FEATURES (PRODUCT_SOUL.md, enforced here): no listing scores or
    combined_score, no save counts, no trend arrows, no manufactured urgency,
@@ -175,6 +177,49 @@ export default function CatalogueClient({
   displayName,
   recentListings,
 }: CatalogueProps) {
+  // v2.5c — Saved Watches is now real. This component had zero data-fetching
+  // of its own before this change (pure server-props-driven); rather than
+  // require the parent server page (not available in this build — flagged
+  // below), the fetch happens here client-side, same pattern already used by
+  // the login page and NavBar's Sign Out (@/lib/supabase/client). Defaults to
+  // the existing empty-state copy while loading, so there's no layout flash.
+  const [savedListings, setSavedListings] = useState<ListingRow[]>([]);
+  const [savedLoading, setSavedLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSaved() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setSavedLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("saved_watches")
+        .select(
+          "listing_id, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (!cancelled) {
+        if (!error && Array.isArray(data)) {
+          const rows = data
+            .map((r) => (r as unknown as { listings: ListingRow | null }).listings)
+            .filter((l): l is ListingRow => Boolean(l));
+          setSavedListings(rows);
+        }
+        setSavedLoading(false);
+      }
+    }
+    loadSaved();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex gap-8 py-8">
       {/* Left nav — sticky, desktop only */}
@@ -257,30 +302,41 @@ export default function CatalogueClient({
               )}
             </div>
 
-            {/* Saved watches — shell (Phase 2, saved_watches table doesn't exist) */}
+            {/* Saved watches — v2.5c: real data from saved_watches, joined to
+                listings. Empty-state copy (product-soul-approved) is
+                preserved verbatim for the true empty case AND the loading
+                case, so there's no flash between "loading" and "0 saved". */}
             <div className="mt-8">
               <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
                 Saved Watches
               </div>
-              <div className="border border-dashed border-[var(--border-faint)] px-4 py-8 text-center">
-                <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
-                  Every great library begins with a single volume.
+              {savedListings.length > 0 ? (
+                <div className="grid grid-cols-1 gap-px bg-[var(--border-faint)] sm:grid-cols-3">
+                  {savedListings.map((row) => (
+                    <ListingCard key={row.id} row={row} />
+                  ))}
                 </div>
-                <div className="mb-6 font-display text-[11px] italic text-[var(--ghost)]">
-                  Save a watch that speaks to you, and your Catalogue will begin to take shape.
-                </div>
-                <div className="flex flex-col items-center gap-3">
-                  <Link href="/browse" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
-                    Explore the Marketplace →
-                  </Link>
-                  <Link href="/vault" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
-                    Explore the Vault →
-                  </Link>
-                  <div className="cursor-default text-[9px] uppercase tracking-[2px] text-[var(--ghost)] opacity-60">
-                    Watch DNA Quiz <span className="text-[8px] tracking-[1.5px]">soon</span>
+              ) : (
+                <div className="border border-dashed border-[var(--border-faint)] px-4 py-8 text-center">
+                  <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
+                    Every great library begins with a single volume.
+                  </div>
+                  <div className="mb-6 font-display text-[11px] italic text-[var(--ghost)]">
+                    Save a watch that speaks to you, and your Catalogue will begin to take shape.
+                  </div>
+                  <div className="flex flex-col items-center gap-3">
+                    <Link href="/browse" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                      Explore the Marketplace →
+                    </Link>
+                    <Link href="/vault" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                      Explore the Vault →
+                    </Link>
+                    <div className="cursor-default text-[9px] uppercase tracking-[2px] text-[var(--ghost)] opacity-60">
+                      Watch DNA Quiz <span className="text-[8px] tracking-[1.5px]">soon</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
