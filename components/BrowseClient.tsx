@@ -596,16 +596,18 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             </p>
           ) : (
             <div
-              // v1.60 — Collector: grid-cols-1 unconditionally, every width.
-              // The v1.59 md: override that let desktop revert to a 3/4-wide
-              // grid is gone — that was the actual regression this fixes.
-              className={`grid gap-px bg-[var(--border-faint)] ${
+              // v1.61 — Collector View: stacked block, not a grid. space-y-*
+              // utilities don't apply inside `grid`, so Collector gets its
+              // own flex flex-col wrapper with real vertical gutters instead
+              // of the old gap-px background-bleed hack. Gallery View's grid
+              // wrapper is untouched — byte-for-byte the same as v1.60.
+              className={
                 viewMode === "collector"
-                  ? "grid-cols-1"
-                  : gridCols === 3
-                    ? "grid-cols-3"
-                    : "grid-cols-4"
-              }`}
+                  ? "flex flex-col space-y-6 md:space-y-8"
+                  : `grid gap-px bg-[var(--border-faint)] ${
+                      gridCols === 3 ? "grid-cols-3" : "grid-cols-4"
+                    }`
+              }
             >
               {paginated.map((row) => {
                 const hero = heroUrl(row.photos);
@@ -694,7 +696,10 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group relative flex gap-4 cursor-pointer border border-transparent p-5 transition hover:bg-[rgba(255,255,255,0.02)]"
+                    // v1.61 — row perimeter is a whisper, not a border: inset
+                    // box-shadow only, sharp corners, no drop-shadow. Felt,
+                    // not announced — matches the platform's restrained law.
+                    className="group relative flex gap-4 cursor-pointer p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
                     {row.in_hand_verified && (
                       <div
