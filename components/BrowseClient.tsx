@@ -22,14 +22,22 @@ import Link from "next/link";
    transforms (the stored listings.details values are never rewritten) —
    same established pattern as sizeLabel() already uses for case size.
 
-   v1.59 — Phase 1B follow-on (P1, real-device evidence: iPhone 14 Pro
-   430x932). Collector View's two-column grid left cards too narrow at
-   phone widths — cramped stacked text, awkward wrapping. Fix: Collector
-   View collapses to one card per row below the file's own existing md:
-   breakpoint (768px — the same cutoff the Refine button, sidebar collapse,
-   and mobile filter overlay already use; no new breakpoint invented).
-   Desktop/tablet Collector behavior (the 3-wide/4-wide toggle) and ALL of
-   Gallery View (every width) are untouched — verified below.
+   v1.59 — Phase 1B follow-on (real-device evidence, iPhone 14 Pro 430x932):
+   fixed mobile cramping by collapsing Collector to one card per row BELOW
+   the md: breakpoint — but left it reverting to a 3/4-wide grid ABOVE that
+   breakpoint, i.e. on desktop. That silently broke the core Collector View
+   law (one listing per row, every width) the moment a wide monitor moved
+   past 768px. Not a visual-preference bug — Collector's whole layout
+   (small thumbnail left, DOMINANT data stack right) depends on a full-
+   width row; forced into a 3-wide grid cell, the data stack becomes
+   cramped exactly the way the mobile fix was trying to prevent.
+
+   v1.60 — restores the law: Collector View is grid-cols-1, unconditionally,
+   at every width, full stop. The 3-wide/4-wide toggle is now removed from
+   the DOM entirely (not grayed out) while Collector is active — it would
+   otherwise sit on screen controlling nothing, which is worse than not
+   being there. Gallery View: every width, untouched. 20/40/All page-size
+   and Refine stay visible regardless of viewMode, per the brief.
 
    v1.58 — Phase 1B: Collector View gets its actual spec-first card layout
    (Phase 1A shipped it as Gallery-card-plus-one-line; this closes that
@@ -509,22 +517,27 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           both are orthogonal display controls, neither replaces the other. */}
       <div className="mt-6 flex items-center justify-between border-b border-[var(--border-faint)] pb-4">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1">
-            {([3, 4] as const).map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setGridCols(n)}
-                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
-                  gridCols === n
-                    ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
-                }`}
-              >
-                {n}-wide
-              </button>
-            ))}
-          </div>
+          {/* v1.60 — absent from the DOM in Collector View, not grayed out:
+              once Collector is always grid-cols-1, this toggle would
+              control nothing while sitting on screen implying it does. */}
+          {viewMode === "gallery" && (
+            <div className="flex items-center gap-1">
+              {([3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setGridCols(n)}
+                  className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                    gridCols === n
+                      ? "border-[var(--border-gold)] text-[var(--gold)]"
+                      : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                  }`}
+                >
+                  {n}-wide
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-1 border-l border-[var(--border-faint)] pl-4">
             {([
@@ -583,9 +596,12 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             </p>
           ) : (
             <div
+              // v1.60 — Collector: grid-cols-1 unconditionally, every width.
+              // The v1.59 md: override that let desktop revert to a 3/4-wide
+              // grid is gone — that was the actual regression this fixes.
               className={`grid gap-px bg-[var(--border-faint)] ${
                 viewMode === "collector"
-                  ? `grid-cols-1 ${gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"}`
+                  ? "grid-cols-1"
                   : gridCols === 3
                     ? "grid-cols-3"
                     : "grid-cols-4"
