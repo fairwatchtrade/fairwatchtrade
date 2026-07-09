@@ -22,6 +22,15 @@ import Link from "next/link";
    transforms (the stored listings.details values are never rewritten) —
    same established pattern as sizeLabel() already uses for case size.
 
+   v1.59 — Phase 1B follow-on (P1, real-device evidence: iPhone 14 Pro
+   430x932). Collector View's two-column grid left cards too narrow at
+   phone widths — cramped stacked text, awkward wrapping. Fix: Collector
+   View collapses to one card per row below the file's own existing md:
+   breakpoint (768px — the same cutoff the Refine button, sidebar collapse,
+   and mobile filter overlay already use; no new breakpoint invented).
+   Desktop/tablet Collector behavior (the 3-wide/4-wide toggle) and ALL of
+   Gallery View (every width) are untouched — verified below.
+
    v1.58 — Phase 1B: Collector View gets its actual spec-first card layout
    (Phase 1A shipped it as Gallery-card-plus-one-line; this closes that
    gap). Gallery View's render branch is byte-for-byte untouched below.
@@ -573,7 +582,15 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
               No watches match your selection.
             </p>
           ) : (
-            <div className={`grid gap-px bg-[var(--border-faint)] ${gridCols === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+            <div
+              className={`grid gap-px bg-[var(--border-faint)] ${
+                viewMode === "collector"
+                  ? `grid-cols-1 ${gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"}`
+                  : gridCols === 3
+                    ? "grid-cols-3"
+                    : "grid-cols-4"
+              }`}
+            >
               {paginated.map((row) => {
                 const hero = heroUrl(row.photos);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
