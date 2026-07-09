@@ -32,6 +32,21 @@ import Link from "next/link";
    width row; forced into a 3-wide grid cell, the data stack becomes
    cramped exactly the way the mobile fix was trying to prevent.
 
+   v1.62 — Collector View becomes a research tool. Three-zone row (photo /
+   identity+capped-specs+Snapshot-trigger / price+Compare+Add-to-Catalogue).
+   Collector Snapshot: inline absolute overlay, one-open-at-a-time, no layout
+   shift, content generated ONLY from details keys verified to exist in
+   production (buildSnapshot). Compare: per-row selection state only, no
+   compare screen this phase. Add to Catalogue: placed & styled per the locked
+   vocabulary but intentionally NOT wired — no Saved Watches store exists yet;
+   handleAddToCatalogue is a no-op stub pending that mechanism. Out of scope
+   per brief (deferred to Design Gate): guilloché, fumé, shadow/gutter/border
+   aesthetic experimentation, animation refinement.
+
+   v1.61 — Collector View outer wrapper: flex flex-col + real vertical gutter
+   (space-y-6 md:space-y-8) replacing the grid gap-px background-bleed hack;
+   per-row inset box-shadow perimeter. Gallery View grid untouched.
+
    v1.60 — restores the law: Collector View is grid-cols-1, unconditionally,
    at every width, full stop. The 3-wide/4-wide toggle is now removed from
    the DOM entirely (not grayed out) while Collector is active — it would
@@ -76,6 +91,24 @@ type ListingRow = {
     movementFrequency?: string; // Beat Rate / VPH — heterogeneous raw formats
     powerReserve?: string; // heterogeneous raw formats
     caseThicknessMm?: string; // v1.58 — verified live against production
+    // v1.62 — Collector Snapshot fields. Every key below was verified to
+    // exist in real listings.details before being added here (Supabase read,
+    // both production rows). Nothing speculative: the mockup's "Condition
+    // Notes"/"Concern" were NOT in the data and are deliberately absent.
+    // Scalars:
+    calibre?: string;
+    jewels?: string;
+    crystalMaterial?: string;
+    casebackType?: string;
+    bezelMaterial?: string;
+    waterResistance?: string;
+    caseColorFinish?: string;
+    closureType?: string;
+    braceletWristSize?: string;
+    // Arrays (rendered joined with " · " when non-empty):
+    complications?: string[];
+    serviceHistory?: string[];
+    includedWithWatch?: string[];
   } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
@@ -228,6 +261,40 @@ function SpecRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+// v1.62 — Collector Snapshot content, data-driven. Returns ONLY the deeper
+// spec fields that (a) actually exist on this listing and (b) aren't already
+// shown in the compact Collector row (Case Size / Movement / Beat Rate /
+// Power Reserve / Thickness / Case Material / Documentation). Each field is
+// emitted only when present — same "no penalty for missing data, only bad
+// data" law SpecRow enforces. Arrays join with " · "; empty arrays are
+// dropped, never rendered as an empty line. If this returns [], the row has
+// nothing extra to reveal and the trigger is not shown at all.
+function buildSnapshot(details: ListingRow["details"]): { label: string; value: string }[] {
+  if (!details) return [];
+  const rows: { label: string; value: string }[] = [];
+  const scalar = (label: string, value?: string) => {
+    if (value && value.trim()) rows.push({ label, value: value.trim() });
+  };
+  const list = (label: string, value?: string[]) => {
+    if (Array.isArray(value) && value.length > 0) {
+      rows.push({ label, value: value.join(" · ") });
+    }
+  };
+  scalar("Calibre", details.calibre);
+  scalar("Jewels", details.jewels);
+  scalar("Crystal", details.crystalMaterial);
+  scalar("Caseback", details.casebackType);
+  scalar("Bezel", details.bezelMaterial);
+  scalar("Water Resistance", details.waterResistance);
+  scalar("Case Finish", details.caseColorFinish);
+  scalar("Closure", details.closureType);
+  scalar("Bracelet Fit", details.braceletWristSize);
+  list("Complications", details.complications);
+  list("Service History", details.serviceHistory);
+  list("Included", details.includedWithWatch);
+  return rows;
+}
+
 export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -236,6 +303,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   // v1.57 — orthogonal to grid width/page size: Collector View adds
   // understanding (specs), it never removes what Gallery View shows.
   const [viewMode, setViewMode] = useState<"gallery" | "collector">("gallery");
+  // v1.62 — Collector research workflow state.
+  // Only ONE snapshot may be open at a time: a single id (or null), never a
+  // Set — opening another row's snapshot simply replaces this value, which
+  // is the "opening another automatically closes the previous" rule for free.
+  const [openSnapshotId, setOpenSnapshotId] = useState<string | null>(null);
+  // Compare is selection-only this phase (no compare screen yet). The Set is
+  // the workflow-preparation surface the future compare view will read from.
+  const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
   const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
@@ -337,6 +412,34 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   );
 
   const paginated = pageSize === "all" ? filtered : filtered.slice(0, pageSize);
+
+  // v1.62 — Collector workflow handlers.
+  const toggleSnapshot = (id: string) =>
+    setOpenSnapshotId((prev) => (prev === id ? null : id));
+
+  const toggleCompare = (id: string) =>
+    setCompareSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // v1.62 — Add to Catalogue: DELIBERATELY NOT WIRED.
+  // The vocabulary lock requires this to save into the EXISTING Saved Watches
+  // mechanism under /catalogue and to create no new tables. A Supabase read
+  // (this build) confirmed there is NO saved-watches store in the database
+  // (no table, no column on profiles). Until the real Saved Watches mechanism
+  // is provided — client store, hook, or route that /catalogue already uses —
+  // this handler intentionally does nothing rather than guess an insert or
+  // fake success. The button is placed and styled; its behavior is pending.
+  const handleAddToCatalogue = (id: string) => {
+    // TODO(v1.62-BLOCKED): call the existing Saved Watches save function here.
+    console.warn(
+      "[FairWatchTrade] Add to Catalogue is not yet wired — Saved Watches mechanism pending. Listing:",
+      id
+    );
+  };
 
   const toggleBrand = (value: string) =>
     setSelectedBrands((prev) => {
@@ -686,78 +789,185 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   );
                 }
 
-                // v1.58 — Phase 1B: Collector View's actual spec-first layout.
-                // Small fixed thumbnail left, dominant data stack right — the
-                // brief's nine fields, in order, each absent when the source
-                // data is absent. No new normalization invented: sizeLabel,
-                // beatRateLabel, powerReserveLabel, and thicknessLabel are the
-                // exact same functions Gallery/Workbench already trust.
-                return (
-                  <Link
-                    key={row.id}
-                    href={`/listings/${row.id}`}
-                    // v1.61 — row perimeter is a whisper, not a border: inset
-                    // box-shadow only, sharp corners, no drop-shadow. Felt,
-                    // not announced — matches the platform's restrained law.
-                    className="group relative flex gap-4 cursor-pointer p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition hover:bg-[rgba(255,255,255,0.02)]"
-                  >
-                    {row.in_hand_verified && (
-                      <div
-                        title="In Hand Verified"
-                        className="absolute top-2 right-2 text-[var(--gold)] opacity-70"
-                        aria-label="In Hand Verified"
-                      >
-                        🛡️
-                      </div>
-                    )}
+                // v1.62 — Collector View research row. Three zones:
+                //   • photo (left)  — links to detail
+                //   • identity + capped spec plate + Snapshot trigger (middle)
+                //   • price + Compare + Add to Catalogue (right)
+                // The row is no longer a single wrapping <Link>: it now holds
+                // interactive controls (checkbox, buttons) that must NOT
+                // navigate, so ONLY the photo and identity header link to the
+                // detail page. Spec fields and normalizers (sizeLabel,
+                // beatRateLabel, powerReserveLabel, thicknessLabel) and the
+                // "no missing-data placeholder" law are unchanged from v1.58.
+                const snapshotRows = buildSnapshot(row.details);
+                const hasSnapshot = snapshotRows.length > 0;
+                const isSnapshotOpen = openSnapshotId === row.id;
+                const isCompared = compareSelected.has(row.id);
 
-                    {/* Supporting thumbnail — fixed, small, never dominant. */}
-                    <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+                return (
+                  <div
+                    key={row.id}
+                    // Perimeter whisper preserved from v1.61 (inset only, sharp
+                    // corners, no drop-shadow). The row is raised above its
+                    // siblings ONLY while its snapshot is open, so the absolute
+                    // overlay is never clipped by the row beneath it.
+                    className={`group relative flex gap-4 p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition ${
+                      isSnapshotOpen ? "z-30" : "z-0"
+                    }`}
+                  >
+                    {/* Photo (left) — links to detail. */}
+                    <Link
+                      href={`/listings/${row.id}`}
+                      className="flex h-[84px] w-[84px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90"
+                    >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={hero}
-                          alt=""
-                          className="h-full w-full object-contain"
-                        />
+                        <img src={hero} alt="" className="h-full w-full object-contain" />
                       ) : (
                         <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--ghost)]">
                           No photo
                         </div>
                       )}
+                    </Link>
+
+                    {/* Middle — identity (links to detail), capped spec plate,
+                        Snapshot trigger. */}
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/listings/${row.id}`} className="block">
+                        <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                          {row.brand}
+                        </div>
+                        <div className="mb-[2px] flex items-center gap-2">
+                          <span className="truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">
+                            {row.model ?? row.brand}
+                          </span>
+                          {row.in_hand_verified && (
+                            <span
+                              title="In Hand Verified"
+                              aria-label="In Hand Verified"
+                              className="shrink-0 text-[var(--gold)] opacity-70"
+                            >
+                              🛡️
+                            </span>
+                          )}
+                        </div>
+                        <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                          {row.reference}
+                        </div>
+                      </Link>
+
+                      {/* Spec plate — width-capped so each label↔value pair
+                          stays together and never stretches across a wide
+                          monitor (brief §1). Fields/normalizers unchanged. */}
+                      <div className="max-w-[380px]">
+                        <SpecRow label="Case Size" value={sizeLabel(row.details?.caseSizeMm) || null} />
+                        <SpecRow label="Movement" value={row.details?.movementType ?? null} />
+                        <SpecRow label="Beat Rate" value={beatRateLabel(row.details?.movementFrequency) || null} />
+                        <SpecRow label="Power Reserve" value={powerReserveLabel(row.details?.powerReserve) || null} />
+                        <SpecRow label="Thickness" value={thicknessLabel(row.details?.caseThicknessMm) || null} />
+                        <SpecRow label="Case Material" value={row.details?.caseMaterial ?? null} />
+                        <SpecRow label="Documentation" value={docBadge} />
+                      </div>
+
+                      {/* Snapshot trigger — shown only when there is deeper
+                          data to reveal. Never navigates. */}
+                      {hasSnapshot && (
+                        <button
+                          type="button"
+                          onClick={() => toggleSnapshot(row.id)}
+                          aria-expanded={isSnapshotOpen}
+                          className="mt-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                        >
+                          <span className={`transition-transform ${isSnapshotOpen ? "rotate-180" : ""}`}>▼</span>
+                          Collector Snapshot
+                        </button>
+                      )}
                     </div>
 
-                    {/* Dominant data block. */}
-                    <div className="min-w-0 flex-1">
-                      {/* 1 · Brand / Model / Reference — header weight */}
-                      <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
-                        {row.brand}
-                      </div>
-                      <div className="mb-[2px] truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">
-                        {row.model ?? row.brand}
-                      </div>
-                      <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
-                        {row.reference}
-                      </div>
-
-                      {/* 2-8 · the spec stack — each row absent if the field is */}
-                      <SpecRow label="Case Size" value={sizeLabel(row.details?.caseSizeMm) || null} />
-                      <SpecRow label="Movement" value={row.details?.movementType ?? null} />
-                      <SpecRow label="Beat Rate" value={beatRateLabel(row.details?.movementFrequency) || null} />
-                      <SpecRow label="Power Reserve" value={powerReserveLabel(row.details?.powerReserve) || null} />
-                      <SpecRow label="Thickness" value={thicknessLabel(row.details?.caseThicknessMm) || null} />
-                      <SpecRow label="Case Material" value={row.details?.caseMaterial ?? null} />
-                      <SpecRow label="Documentation" value={docBadge} />
-
-                      {/* 9 · Price */}
-                      <div className="mt-2 font-display text-[16px] font-light text-[var(--platinum-dim)]">
+                    {/* Right — price + workflow actions. */}
+                    <div className="flex w-[190px] shrink-0 flex-col items-end justify-between gap-4">
+                      <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
                         {formatPrice(Number(row.asking_price))}
                       </div>
+
+                      <div className="w-full">
+                        {/* Compare — selection only this phase. Never navigates. */}
+                        <button
+                          type="button"
+                          onClick={() => toggleCompare(row.id)}
+                          aria-pressed={isCompared}
+                          className={`flex w-full items-center gap-2 border px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] transition ${
+                            isCompared
+                              ? "border-[var(--border-gold)] text-[var(--gold)]"
+                              : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+                              isCompared
+                                ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
+                                : "border-[var(--border-subtle)]"
+                            }`}
+                          >
+                            {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />}
+                          </span>
+                          Compare
+                        </button>
+
+                        {/* Add to Catalogue — placed & styled per the locked
+                            vocabulary, but NOT yet wired: no Saved Watches
+                            store exists yet (verified). handleAddToCatalogue
+                            is a deliberate no-op until that mechanism is
+                            provided — see its definition above. */}
+                        <button
+                          type="button"
+                          onClick={() => handleAddToCatalogue(row.id)}
+                          className="mt-[10px] flex w-full items-center gap-1 border border-[var(--border-subtle)] px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+                        >
+                          <span className="text-[var(--gold-subtle)]">＋</span> Add to Catalogue
+                        </button>
+                      </div>
                     </div>
 
-                    {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
-                    {/* <div className="fw-hover-enrichment"> ... </div> */}
-                  </Link>
+                    {/* Collector Snapshot overlay — absolute, anchored to this
+                        row. Absolute positioning means it does NOT push the
+                        following listings down (brief §2/§5: Browse stays
+                        stable). One-open-at-a-time is guaranteed by the single
+                        openSnapshotId. Content is generated only from fields
+                        that exist on THIS listing (buildSnapshot). NOTE: the
+                        panel's border/shadow here are the minimum needed to
+                        read as a floating surface over the row beneath — any
+                        aesthetic refinement of this treatment is deferred to
+                        the Design Gate, per the brief's out-of-scope list. */}
+                    {isSnapshotOpen && (
+                      <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[rgba(232,220,190,0.16)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.42)]">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                            Collector Snapshot · {row.model ?? row.brand}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleSnapshot(row.id)}
+                            aria-label="Close snapshot"
+                            className="text-[10px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--slate)]"
+                          >
+                            Close
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+                          {snapshotRows.map((s) => (
+                            <div
+                              key={s.label}
+                              className="flex items-baseline justify-between gap-3 border-b border-[var(--border-faint)] py-1 text-[11px] tracking-[0.3px]"
+                            >
+                              <span className="shrink-0 text-[var(--ghost)]">{s.label}</span>
+                              <span className="text-right text-[var(--slate)]">{s.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
