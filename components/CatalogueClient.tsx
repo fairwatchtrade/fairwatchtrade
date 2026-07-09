@@ -5,14 +5,16 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   CATALOGUE CLIENT — the buyer's Catalogue  (v2.5c)
+   CATALOGUE CLIENT — the buyer's Catalogue  (v2.6)
 
    Answers one question: "What happened while I was away?" Every element is
    secondary to that except the Catalogue Match hero, which answers it
    directly. My Catalogue (reference tracking) is still Phase 2 — its table
    doesn't exist yet, so it renders an honest empty shell. Saved Watches is
-   now real (v2.5c): fetched client-side from saved_watches, joined to
-   listings. No fabricated matches, no placeholder watches.
+   real (v2.5c): fetched client-side from saved_watches, joined to listings.
+   Correspondence is real (v2.6): the buyer's table of contents — every row
+   links to the listing where the conversation lives, never a separate
+   inbox. No fabricated matches, no placeholder watches.
 
    ANTI-FEATURES (PRODUCT_SOUL.md, enforced here): no listing scores or
    combined_score, no save counts, no trend arrows, no manufactured urgency,
@@ -186,6 +188,43 @@ export default function CatalogueClient({
   const [savedListings, setSavedListings] = useState<ListingRow[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
 
+  // v2.6 — Correspondence. The buyer's table of contents: threads fetched
+  // from /api/messages; each row links to the LISTING (the conversation's
+  // home), never to a separate inbox. Section renders only when the buyer
+  // has correspondence at all.
+  const [threads, setThreads] = useState<
+    {
+      id: string;
+      listing: { id: string; brand: string; model: string | null } | null;
+      unreadCount: number;
+      updatedAt: string;
+      archivedByMe: boolean;
+      messageCount?: number;
+      lastMessage: { body: string; created_at: string } | null;
+    }[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadThreads() {
+      try {
+        const res = await fetch("/api/messages");
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.threads)) setThreads(data.threads);
+        }
+      } catch {
+        /* section simply doesn't render */
+      }
+    }
+    loadThreads();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeThreads = threads.filter((t) => !t.archivedByMe && t.listing);
+
   useEffect(() => {
     let cancelled = false;
     async function loadSaved() {
@@ -269,6 +308,52 @@ export default function CatalogueClient({
             appears.
           </div>
         </div>
+
+        {/* v2.6 — Correspondence. The inbox is a table of contents, not the
+            destination: every row goes to the listing, where the
+            conversation lives. Rendered only when threads exist. */}
+        {activeThreads.length > 0 && (
+          <div className="mt-8">
+            <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+              Correspondence
+            </div>
+            <div className="border border-[var(--border-subtle)]">
+              {activeThreads.map((t) => {
+                const unread = t.unreadCount > 0;
+                const title = t.listing
+                  ? `${t.listing.brand}${t.listing.model ? " " + t.listing.model : ""}`
+                  : "Correspondence";
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/listings/${t.listing!.id}`}
+                    className="flex items-center justify-between border-b border-[rgba(255,255,255,0.03)] px-4 py-3 transition last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+                  >
+                    <span
+                      className={`truncate text-[13px] ${
+                        unread ? "text-[var(--platinum)]" : "text-[var(--slate)]"
+                      }`}
+                    >
+                      {title}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="text-[10px] text-[var(--ghost)]">
+                        {unread
+                          ? t.unreadCount === 1
+                            ? "New reply"
+                            : `${t.unreadCount} new`
+                          : ""}
+                      </span>
+                      {unread && (
+                        <span className="h-[6px] w-[6px] rounded-full bg-[var(--gold)]" />
+                      )}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Two-column below the hero */}
         <div className="mt-8 flex flex-col gap-8 lg:flex-row">

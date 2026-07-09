@@ -1,22 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
-   ACCOUNT DASHBOARD — client shell for /account  (v1.59)
+   ACCOUNT DASHBOARD — client shell for /account  (v2.6)
 
    Architecture: "Global navigation changes WHERE you are; workspace controls
    change WHAT you're doing."
-     • Left panel = global module nav (Dashboard / Inventory / coming-soon).
+     • Left panel = global module nav (Dashboard / Inventory / Messages /
+       coming-soon).
      • Right workspace = the active module's controls + content.
 
    Receives `listings` as a prop from the server page (app/account/page.tsx),
-   which owns auth + the query. No fetching here. Counts are derived from the
-   prop — no new queries.
+   which owns auth + the query. Listings involve no fetching here.
 
-   PRIVACY: only buyer-safe fields + status arrive in the prop; scoring fields
-   (significance_score, score_state, combined_score) never reach this layer.
+   v2.6 — Correspondence (Messages module). DELIBERATE deviation from the
+   "no fetching here" rule above, documented rather than silent: threads are
+   fetched client-side from /api/messages (on mount, for the sidebar unread
+   badge; module views reuse the same data). Rewiring the server page to
+   pass threads as props would have meant redelivering app/account/page.tsx
+   for data the messages API already serves RLS-scoped. Listings remain
+   props-only, untouched.
+
+   PRIVACY: only buyer-safe fields + status arrive in the listings prop;
+   scoring fields (significance_score, score_state, combined_score) never
+   reach this layer.
 
    v1.59: Studio three-column instrument-panel migration. All state, module
    switching, tab filtering, count derivation, and the published-vs-div link
@@ -73,9 +82,51 @@ const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
   { id: "dashboard", label: "Overview", soon: false },
   { id: "inventory", label: "Listings", soon: false },
   { id: "market", label: "Market Intel", soon: true },
-  { id: "messages", label: "Messages", soon: true },
+  { id: "messages", label: "Messages", soon: false },
   { id: "analytics", label: "Analytics", soon: true },
 ];
+
+/* ── v2.6 · Correspondence types — mirror /api/messages responses. ── */
+
+type ThreadSummary = {
+  id: string;
+  listing: {
+    id: string;
+    brand: string;
+    model: string | null;
+    reference: string;
+    thumbUrl: string | null;
+  } | null;
+  subject: string | null;
+  otherName: string;
+  lastMessage: { body: string; created_at: string; sender_id: string } | null;
+  unreadCount: number;
+  updatedAt: string;
+  myRole: "a" | "b";
+  archivedByMe: boolean;
+};
+
+type ThreadMessage = {
+  id: string;
+  senderName: string;
+  isMine: boolean;
+  body: string;
+  createdAt: string;
+};
+
+/** Quiet relative timestamp — collector correspondence, not a chat app. */
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!isFinite(ms) || ms < 0) return "";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 /* ── Listing row — Studio row treatment (replaces the v1.42 card). Markup
    shape follows the prototype; the published-vs-div link logic and the
@@ -294,6 +345,276 @@ function InventoryView({
   );
 }
 
+/* ── v2.6 · MESSAGES module — Correspondence. Thread list + thread view.
+   No chat bubbles: sender name, timestamp, body. Collector correspondence,
+   not Discord. Threads arrive from the parent (fetched once for the badge);
+   opening a thread fetches its messages from /api/messages/[threadId],
+   which also marks the other party's messages read server-side. ── */
+function MessagesView({
+  threads,
+  onThreadsChanged,
+}: {
+  threads: ThreadSummary[];
+  onThreadsChanged: () => void;
+}) {
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [threadMeta, setThreadMeta] = useState<ThreadSummary | null>(null);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const visible = threads.filter((t) => t.archivedByMe === showArchived);
+
+  async function openThread(t: ThreadSummary) {
+    setOpenThreadId(t.id);
+    setThreadMeta(t);
+    setThreadMessages([]);
+    setLoadingThread(true);
+    setSendError(null);
+    try {
+      const res = await fetch(`/api/messages/${t.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setThreadMessages(Array.isArray(data.messages) ? data.messages : []);
+        // Server marked unread as read — refresh the parent's badge/list.
+        onThreadsChanged();
+      }
+    } catch {
+      /* leave the empty state; nothing crashes */
+    }
+    setLoadingThread(false);
+  }
+
+  async function sendReply() {
+    const body = reply.trim();
+    if (!body || !openThreadId) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await fetch(`/api/messages/${openThreadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      if (res.ok) {
+        setReply("");
+        // Re-fetch the thread so the new message appears with server truth.
+        const refreshed = await fetch(`/api/messages/${openThreadId}`);
+        if (refreshed.ok) {
+          const data = await refreshed.json();
+          setThreadMessages(Array.isArray(data.messages) ? data.messages : []);
+        }
+        onThreadsChanged();
+      } else {
+        const err = await res.json().catch(() => null);
+        setSendError(err?.detail ?? "Message could not be sent. Please try again.");
+      }
+    } catch {
+      setSendError("Message could not be sent. Please try again.");
+    }
+    setSending(false);
+  }
+
+  async function archiveThread(t: ThreadSummary) {
+    // Quiet action — sets my side's archived flag directly (RLS-scoped),
+    // same direct-supabase-update convention AccountSettings already uses.
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const column = t.myRole === "a" ? "archived_by_a" : "archived_by_b";
+    await supabase.from("message_threads").update({ [column]: true }).eq("id", t.id);
+    setOpenThreadId(null);
+    setThreadMeta(null);
+    onThreadsChanged();
+  }
+
+  /* ── Thread view ── */
+  if (openThreadId && threadMeta) {
+    const title = threadMeta.listing
+      ? `${threadMeta.listing.brand}${threadMeta.listing.model ? " " + threadMeta.listing.model : ""}`
+      : (threadMeta.subject ?? "Correspondence");
+    return (
+      <div className="px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setOpenThreadId(null);
+            setThreadMeta(null);
+          }}
+          className="mb-5 text-[9px] uppercase tracking-[2px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+        >
+          ← Correspondence
+        </button>
+
+        {/* Listing identity */}
+        <div className="mb-5 flex items-center justify-between border-b border-[var(--border-faint)] pb-4">
+          <div className="flex items-center gap-3">
+            {threadMeta.listing?.thumbUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={threadMeta.listing.thumbUrl}
+                alt=""
+                className="h-10 w-10 shrink-0 border border-[var(--border-faint)] object-cover"
+              />
+            )}
+            <div>
+              <div className="font-display text-[16px] font-light text-[var(--platinum)]">
+                {title}
+              </div>
+              {threadMeta.listing && (
+                <div className="text-[9px] tracking-[0.3px] text-[var(--ghost)]">
+                  Ref. {threadMeta.listing.reference} · with {threadMeta.otherName}
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => archiveThread(threadMeta)}
+            className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+          >
+            Archive
+          </button>
+        </div>
+
+        {/* History — chronological, no bubbles */}
+        {loadingThread ? (
+          <div className="py-8 text-center font-display text-[12px] italic text-[var(--ghost)]">
+            Opening correspondence…
+          </div>
+        ) : threadMessages.length === 0 ? (
+          <div className="py-8 text-center font-display text-[12px] italic text-[var(--ghost)]">
+            No messages yet.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {threadMessages.map((m) => (
+              <div key={m.id} className="border-b border-[rgba(255,255,255,0.03)] pb-4">
+                <div className="mb-1 flex items-baseline justify-between">
+                  <span
+                    className={`text-[10px] uppercase tracking-[1.5px] ${
+                      m.isMine ? "text-[var(--gold-subtle)]" : "text-[var(--slate)]"
+                    }`}
+                  >
+                    {m.isMine ? "You" : m.senderName}
+                  </span>
+                  <span className="text-[9px] text-[var(--ghost)]">{timeAgo(m.createdAt)}</span>
+                </div>
+                <p className="whitespace-pre-line text-[13px] leading-[1.7] text-[var(--platinum-dim)]">
+                  {m.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Reply */}
+        <div className="mt-6">
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value.slice(0, 2000))}
+            placeholder="Write your reply…"
+            rows={3}
+            className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[9px] text-[var(--ghost)]">{reply.length}/2000</span>
+            <div className="flex items-center gap-3">
+              {sendError && <span className="text-[11px] text-[var(--danger)]">{sendError}</span>}
+              <button
+                type="button"
+                onClick={sendReply}
+                disabled={sending || reply.trim().length === 0}
+                className={`border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition ${
+                  sending || reply.trim().length === 0
+                    ? "cursor-not-allowed opacity-40"
+                    : "hover:bg-[rgba(201,168,76,0.06)]"
+                }`}
+              >
+                {sending ? "Sending…" : "Send Reply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Thread list ── */
+  return (
+    <div>
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        <div className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          Correspondence
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowArchived((v) => !v)}
+          className="text-[9px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+        >
+          {showArchived ? "Show active" : "Show archived"}
+        </button>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="mx-6 border border-[var(--border-faint)] px-6 py-10 text-center">
+          <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+            {showArchived
+              ? "No archived correspondence."
+              : "No correspondence yet. When a collector writes about one of your watches, it appears here."}
+          </p>
+        </div>
+      ) : (
+        <div>
+          {visible.map((t) => {
+            const unread = t.unreadCount > 0;
+            const title = t.listing
+              ? `${t.listing.brand}${t.listing.model ? " " + t.listing.model : ""}`
+              : (t.subject ?? "Correspondence");
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => openThread(t)}
+                className="flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[16px] text-left transition hover:bg-[rgba(255,255,255,0.02)]"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className={`truncate text-[13px] ${
+                        unread ? "text-[var(--platinum)]" : "text-[var(--slate)]"
+                      }`}
+                    >
+                      {t.otherName} · {title}
+                    </span>
+                  </div>
+                  {t.lastMessage && (
+                    <div className="mt-[3px] truncate font-display text-[12px] font-light italic text-[var(--ghost)]">
+                      &ldquo;{t.lastMessage.body.slice(0, 90)}
+                      {t.lastMessage.body.length > 90 ? "…" : ""}&rdquo;
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[9px] text-[var(--ghost)]">{timeAgo(t.updatedAt)}</span>
+                  {unread && (
+                    <span
+                      aria-label={`${t.unreadCount} unread`}
+                      className="h-[6px] w-[6px] rounded-full bg-[var(--gold)]"
+                    />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AccountDashboard({
   listings,
 }: {
@@ -305,6 +626,32 @@ export default function AccountDashboard({
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // v2.6 — Correspondence threads. Fetched on mount (powers the sidebar
+  // unread badge even before the module is opened) and re-fetched when the
+  // module reports a change (read, reply, archive).
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+
+  async function refreshThreads() {
+    try {
+      const res = await fetch("/api/messages");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.threads)) setThreads(data.threads);
+      }
+    } catch {
+      /* badge simply stays absent — never crashes the workspace */
+    }
+  }
+
+  useEffect(() => {
+    refreshThreads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const unreadThreadCount = threads.filter(
+    (t) => !t.archivedByMe && t.unreadCount > 0
+  ).length;
 
   // Client-side filter — all listings already loaded as a prop, no new query.
   const searchFiltered = useMemo(() => {
@@ -328,7 +675,12 @@ export default function AccountDashboard({
     rejected: searchFiltered.filter((l) => l.status === "rejected").length,
   };
 
-  const moduleTitle = activeModule === "dashboard" ? "Overview" : "Listings";
+  const moduleTitle =
+    activeModule === "dashboard"
+      ? "Overview"
+      : activeModule === "messages"
+        ? "Correspondence"
+        : "Listings";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -392,6 +744,13 @@ export default function AccountDashboard({
                     />
                   )}
                   <span className="relative">{m.label}</span>
+                  {/* v2.6 — unread-thread badge on Messages. Gold, small,
+                      same quiet pattern as existing badges. Only when > 0. */}
+                  {m.id === "messages" && unreadThreadCount > 0 && (
+                    <span className="relative ml-2 border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] tracking-[1px] text-[var(--gold)]">
+                      {unreadThreadCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -444,6 +803,8 @@ export default function AccountDashboard({
                 selectedListing={selectedListing}
                 onSelect={setSelectedListing}
               />
+            ) : activeModule === "messages" ? (
+              <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
             ) : (
               <InventoryView
                 listings={searchFiltered}

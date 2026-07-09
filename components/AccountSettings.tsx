@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   ACCOUNT SETTINGS — components/AccountSettings.tsx   (v1.68)
+   ACCOUNT SETTINGS — components/AccountSettings.tsx   (v2.6)
 
    Client component. Receives the authenticated user's id/email/createdAt from
    the server wrapper (which already guarded auth), and owns all form state:
-   Profile (display_name), Security (password), Account info (read-only).
+   Profile (display_name), Security (password), Notification Preferences
+   (v2.6 — notify_email / notify_sms / phone_number; SMS is preference-capture
+   only, Twilio not wired), Account info (read-only).
    Readability floors per Readability-Floor-Governance.md — labels & copy at
    --muted minimum.
    ──────────────────────────────────────────────────────────────────────── */
@@ -42,19 +44,48 @@ export default function AccountSettings({
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // v2.6 — Notification preferences (Correspondence). Email ON by default,
+  // SMS OFF by default, mirroring the column defaults. SMS is a captured
+  // preference only — Twilio is NOT wired (Phase 2); the toggle and phone
+  // number save so the wiring can turn on later without another ask.
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
+
+  async function savePrefs(next: {
+    notify_email?: boolean;
+    notify_sms?: boolean;
+    phone_number?: string;
+  }) {
+    setPrefsMsg(null);
+    const { error } = await supabase.from("profiles").update(next).eq("id", userId);
+    if (!error) {
+      setPrefsMsg("Preferences saved");
+      setTimeout(() => setPrefsMsg(null), 2500);
+    } else {
+      setPrefsMsg("Could not save — try again");
+    }
+  }
+
   const pwMatch = newPassword === confirmPassword;
   const pwShowMismatch = confirmPassword.length > 0 && !pwMatch;
 
-  // Pre-fill display name from the profile row.
+  // Pre-fill display name + notification preferences from the profile row.
   useEffect(() => {
     let active = true;
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, notify_email, notify_sms, phone_number")
         .eq("id", userId)
         .single();
-      if (active && profile?.display_name) setDisplayName(profile.display_name);
+      if (active && profile) {
+        if (profile.display_name) setDisplayName(profile.display_name);
+        setNotifyEmail(profile.notify_email !== false); // default true
+        setNotifySms(profile.notify_sms === true);
+        if (profile.phone_number) setPhoneNumber(profile.phone_number);
+      }
     })();
     return () => {
       active = false;
@@ -230,7 +261,100 @@ export default function AccountSettings({
 
         <div className="fw-rule mb-10" />
 
-        {/* ── Section 3 — Account info (read-only) ── */}
+        {/* ── Section 3 — Notification Preferences (v2.6, Correspondence) ── */}
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+              Notification Preferences
+            </span>
+            {prefsMsg && (
+              <span className="text-[11px] italic text-[var(--success)]">{prefsMsg}</span>
+            )}
+          </div>
+
+          {/* Email — ON by default */}
+          <div className="flex items-start justify-between gap-6 border-b border-[var(--border-faint)] py-4">
+            <div>
+              <div className="text-[13px] text-[var(--platinum-dim)]">Email notifications</div>
+              <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                Receive an email when a buyer messages you or replies to your message.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifyEmail}
+              onClick={() => {
+                const next = !notifyEmail;
+                setNotifyEmail(next);
+                savePrefs({ notify_email: next });
+              }}
+              className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
+                notifyEmail
+                  ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.12)]"
+                  : "border-[var(--border-subtle)] bg-transparent"
+              }`}
+            >
+              <span
+                className={`absolute top-[3px] h-3 w-3 transition-all ${
+                  notifyEmail ? "left-[22px] bg-[var(--gold)]" : "left-[3px] bg-[var(--ghost)]"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* SMS — OFF by default; Twilio not wired (preference capture only) */}
+          <div className="flex items-start justify-between gap-6 py-4">
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] text-[var(--platinum-dim)]">
+                SMS / Text notifications
+              </div>
+              <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                Receive a text for new correspondence. Standard carrier rates may apply.
+              </p>
+              {notifySms && (
+                <div className="mt-3 max-w-[240px]">
+                  <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    Phone number
+                  </div>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onBlur={() => savePrefs({ phone_number: phoneNumber.trim() })}
+                    placeholder="+1 ___-___-____"
+                    className="fw-input"
+                  />
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifySms}
+              onClick={() => {
+                const next = !notifySms;
+                setNotifySms(next);
+                savePrefs({ notify_sms: next });
+              }}
+              className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
+                notifySms
+                  ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.12)]"
+                  : "border-[var(--border-subtle)] bg-transparent"
+              }`}
+            >
+              <span
+                className={`absolute top-[3px] h-3 w-3 transition-all ${
+                  notifySms ? "left-[22px] bg-[var(--gold)]" : "left-[3px] bg-[var(--ghost)]"
+                }`}
+              />
+            </button>
+          </div>
+        </section>
+
+        <div className="fw-rule mb-10" />
+
+        {/* ── Section 4 — Account info (read-only) ── */}
         <section>
           <div className="mb-4 text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
             Account
