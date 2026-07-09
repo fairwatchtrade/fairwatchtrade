@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import BrowseClient from "@/components/BrowseClient";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC BROWSE — /browse  (v1.57)
+   PUBLIC BROWSE — /browse  (v1.58)
+
+   v1.58 — Phase 1B: details type widened again for caseThicknessMm (same
+   type-only precedent as v1.57 — no query change, select("*") already
+   returned this column, TypeScript just didn't know about it yet).
 
    v1.57 — Phase 1 (Browse Gallery/Collector View + Collector's Workbench):
    details type widened to match what BrowseClient.tsx already expects/reads
@@ -47,6 +51,7 @@ type ListingRow = {
     movementType?: string;
     movementFrequency?: string;
     powerReserve?: string;
+    caseThicknessMm?: string; // v1.58 — Phase 1B, type-only, same precedent
   } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break

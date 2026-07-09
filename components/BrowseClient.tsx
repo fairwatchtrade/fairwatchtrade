@@ -12,7 +12,7 @@ import Link from "next/link";
    verbatim from v1.28 — only the visual/layout chrome is restyled, plus
    grid-width and page-size controls.
 
-   v1.57 — Phase 1: Gallery View / Collector View toggle + Collector's
+   v1.57 — Phase 1A: Gallery View / Collector View toggle + Collector's
    Workbench. Core design law: "Gallery View is for seeing watches.
    Collector View is for understanding watches. The left rail is for
    narrowing watches." Movement and Case Size MOVED out of the ordinary
@@ -21,6 +21,18 @@ import Link from "next/link";
    clean; normalizeVph()/normalizePowerReserve() below are DISPLAY-ONLY
    transforms (the stored listings.details values are never rewritten) —
    same established pattern as sizeLabel() already uses for case size.
+
+   v1.58 — Phase 1B: Collector View gets its actual spec-first card layout
+   (Phase 1A shipped it as Gallery-card-plus-one-line; this closes that
+   gap). Gallery View's render branch is byte-for-byte untouched below.
+   Collector: small fixed thumbnail left, dominant data stack right — nine
+   fields in the brief's exact order, each rendered only when present (no
+   "Unknown"/"N/A"/dash for missing data, ever). Documentation reuses the
+   existing docBadge derivation verbatim, just placed as a stack row
+   instead of a floating pill (logic identical, placement is the only
+   change). caseThicknessMm is real, verified live against production
+   before writing this: "11.7" and "9.5", plain decimal, same clean shape
+   as caseSizeMm — thicknessLabel() mirrors sizeLabel() exactly.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -46,6 +58,7 @@ type ListingRow = {
     movementType?: string;
     movementFrequency?: string; // Beat Rate / VPH — heterogeneous raw formats
     powerReserve?: string; // heterogeneous raw formats
+    caseThicknessMm?: string; // v1.58 — verified live against production
   } | null;
   combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
@@ -77,6 +90,14 @@ function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [stri
 // Case size facet/filter key: append "mm" unless already present, so the
 // displayed label and the value matched against the selection are identical.
 function sizeLabel(value?: string): string {
+  if (!value) return "";
+  return value.includes("mm") ? value : `${value}mm`;
+}
+
+// v1.58 — Case thickness: display-only, mirrors sizeLabel() exactly.
+// Verified against real listings.details before writing this — values are
+// plain decimals ("11.7", "9.5"), same clean shape caseSizeMm already has.
+function thicknessLabel(value?: string): string {
   if (!value) return "";
   return value.includes("mm") ? value : `${value}mm`;
 }
@@ -172,6 +193,20 @@ function FacetGroup({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// v1.58 — one small presentational helper, shared by every Collector-View
+// data-stack row: renders label/value only when value is truthy. This IS
+// the "no Unknown/N/A/dash for missing data" law, enforced in one place
+// instead of nine separate conditionals that could drift from each other.
+function SpecRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between gap-2 border-b border-[var(--border-faint)] py-1 text-[10px] tracking-[0.3px]">
+      <span className="text-[var(--ghost)]">{label}</span>
+      <span className="text-[var(--slate)]">{value}</span>
     </div>
   );
 }
@@ -547,25 +582,86 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                 const attrs = parts.join(" · ") || null;
                 const doc = row.details?.documentation;
                 const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
-                // v1.57 — Collector View adds understanding without removing
-                // anything Gallery View shows: a static spec line, distinct
-                // from (and untouched) the HOVER ENRICHMENT slot below.
-                const workbenchParts = [
-                  row.details?.movementType,
-                  sizeLabel(row.details?.caseSizeMm) || null,
-                  beatRateLabel(row.details?.movementFrequency) || null,
-                  powerReserveLabel(row.details?.powerReserve) || null,
-                ].filter(Boolean);
-                const workbenchLine =
-                  viewMode === "collector" && workbenchParts.length > 0
-                    ? workbenchParts.join(" · ")
-                    : null;
 
+                // v1.58 — Gallery View. Byte-for-byte untouched from v1.57;
+                // not part of this brief.
+                if (viewMode === "gallery") {
+                  return (
+                    <Link
+                      key={row.id}
+                      href={`/listings/${row.id}`}
+                      className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+                    >
+                      {row.in_hand_verified && (
+                        <div
+                          title="In Hand Verified"
+                          className="absolute top-2 right-2 text-[var(--gold)] opacity-70"
+                          aria-label="In Hand Verified"
+                        >
+                          🛡️
+                        </div>
+                      )}
+
+                      {/* Dial / image area */}
+                      <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+                        {hero ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={hero}
+                            alt=""
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+                            No photo
+                          </div>
+                        )}
+                        {docBadge && (
+                          <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
+                            {docBadge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Brand */}
+                      <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                        {row.brand}
+                      </div>
+
+                      {/* Model */}
+                      <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
+                        {row.model ?? row.brand}
+                      </div>
+
+                      {/* Reference / meta */}
+                      {meta && (
+                        <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                          {attrs ? `${meta} · ${attrs}` : meta}
+                        </div>
+                      )}
+
+                      {/* Price */}
+                      <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
+                        {formatPrice(Number(row.asking_price))}
+                      </div>
+
+                      {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
+                      {/* <div className="fw-hover-enrichment"> ... </div> */}
+                    </Link>
+                  );
+                }
+
+                // v1.58 — Phase 1B: Collector View's actual spec-first layout.
+                // Small fixed thumbnail left, dominant data stack right — the
+                // brief's nine fields, in order, each absent when the source
+                // data is absent. No new normalization invented: sizeLabel,
+                // beatRateLabel, powerReserveLabel, and thicknessLabel are the
+                // exact same functions Gallery/Workbench already trust.
                 return (
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+                    className="group relative flex gap-4 cursor-pointer border border-transparent p-5 transition hover:bg-[rgba(255,255,255,0.02)]"
                   >
                     {row.in_hand_verified && (
                       <div
@@ -577,8 +673,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                       </div>
                     )}
 
-                    {/* Dial / image area */}
-                    <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+                    {/* Supporting thumbnail — fixed, small, never dominant. */}
+                    <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -587,46 +683,39 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                           className="h-full w-full object-contain"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+                        <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--ghost)]">
                           No photo
                         </div>
                       )}
-                      {docBadge && (
-                        <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
-                          {docBadge}
-                        </span>
-                      )}
                     </div>
 
-                    {/* Brand */}
-                    <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
-                      {row.brand}
-                    </div>
-
-                    {/* Model */}
-                    <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
-                      {row.model ?? row.brand}
-                    </div>
-
-                    {/* Reference / meta */}
-                    {meta && (
-                      <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
-                        {attrs ? `${meta} · ${attrs}` : meta}
+                    {/* Dominant data block. */}
+                    <div className="min-w-0 flex-1">
+                      {/* 1 · Brand / Model / Reference — header weight */}
+                      <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                        {row.brand}
                       </div>
-                    )}
-
-                    {/* Price */}
-                    <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                      {formatPrice(Number(row.asking_price))}
-                    </div>
-
-                    {/* Collector View spec line — v1.57 Phase 1. Static
-                        addition, not the future hover-enrichment feature. */}
-                    {workbenchLine && (
-                      <div className="mt-2 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
-                        {workbenchLine}
+                      <div className="mb-[2px] truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">
+                        {row.model ?? row.brand}
                       </div>
-                    )}
+                      <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                        {row.reference}
+                      </div>
+
+                      {/* 2-8 · the spec stack — each row absent if the field is */}
+                      <SpecRow label="Case Size" value={sizeLabel(row.details?.caseSizeMm) || null} />
+                      <SpecRow label="Movement" value={row.details?.movementType ?? null} />
+                      <SpecRow label="Beat Rate" value={beatRateLabel(row.details?.movementFrequency) || null} />
+                      <SpecRow label="Power Reserve" value={powerReserveLabel(row.details?.powerReserve) || null} />
+                      <SpecRow label="Thickness" value={thicknessLabel(row.details?.caseThicknessMm) || null} />
+                      <SpecRow label="Case Material" value={row.details?.caseMaterial ?? null} />
+                      <SpecRow label="Documentation" value={docBadge} />
+
+                      {/* 9 · Price */}
+                      <div className="mt-2 font-display text-[16px] font-light text-[var(--platinum-dim)]">
+                        {formatPrice(Number(row.asking_price))}
+                      </div>
+                    </div>
 
                     {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
                     {/* <div className="fw-hover-enrichment"> ... </div> */}
