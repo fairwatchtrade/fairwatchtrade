@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+// v2.5 — same admin-email pattern used across the app (app/layout.tsx,
+// admin gates). No new auth mechanism invented.
+const ADMIN_EMAIL = "jmynatt74@gmail.com";
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -18,7 +22,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -26,7 +30,22 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/sell");
+    // v2.5 — Auth flow correction. The big law: login changes session state
+    // only, no forced redirect. User intent (callbackUrl) is sovereign.
+    //   1. callbackUrl present (e.g. bounced here from a protected page)
+    //      → always honor it, admin included. Login never hijacks intent.
+    //   2. No callbackUrl:
+    //        - admin → /admin (the priority fix: William checks listing
+    //          numbers constantly once live and shouldn't have to navigate
+    //          there manually every login)
+    //        - everyone else → /catalogue
+    // NEVER default to /sell for anyone, and /sell is never intercepted —
+    // it stays freely reachable at all times, admin included.
+    const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+    const isAdmin = data.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const destination = callbackUrl || (isAdmin ? "/admin" : "/catalogue");
+
+    router.push(destination);
     router.refresh();
   }
 

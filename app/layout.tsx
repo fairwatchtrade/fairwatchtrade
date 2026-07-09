@@ -74,7 +74,15 @@ export default async function RootLayout({
           The market strip does NOT own top-0 itself — the header does.
         */}
         <header className="sticky top-0 z-50">
-          <NavBar authed={authed} initialUnreadCount={initialUnreadCount} />
+          {/* v2.5 — NavBar now also receives displayName/isAdmin, reusing the
+              exact same values already computed above for SiteFooter. Still
+              one auth round-trip — nothing new fetched. */}
+          <NavBar
+            authed={authed}
+            initialUnreadCount={initialUnreadCount}
+            displayName={footerDisplayName}
+            isAdmin={footerIsAdmin}
+          />
           <MarketBar />
         </header>
         {children}
