@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import {
+  PROVIDER_AI_PHOTO_QUALITY,
+  TRIGGERED_BY_UPLOAD,
+  completedVerdictToRow,
+  operationalRow,
+  type PhotoVerdict,
+  type ProviderResultCore,
+} from "@/lib/integrity";
 
 /* ════════════════════════════════════════════════════════════════════════
-   WIZARD PHOTO REVIEW — app/api/wizard-photo-review/route.ts   (v2.2 · Phase 5)
+   WIZARD PHOTO REVIEW — app/api/wizard-photo-review/route.ts   (v2.3 · Integrity Wiring)
 
    Lightweight per-photo quality verdict for the mobile wizard:
      passed    → advance
@@ -12,10 +21,22 @@ import { NextResponse } from "next/server";
    same fence-stripping, same fail-open law — an infra failure NEVER blocks
    an honest seller. All three fail-open branches return safe defaults.
 
-   v2.2 sends the photo URL as TEXT (locked ruling — vision wiring is Phase
-   5b). Until 5b, the model cannot see pixels, so verdicts here are advisory
-   context checks; the code is structured so 5b is a one-block swap to an
-   image content part. Flagged in delivery notes — not a surprise.
+   ── v2.3 addition: Integrity Engine persistence ─────────────────────────
+   Every identifiable attempt is now written to listing_integrity_provider_results
+   via the trusted service-role client, correlated pre-publish by
+   (capture_session_id + storage_path). This is APPENDED after the verdict is
+   decided and is strictly NON-BLOCKING to that verdict: a DB failure logs and
+   returns the same verdict the seller would have gotten anyway. The write is
+   awaited (not fire-and-forget) so the downstream blur-serial swap can find
+   the row to re-point.
+
+   Governing law (chain ruling): every identifiable attempt is preserved; an
+   attempt that cannot truthfully be attached to an object must NOT be
+   fabricated into the database. When no valid pre-publish correlation path
+   exists (no capture_session_id or no storage_path), persistence is skipped
+   with a structured log — never an orphan row, never a false pass.
+
+   The URL-as-text vision limitation (Phase 5b) is unchanged and unrelated.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -47,35 +68,23 @@ Respond with ONLY a JSON object, no prose, no markdown fences:
 If passed, reason may be empty. If failed, reason must be plain English
 the seller can understand — never technical jargon.`;
 
-type Verdict = "passed" | "soft_fail" | "hard_fail";
+type Verdict = PhotoVerdict;
 const VERDICTS: Verdict[] = ["passed", "soft_fail", "hard_fail"];
 
-export async function POST(req: Request) {
-  let photoUrl = "";
-  let category = "";
+/* ── The verdict outcome, split so persistence can tell a completed verdict
+      apart from an operational non-completion (provider down / unparseable).
+      The client-facing verdict fail-opens to "passed" in both operational
+      cases, exactly as before — but the persisted execution_status records
+      the truth. ── */
+type ReviewOutcome =
+  | { kind: "completed"; verdict: Verdict; reason: string }
+  | { kind: "unavailable"; note: string }
+  | { kind: "invalid_response"; note: string };
 
+async function reviewPhoto(photoUrl: string, category: string): Promise<ReviewOutcome> {
+  let response: Response;
   try {
-    const body = await req.json();
-    photoUrl = typeof body.photoUrl === "string" ? body.photoUrl.trim() : "";
-    category = typeof body.category === "string" ? body.category.slice(0, 64) : "";
-  } catch {
-    // Unreadable body → nothing to review; soft_fail keeps the badge honest
-    // without blocking the seller.
-    return NextResponse.json({
-      result: "soft_fail",
-      reason: "Photo could not be reviewed.",
-    });
-  }
-
-  if (!photoUrl) {
-    return NextResponse.json({
-      result: "soft_fail",
-      reason: "Photo could not be reviewed.",
-    });
-  }
-
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -96,11 +105,15 @@ export async function POST(req: Request) {
         ],
       }),
     });
+  } catch {
+    return { kind: "unavailable", note: "provider_fetch_failed" };
+  }
 
-    if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.status}`);
-    }
+  if (!response.ok) {
+    return { kind: "unavailable", note: `provider_status_${response.status}` };
+  }
 
+  try {
     const data = await response.json();
     const rawText = (data.content ?? [])
       .map((block: { type: string; text?: string }) =>
@@ -112,16 +125,118 @@ export async function POST(req: Request) {
     const clean = rawText.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean) as { result?: unknown; reason?: unknown };
 
-    const result: Verdict = VERDICTS.includes(parsed.result as Verdict)
-      ? (parsed.result as Verdict)
-      : "passed"; // unrecognized verdict → fail open
-    const reason =
-      typeof parsed.reason === "string" ? parsed.reason.slice(0, 400) : "";
+    if (!VERDICTS.includes(parsed.result as Verdict)) {
+      // Recognized-shape miss → operational invalid_response. Client still
+      // fail-opens to passed below; the record stays honest.
+      return { kind: "invalid_response", note: "unrecognized_verdict" };
+    }
 
-    return NextResponse.json({ result, reason: result === "passed" ? "" : reason });
+    const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 400) : "";
+    return { kind: "completed", verdict: parsed.result as Verdict, reason };
   } catch {
-    // Fail-open is law: model down, parse broken, network gone — the seller
-    // is never blocked by our infrastructure.
+    return { kind: "invalid_response", note: "unparseable_body" };
+  }
+}
+
+/* ── Persist one attempt. Non-blocking to the verdict: any failure is logged
+      and swallowed. Awaited by the caller so the blur-serial swap finds the
+      row. Skips entirely (with a structured log) when no valid pre-publish
+      correlation path exists — never an orphan row, never a false pass. ── */
+async function persistAttempt(params: {
+  outcome: ReviewOutcome;
+  category: string;
+  captureSessionId: string;
+  storagePath: string;
+}): Promise<void> {
+  const { outcome, category, captureSessionId, storagePath } = params;
+
+  let core: ProviderResultCore;
+  if (outcome.kind === "completed") {
+    core = completedVerdictToRow(outcome.verdict, outcome.reason, new Date().toISOString());
+  } else {
+    core = operationalRow(outcome.kind, outcome.note);
+  }
+
+  const row = {
+    provider: PROVIDER_AI_PHOTO_QUALITY,
+    attempt_number: 1,
+    triggered_by: TRIGGERED_BY_UPLOAD,
+    capture_session_id: captureSessionId,
+    storage_path: storagePath,
+    category: category || null,
+    media_id: null,
+    ...core,
+  };
+
+  try {
+    const service = createServiceClient();
+    const { error } = await service.from("listing_integrity_provider_results").insert(row);
+    if (error) {
+      // 23505 → an identical attempt already recorded (double-fire / resume).
+      // Idempotent by design; anything else is logged and swallowed.
+      if ((error as { code?: string }).code !== "23505") {
+        console.error("[integrity] provider result insert failed:", error.message);
+      }
+    }
+  } catch (e) {
+    // Missing service-role config or any other error: the verdict already
+    // stands. Fail loud in the log, never fabricate — but never block.
+    console.error("[integrity] provider result persistence skipped (client/config error):", e);
+  }
+}
+
+export async function POST(req: Request) {
+  let photoUrl = "";
+  let category = "";
+  let captureSessionId = "";
+  let storagePath = "";
+
+  try {
+    const body = await req.json();
+    photoUrl = typeof body.photoUrl === "string" ? body.photoUrl.trim() : "";
+    category = typeof body.category === "string" ? body.category.slice(0, 64) : "";
+    // v2.3 additive correlation fields — the wizard's photo-review call site
+    // now passes these through. Absent = older client = persistence skipped.
+    captureSessionId =
+      typeof body.capture_session_id === "string" ? body.capture_session_id.trim().slice(0, 64) : "";
+    storagePath =
+      typeof body.storage_path === "string" ? body.storage_path.trim().slice(0, 512) : "";
+  } catch {
+    // Unreadable body → nothing to review; soft_fail keeps the badge honest
+    // without blocking the seller. No correlation identity → nothing to persist.
+    return NextResponse.json({
+      result: "soft_fail",
+      reason: "Photo could not be reviewed.",
+    });
+  }
+
+  if (!photoUrl) {
+    return NextResponse.json({
+      result: "soft_fail",
+      reason: "Photo could not be reviewed.",
+    });
+  }
+
+  const outcome = await reviewPhoto(photoUrl, category);
+
+  // Persist the attempt ONLY when a truthful pre-publish correlation path
+  // exists. Awaited so the downstream blur-serial swap can re-point the row.
+  if (captureSessionId && storagePath) {
+    await persistAttempt({ outcome, category, captureSessionId, storagePath });
+  } else {
+    console.warn(
+      "[integrity] provider result persistence skipped: no correlation identity " +
+        `(capture_session_id=${captureSessionId ? "present" : "absent"}, ` +
+        `storage_path=${storagePath ? "present" : "absent"}, category=${category || "?"}).`
+    );
+  }
+
+  // Client-facing verdict — fail-open unchanged. Operational non-completions
+  // present to the seller as "passed" exactly as before.
+  if (outcome.kind !== "completed") {
     return NextResponse.json({ result: "passed", reason: "" });
   }
+
+  const result = outcome.verdict;
+  return NextResponse.json({ result, reason: result === "passed" ? "" : outcome.reason });
 }

@@ -516,6 +516,8 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             photoUrl: cap.url,
             category: step.category,
             captureSource: "live_camera",
+            capture_session_id: captureSessionId,
+            storage_path: cap.pathname,
           }),
         }
       )
