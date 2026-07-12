@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { parsePrice } from "@/lib/parsePrice";
 
 /* ────────────────────────────────────────────────────────────────────────
    PURCHASE REQUEST FORM — client component (v2.4a)
@@ -16,6 +17,17 @@ import Link from "next/link";
    POSTs the brief's exact request-body contract to /api/purchase-requests.
    buyer_id is never sent from here — the API route derives it from
    auth.getUser() server-side.
+
+   v2.6 — PRICE-PARSING FIX (Flight A, Priority 0). Previously sent
+   Number(proposedPrice) directly: a formatted value like "9,990.00" or
+   "$9,990.00" becomes NaN, and the buyer's submission was silently rejected
+   by the API's finite-number check with no indication of why. Now sanitized
+   via the shared lib/parsePrice.ts (strips $, commas, whitespace) BEFORE
+   submission, with an inline error if the result still isn't a valid
+   positive number — so a truly invalid price is caught here, with a clear
+   message, instead of round-tripping to the server for a generic failure.
+   The backend's own finite-number validation is untouched and unweakened —
+   this fix is entirely at the client input boundary.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingContext = {
@@ -50,6 +62,15 @@ export default function PurchaseRequestForm({
   const priceText = `$${Number(listing.askingPrice).toLocaleString()}`;
 
   async function submit() {
+    // v2.6: sanitize BEFORE hitting the network. A formatted price ("$9,990.00",
+    // "9,990") previously became NaN and was silently rejected server-side —
+    // now caught here, with a message, before a round-trip even happens.
+    const parsedPrice = parsePrice(proposedPrice);
+    if (parsedPrice === null) {
+      setError("Please enter a valid purchase price.");
+      return;
+    }
+
     setBusy(true);
     setError("");
     try {
@@ -58,7 +79,7 @@ export default function PurchaseRequestForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: listing.id,
-          proposedPurchasePrice: Number(proposedPrice),
+          proposedPurchasePrice: parsedPrice,
           shippingTerms: shippingTerms.trim() || undefined,
           includedItems: includedItems.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -185,7 +206,7 @@ export default function PurchaseRequestForm({
         <button
           type="button"
           onClick={submit}
-          disabled={busy || !proposedPrice.trim()}
+          disabled={busy || parsePrice(proposedPrice) === null}
           className="mt-6 bg-[var(--gold)] px-6 py-[13px] font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? "Sending…" : "Send Purchase Request"}
