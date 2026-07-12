@@ -160,13 +160,43 @@ function diffSegments(
   return out;
 }
 
-function DialColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/* TypeaheadField — generalized from the original DialColorField (v1.x, one
+   field only). Now backs 8 fields total: Dial Color (unchanged behavior) plus
+   the 7 fields converted in this polish pass. Type to filter, click a
+   suggestion, free text always works — suggestions are sugar, never a hard
+   constraint. One shared component so the 7 conversions can't drift apart
+   from each other over time.
+
+   `otherOption` is used by exactly one field (Case Material): an optional
+   pinned row appended below the filtered suggestions. Selecting it does NOT
+   set the field's value via onChange — it calls onSelect(), so the parent can
+   run its own "enter Other mode" logic exactly as the original <select>'s
+   "Other…" menu item did. This preserves the original two-step Case Material
+   UX (typeahead OR a dedicated custom-entry input) rather than assuming free
+   text alone is an equivalent replacement for it. */
+function TypeaheadField({
+  value,
+  onChange,
+  suggestions,
+  placeholder,
+  maxSuggestions = 6,
+  otherOption,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  suggestions: string[];
+  placeholder?: string;
+  maxSuggestions?: number;
+  otherOption?: { label: string; onSelect: () => void };
+}) {
   const [focused, setFocused] = useState(false);
-  const suggestions = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = value.trim().toLowerCase();
-    if (!q) return DIAL_COLOR_SUGGESTIONS.slice(0, 6);
-    return DIAL_COLOR_SUGGESTIONS.filter((c) => c.toLowerCase().includes(q)).slice(0, 6);
-  }, [value]);
+    if (!q) return suggestions.slice(0, maxSuggestions);
+    return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, maxSuggestions);
+  }, [value, suggestions, maxSuggestions]);
+
+  const showMenu = focused && (filtered.length > 0 || !!otherOption);
 
   return (
     <div className="relative">
@@ -176,13 +206,13 @@ function DialColorField({ value, onChange }: { value: string; onChange: (v: stri
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
-        placeholder="Abyss Blue sunburst"
+        placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
       />
-      {focused && suggestions.length > 0 && (
+      {showMenu && (
         <div className="absolute z-10 mt-1 w-full border border-[var(--border-mid)] bg-[var(--ink)]">
-          {suggestions.map((s) => (
+          {filtered.map((s) => (
             <button
               key={s}
               type="button"
@@ -196,6 +226,19 @@ function DialColorField({ value, onChange }: { value: string; onChange: (v: stri
               {s}
             </button>
           ))}
+          {otherOption && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                otherOption.onSelect();
+                setFocused(false);
+              }}
+              className="block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left text-[13px] italic text-[var(--muted)] hover:bg-[rgba(201,168,76,0.06)] hover:text-[var(--platinum)]"
+            >
+              {otherOption.label}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -306,10 +349,12 @@ export default function DetailsStep({
       <Chapter numeral="I" title="The Watch Itself" caption="Movement first." chapterKey="movement">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Movement type">
-            <select className={inputCls} value={d.movementType ?? ""} onChange={(e) => set("movementType", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {MOVEMENT_TYPES.map((m) => <option key={m} value={m} style={OPTION_STYLE}>{m}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.movementType ?? ""}
+              onChange={(v) => set("movementType", v)}
+              suggestions={MOVEMENT_TYPES}
+              placeholder="Automatic"
+            />
           </Field>
 
           <Field label="Movement frequency (optional)">
@@ -344,23 +389,30 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Case material">
-            <select
-              className={inputCls}
-              value={otherMaterial ? "Other" : d.caseMaterial ?? ""}
-              onChange={(e) => {
-                if (e.target.value === "Other") {
+            {/* Special case (per brief): the original <select> had a permanent
+                "Other…" menu item plus a secondary free-text input. A typeahead
+                has no equivalent always-there menu item, so otherOption pins one
+                below the filtered suggestions. Choosing a real suggestion here
+                auto-exits Other mode (setOtherMaterial(false)) — mirroring the
+                original select, where picking any non-Other value always
+                cleared Other automatically. Reversible both directions, exactly
+                as before. */}
+            <TypeaheadField
+              value={otherMaterial ? "" : d.caseMaterial ?? ""}
+              onChange={(v) => {
+                setOtherMaterial(false);
+                set("caseMaterial", v);
+              }}
+              suggestions={CASE_MATERIALS}
+              placeholder="Stainless Steel"
+              otherOption={{
+                label: "Other…",
+                onSelect: () => {
                   setOtherMaterial(true);
                   set("caseMaterial", "");
-                } else {
-                  setOtherMaterial(false);
-                  set("caseMaterial", e.target.value);
-                }
+                },
               }}
-            >
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {CASE_MATERIALS.map((m) => <option key={m} value={m} style={OPTION_STYLE}>{m}</option>)}
-              <option value="Other" style={OPTION_STYLE}>Other…</option>
-            </select>
+            />
             {otherMaterial && (
               <input className={`${inputCls} mt-2`} value={d.caseMaterial ?? ""} onChange={(e) => set("caseMaterial", e.target.value)} placeholder="e.g. Palladium" spellCheck={false} />
             )}
@@ -371,24 +423,30 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Caseback type">
-            <select className={inputCls} value={d.casebackType ?? ""} onChange={(e) => set("casebackType", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {CASEBACK_TYPES.map((c) => <option key={c} value={c} style={OPTION_STYLE}>{c}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.casebackType ?? ""}
+              onChange={(v) => set("casebackType", v)}
+              suggestions={CASEBACK_TYPES}
+              placeholder="Solid"
+            />
           </Field>
 
           <Field label="Crystal material">
-            <select className={inputCls} value={d.crystalMaterial ?? ""} onChange={(e) => set("crystalMaterial", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {CRYSTAL_MATERIALS.map((c) => <option key={c} value={c} style={OPTION_STYLE}>{c}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.crystalMaterial ?? ""}
+              onChange={(v) => set("crystalMaterial", v)}
+              suggestions={CRYSTAL_MATERIALS}
+              placeholder="Sapphire"
+            />
           </Field>
 
           <Field label="Water resistance (optional)">
-            <select className={inputCls} value={d.waterResistance ?? ""} onChange={(e) => set("waterResistance", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {WATER_RESISTANCE_OPTIONS.map((w) => <option key={w} value={w} style={OPTION_STYLE}>{w}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.waterResistance ?? ""}
+              onChange={(v) => set("waterResistance", v)}
+              suggestions={WATER_RESISTANCE_OPTIONS}
+              placeholder="100m"
+            />
           </Field>
         </div>
       </Chapter>
@@ -399,7 +457,12 @@ export default function DetailsStep({
       <Chapter numeral="III" title="The Dial & Hands" caption="Dial and crown." chapterKey="dial">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dial color / type">
-            <DialColorField value={d.dialColorType ?? ""} onChange={(v) => set("dialColorType", v)} />
+            <TypeaheadField
+              value={d.dialColorType ?? ""}
+              onChange={(v) => set("dialColorType", v)}
+              suggestions={DIAL_COLOR_SUGGESTIONS}
+              placeholder="Abyss Blue sunburst"
+            />
           </Field>
 
           <div className="flex items-end pb-1">
@@ -414,17 +477,21 @@ export default function DetailsStep({
       <Chapter numeral="IV" title="The Wearing" caption="Strap, bracelet, and closure." chapterKey="wearing">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Closure type">
-            <select className={inputCls} value={d.closureType ?? ""} onChange={(e) => set("closureType", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {CLOSURE_TYPES.map((c) => <option key={c} value={c} style={OPTION_STYLE}>{c}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.closureType ?? ""}
+              onChange={(v) => set("closureType", v)}
+              suggestions={CLOSURE_TYPES}
+              placeholder="Deployant Clasp"
+            />
           </Field>
 
           <Field label="Bezel material (optional)">
-            <select className={inputCls} value={d.bezelMaterial ?? ""} onChange={(e) => set("bezelMaterial", e.target.value)}>
-              <option value="" style={OPTION_STYLE}>Select…</option>
-              {BEZEL_MATERIALS.map((b) => <option key={b} value={b} style={OPTION_STYLE}>{b}</option>)}
-            </select>
+            <TypeaheadField
+              value={d.bezelMaterial ?? ""}
+              onChange={(v) => set("bezelMaterial", v)}
+              suggestions={BEZEL_MATERIALS}
+              placeholder="Ceramic"
+            />
           </Field>
 
           <Field label="Bracelet wrist size range (optional)">
@@ -450,6 +517,14 @@ export default function DetailsStep({
       <Chapter numeral="VI" title="Provenance & Papers" caption="Documentation, service, and history." last chapterKey="provenance">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Documentation status">
+            {/* NOT converted to typeahead — deliberate judgment call (per
+                brief). This field always holds a valid DocumentationStatus
+                enum value and has no blank option; a typeahead's core premise
+                ("free text always works") is fundamentally in tension with a
+                field that must always resolve to one of exactly four values.
+                A plain <select> already does exactly what's needed — pattern
+                consistency isn't worth adopting a component whose main
+                behavior (arbitrary free text) this field must forbid. */}
             <select className={inputCls} value={d.documentation} onChange={(e) => set("documentation", e.target.value as DocumentationStatus)}>
               {DOCS.map((doc) => <option key={doc} value={doc} style={OPTION_STYLE}>{doc}</option>)}
             </select>
@@ -556,7 +631,7 @@ export default function DetailsStep({
                 reviewing ? "cursor-wait" : ""
               }`}
             >
-              {reviewing && <WatchSpinner size={16} />}
+              {reviewing && <WatchSpinner size={18} />}
               {reviewing ? "Reviewing…" : "Continue"}
             </button>
           </div>
