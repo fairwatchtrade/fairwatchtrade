@@ -7,7 +7,7 @@ import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC LISTING DETAIL — /listings/[id]  (v1.57)
+   PUBLIC LISTING DETAIL — /listings/[id]  (v1.58)
 
    Buyer-facing detail view for a single published listing. Server Component:
    fetches the row by UUID from `listings`, 404s if missing or not published.
@@ -26,6 +26,14 @@ import ListingCorrespondence from "@/components/ListingCorrespondence";
         ← these are now the last in-flow elements
    The message bar is position:fixed (viewport-pinned), so it is NOT part of
    the scrolling content flow.
+
+   v1.58: DIAL REVEAL WIRED. dialPhotoUrl was already computed below (§ dial
+   photo derivation) but never reached ListingGallery — the ONLY gap was a
+   missing dialUrl prop at the call site. ListingGallery already had the
+   (dialUrl && heroUrl === dialUrl) conditional ready to consume it. No
+   changes to ListingGallery.tsx or DialReveal.tsx themselves were needed or
+   made. Standing policy compliance note: this closes a previously-stalled
+   Phase 2 item where the component existed but was never actually connected.
 
    v2.4a: added an owner-aware "Start Purchase Request" action directly below
    Price, hidden when the viewer is the listing's own seller, plus a
@@ -168,7 +176,9 @@ export default async function ListingDetailPage({
 
   // Dial Reveal needs the dial photo specifically, independent of whichever
   // photo is currently the hero — in practice heroUrl usually IS the dial
-  // photo, but this must not be assumed structurally.
+  // photo, but this must not be assumed structurally. Now WIRED: passed to
+  // ListingGallery as `dialUrl` below (v1.58) — this was computed all along,
+  // it just never reached its consumer.
   const dialPhoto = sorted.find((p) => p?.category === "Dial");
   const dialPhotoUrl = dialPhoto?.photo.url ?? null;
 
@@ -218,17 +228,25 @@ export default async function ListingDetailPage({
             initialIndex={heroIndex}
             brandLabel={listing.brand}
             modelLabel={listing.model}
+            dialUrl={dialPhotoUrl}
           />
         )}
 
-        {/* DIAL REVEAL — Phase 2
-            On hover over dial photo only, a thin contrast/brightness slider appears.
-            No zoom. No magnifying glass. Just the detail that was already there —
-            MOP depth, guilloché pattern, printing on dark dials, hidden by the
-            photographer's exposure balance.
-            Implementation: CSS filter on img element, one range input, ~30 lines JS.
-            Slot: wrap the dial <img> in a relative container with data-dial-reveal.
-            Activation: when real data is present and DialReveal component exists. */}
+        {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
+            when real data is present and DialReveal component exists").
+            DialReveal.tsx now exists and is activated by the dialUrl prop
+            passed to ListingGallery above. ListingGallery already contained
+            the (dialUrl && heroUrl === dialUrl) conditional — the only gap
+            was this prop never reaching it from here. No changes made to
+            ListingGallery.tsx or DialReveal.tsx themselves; this was purely a
+            missing-prop wiring gap, closed with one line.
+            Behavior: on hover over the dial photo only, a thin contrast/
+            brightness slider appears. No zoom, no magnifying glass — just the
+            detail that was already there (MOP depth, guilloché pattern,
+            printing on dark dials) hidden by the photographer's exposure
+            balance. Correctly deactivates if the buyer navigates the hero to
+            a non-dial photo, and reactivates if they click back to it, since
+            heroUrl and dialUrl are both derived from the same category match. */}
 
         {/* SECTION 2 — Identity block */}
         <section className="mt-6">
