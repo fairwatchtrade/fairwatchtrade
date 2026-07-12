@@ -83,12 +83,18 @@ export default function PurchaseRequestForm({
   }
 
   if (sent) {
+    // v2.5: no longer a true dead end. The listing detail page already shows
+    // a live pending/accepted/declined badge for the buyer's own most recent
+    // request on that listing (fetched fresh server-side on every visit,
+    // per the v2.4a "Start Purchase Request" section) — this screen now says
+    // so explicitly, instead of leaving the buyer with nowhere to check back.
     return (
       <main className="flex min-h-screen items-center justify-center bg-[var(--ink)] px-6 text-[var(--platinum)]">
         <div className="max-w-md text-center">
           <h1 className="font-display text-[24px] font-light">Request sent.</h1>
           <p className="mt-3 text-[14px] leading-[1.6] text-[var(--muted)]">
-            {sellerName} will respond soon.
+            {sellerName} will respond soon. Return to the listing anytime to see
+            whether it&apos;s still pending, accepted, or declined.
           </p>
           <Link
             href={`/listings/${listing.id}`}

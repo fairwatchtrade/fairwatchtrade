@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
-   ACCOUNT DASHBOARD — client shell for /account  (v2.6)
+   ACCOUNT DASHBOARD — client shell for /account  (v2.7)
 
    Architecture: "Global navigation changes WHERE you are; workspace controls
    change WHAT you're doing."
      • Left panel = global module nav (Dashboard / Inventory / Messages /
-       coming-soon).
+       Requests / coming-soon).
      • Right workspace = the active module's controls + content.
 
    Receives `listings` as a prop from the server page (app/account/page.tsx),
@@ -22,6 +22,30 @@ import Link from "next/link";
    pass threads as props would have meant redelivering app/account/page.tsx
    for data the messages API already serves RLS-scoped. Listings remain
    props-only, untouched.
+
+   v2.7 — Purchase Requests (Requests module). Closes a real, verified gap:
+   POST /api/purchase-requests and PATCH /api/purchase-requests/[id] already
+   existed and were logically correct, but had NO calling UI anywhere, and —
+   discovered during this flight's verification — purchase_requests and
+   transactions both had RLS enabled with ZERO policies, meaning neither
+   route actually worked for a real user until an additive RLS migration
+   fixed it in this same flight (5 policies: buyer/seller-owns-own-row,
+   matching each route's own existing identity checks — no route code
+   touched by that fix).
+
+   Requests are fetched the SAME way threads are (v2.6 precedent): a direct,
+   RLS-scoped client call on mount, not a new GET API route — this repo's
+   established convention for "read my own rows" (see also archiveThread's
+   direct .update() below). Explicit .eq("seller_id", user.id) is included
+   even though RLS now also enforces this — defense in depth, matching the
+   project's standing "never rely on implicit scoping alone" convention.
+
+   Deliberately NOT joined: buyer display name. The brief's per-request
+   requirements are proposed price vs. listing price, shipping/included/
+   notes, and Accept/Decline — buyer identity wasn't asked for, and adding it
+   would mean a second, unverified join (purchase_requests.buyer_id →
+   profiles) whose RLS wasn't checked this flight. Flagged as a possible
+   future addition, not silently included.
 
    PRIVACY: only buyer-safe fields + status arrive in the listings prop;
    scoring fields (significance_score, score_state, combined_score) never
@@ -52,7 +76,7 @@ export type AccountListing = {
   photos?: ListingPhoto[];
 };
 
-type ModuleId = "dashboard" | "inventory" | "market" | "messages" | "analytics";
+type ModuleId = "dashboard" | "inventory" | "market" | "messages" | "requests" | "analytics";
 type TabId = "all" | "published" | "draft" | "pending" | "rejected";
 
 type Counts = {
@@ -83,6 +107,7 @@ const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
   { id: "inventory", label: "Listings", soon: false },
   { id: "market", label: "Market Intel", soon: true },
   { id: "messages", label: "Messages", soon: false },
+  { id: "requests", label: "Requests", soon: false },
   { id: "analytics", label: "Analytics", soon: true },
 ];
 
@@ -127,6 +152,32 @@ function timeAgo(iso: string): string {
   if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+/* ── v2.7 · Purchase Request types — mirror the direct-client-fetch shape.
+   `listings` embeds via the single unambiguous FK (purchase_requests.
+   listing_id → listings.id); Supabase returns a to-one embed as an object,
+   but is defensively unwrapped below in case a client version returns an
+   array, same caution used for the Vault chain embeds elsewhere. ── */
+
+type PurchaseRequestListing = {
+  brand: string;
+  model: string | null;
+  reference: string;
+  photos?: ListingPhoto[];
+};
+
+type PurchaseRequestSummary = {
+  id: string;
+  listing_id: string;
+  proposed_purchase_price: number;
+  listing_price: number;
+  shipping_terms: string | null;
+  included_items: string | null;
+  notes: string | null;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+  listings: PurchaseRequestListing | PurchaseRequestListing[] | null;
+};
 
 /* ── Listing row — Studio row treatment (replaces the v1.42 card). Markup
    shape follows the prototype; the published-vs-div link logic and the
@@ -615,6 +666,200 @@ function MessagesView({
   );
 }
 
+/* ── v2.7 · REQUESTS module — Purchase Requests. Flat list (no thread-style
+   drill-down needed — each request is a single, self-contained card), a
+   Pending/Resolved toggle mirroring Messages' active/archived toggle, and
+   two actions per pending request calling the existing, unmodified PATCH
+   contract (only the transactionCreated flag is new on the response, and
+   only because the route now checks a write it previously ignored). ── */
+function RequestsView({
+  requests,
+  onActionComplete,
+}: {
+  requests: PurchaseRequestSummary[];
+  onActionComplete: () => void;
+}) {
+  const [showResolved, setShowResolved] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const visible = requests.filter((r) =>
+    showResolved ? r.status !== "pending" : r.status === "pending"
+  );
+
+  const STATUS_COLOR: Record<PurchaseRequestSummary["status"], string> = {
+    pending: "text-[var(--muted)]",
+    accepted: "text-[var(--success)]",
+    declined: "text-[var(--danger)]",
+  };
+
+  async function act(id: string, status: "accepted" | "declined") {
+    setBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/purchase-requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setActionError(data?.detail ?? "Could not update this request. Please try again.");
+        return;
+      }
+      // v2.5 route fix: a false transactionCreated means the status DID
+      // change but the transaction row failed to write — surface it rather
+      // than showing a clean success the way the old route silently would.
+      if (status === "accepted" && data?.transactionCreated === false) {
+        setActionError(
+          "Accepted, but the transaction record failed to create. Contact support to resolve."
+        );
+      }
+      onActionComplete();
+    } catch {
+      setActionError("Could not update this request. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        <div className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          Purchase Requests
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowResolved((v) => !v)}
+          className="text-[9px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+        >
+          {showResolved ? "Show pending" : "Show resolved"}
+        </button>
+      </div>
+
+      {actionError && (
+        <div className="mx-6 mb-3 text-[12px] text-[var(--danger)]">{actionError}</div>
+      )}
+
+      {visible.length === 0 ? (
+        <div className="mx-6 border border-[var(--border-faint)] px-6 py-10 text-center">
+          <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+            {showResolved
+              ? "No resolved requests yet."
+              : "No pending requests. When a collector proposes a purchase on one of your listings, it appears here."}
+          </p>
+        </div>
+      ) : (
+        <div>
+          {visible.map((r) => {
+            const listing = Array.isArray(r.listings) ? r.listings[0] : r.listings;
+            const title = listing
+              ? `${listing.brand}${listing.model ? " " + listing.model : ""}`
+              : "Listing";
+            const thumb = listing ? dialThumbUrl(listing.photos) : null;
+            const proposed = Number(r.proposed_purchase_price).toLocaleString("en-US");
+            const asking = Number(r.listing_price).toLocaleString("en-US");
+            const delta = Number(r.proposed_purchase_price) - Number(r.listing_price);
+            const deltaLabel =
+              delta === 0
+                ? "at asking"
+                : delta > 0
+                  ? `$${delta.toLocaleString("en-US")} over asking`
+                  : `$${Math.abs(delta).toLocaleString("en-US")} under asking`;
+
+            return (
+              <div key={r.id} className="border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px]">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full border border-[var(--border-subtle)]" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
+                        {title}
+                      </span>
+                      <span
+                        className={`shrink-0 text-[9px] uppercase tracking-[1.5px] ${STATUS_COLOR[r.status]}`}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+                    {listing && (
+                      <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--ghost)]">
+                        Ref. {listing.reference}
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
+                        ${proposed}
+                      </span>
+                      <span className="text-[10px] text-[var(--ghost)]">
+                        vs. ${asking} asking · {deltaLabel}
+                      </span>
+                    </div>
+
+                    {(r.shipping_terms || r.included_items || r.notes) && (
+                      <div className="mt-2 space-y-1">
+                        {r.shipping_terms && (
+                          <div className="text-[11px] text-[var(--muted)]">
+                            <span className="text-[var(--ghost)]">Shipping: </span>
+                            {r.shipping_terms}
+                          </div>
+                        )}
+                        {r.included_items && (
+                          <div className="text-[11px] text-[var(--muted)]">
+                            <span className="text-[var(--ghost)]">Included: </span>
+                            {r.included_items}
+                          </div>
+                        )}
+                        {r.notes && (
+                          <div className="text-[11px] text-[var(--muted)]">
+                            <span className="text-[var(--ghost)]">Note: </span>
+                            {r.notes}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {r.status === "pending" && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => act(r.id, "accepted")}
+                          disabled={busyId === r.id}
+                          className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {busyId === r.id ? "Working…" : "Accept"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => act(r.id, "declined")}
+                          disabled={busyId === r.id}
+                          className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AccountDashboard({
   listings,
 }: {
@@ -632,6 +877,10 @@ export default function AccountDashboard({
   // module reports a change (read, reply, archive).
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
 
+  // v2.7 — Purchase Requests. Same pattern: fetched on mount for the pending-
+  // count badge, re-fetched after any accept/decline action.
+  const [requests, setRequests] = useState<PurchaseRequestSummary[]>([]);
+
   async function refreshThreads() {
     try {
       const res = await fetch("/api/messages");
@@ -644,14 +893,47 @@ export default function AccountDashboard({
     }
   }
 
+  // Direct RLS-scoped client fetch — same convention as archiveThread above,
+  // not a new GET API route (per ruling: consistency with the established
+  // pattern over introducing a new endpoint). Explicit .eq("seller_id", ...)
+  // is defense in depth even though RLS also now enforces this.
+  async function refreshRequests() {
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("purchase_requests")
+        .select(
+          `id, listing_id, proposed_purchase_price, listing_price, shipping_terms, included_items, notes, status, created_at,
+           listings ( brand, model, reference, photos )`
+        )
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        setRequests(data as unknown as PurchaseRequestSummary[]);
+      }
+    } catch {
+      /* badge simply stays absent — never crashes the workspace */
+    }
+  }
+
   useEffect(() => {
     refreshThreads();
+    refreshRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const unreadThreadCount = threads.filter(
     (t) => !t.archivedByMe && t.unreadCount > 0
   ).length;
+
+  const pendingRequestCount = requests.filter((r) => r.status === "pending").length;
 
   // Client-side filter — all listings already loaded as a prop, no new query.
   const searchFiltered = useMemo(() => {
@@ -680,7 +962,9 @@ export default function AccountDashboard({
       ? "Overview"
       : activeModule === "messages"
         ? "Correspondence"
-        : "Listings";
+        : activeModule === "requests"
+          ? "Purchase Requests"
+          : "Listings";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -708,7 +992,7 @@ export default function AccountDashboard({
             />
           </div>
 
-          {/* Module nav — no counts */}
+          {/* Module nav — no counts, except unread/pending badges */}
           <nav>
             {MODULES.map((m) => {
               if (m.soon) {
@@ -744,11 +1028,17 @@ export default function AccountDashboard({
                     />
                   )}
                   <span className="relative">{m.label}</span>
-                  {/* v2.6 — unread-thread badge on Messages. Gold, small,
-                      same quiet pattern as existing badges. Only when > 0. */}
+                  {/* v2.6 — unread-thread badge on Messages. */}
                   {m.id === "messages" && unreadThreadCount > 0 && (
                     <span className="relative ml-2 border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] tracking-[1px] text-[var(--gold)]">
                       {unreadThreadCount}
+                    </span>
+                  )}
+                  {/* v2.7 — pending-request badge on Requests. Same quiet
+                      pattern as Messages' unread badge. Only when > 0. */}
+                  {m.id === "requests" && pendingRequestCount > 0 && (
+                    <span className="relative ml-2 border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] tracking-[1px] text-[var(--gold)]">
+                      {pendingRequestCount}
                     </span>
                   )}
                 </button>
@@ -782,7 +1072,11 @@ export default function AccountDashboard({
             </div>
           </div>
 
-          {/* Mobile: Inventory only — no module switching (panel hidden). */}
+          {/* Mobile: Inventory only — no module switching (panel hidden).
+              Purchase Requests is NOT exposed on mobile in this flight — a
+              deliberate scope decision, not an oversight; expanding mobile
+              navigation is a separate UI decision beyond wiring the existing
+              API to a UI, flagged rather than silently included. */}
           <div className="md:hidden">
             <InventoryView
               listings={searchFiltered}
@@ -805,6 +1099,8 @@ export default function AccountDashboard({
               />
             ) : activeModule === "messages" ? (
               <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
+            ) : activeModule === "requests" ? (
+              <RequestsView requests={requests} onActionComplete={refreshRequests} />
             ) : (
               <InventoryView
                 listings={searchFiltered}
