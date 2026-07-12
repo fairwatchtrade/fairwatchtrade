@@ -35,6 +35,13 @@ import { useEffect, useState } from "react";
    the plain dial photo, same as before this component existed. No tap-to-
    reveal alternative is implemented; that would be a separate, deliberate
    feature, not a fallback bolted on here.
+
+   DISCOVERABLE LABEL — "Dial Reveal · drag to adjust" appears only while
+   already hovering (same {active && ...} gate as the slider itself), styled
+   in platform muted-label tokens rather than a native `title` attribute
+   (title has inconsistent cross-browser rendering/timing and doesn't match
+   the platform's visual language). Discovered, not announced — nothing
+   appears before the buyer is already interacting with the dial photo.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function DialReveal({
@@ -90,6 +97,9 @@ export default function DialReveal({
       />
       {active && (
         <div className="absolute inset-x-4 bottom-4 z-30">
+          <p className="mb-1 text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+            Dial Reveal · drag to adjust
+          </p>
           <input
             type="range"
             min={0}
