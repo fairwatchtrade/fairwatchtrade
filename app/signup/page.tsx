@@ -7,6 +7,38 @@ import { createClient } from "@/lib/supabase/client";
 
 type Role = "collector" | "seller" | "both";
 
+/* ────────────────────────────────────────────────────────────────────────
+   v2 — CODE-ONLY EMAIL CONFIRMATION (structural fix, not a mitigation)
+
+   Diagnosed live: some mail providers (Yahoo confirmed tonight; Microsoft
+   Defender Safe Links is the other well-documented one) automatically
+   pre-visit links in incoming email for security scanning — silently
+   consuming a single-use confirmation link before the real user ever
+   clicks it. A typed code is structurally immune: a scanner can GET a
+   link, it cannot read an email body and submit a form.
+
+   NOT "link + code as a fallback" — deliberately code-ONLY. Supabase's
+   {{ .ConfirmationURL }} embeds {{ .TokenHash }}, which is a hashed version
+   of the same {{ .Token }} shown as the code. They are two representations
+   of ONE shared one-time record — a scanner burning the link burns the
+   code too. Keeping both in the email defeats the protection entirely, so
+   the link comes out of the "Confirm signup" template (Supabase Dashboard
+   → Authentication → Emails), not just out of this component.
+
+   Flow now: signUp() → no session, no clickable link → same screen shows a
+   code-entry form → supabase.auth.verifyOtp({ email, token, type: 'email' })
+   establishes the session directly, client-side, right here.
+
+   `emailRedirectTo` removed from the signUp() call — it only mattered for
+   the link-based flow being retired; leaving it in would be dead
+   configuration pointing at a redirect that no longer exists in the email.
+
+   Also closes a pre-existing TODO: the profile row is now created on the
+   OTP-confirmation path too (previously only happened on the immediate-
+   session path), since verifyOtp success hands back a session in this same
+   client context, exactly like the immediate-session branch already does.
+   ──────────────────────────────────────────────────────────────────────── */
+
 export default function SignUpPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -19,17 +51,34 @@ export default function SignUpPage() {
   const [sent, setSent] = useState(false);
   const [role, setRole] = useState<Role>("collector");
 
+  // ── Code-entry state (v2) ──
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
   const passwordsMatch = password === confirmPassword;
   const showMismatch = confirmPassword.length > 0 && !passwordsMatch;
   const canSubmit =
     !busy && email.length > 0 && password.length >= 8 && passwordsMatch;
 
+  async function createProfileRow(userId: string) {
+    // Same shape as the immediate-session branch below — one definition
+    // would be nicer, but this file has exactly two call sites and no
+    // shared module yet; noted rather than silently duplicated without
+    // comment.
+    await supabase.from("profiles").insert({
+      id: userId,
+      email: email,
+      display_name: email.split("@")[0],
+    });
+  }
+
   async function handleSignUp() {
     setBusy(true);
     setError(null);
 
-    // Backstop: never let a mismatch reach Supabase, even if the button
-    // disabled state were somehow bypassed.
     if (password !== confirmPassword) {
       setError("Passwords don't match.");
       setBusy(false);
@@ -39,9 +88,6 @@ export default function SignUpPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
-      },
     });
 
     if (error) {
@@ -50,26 +96,66 @@ export default function SignUpPage() {
       return;
     }
 
-    // If email confirmation is ON, there's no active session yet — tell the
-    // seller to check their inbox. If it's OFF, a session exists; go to /sell.
     if (data.session) {
-      // Create the profile row now that we have a confirmed session. This is
-      // what populates the profiles table (id = auth user id) so seller pages,
-      // settings, and listings have a backing profile.
-      await supabase.from("profiles").insert({
-        id: data.session.user.id,
-        email: email,
-        display_name: email.split("@")[0], // sensible default until they set it
-      });
-
+      // Email confirmation is OFF at the project level — a session exists
+      // immediately, no code needed.
+      await createProfileRow(data.session.user.id);
       router.push("/sell");
       router.refresh();
     } else {
-      // TODO: profile row creation on email confirmation path
-      // Wire in /auth/confirm route when building email confirmation handler
+      // Confirmation required — show the code-entry form. No link exists
+      // to click; the email now contains only the 6-digit code.
       setSent(true);
     }
     setBusy(false);
+  }
+
+  async function handleVerifyCode() {
+    if (code.trim().length === 0) return;
+    setVerifying(true);
+    setVerifyError(null);
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: "email", // current Supabase docs: 'signup'/'magiclink' are
+      // deprecated for this email+token overload — flagged for a quick
+      // confirm against the installed @supabase/supabase-js version; if
+      // that version rejects 'email' here, this is a one-line swap.
+    });
+
+    if (error) {
+      setVerifyError(error.message || "That code didn't work. Please check it and try again.");
+      setVerifying(false);
+      return;
+    }
+
+    if (data.session) {
+      await createProfileRow(data.session.user.id);
+      router.push("/sell");
+      router.refresh();
+    } else {
+      setVerifyError("Something went wrong confirming your code. Please try again.");
+    }
+    setVerifying(false);
+  }
+
+  async function handleResendCode() {
+    setResending(true);
+    setResendMessage(null);
+    setVerifyError(null);
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+
+    if (error) {
+      setResendMessage(error.message || "Couldn't resend the code. Please try again.");
+    } else {
+      setResendMessage("A new code is on its way.");
+    }
+    setResending(false);
   }
 
   /* ── LEFT PANEL — The statement. Never changes. Shared with /login. ── */
@@ -179,15 +265,63 @@ export default function SignUpPage() {
             Create Account
           </div>
           <div className="flex flex-1 flex-col items-center justify-center bg-[var(--ink-deep)] px-11 py-9">
-            <div className="w-full max-w-[320px] text-center">
-              <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
+            <div className="w-full max-w-[320px]">
+              <div className="mb-[6px] text-center font-display text-[26px] font-light text-[var(--platinum)]">
                 Check your email.
               </div>
-              <div className="mb-7 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
-                We sent a confirmation link to{" "}
-                <span className="text-[var(--platinum)]">{email}</span>. Click it to finish
-                creating your account.
+              <div className="mb-7 text-center font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+                We sent a 6-digit code to{" "}
+                <span className="text-[var(--platinum)]">{email}</span>. Enter it below to
+                finish creating your account.
               </div>
+
+              <div className="mb-5">
+                <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  Confirmation code
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  className="fw-input text-center tracking-[6px]"
+                />
+              </div>
+
+              <button
+                onClick={handleVerifyCode}
+                disabled={verifying || code.trim().length === 0}
+                className={`fw-btn-primary mb-4 w-full ${verifying ? "cursor-wait" : ""}`}
+              >
+                {verifying ? "Confirming…" : "Confirm Code"}
+              </button>
+
+              {verifyError && (
+                <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+                  {verifyError}
+                </div>
+              )}
+
+              <div className="text-center text-[9px] text-[var(--muted)]">
+                Didn&apos;t get a code?{" "}
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={resending}
+                  className={`text-[var(--slate)] underline ${resending ? "cursor-wait opacity-60" : ""}`}
+                >
+                  {resending ? "Sending…" : "Resend it"}
+                </button>
+              </div>
+
+              {resendMessage && (
+                <div className="mt-3 text-center text-[11px] text-[var(--muted)]">
+                  {resendMessage}
+                </div>
+              )}
             </div>
           </div>
         </div>
