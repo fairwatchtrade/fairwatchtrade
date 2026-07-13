@@ -238,14 +238,14 @@ function FacetGroup({
                 className="sr-only"
               />
               <div
-                className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+                className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border ${
                   isSelected
                     ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                    : "border-[var(--border-subtle)]"
+                    : "border-[var(--muted)]"
                 }`}
               >
                 {isSelected && (
-                  <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />
+                  <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />
                 )}
               </div>
               <span
@@ -984,13 +984,13 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                           }`}
                         >
                           <span
-                            className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+                            className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border ${
                               isCompared
                                 ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                                : "border-[var(--border-subtle)]"
+                                : "border-[var(--muted)]"
                             }`}
                           >
-                            {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />}
+                            {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />}
                           </span>
                           Compare
                         </button>
