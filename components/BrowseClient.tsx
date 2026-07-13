@@ -238,10 +238,10 @@ function FacetGroup({
                 className="sr-only"
               />
               <div
-                className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border ${
+                className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border-[1.5px] ${
                   isSelected
                     ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                    : "border-[var(--muted)]"
+                    : "border-[var(--slate)] bg-[rgba(255,255,255,0.07)]"
                 }`}
               >
                 {isSelected && (
@@ -984,10 +984,10 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                           }`}
                         >
                           <span
-                            className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border ${
+                            className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border-[1.5px] ${
                               isCompared
                                 ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                                : "border-[var(--muted)]"
+                                : "border-[var(--slate)] bg-[rgba(255,255,255,0.07)]"
                             }`}
                           >
                             {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />}
