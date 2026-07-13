@@ -2,57 +2,39 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PURCHASE REQUEST STATUS — PATCH /api/purchase-requests/[id]  (v2.5)
+   PURCHASE REQUESTS — POST /api/purchase-requests  (v2.4a)
 
-   Seller accepts or declines a pending purchase request. Server verifies the
-   authenticated user IS the seller_id on THIS request before allowing the
-   status change — never trusts a client-supplied seller identity, same
-   principle as the POST route.
+   Buyer submits a purchase request on a listing. buyer_id is ALWAYS derived
+   from auth.getUser() server-side — never trusted from the client body, same
+   principle as /api/listings.
 
-   On accept: inserts a `pending` row into `transactions` (rail: null — rail
-   selection is a separate future flight). final_purchase_price is set to the
-   request's proposed_purchase_price — this bundle has no counter-offer step,
-   so acceptance means accepting the proposed number as-is. No payment
-   processing happens here; zero dollars move.
+   Exclusivity rule (confirmed by the chain): one active PENDING request per
+   buyer per listing — not exclusive platform-wide. Enforced here with a
+   pre-insert check; no DB uniqueness constraint, per brief.
 
-   v2.5 — TWO FIXES, both discovered during Purchase Request Phase 1
-   verification, neither a route-logic change to the accept/decline path
-   itself:
+   On success, also inserts a row into the existing `notifications` table so
+   the seller's bell surfaces the new request — no changes to the bell UI
+   itself (already built, v1.92).
 
-   1. RLS. purchase_requests and transactions both had row-level security
-      ENABLED with ZERO policies since creation — meaning this route's own
-      SELECT above would have returned nothing for a real seller (silent
-      404 "not_found" on every real accept/decline attempt) and the INSERT
-      below would have been rejected outright for a real buyer's original
-      POST. Fixed via an additive migration (5 policies, buyer/seller-owns-
-      own-row, matching this route's own existing identity checks) — no
-      route code changed by that fix; this route was already written
-      assuming exactly this database-level permission existed.
+   Zero dollars move in this route. No Escrow.com, no Stripe — future flight.
 
-   2. UNCHECKED TRANSACTION INSERT (fixed here). The transactions insert on
-      accept was previously fire-and-forget — its error was never read. Under
-      the RLS gap above, it would have failed on every accept, silently: the
-      seller sees "accepted," the buyer sees "accepted," and no transaction
-      record exists anywhere. Now the insert's result is checked; a failure
-      is logged server-side and surfaced to the caller via
-      `transactionCreated: false` rather than swallowed. The status update
-      itself is NOT rolled back on a transaction-insert failure — an
-      automatic rollback would need its own compensating-write correctness
-      guarantees (a real transactional RPC, which is schema/migration work,
-      not in scope here). Surfacing the failure so a human can reconcile is
-      the honest fix for this flight; true atomicity is a future flight if
-      this ever actually fires in practice.
+   NOTE: this file's content is unchanged since its original delivery. Every
+   subsequent revision this project has made to purchase-requests logic
+   (RLS fix, checked-transaction fix, the Flight B atomic accept function)
+   touched ONLY app/api/purchase-requests/[id]/route.ts — never this file.
+   If this file is ever missing from the flat purchase-requests folder,
+   this is the correct, complete content to restore.
    ──────────────────────────────────────────────────────────────────────── */
 
-type PatchBody = {
-  status?: "accepted" | "declined";
+type RequestBody = {
+  listingId?: string;
+  proposedPurchasePrice?: number;
+  shippingTerms?: string;
+  includedItems?: string;
+  notes?: string;
 };
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+export async function POST(req: Request) {
   const supabase = await createClient();
 
   const {
@@ -63,73 +45,94 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  let body: PatchBody;
+  let body: RequestBody;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  if (body.status !== "accepted" && body.status !== "declined") {
+  const { listingId, proposedPurchasePrice, shippingTerms, includedItems, notes } = body;
+
+  if (
+    !listingId ||
+    typeof proposedPurchasePrice !== "number" ||
+    !Number.isFinite(proposedPurchasePrice)
+  ) {
     return NextResponse.json(
-      { error: "invalid_status", detail: "status must be 'accepted' or 'declined'." },
+      { error: "invalid_body", detail: "listingId and proposedPurchasePrice are required." },
       { status: 400 }
     );
   }
 
-  const { data: request, error: fetchError } = await supabase
-    .from("purchase_requests")
-    .select("id, listing_id, buyer_id, seller_id, proposed_purchase_price, status")
-    .eq("id", id)
+  // Fetch the listing for seller_id, current asking price (snapshotted onto
+  // the request as listing_price), and brand/model for the notification text.
+  const { data: listing, error: listingError } = await supabase
+    .from("listings")
+    .select("id, brand, model, seller_id, asking_price, status")
+    .eq("id", listingId)
     .single();
 
-  if (fetchError || !request) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (listingError || !listing || listing.status !== "published") {
+    return NextResponse.json({ error: "listing_not_found" }, { status: 404 });
   }
 
-  // Only the seller on THIS request can accept/decline it.
-  if (request.seller_id !== user.id) {
-    return NextResponse.json({ error: "not_allowed" }, { status: 403 });
-  }
-
-  if (request.status !== "pending") {
+  // A seller can't purchase-request their own listing.
+  if (listing.seller_id === user.id) {
     return NextResponse.json(
-      { error: "already_resolved", detail: `This request is already ${request.status}.` },
+      { error: "not_allowed", detail: "You can't request your own listing." },
+      { status: 403 }
+    );
+  }
+
+  // Exclusivity check — one active pending request per buyer per listing.
+  const { data: existing } = await supabase
+    .from("purchase_requests")
+    .select("id")
+    .eq("listing_id", listingId)
+    .eq("buyer_id", user.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "duplicate_request", detail: "You already have a pending request on this listing." },
       { status: 409 }
     );
   }
 
-  const { error: updateError } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from("purchase_requests")
-    .update({ status: body.status })
-    .eq("id", id);
-
-  if (updateError) {
-    return NextResponse.json({ error: "update_failed" }, { status: 500 });
-  }
-
-  // v2.5: checked, not fire-and-forget. A failure here previously vanished
-  // silently — the request showed "accepted" while no transaction row ever
-  // existed. Now logged loudly and surfaced via transactionCreated: false.
-  let transactionCreated = true;
-  if (body.status === "accepted") {
-    const { error: txError } = await supabase.from("transactions").insert({
-      purchase_request_id: request.id,
-      listing_id: request.listing_id,
-      buyer_id: request.buyer_id,
-      seller_id: request.seller_id,
-      final_purchase_price: request.proposed_purchase_price,
-      rail: null,
+    .insert({
+      listing_id: listingId,
+      buyer_id: user.id,
+      seller_id: listing.seller_id,
+      listing_price: listing.asking_price,
+      proposed_purchase_price: proposedPurchasePrice,
+      shipping_terms: shippingTerms ?? null,
+      included_items: includedItems ?? null,
+      notes: notes ?? null,
       status: "pending",
-    });
-    if (txError) {
-      console.error(
-        `[purchase-requests] transaction insert failed after accept (request ${request.id}):`,
-        txError.message
-      );
-      transactionCreated = false;
-    }
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    return NextResponse.json({ error: "insert_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ status: body.status, transactionCreated });
+  // Seller notification — existing table/bell system. Fails open: a
+  // notification hiccup shouldn't undo an already-successful request.
+  // NOTE: brief's message template was `${brand} ${model}` unconditionally;
+  // model can be null on a listing, so this falls back to brand-only to
+  // avoid a literal "null" in the seller's notification text.
+  const watchLabel = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
+  await supabase.from("notifications").insert({
+    user_id: listing.seller_id,
+    type: "purchase_request",
+    message: `New purchase request for your ${watchLabel}`,
+    listing_id: listingId,
+  });
+
+  return NextResponse.json({ id: inserted.id });
 }
