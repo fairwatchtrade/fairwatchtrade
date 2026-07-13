@@ -186,13 +186,26 @@ export default function AdminDashboard({
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       {/* Header */}
-      <div className="border-b border-[var(--border-faint)] bg-[var(--ink)] px-8 py-4">
-        <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
-          Admin · FairWatchTrade
+      <div className="flex items-center justify-between border-b border-[var(--border-faint)] bg-[var(--ink)] px-8 py-4">
+        <div>
+          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+            Admin · FairWatchTrade
+          </div>
+          <div className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
+            Marketplace Control
+          </div>
         </div>
-        <div className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
-          Marketplace Control
-        </div>
+
+        {/* URGENT fix (Admin-Back-To-Account-Link.md): the only way back to
+            /account from here was closing the tab and re-navigating by hand.
+            Immediately visible, not buried — this is for founder utility
+            only, no one else ever sees this page. */}
+        <Link
+          href="/account"
+          className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.06)]"
+        >
+          ← Back to Seller Workspace
+        </Link>
       </div>
 
       <div className="px-8 py-8">
