@@ -5,7 +5,7 @@ import Link from "next/link";
 import { parsePrice } from "@/lib/parsePrice";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PURCHASE REQUEST FORM — client component (v2.4a)
+   PURCHASE REQUEST FORM — client component (v2.7)
 
    Not in the brief's explicit destination-path list — flagged in the
    delivery notes. Split out as a client component because the page above it
@@ -28,6 +28,20 @@ import { parsePrice } from "@/lib/parsePrice";
    message, instead of round-tripping to the server for a generic failure.
    The backend's own finite-number validation is untouched and unweakened —
    this fix is entirely at the client input boundary.
+
+   v2.7 — FIELD CLEANUP. Removed the Shipping Terms and Included Items inputs
+   at the source. They were never meaningful — the seller's listing already
+   establishes shipping/included-items terms — and asking the buyer to retype
+   them produced junk data ("Shipping: seller", "Included: test") that the
+   seller-side Requests module had to build a demoted "Additional terms"
+   display just to hide gracefully. The form now collects only Offer Amount
+   and an optional Message to seller. This is a source-side removal only: the
+   POST simply stops sending shippingTerms/includedItems (identical to the
+   already-supported blank-submission path — both DB columns are nullable, so
+   omission inserts NULL and the API, which already accepted these as optional,
+   is unchanged). The seller-side "Additional terms" display logic is
+   deliberately NOT touched — legacy requests that already stored this data
+   still render correctly through it.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingContext = {
@@ -51,8 +65,6 @@ export default function PurchaseRequestForm({
   sellerName: string;
 }) {
   const [proposedPrice, setProposedPrice] = useState(String(listing.askingPrice));
-  const [shippingTerms, setShippingTerms] = useState("");
-  const [includedItems, setIncludedItems] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -80,8 +92,6 @@ export default function PurchaseRequestForm({
         body: JSON.stringify({
           listingId: listing.id,
           proposedPurchasePrice: parsedPrice,
-          shippingTerms: shippingTerms.trim() || undefined,
-          includedItems: includedItems.trim() || undefined,
           notes: notes.trim() || undefined,
         }),
       });
@@ -165,28 +175,6 @@ export default function PurchaseRequestForm({
               value={proposedPrice}
               onChange={(e) => setProposedPrice(e.target.value)}
               inputMode="numeric"
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>Shipping terms (optional)</label>
-            <textarea
-              className={`${inputCls} min-h-[64px]`}
-              value={shippingTerms}
-              onChange={(e) => setShippingTerms(e.target.value)}
-              placeholder="Who ships, insured, signature required, etc."
-              spellCheck={false}
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>Included items (optional)</label>
-            <textarea
-              className={`${inputCls} min-h-[64px]`}
-              value={includedItems}
-              onChange={(e) => setIncludedItems(e.target.value)}
-              placeholder="Box, papers, extra links, etc."
-              spellCheck={false}
             />
           </div>
 
