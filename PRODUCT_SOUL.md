@@ -383,3 +383,69 @@ That distinction is everything.
 Collector Impression Wizard v1.0 spec approved July 9, 2026. Design Gate required before implementation. Payment infrastructure prerequisite.
 
 Drop that at the bottom of PRODUCT_SOUL.md and push:
+---
+
+## Build & Workflow Laws
+
+*These govern how FairWatchTrade is built, not just what it builds. Violations have caused real production incidents.*
+
+---
+
+### Law 1 — State Your Identity in Cross-Instance Messages
+
+Every message relayed between AI seats must begin with the sender's identity:
+
+```
+newfav:
+GPT:
+Ducky 5:
+Ducky 7:
+```
+
+No anonymous messages in the chain. When attribution is missing, the receiving seat must stop and ask before acting. This law exists because "who wrote this" should never be a question that slows the build.
+
+---
+
+### Law 2 — Fix Small Things Immediately
+
+Small fixes discovered during a build get fixed in that session, not queued for later.
+
+"Logged for later" too easily becomes "forgotten entirely" when the fix is small enough to do on the spot. If it takes less than 15 minutes and doesn't require a design gate or architectural decision — fix it now.
+
+---
+
+### Law 3 — Wire It in the Same Flight
+
+A component gets wired into the live application in the same flight it is built. No orphaned `.tsx` files waiting for a future "wiring pass."
+
+This law was named after the Dial Reveal incident: a fully-built, genuinely good feature that sat disconnected and undiscovered for weeks. Wiring is not optional. Wiring is the last step of every build, not the first step of the next one.
+
+---
+
+### Law 4 — Re-Read Before You Edit
+
+Never edit a file from memory across turns. Always re-read the current version before touching it — even within the same session if meaningful time has passed.
+
+Stale-file edits have caused real crashes and real production incidents in this build. The cost of reading the file again is seconds. The cost of editing the wrong version is a session.
+
+---
+
+### Law 5 — Compose at Read Time, Never Fork a Stored Copy
+
+Any feature that displays existing data in a new way should compose it live at read time. Never create a second stored copy of data that already exists elsewhere.
+
+This principle was first applied to Research Reports (compose-on-read preserves the regeneration win), then confirmed as a project-wide pattern when applied to Buyer My Offers. One source of truth. Read it fresh. Never fork it.
+
+---
+
+## Purchase Request Laws
+
+*Locked. Not discussion topics.*
+
+- **Watch is parent. Offers are children.** A seller sees each watch once with all offers grouped beneath it — not a flat list of disconnected offer rows.
+- **`superseded` is the correct terminal state.** When a counter-offer is accepted, prior offers become `superseded`, not `declined`. The distinction is meaningful and accurate.
+- **Atomic database acceptance.** Accepting an offer and creating the transaction record happen in a single database operation. No window for partial state.
+- **Design Gate before engineering.** Rendered concept required before Ducky 7 touches any new UI surface.
+- **No orphaned components.** See Law 3.
+- **Build the locked design. Don't redesign it.** Once a design is approved through the Design Gate, the brief implements it. The build seat does not redesign.
+
