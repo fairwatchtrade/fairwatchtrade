@@ -7,7 +7,7 @@ import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBLIC LISTING DETAIL — /listings/[id]  (v1.58)
+   PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
 
    Buyer-facing detail view for a single published listing. Server Component:
    fetches the row by UUID from `listings`, 404s if missing or not published.
@@ -41,6 +41,16 @@ import ListingCorrespondence from "@/components/ListingCorrespondence";
    listing. This supersedes the prior "Price is the absolute last in-flow
    element" invariant from v1.57 — flagged as a deliberate change, not a
    silent drift, since that line was a documented architectural invariant.
+
+   v2.4b: added a dedicated `superseded` branch to the buyer action block.
+   Previously only declined/pending/accepted had explicit cases and every
+   other status (superseded, expired, cancelled) fell through to the
+   "Start Purchase Request" CTA — inviting a buyer to submit a fresh request
+   on a watch that has already sold to another buyer. `superseded` now renders
+   an explanatory, non-judgmental message ("Another purchase request for this
+   watch was accepted." / "This watch is no longer available.") and suppresses
+   the CTA entirely, since resubmission would contradict the state of the
+   listing. Surgical: no other listing-page logic touched.
 
    v1.57: Studio design-system token migration. No logic, data, scoring,
    privacy, or photo-sort changes — className/layout only.
@@ -367,7 +377,20 @@ export default async function ListingDetailPage({
               </div>
             )}
 
-            {myLatestRequest?.status === "pending" ? (
+            {myLatestRequest?.status === "superseded" ? (
+              /* superseded — the watch sold to ANOTHER buyer via an accepted
+                 request; this buyer was not individually declined. Explain the
+                 state honestly and suppress the CTA: a resubmission would
+                 contradict the state of the listing. */
+              <div className="inline-block border border-[var(--border-mid)] px-4 py-3 text-[11px] tracking-[0.5px] text-[var(--muted)]">
+                <div className="uppercase tracking-[2px] text-[var(--slate)]">
+                  Another purchase request for this watch was accepted
+                </div>
+                <div className="mt-1 text-[var(--ghost)]">
+                  This watch is no longer available.
+                </div>
+              </div>
+            ) : myLatestRequest?.status === "pending" ? (
               <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
                 Your request is pending
               </div>

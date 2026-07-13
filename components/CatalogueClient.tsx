@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   CATALOGUE CLIENT — the buyer's Catalogue  (v2.6)
+   CATALOGUE CLIENT — the buyer's Catalogue  (v2.7b)
 
    Answers one question: "What happened while I was away?" Every element is
    secondary to that except the Catalogue Match hero, which answers it
@@ -15,6 +15,17 @@ import { createClient } from "@/lib/supabase/client";
    Correspondence is real (v2.6): the buyer's table of contents — every row
    links to the listing where the conversation lives, never a separate
    inbox. No fabricated matches, no placeholder watches.
+
+   My Offers is real (v2.7): the buyer's outgoing purchase requests across
+   ALL listings, fetched client-side from purchase_requests (RLS already
+   permits buyer_id = auth.uid()), joined to listings. It is a READ MODEL —
+   no new table, no cache, no mirror; every status label is derived at render
+   time from a label map, never persisted. It is a durable workspace: it
+   ALWAYS renders, with an honest empty state, and it fails honestly (loading
+   and query-failure are distinct from "no offers"). Sits between
+   Correspondence and Discovery, matching the page's active-over-passive
+   hierarchy. Accepted offers are informational only — no buyer checkout /
+   transaction destination exists yet, so none is invented here.
 
    ANTI-FEATURES (PRODUCT_SOUL.md, enforced here): no listing scores or
    combined_score, no save counts, no trend arrows, no manufactured urgency,
@@ -54,6 +65,106 @@ export type ListingRow = {
 type CatalogueProps = {
   displayName: string | null;
   recentListings: ListingRow[];
+};
+
+/* ── My Offers (v2.7) ─────────────────────────────────────────────────────
+   A buyer's outgoing purchase request, composed on read from
+   purchase_requests + its joined listing. No stored copy of offer state or
+   buyer-facing narrative — the status label is applied from STATUS_LABELS at
+   render time, so a wording change is a UI edit, never a data migration. */
+
+// Full live status set, verified against the purchase_requests_status_check
+// DB constraint: pending | accepted | declined | expired | cancelled |
+// superseded. All six are represented so no valid status silently falls
+// through to generic or misleading copy.
+type OfferStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "expired"
+  | "cancelled"
+  | "superseded";
+
+type MyOfferRow = {
+  id: string;
+  status: string; // raw DB value; narrowed via STATUS_LABELS at render time
+  proposed_purchase_price: number | null;
+  listing_price: number | null;
+  created_at: string;
+  listing: ListingRow | null; // joined; may be null if the listing is gone
+};
+
+// loaded state is deliberately distinct from empty (loaded + zero rows) and
+// from error — so the section never claims "no offers" while still loading or
+// after a failed query.
+type MyOffersState =
+  | { phase: "loading" }
+  | { phase: "loaded"; offers: MyOfferRow[] }
+  | { phase: "error" };
+
+// Status → buyer-facing copy, derived at render time. superseded is distinct
+// from declined in both meaning and wording: the buyer was not individually
+// rejected — another request was accepted and the watch is no longer
+// available. Copy is non-judgmental across the board and never implies the
+// seller personally rejected the buyer.
+const STATUS_LABELS: Record<
+  OfferStatus,
+  { label: string; note: string; tone: "gold" | "success" | "muted" | "ghost" }
+> = {
+  pending: {
+    label: "Pending",
+    note: "Awaiting the seller's response.",
+    tone: "gold",
+  },
+  accepted: {
+    label: "Accepted",
+    note: "The seller accepted your request.",
+    tone: "success",
+  },
+  declined: {
+    label: "Declined",
+    note: "The seller declined this request.",
+    tone: "muted",
+  },
+  superseded: {
+    label: "No longer available",
+    note: "Another purchase request for this watch was accepted.",
+    tone: "ghost",
+  },
+  expired: {
+    label: "Expired",
+    note: "This request expired before it was answered.",
+    tone: "ghost",
+  },
+  cancelled: {
+    label: "Cancelled",
+    note: "This request was cancelled.",
+    tone: "ghost",
+  },
+};
+
+// Any unrecognized status fails to a neutral, non-misleading descriptor rather
+// than rendering nothing (schema honesty: a new DB status must never silently
+// vanish from the buyer's view).
+function offerLabel(status: string): {
+  label: string;
+  note: string;
+  tone: "gold" | "success" | "muted" | "ghost";
+} {
+  return (
+    STATUS_LABELS[status as OfferStatus] ?? {
+      label: status,
+      note: "",
+      tone: "ghost" as const,
+    }
+  );
+}
+
+const TONE_CLASS: Record<"gold" | "success" | "muted" | "ghost", string> = {
+  gold: "text-[var(--gold-subtle)]",
+  success: "text-[var(--success)]",
+  muted: "text-[var(--muted)]",
+  ghost: "text-[var(--ghost)]",
 };
 
 function greeting(): string {
@@ -173,6 +284,254 @@ function ListingCard({ row }: { row: ListingRow }) {
   );
 }
 
+/* ── My Offers (v2.7a) — buyer's outgoing purchase requests, GROUPED ───────
+   A read model over purchase_requests. Always rendered (durable workspace),
+   with four honest phases: loading, loaded-with-results, loaded-empty, error.
+
+   OBJECT-FIRST (Purchase Request Law: "Watch is parent. Offers are children"):
+   rows are grouped by watch, not shown as a flat list of database rows. Each
+   watch appears ONCE; its current/latest request is the dominant headline,
+   and any prior requests are listed beneath as quieter history (newest first).
+   The watch's photo, title, reference, and price appear once per group — never
+   repeated per request. All status copy is derived from STATUS_LABELS at
+   render time; nothing is persisted. Accepted requests are informational only
+   — the sole navigation is back to the existing listing; no checkout /
+   transaction destination is invented. */
+
+type WatchGroup = {
+  // Stable grouping key: the listing id when present, else the offer id (so a
+  // request whose listing is gone still forms its own honest group).
+  key: string;
+  listing: ListingRow | null;
+  current: MyOfferRow; // latest request (offers arrive newest-first from query)
+  history: MyOfferRow[]; // prior requests, newest-first, may be empty
+};
+
+// Group offers by watch, preserving the newest-first order the query already
+// returned. First offer seen for a listing is its current/headline request;
+// subsequent ones become history. Offers with a null listing each stand alone
+// (they can't be meaningfully merged with anything).
+function groupOffersByWatch(offers: MyOfferRow[]): WatchGroup[] {
+  const groups: WatchGroup[] = [];
+  const indexByKey = new Map<string, number>();
+  for (const offer of offers) {
+    const key = offer.listing ? offer.listing.id : offer.id;
+    const existing = indexByKey.get(key);
+    if (existing === undefined) {
+      groups.push({
+        key,
+        listing: offer.listing,
+        current: offer,
+        history: [],
+      });
+      indexByKey.set(key, groups.length - 1);
+    } else {
+      groups[existing].history.push(offer);
+    }
+  }
+  return groups;
+}
+
+function offerPrice(offer: MyOfferRow, listing: ListingRow | null): number | null {
+  return (
+    offer.proposed_purchase_price ??
+    offer.listing_price ??
+    listing?.asking_price ??
+    null
+  );
+}
+
+// Relative time for offer history — "just now", "2 hours ago", "3 days ago",
+// then falls back to an absolute date past ~30 days (older history reads better
+// as a real date than "7 weeks ago"). SELF-CONTAINED on purpose: if a shared
+// relative-time / date helper already exists elsewhere in the app, swap this
+// call for it rather than keeping two definitions. The one date convention seen
+// so far (In Hand Verified badge on the listing page) is absolute en-US
+// "Month D, YYYY" — matched here for the >30-day fallback so the two agree.
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 45) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min === 1 ? "1 minute ago" : `${min} minutes ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return day === 1 ? "yesterday" : `${day} days ago`;
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// One prior request, rendered quietly beneath the current one. Subordinate but
+// fully readable — each row still answers Offer Amount / Status / When, with no
+// repeated watch identity.
+function HistoryRow({ offer, listing }: { offer: MyOfferRow; listing: ListingRow | null }) {
+  const { label } = offerLabel(offer.status);
+  const price = offerPrice(offer, listing);
+  const when = relativeTime(offer.created_at);
+  return (
+    <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+      <span className="min-w-0 truncate">
+        {price != null ? formatPrice(Number(price)) : "Offer"}
+        <span className="mx-1.5 opacity-40">•</span>
+        <span className="uppercase tracking-[1.5px]">{label}</span>
+      </span>
+      {when && <span className="shrink-0 opacity-70">{when}</span>}
+    </div>
+  );
+}
+
+// One watch group: identity once, current request dominant, history beneath.
+function WatchOfferGroup({ group }: { group: WatchGroup }) {
+  const { listing: l, current, history } = group;
+  const { label, note, tone } = offerLabel(current.status);
+  const title = l ? (l.model ? `${l.brand} ${l.model}` : l.brand) : "Listing unavailable";
+  const hero = l ? heroUrl(l.photos) : null;
+  const currentPrice = offerPrice(current, l);
+  const currentWhen = relativeTime(current.created_at);
+
+  const inner = (
+    <div className="flex gap-4 px-4 py-4">
+      {/* Watch thumbnail — appears once per group. Dial-first via heroUrl(),
+          matching Discovery / Saved Watches visual identity. */}
+      <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+        {hero ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={hero} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <div className="text-[8px] tracking-[0.3px] text-[var(--ghost)]">No photo</div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        {/* Identity — once */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-[13px] text-[var(--platinum)]">{title}</div>
+            {l?.reference && (
+              <div className="mt-0.5 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+                Ref. {l.reference}
+              </div>
+            )}
+          </div>
+          {/* Current status — the dominant state */}
+          <div className="shrink-0 text-right">
+            <div className={`text-[10px] uppercase tracking-[2px] ${TONE_CLASS[tone]}`}>
+              {label}
+            </div>
+          </div>
+        </div>
+
+        {/* Current offer + its note. Submitted-time is present but subtle, so
+            the current request stays dominant over the quieter history below. */}
+        <div className="mt-2 flex items-baseline justify-between gap-3">
+          <div className="text-[12px] tracking-[0.3px] text-[var(--slate)]">
+            {currentPrice != null ? (
+              <>Your offer: {formatPrice(Number(currentPrice))}</>
+            ) : (
+              <>&nbsp;</>
+            )}
+          </div>
+          {currentWhen && (
+            <div className="shrink-0 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+              Submitted {currentWhen}
+            </div>
+          )}
+        </div>
+        {note && (
+          <div className="mt-0.5 text-[10px] leading-snug text-[var(--ghost)]">{note}</div>
+        )}
+
+        {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
+        {history.length > 0 && (
+          <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
+            <div className="mb-1 text-[8px] uppercase tracking-[2px] text-[var(--ghost)] opacity-70">
+              Previous requests
+            </div>
+            {history.map((h) => (
+              <HistoryRow key={h.id} offer={h} listing={l} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Navigable to the existing listing when present; otherwise a quiet,
+  // non-navigable group (the watch is gone — no fabricated destination).
+  return l ? (
+    <Link
+      href={`/listings/${l.id}`}
+      className="block border-b border-[rgba(255,255,255,0.03)] transition last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+    >
+      {inner}
+    </Link>
+  ) : (
+    <div className="block cursor-default border-b border-[rgba(255,255,255,0.03)] opacity-70 last:border-b-0">
+      {inner}
+    </div>
+  );
+}
+
+function MyOffersSection({ state }: { state: MyOffersState }) {
+  const groups =
+    state.phase === "loaded" ? groupOffersByWatch(state.offers) : [];
+
+  return (
+    <div className="mt-8">
+      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+        My Offers
+      </div>
+
+      {state.phase === "loading" ? (
+        // Quiet loading placeholder — deliberately NOT the empty-state copy, so
+        // the buyer is never told "no offers" before the query resolves.
+        <div className="border border-[var(--border-subtle)] px-4 py-6 text-center">
+          <div className="font-display text-[11px] italic text-[var(--ghost)]">
+            Loading your offers…
+          </div>
+        </div>
+      ) : state.phase === "error" ? (
+        // Fail honestly and non-destructively — the rest of Catalogue is
+        // unaffected; we simply say this one section is unavailable.
+        <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
+          <div className="font-display text-[11px] italic text-[var(--ghost)]">
+            Your offers are unavailable right now. Please try again shortly.
+          </div>
+        </div>
+      ) : groups.length === 0 ? (
+        // Honest empty state — the section is durable and always present.
+        <div className="border border-dashed border-[var(--border-faint)] px-4 py-8 text-center">
+          <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
+            You haven&apos;t made any offers yet.
+          </div>
+          <div className="mb-6 font-display text-[11px] italic text-[var(--ghost)]">
+            When you start a purchase request, it will appear here — every offer,
+            across every listing, in one place.
+          </div>
+          <Link
+            href="/browse"
+            className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+          >
+            Explore the Marketplace →
+          </Link>
+        </div>
+      ) : (
+        <div className="border border-[var(--border-subtle)]">
+          {groups.map((group) => (
+            <WatchOfferGroup key={group.key} group={group} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function CatalogueClient({
@@ -187,6 +546,14 @@ export default function CatalogueClient({
   // the existing empty-state copy while loading, so there's no layout flash.
   const [savedListings, setSavedListings] = useState<ListingRow[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
+
+  // v2.7 — My Offers. The buyer's outgoing purchase requests across all
+  // listings, fetched client-side (same pattern as Saved Watches below). RLS
+  // already scopes SELECT to buyer_id = auth.uid(), so this is a read model
+  // over authoritative data — no new table, cache, or mirror. Starts in an
+  // explicit `loading` phase so the empty state is never shown prematurely,
+  // and lands in `error` (not empty) on query failure.
+  const [myOffers, setMyOffers] = useState<MyOffersState>({ phase: "loading" });
 
   // v2.6 — Correspondence. The buyer's table of contents: threads fetched
   // from /api/messages; each row links to the LISTING (the conversation's
@@ -224,6 +591,57 @@ export default function CatalogueClient({
   }, []);
 
   const activeThreads = threads.filter((t) => !t.archivedByMe && t.listing);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOffers() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        // Not signed in — treat as an empty (loaded) workspace, not an error.
+        if (!cancelled) setMyOffers({ phase: "loaded", offers: [] });
+        return;
+      }
+      const { data, error } = await supabase
+        .from("purchase_requests")
+        .select(
+          "id, status, proposed_purchase_price, listing_price, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
+        )
+        .eq("buyer_id", user.id)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        // Fail honestly: distinct error phase, never a fabricated empty result.
+        setMyOffers({ phase: "error" });
+        return;
+      }
+      const offers: MyOfferRow[] = (Array.isArray(data) ? data : []).map((r) => {
+        const row = r as unknown as {
+          id: string;
+          status: string;
+          proposed_purchase_price: number | null;
+          listing_price: number | null;
+          created_at: string;
+          listings: ListingRow | null;
+        };
+        return {
+          id: row.id,
+          status: row.status,
+          proposed_purchase_price: row.proposed_purchase_price,
+          listing_price: row.listing_price,
+          created_at: row.created_at,
+          listing: row.listings ?? null,
+        };
+      });
+      setMyOffers({ phase: "loaded", offers });
+    }
+    loadOffers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -354,6 +772,14 @@ export default function CatalogueClient({
             </div>
           </div>
         )}
+
+        {/* v2.7 — My Offers. Placed after Correspondence, before Discovery:
+            active/status-driven content above passive browsing, matching the
+            page's established hierarchy. Durable workspace — always rendered,
+            with an honest empty state, independent of whether any offers
+            exist. No new left-nav item (same precedent as Correspondence and
+            Saved Watches). */}
+        <MyOffersSection state={myOffers} />
 
         {/* Two-column below the hero */}
         <div className="mt-8 flex flex-col gap-8 lg:flex-row">
