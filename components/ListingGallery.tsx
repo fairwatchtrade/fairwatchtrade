@@ -45,9 +45,6 @@ export default function ListingGallery({
         ) : (
           <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
         )}
-        <div className="pointer-events-none absolute left-3 top-2 text-[10px] font-light uppercase tracking-[0.15em] text-[#E8E4DC]/60">
-          {brandLabel}
-        </div>
         {/* Invisible tap zones — left 40% prev, right 40% next */}
         <div
           role="button"
