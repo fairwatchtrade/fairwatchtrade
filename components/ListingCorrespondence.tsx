@@ -34,6 +34,27 @@ import Link from "next/link";
    No chat bubbles: sender name, timestamp, body. Collector correspondence.
    Emails are one-way notifications handled entirely by the API routes.
 
+   v2.7a — THE BAR RETIRES AT THE END OF THE LISTING. The fixed bar was
+   pinned to bottom-0 unconditionally, so scrolling to the page footer left it
+   sitting ON TOP of the footer, covering "Built for collectors. 5% flat fee.
+   No ads. Ever." The listing page's <main> already carries pb-32 to reserve
+   room for the bar — but the FOOTER lives outside <main>, in the layout, so
+   that reserve never protected it.
+
+   Fix: the bar measures its own content container (the nearest <main>, found
+   from an in-flow anchor) and retires once that container's bottom edge
+   reaches the viewport — i.e. the collector has reached the end of the
+   listing and the footer is next. No dependency on the footer's markup, which
+   this component cannot see and should not assume.
+
+   This also settles, structurally, the concern that the guest bar competes
+   with the gold "Start Purchase Request": by the time that CTA is on screen,
+   the bar has retired. There is no moment where a messaging control and the
+   purchase control fight for the same decision. That required no relabeling —
+   and relabeling would have been a lie: this bar's guest CTA leads to sign-in
+   and then to THIS bar (a message composer), not to the purchase flow.
+   Correspondence stays truthful about what it is.
+
    Canary: PFC274 = 62 — /api/evaluate untouched.
    ──────────────────────────────────────────────────────────────────────── */
 
@@ -88,6 +109,11 @@ export default function ListingCorrespondence({
 
   const sectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // v2.7a — a zero-size in-flow anchor. The bar itself is position:fixed and
+  // therefore has no place in the document flow to measure from; this anchor
+  // does, and it lets the bar find its own content container.
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [barRetired, setBarRetired] = useState(false);
 
   const title = model ? `${brand} ${model}` : brand;
   const eligible = authed && !isOwner;
@@ -129,6 +155,36 @@ export default function ListingCorrespondence({
       cancelled = true;
     };
   }, [eligible, listingId]);
+
+  // v2.7a — retire the bar once the listing content ends, so it can never
+  // overlap the footer (which lives outside <main> and outside this
+  // component's knowledge).
+  useEffect(() => {
+    const main = anchorRef.current?.closest("main");
+    // Fail safe: if there's no <main> to measure, behave exactly as before
+    // rather than hiding the bar on a page we don't understand.
+    if (!main) return;
+
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      // main's bottom edge has entered the viewport → end of the listing.
+      setBarRetired(main.getBoundingClientRect().bottom <= window.innerHeight);
+    };
+    const onScroll = () => {
+      if (frame) return; // coalesce to one measurement per frame
+      frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   function openHome(prefill?: string) {
     setOpen(true);
@@ -190,6 +246,10 @@ export default function ListingCorrespondence({
 
   return (
     <>
+      {/* v2.7a — in-flow anchor for the fixed bar's measurement. Zero-size,
+          decorative, never affects layout. */}
+      <span ref={anchorRef} aria-hidden="true" className="block h-0 w-0" />
+
       {/* ── SECTION 5 HOME — thread history + composer. Renders when a
              thread exists or after the bar opens it. ── */}
       {eligible && open && (
@@ -280,7 +340,7 @@ export default function ListingCorrespondence({
       {/* ── FIXED BOTTOM BAR — the entry point. Replaces the disabled shell.
              Anchored snapshot left (unchanged from the shell), live entry
              affordance right. Tap → home opens/scrolls, composer focused. ── */}
-      {eligible && (
+      {eligible && !barRetired && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--ink)]">
           <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 py-3 sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
@@ -323,7 +383,7 @@ export default function ListingCorrespondence({
 
       {/* Logged-out viewers keep the bar as a doorway to sign in — routed
           through the callbackUrl flow so login returns them right here. */}
-      {!authed && (
+      {!authed && !barRetired && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--ink)]">
           <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 py-3 sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
