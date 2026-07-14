@@ -35,7 +35,7 @@ export default function ListingGallery({
   return (
     <div>
       {/* Hero — large, full-width */}
-      <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#0D0F14]">
+      <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#14161C] p-2 sm:p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {dialUrl && heroUrl === dialUrl ? (
           <DialReveal
