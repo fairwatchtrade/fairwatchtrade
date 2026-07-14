@@ -68,6 +68,20 @@ import ListingCorrespondence from "@/components/ListingCorrespondence";
    `/browse`. Built to be trivially removable/relocatable once the real
    Collector's Drawer exists — this is not architected as a permanent
    fixture of it.
+
+   v2.5a — LEGIBILITY FIX. Real-render check (wkhtmltoimage, real Inter
+   font-weight 300, real globals.css tokens, real #0D0F14 background — not
+   just contrast math) found the resting-state gold-subtle color, once
+   composited over --ink, renders at ~2.58:1 contrast — well under the 4.5:1
+   WCAG AA floor for text. This affected BOTH "← Browse" (new) and the
+   pre-existing "Sold by {sellerName} →" link below, which shares the
+   identical class and was already live with the same problem. Both now use
+   --muted at rest (~5.35:1, verified by re-render), keeping the intended
+   quiet/recessive feel — --muted is deliberately not louder than needed —
+   while actually being readable. Hover state is unchanged (full --gold is
+   already high-contrast). A third occurrence of the same class
+   ("← Back to listing" in PurchaseRequestForm.tsx) has the same issue but is
+   a different file, outside this flight's scope — flagged, not fixed here.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -264,9 +278,9 @@ export default async function ListingDetailPage({
             real Drawer exists. */}
         <Link
           href={browseHref}
-          className="mb-4 inline-block text-[11px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+          className="mb-4 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)]"
         >
-          ← Browse
+          ← Back to Browse
         </Link>
 
         {/* WatchBlueprint — atmospheric background.
@@ -321,7 +335,7 @@ export default async function ListingDetailPage({
           </p>
           <Link
             href={`/sellers/${listing.seller_id}`}
-            className="mt-1 inline-block text-[11px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+            className="mt-1 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)]"
           >
             Sold by {sellerName} →
           </Link>
