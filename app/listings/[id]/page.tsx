@@ -210,13 +210,13 @@ export default async function ListingDetailPage({
   // status (a buyer may have a declined request followed by a new one).
   const { data: myLatestRequest } = user
     ? await supabase
-        .from("purchase_requests")
-        .select("status")
-        .eq("listing_id", listing.id)
-        .eq("buyer_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      .from("purchase_requests")
+      .select("status")
+      .eq("listing_id", listing.id)
+      .eq("buyer_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
     : { data: null };
 
   // Photos: keep only entries that actually carry a URL, so category-based
@@ -278,9 +278,16 @@ export default async function ListingDetailPage({
             real Drawer exists. */}
         <Link
           href={browseHref}
-          className="mb-5 inline-block text-[14px] font-medium text-[var(--gold)] transition hover:opacity-80"
+          className={[
+            "mb-5 inline-flex items-center gap-1.5",
+            "font-display text-[16px] font-light tracking-[0.3px]",
+            "text-[var(--gold)] transition hover:opacity-80",
+          ].join(" ")}
         >
-          ← Back to Browse
+          <span className="text-[13px] leading-none" aria-hidden="true">
+            ←
+          </span>
+          <span>Return to browse</span>
         </Link>
 
         {/* WatchBlueprint — atmospheric background.
@@ -357,8 +364,8 @@ export default async function ListingDetailPage({
                   {listing.verified_at && (
                     <span className="ml-2 text-[var(--ghost)]">
                       · {new Date(listing.verified_at).toLocaleDateString("en-US", {
-                          month: "long", day: "numeric", year: "numeric"
-                        })}
+                        month: "long", day: "numeric", year: "numeric"
+                      })}
                     </span>
                   )}
                 </div>
