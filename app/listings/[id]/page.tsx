@@ -278,7 +278,7 @@ export default async function ListingDetailPage({
             real Drawer exists. */}
         <Link
           href={browseHref}
-          className="mb-4 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)]"
+          className="mb-5 inline-block text-[14px] font-medium text-[var(--gold)] transition hover:opacity-80"
         >
           ← Back to Browse
         </Link>
