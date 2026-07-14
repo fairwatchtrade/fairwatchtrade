@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -47,6 +48,29 @@ import Link from "next/link";
    profiles) whose RLS wasn't checked this flight. Flagged as a possible
    future addition, not silently included.
 
+   v2.8 — Dealer Accelerator Flight 2A. Two things, both real:
+
+   (a) A LIVE BUG FIX, affecting every seller, not just dealers: the Pending
+   tab filtered on the status string "pending", which is not a real listing
+   status and never has been. The actual value is "pending_review" (see
+   app/api/admin/listings/[id]/status/route.ts's ALLOWED_STATUSES). The tab,
+   its count, and STATUS_LABELS all keyed on the phantom value, so the Pending
+   tab silently showed zero results and a pending_review listing would have
+   rendered its raw status string as a badge. Because the tab id IS used
+   directly as the status value (see InventoryView's `filtered`), the fix is
+   to make the id the real status — not to special-case the comparison. The
+   user-facing label stays "Pending".
+
+   (b) Submit for Review. A draft now carries an owner-gated
+   draft → pending_review action (POST /api/listings/[id]/submit-for-review),
+   and a submitted listing states plainly that it is awaiting review rather
+   than going silent. Listings remain PROPS-ONLY: this deliberately does NOT
+   add a third client-fetch deviation, and deliberately does NOT hold a local
+   copy of status that could drift from the database. It calls
+   router.refresh(), so the server page re-runs its own query and the prop
+   arrives as truth. Reuses the Accept/Decline action-button treatment below
+   verbatim — no new visual design was invented here.
+
    PRIVACY: only buyer-safe fields + status arrive in the listings prop;
    scoring fields (significance_score, score_state, combined_score) never
    reach this layer.
@@ -77,7 +101,9 @@ export type AccountListing = {
 };
 
 type ModuleId = "dashboard" | "inventory" | "market" | "messages" | "requests" | "analytics";
-type TabId = "all" | "published" | "draft" | "pending" | "rejected";
+// "pending_review" is the REAL status value, not a UI-only id — InventoryView
+// filters with `l.status === activeTab`, so the id must equal the status.
+type TabId = "all" | "published" | "draft" | "pending_review" | "rejected";
 
 type Counts = {
   total: number;
@@ -87,9 +113,22 @@ type Counts = {
   rejected: number;
 };
 
+/* v2.8 — submission wiring, drilled down to ListingRow exactly the way
+   onSelect already is. All optional: a view that doesn't wire submission
+   still renders ordinary rows. Error is carried as (id, message) so the
+   failure surfaces on the row it actually belongs to, not globally. */
+type SubmitProps = {
+  onSubmitForReview?: (id: string) => void;
+  submittingId?: string | null;
+  submitErrorId?: string | null;
+  submitErrorMsg?: string | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   published: "Published",
-  pending: "Pending",
+  // Keyed on the real status value. Was "pending" — a value the listings table
+  // never produces — so a submitted listing fell through to its raw status.
+  pending_review: "Pending Review",
   rejected: "Rejected",
   draft: "Draft",
 };
@@ -186,10 +225,18 @@ function ListingRow({
   row,
   selected,
   onSelect,
+  onSubmitForReview,
+  submitting = false,
+  submitError = null,
 }: {
   row: AccountListing;
   selected: boolean;
   onSelect: (id: string) => void;
+  // v2.8 — optional so any caller that doesn't wire submission still renders
+  // an ordinary row rather than breaking.
+  onSubmitForReview?: (id: string) => void;
+  submitting?: boolean;
+  submitError?: string | null;
 }) {
   const price = `$${Number(row.asking_price).toLocaleString("en-US")}`;
   const badgeLabel = STATUS_LABELS[row.status] ?? row.status;
@@ -203,31 +250,70 @@ function ListingRow({
   const inner = (
     <div
       onClick={() => onSelect(row.id)}
-      className={`relative flex cursor-pointer items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px] transition hover:bg-[rgba(255,255,255,0.02)] ${
+      className={`relative cursor-pointer border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px] transition hover:bg-[rgba(255,255,255,0.02)] ${
         selected
           ? "bg-[rgba(201,168,76,0.04)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
           : ""
       }`}
     >
-      {/* Dial thumbnail — real photo when available, placeholder circle otherwise */}
+      {/* v2.8 — the row's original single-line content, unchanged, now wrapped
+          so a draft's submit action / a submitted listing's state can sit
+          beneath it rather than squeezing the line on mobile. */}
+      <div className="flex items-center gap-3">
+      {/* Dial thumbnail — the real dial photo when the listing has one.
+          v2.8: the no-photo fallback was a bare 16px circle, which read as a
+          radio button and implied a selection affordance this row does not
+          have. It is purely a MEDIA PLACEHOLDER — no interaction now, none
+          planned — so it is now the conventional framed-image-with-slash
+          glyph, which cannot be mistaken for a control. --ghost is the correct
+          token here rather than a legibility regression: globals.css reserves
+          --ghost for "disabled states and placeholders ONLY", and this is
+          literally a placeholder, not text the user must read. */}
       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
         {dialThumbUrl(row.photos) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={dialThumbUrl(row.photos)!} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="h-4 w-4 rounded-full border border-[var(--border-subtle)]" />
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px] text-[var(--ghost)]"
+            role="img"
+            aria-label="No photo"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3.5 16.5 8 12l3 3 3.5-3.5 6 6" />
+            <line x1="3.5" y1="20.5" x2="20.5" y2="3.5" />
+          </svg>
         )}
       </div>
 
-      {/* Info */}
+      {/* Info — v2.8 legibility corrections, both of which were violations of
+          globals.css's OWN stated readability floor, not new design opinions:
+          "--muted is the absolute minimum for ANY text the user is meant to
+          read; --ghost is for disabled states and placeholders ONLY."
+            · brand was --gold-subtle → composites to 2.58:1 over --ink at
+              8.5px, far under the 4.5:1 AA floor. Now --gold-dim (4.95:1),
+              which keeps the gold identity AND respects the GOLD HIERARCHY
+              rule — --gold is spent once per section, and in this row that's
+              the Submit for Review action.
+            · Ref. was --ghost (3.58:1) — a readable, informational line
+              rendered in the placeholder-only tier. Now --muted (5.35:1).
+          Hierarchy is preserved, not flattened: model --platinum (15.12) and
+          price --platinum-dim (11.85) still clearly dominate; brand and Ref.
+          remain secondary — just legible. */}
       <div className="min-w-0 flex-1">
-        <div className="mb-[3px] text-[8.5px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+        <div className="mb-[3px] text-[8.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           {row.brand}
         </div>
         <div className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
           {row.model ?? row.brand}
         </div>
-        <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--ghost)]">
+        <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--muted)]">
           Ref. {row.reference}
         </div>
       </div>
@@ -241,6 +327,49 @@ function ListingRow({
           {badgeLabel}
         </div>
       </div>
+      </div>
+
+      {/* v2.8 — DRAFT: the owner's own submission action. stopPropagation so
+          clicking the button submits rather than merely selecting the row.
+          Button treatment is the Accept/Decline pattern from RequestsView,
+          reused verbatim. The line beneath it exists because "Submit for
+          Review" could otherwise read as "publish now" — it says plainly that
+          it doesn't. */}
+      {row.status === "draft" && onSubmitForReview && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSubmitForReview(row.id);
+            }}
+            disabled={submitting}
+            className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {submitting ? "Submitting…" : "Submit for Review"}
+          </button>
+          <div className="mt-1.5 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+            Sends this draft to FairWatchTrade. Nothing publishes until it&apos;s approved.
+          </div>
+        </div>
+      )}
+
+      {/* v2.8 — SUBMITTED: say what happened and what comes next. Never
+          silence, never ambiguity. There is no resubmit action here because a
+          resubmission isn't a real thing the lifecycle supports. */}
+      {row.status === "pending_review" && (
+        <div className="mt-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+          Submitted for review. FairWatchTrade will publish it or send it back —
+          no further action needed from you.
+        </div>
+      )}
+
+      {/* Failure is reported, never swallowed into a silent no-op. */}
+      {submitError && (
+        <div className="mt-2 text-[10px] tracking-[0.3px] text-[var(--danger)]">
+          {submitError}
+        </div>
+      )}
     </div>
   );
 
@@ -260,12 +389,16 @@ function DashboardView({
   counts,
   selectedListing,
   onSelect,
+  onSubmitForReview,
+  submittingId,
+  submitErrorId,
+  submitErrorMsg,
 }: {
   listings: AccountListing[];
   counts: Counts;
   selectedListing: string | null;
   onSelect: (id: string) => void;
-}) {
+} & SubmitProps) {
   const kpis: Array<{ label: string; value: number; valueClass: string }> = [
     { label: "Active Listings", value: counts.active, valueClass: "text-[var(--gold)]" },
     { label: "Drafts", value: counts.draft, valueClass: "text-[var(--platinum)]" },
@@ -316,6 +449,9 @@ function DashboardView({
               row={row}
               selected={selectedListing === row.id}
               onSelect={onSelect}
+              onSubmitForReview={onSubmitForReview}
+              submitting={submittingId === row.id}
+              submitError={submitErrorId === row.id ? submitErrorMsg ?? null : null}
             />
           ))}
         </div>
@@ -332,6 +468,10 @@ function InventoryView({
   setActiveTab,
   selectedListing,
   onSelect,
+  onSubmitForReview,
+  submittingId,
+  submitErrorId,
+  submitErrorMsg,
 }: {
   listings: AccountListing[];
   counts: Counts;
@@ -339,12 +479,12 @@ function InventoryView({
   setActiveTab: (t: TabId) => void;
   selectedListing: string | null;
   onSelect: (id: string) => void;
-}) {
+} & SubmitProps) {
   const tabs: Array<{ id: TabId; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.total },
     { id: "published", label: "Active", count: counts.active },
     { id: "draft", label: "Drafts", count: counts.draft },
-    { id: "pending", label: "Pending", count: counts.pending },
+    { id: "pending_review", label: "Pending", count: counts.pending },
     { id: "rejected", label: "Rejected", count: counts.rejected },
   ];
 
@@ -388,6 +528,9 @@ function InventoryView({
               row={row}
               selected={selectedListing === row.id}
               onSelect={onSelect}
+              onSubmitForReview={onSubmitForReview}
+              submitting={submittingId === row.id}
+              submitError={submitErrorId === row.id ? submitErrorMsg ?? null : null}
             />
           ))}
         </div>
@@ -872,6 +1015,13 @@ export default function AccountDashboard({
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // v2.8 — Submit for Review. router is used only to re-run the SERVER page's
+  // own listings query after a successful transition; see submitForReview().
+  const router = useRouter();
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [submitErrorId, setSubmitErrorId] = useState<string | null>(null);
+  const [submitErrorMsg, setSubmitErrorMsg] = useState<string | null>(null);
+
   // v2.6 — Correspondence threads. Fetched on mount (powers the sidebar
   // unread badge even before the module is opened) and re-fetched when the
   // module reports a change (read, reply, archive).
@@ -923,6 +1073,41 @@ export default function AccountDashboard({
     }
   }
 
+  /* v2.8 — draft → pending_review, via the owner-gated route. Shaped after
+     RequestsView's act() above: call the route, surface a real failure, never
+     report a success that didn't happen.
+
+     On success this calls router.refresh() rather than mutating a local copy
+     of the listing's status. That's deliberate: `listings` is a PROP owned by
+     the server page (see the header note), so refresh() makes the server
+     re-run its own query and the new status arrives as truth. Holding a local
+     status would create a second source of truth for the same fact — the
+     exact drift this codebase avoids elsewhere. */
+  async function submitForReview(id: string) {
+    setSubmittingId(id);
+    setSubmitErrorId(null);
+    setSubmitErrorMsg(null);
+    try {
+      const res = await fetch(`/api/listings/${id}/submit-for-review`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setSubmitErrorId(id);
+        setSubmitErrorMsg(
+          data?.detail ?? "Could not submit this listing for review. Please try again."
+        );
+        return;
+      }
+      router.refresh();
+    } catch {
+      setSubmitErrorId(id);
+      setSubmitErrorMsg("Could not submit this listing for review. Please try again.");
+    } finally {
+      setSubmittingId(null);
+    }
+  }
+
   useEffect(() => {
     refreshThreads();
     refreshRequests();
@@ -953,7 +1138,7 @@ export default function AccountDashboard({
     total: searchFiltered.length,
     active: searchFiltered.filter((l) => l.status === "published").length,
     draft: searchFiltered.filter((l) => l.status === "draft").length,
-    pending: searchFiltered.filter((l) => l.status === "pending").length,
+    pending: searchFiltered.filter((l) => l.status === "pending_review").length,
     rejected: searchFiltered.filter((l) => l.status === "rejected").length,
   };
 
@@ -1085,6 +1270,10 @@ export default function AccountDashboard({
               setActiveTab={setActiveTab}
               selectedListing={selectedListing}
               onSelect={setSelectedListing}
+              onSubmitForReview={submitForReview}
+              submittingId={submittingId}
+              submitErrorId={submitErrorId}
+              submitErrorMsg={submitErrorMsg}
             />
           </div>
 
@@ -1096,6 +1285,10 @@ export default function AccountDashboard({
                 counts={counts}
                 selectedListing={selectedListing}
                 onSelect={setSelectedListing}
+                onSubmitForReview={submitForReview}
+                submittingId={submittingId}
+                submitErrorId={submitErrorId}
+                submitErrorMsg={submitErrorMsg}
               />
             ) : activeModule === "messages" ? (
               <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
@@ -1109,6 +1302,10 @@ export default function AccountDashboard({
                 setActiveTab={setActiveTab}
                 selectedListing={selectedListing}
                 onSelect={setSelectedListing}
+                onSubmitForReview={submitForReview}
+                submittingId={submittingId}
+                submitErrorId={submitErrorId}
+                submitErrorMsg={submitErrorMsg}
               />
             )}
           </div>
