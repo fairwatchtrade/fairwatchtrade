@@ -54,6 +54,20 @@ import ListingCorrespondence from "@/components/ListingCorrespondence";
 
    v1.57: Studio design-system token migration. No logic, data, scoring,
    privacy, or photo-sort changes — className/layout only.
+
+   v2.5 — "← Browse" with filters preserved. A buyer who filtered Browse
+   (facets, view mode, grid width, page size) previously lost all of it the
+   moment they opened a listing — there was no way back to that exact state.
+   This adds a minimal, standalone `← Browse` link near the top of the page,
+   independent of the future Collector's Drawer (Ducky 3's, separately owned
+   — this does NOT authorize any of that work). Reads `returnTo` from the
+   query string, TREATED AS UNTRUSTED INPUT: it must be validated as an
+   internal `/browse` path before use, exactly the same open-redirect
+   discipline already named for the parked Session Expiry `next` param.
+   Anything absent, malformed, or pointing off-site falls back to plain
+   `/browse`. Built to be trivially removable/relocatable once the real
+   Collector's Drawer exists — this is not architected as a permanent
+   fixture of it.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -113,11 +127,36 @@ const PHOTO_ORDER = [
   "Other",
 ];
 
+// returnTo is read from a request-controlled query string — untrusted input —
+// and must be validated as a genuine internal FairWatchTrade path before ever
+// being used as a link/redirect target. Requires an EXACT match on "/browse",
+// or "/browse?..." (query string), or "/browse/..." (a future sub-path) —
+// NOT a bare prefix match. startsWith("/browse") alone would also accept
+// "/browse-archive" or "/browsely", i.e. any future route merely sharing that
+// letter sequence, not genuinely "/browse" itself. No such route exists
+// today, but a validator shouldn't rely on that staying true. Also rejects
+// embedded control characters defensively. Anything that fails falls back to
+// plain "/browse" — never thrown, never rendered raw.
+function safeBrowseReturn(raw: string | string[] | undefined): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return "/browse";
+  const isBrowsePath =
+    value === "/browse" || value.startsWith("/browse?") || value.startsWith("/browse/");
+  if (!isBrowsePath) return "/browse";
+  if (/[\r\n\t]/.test(value)) return "/browse";
+  return value;
+}
+
 export default async function ListingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
+  const { returnTo } = await searchParams;
+  const browseHref = safeBrowseReturn(returnTo);
+
   const { id } = await params;
 
   const supabase = await createClient();
@@ -216,6 +255,20 @@ export default async function ListingDetailPage({
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
       <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
+        {/* v2.5 — "← Browse" with filters preserved. Minimal, standalone,
+            visually quiet — deliberately NOT the Collector's Drawer (Ducky
+            3's, separately owned). Positioned first, near the top of the
+            page. Reuses the exact "← Back to X" visual convention already
+            established in PurchaseRequestForm.tsx rather than inventing a
+            new one. Built to be trivially removable/relocatable once the
+            real Drawer exists. */}
+        <Link
+          href={browseHref}
+          className="mb-4 inline-block text-[11px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+        >
+          ← Browse
+        </Link>
+
         {/* WatchBlueprint — atmospheric background.
             completed="all": this watch has been fully documented. Nothing
             animates; it is simply present, behind the record of its life.

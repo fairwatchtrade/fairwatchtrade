@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -84,6 +84,24 @@ import { createClient } from "@/lib/supabase/client";
    change). caseThicknessMm is real, verified live against production
    before writing this: "11.7" and "9.5", plain decimal, same clean shape
    as caseSizeMm — thicknessLabel() mirrors sizeLabel() exactly.
+   v2.10 — Back to Browse with filters preserved. The URL is now the single
+   source of truth for all durable Browse view-state: the nine facet Sets,
+   viewMode, gridCols, and pageSize are derived directly from useSearchParams()
+   via useMemo — NOT parallel useState mirrors kept in sync with the URL.
+   Two sources of truth is exactly the drift risk this design avoids: a
+   separately-held useState value could theoretically render one tick out of
+   sync with the URL; a value derived FROM the URL cannot, by construction.
+   Toggling a filter/control calls router.replace() with a freshly-built
+   URLSearchParams string — never manual string concatenation, which is
+   exactly where the repeated-key/comma-hazard encoding (beatRateLabel() can
+   contain a literal comma, e.g. "28,800 vph") would silently break if
+   hand-rolled. openSnapshotId, compareSelected, isFilterOpen, mobileOpen, and
+   savedIds are UNCHANGED — explicitly transient/DB-seeded, never persisted to
+   the URL, per the locked ruling. All three listing-link call sites (Gallery
+   card, Collector photo, Collector identity-header) now append the current
+   Browse URL as an encoded returnTo value via listingHref(), so a buyer who
+   opens a listing and clicks "← Browse" returns to the exact same filtered/
+   sorted/paginated reality, not a reset one.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -317,11 +335,86 @@ function buildSnapshot(details: ListingRow["details"]): { label: string; value: 
 export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [gridCols, setGridCols] = useState<3 | 4>(3);
-  const [pageSize, setPageSize] = useState<20 | 40 | "all">(20);
-  // v1.57 — orthogonal to grid width/page size: Collector View adds
-  // understanding (specs), it never removes what Gallery View shows.
-  const [viewMode, setViewMode] = useState<"gallery" | "collector">("gallery");
+
+  // v2.10 — the URL is the single source of truth for durable Browse state.
+  // router.replace() is used (never .push()) so filter/view/grid/page-size
+  // clicks don't spam browser history — pressing Back once should leave
+  // Browse, not undo one facet toggle at a time. scroll:false preserves the
+  // pre-existing UX (clicking a control never scrolled the page before).
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Builds the next URL from the CURRENT searchParams (never from local
+  // component state, which could theoretically be one render behind) plus
+  // one changed key, and navigates via replace. Omitting a key entirely when
+  // it would be empty/default keeps an all-defaults Browse at a clean
+  // "/browse" with no query string at all, per the acceptance requirement.
+  const navigateWithParams = (mutate: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(searchParams.toString());
+    mutate(next);
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  // Multi-value facet toggle (repeated keys, e.g. ?brand=Omega&brand=Rolex).
+  // Never comma-joins — the verified hazard is beatRateLabel() producing a
+  // literal comma ("28,800 vph"); repeated keys sidestep that class of bug
+  // entirely rather than trying to escape commas correctly.
+  const toggleFilterParam = (key: string, value: string) => {
+    navigateWithParams((next) => {
+      const current = next.getAll(key);
+      next.delete(key);
+      if (current.includes(value)) {
+        for (const v of current) if (v !== value) next.append(key, v);
+      } else {
+        for (const v of current) next.append(key, v);
+        next.append(key, value);
+      }
+    });
+  };
+
+  // Single-value control (viewMode / gridCols / pageSize). Omits the key
+  // entirely when set back to its default, so the URL never carries redundant
+  // "everything is default" noise.
+  const setSingleParam = (key: string, value: string, defaultValue: string) => {
+    navigateWithParams((next) => {
+      if (value === defaultValue) next.delete(key);
+      else next.set(key, value);
+    });
+  };
+
+  const viewModeParam = searchParams.get("viewMode");
+  const viewMode: "gallery" | "collector" =
+    viewModeParam === "collector" ? "collector" : "gallery";
+  const setViewMode = (value: "gallery" | "collector") =>
+    setSingleParam("viewMode", value, "gallery");
+
+  const gridColsParam = searchParams.get("gridCols");
+  const gridCols: 3 | 4 = gridColsParam === "4" ? 4 : 3;
+  const setGridCols = (value: 3 | 4) => setSingleParam("gridCols", String(value), "3");
+
+  const pageSizeParam = searchParams.get("pageSize");
+  const pageSize: 20 | 40 | "all" =
+    pageSizeParam === "40" ? 40 : pageSizeParam === "all" ? "all" : 20;
+  const setPageSize = (value: 20 | 40 | "all") =>
+    setSingleParam("pageSize", String(value), "20");
+
+  // The current Browse reality, as a single encoded value — used to build
+  // every listing link's returnTo. Built via URLSearchParams (never manual
+  // template-literal concatenation), so nested repeated params and the
+  // beatRate comma hazard are encoded/decoded symmetrically for free —
+  // verified by round-trip test before this was written.
+  const currentBrowseUrl = useMemo(() => {
+    const qs = searchParams.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }, [pathname, searchParams]);
+
+  const listingHref = (id: string) => {
+    const p = new URLSearchParams();
+    p.set("returnTo", currentBrowseUrl);
+    return `/listings/${id}?${p.toString()}`;
+  };
   // v1.62 — Collector research workflow state.
   // Only ONE snapshot may be open at a time: a single id (or null), never a
   // Set — opening another row's snapshot simply replaces this value, which
@@ -334,7 +427,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   // in v2.5c, which read as broken even though saves persisted correctly —
   // /catalogue always showed them right, Browse just didn't know yet).
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const router = useRouter();
+  // (router is declared once, above, in the URL-state block — v2.10)
 
   // v2.5d — one query on load. Skips entirely if not logged in, so savedIds
   // stays empty exactly as before — no behavior change for anonymous
@@ -363,18 +456,38 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     };
   }, []);
 
-  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
-  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
-  const [selectedCaseSizes, setSelectedCaseSizes] = useState<Set<string>>(new Set());
-  const [selectedMovements, setSelectedMovements] = useState<Set<string>>(new Set());
-  // v1.57 — Workbench-only facets (never rendered in the ordinary rail).
-  const [selectedBeatRates, setSelectedBeatRates] = useState<Set<string>>(new Set());
-  const [selectedPowerReserves, setSelectedPowerReserves] = useState<Set<string>>(
-    new Set()
+  // v2.10 — each filter is now DERIVED from the URL (useMemo over
+  // searchParams.getAll(key)), not held as independent useState. Same names,
+  // same Set<string> shape, so the FacetGroup renders and the `filtered`
+  // useMemo below are UNCHANGED — only the origin of the value moved.
+  const selectedBrands = useMemo(() => new Set(searchParams.getAll("brand")), [searchParams]);
+  const selectedConditions = useMemo(
+    () => new Set(searchParams.getAll("condition")),
+    [searchParams]
   );
-  const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
-  const [selectedDials, setSelectedDials] = useState<Set<string>>(new Set());
-  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const selectedCaseSizes = useMemo(
+    () => new Set(searchParams.getAll("caseSize")),
+    [searchParams]
+  );
+  const selectedMovements = useMemo(
+    () => new Set(searchParams.getAll("movement")),
+    [searchParams]
+  );
+  // v1.57 — Workbench-only facets (never rendered in the ordinary rail).
+  const selectedBeatRates = useMemo(
+    () => new Set(searchParams.getAll("beatRate")),
+    [searchParams]
+  );
+  const selectedPowerReserves = useMemo(
+    () => new Set(searchParams.getAll("powerReserve")),
+    [searchParams]
+  );
+  const selectedMaterials = useMemo(
+    () => new Set(searchParams.getAll("caseMaterial")),
+    [searchParams]
+  );
+  const selectedDials = useMemo(() => new Set(searchParams.getAll("dialColor")), [searchParams]);
+  const selectedDocs = useMemo(() => new Set(searchParams.getAll("docs")), [searchParams]);
 
   const brandFacets = useMemo(() => countBy(listings, (l) => l.brand), [listings]);
   const conditionFacets = useMemo(
@@ -513,77 +626,23 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     setSavedIds((prev) => new Set(prev).add(id));
   };
 
-  const toggleBrand = (value: string) =>
-    setSelectedBrands((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleBrand = (value: string) => toggleFilterParam("brand", value);
 
-  const toggleCondition = (value: string) =>
-    setSelectedConditions((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleCondition = (value: string) => toggleFilterParam("condition", value);
 
-  const toggleCaseSize = (value: string) =>
-    setSelectedCaseSizes((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleCaseSize = (value: string) => toggleFilterParam("caseSize", value);
 
-  const toggleMovement = (value: string) =>
-    setSelectedMovements((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleMovement = (value: string) => toggleFilterParam("movement", value);
 
-  const toggleBeatRate = (value: string) =>
-    setSelectedBeatRates((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleBeatRate = (value: string) => toggleFilterParam("beatRate", value);
 
-  const togglePowerReserve = (value: string) =>
-    setSelectedPowerReserves((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const togglePowerReserve = (value: string) => toggleFilterParam("powerReserve", value);
 
-  const toggleMaterial = (value: string) =>
-    setSelectedMaterials((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleMaterial = (value: string) => toggleFilterParam("caseMaterial", value);
 
-  const toggleDial = (value: string) =>
-    setSelectedDials((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleDial = (value: string) => toggleFilterParam("dialColor", value);
 
-  const toggleDoc = (value: string) =>
-    setSelectedDocs((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
+  const toggleDoc = (value: string) => toggleFilterParam("docs", value);
 
   // v1.57 — the rail: ORDINARY narrowing only. Movement and Case Size have
   // moved out entirely (see Workbench below) — one control, one location,
@@ -799,7 +858,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   return (
                     <Link
                       key={row.id}
-                      href={`/listings/${row.id}`}
+                      href={listingHref(row.id)}
                       className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
                     >
                       {row.in_hand_verified && (
@@ -894,7 +953,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         object-cover fills the frame edge-to-edge (was contain);
                         revert to object-contain if any hero crops awkwardly. */}
                     <Link
-                      href={`/listings/${row.id}`}
+                      href={listingHref(row.id)}
                       className="flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
@@ -910,7 +969,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     {/* Middle — identity (links to detail), capped spec plate,
                         Snapshot trigger. */}
                     <div className="min-w-0 flex-1">
-                      <Link href={`/listings/${row.id}`} className="block">
+                      <Link href={listingHref(row.id)} className="block">
                         <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
                           {row.brand}
                         </div>
