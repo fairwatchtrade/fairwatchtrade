@@ -579,3 +579,31 @@ A user-facing feature is not complete unless, at actual production scale:
 No more separate legibility cleanup flights for newly built elements. The instance delivering the feature must include a real screenshot and explicitly verify: **visible, readable, recognizable, and usable.**
 
 If it fails that check, the flight is not done.
+
+---
+
+## Listing Overlay Architecture
+
+*The room has permanent structure. Tools have temporary presence.*
+
+**The four governing principles:**
+
+1. The architecture balances the page.
+2. The Collector's Drawer temporarily inhabits that architecture when invited.
+3. Its absence must not make the room collapse.
+4. Its presence must not redefine the room.
+
+These four tell an implementer exactly what success looks like without dictating whether the Drawer is 42px or 46px wide, whether the glass is 30% or 40% opaque, or what easing curve to use.
+
+**The permanent composition:**
+- Reserved left space
+- Dominant gallery plane
+- Staggered dealer rail
+- Lower content sequence
+
+**The Drawer's role:** The Collector's Drawer merely occupies the available edge and overlays the gallery when opened. It does not create the balance. The room already has its permanent order.
+
+**The locked test:**
+> *"Its absence should not make the room collapse, and its presence must not redefine the room."*
+
+**Scope:** Remain specific to the Collector's Drawer until the lived product proves anything broader. Prove it once. Live with it. Then decide.
