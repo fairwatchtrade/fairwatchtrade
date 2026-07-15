@@ -5,6 +5,8 @@ import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
+import CollectorsDrawer from "@/components/CollectorsDrawer";
+import ListingActionRail from "@/components/ListingActionRail";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
@@ -151,6 +153,44 @@ const PHOTO_ORDER = [
 // today, but a validator shouldn't rely on that staying true. Also rejects
 // embedded control characters defensively. Anything that fails falls back to
 // plain "/browse" — never thrown, never rendered raw.
+/* v2.11 — "Around This Watch" target for the Collector's Drawer.
+
+   AUDITED against the live Browse implementation before being built. Browse
+   matches these four facets on the RAW stored value:
+       brand        -> l.brand
+       movement     -> l.details.movementType
+       caseMaterial -> l.details.caseMaterial
+       dialColor    -> l.details.dialColorType
+   so a link built from those lands on real results, exactly.
+
+   Deliberately EXCLUDED, and this is the whole point of the audit:
+     · caseSize / beatRate / powerReserve are matched through Browse's own
+       normalizers (sizeLabel / beatRateLabel / powerReserveLabel — stored
+       values are heterogeneous, e.g. "28800" | "28,800 vph" | "4 Hz").
+       Reimplementing those here would be a SECOND normalizer that silently
+       drifts the moment Browse's changes — the link would still look alive
+       while matching nothing.
+     · `reference` is not a Browse facet at all. There is no such param.
+
+   Repeated params, never comma-joined — the same convention the Browse
+   filters already use, and required because facet values legitimately
+   contain commas.
+
+   Returns null when the listing has none of the four, so the Drawer omits
+   the item rather than offering a link to an unfiltered browse. */
+function buildSimilarHref(
+  brand: string,
+  details: { movementType?: string; caseMaterial?: string; dialColorType?: string }
+): string | null {
+  const params = new URLSearchParams();
+  if (brand?.trim()) params.append("brand", brand);
+  if (details.movementType?.trim()) params.append("movement", details.movementType);
+  if (details.caseMaterial?.trim()) params.append("caseMaterial", details.caseMaterial);
+  if (details.dialColorType?.trim()) params.append("dialColor", details.dialColorType);
+  const qs = params.toString();
+  return qs ? `/browse?${qs}` : null;
+}
+
 function safeBrowseReturn(raw: string | string[] | undefined): string {
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (!value) return "/browse";
@@ -186,6 +226,7 @@ export default async function ListingDetailPage({
 
   const listing = data as Listing;
   const details = (listing.details ?? {}) as ListingDetails;
+  const similarHref = buildSimilarHref(listing.brand, details);
 
   // Seller display name — same profiles/display_name/id-join pattern already
   // confirmed working in app/sellers/[id]/page.tsx. Fails open to a generic
@@ -268,18 +309,32 @@ export default async function ListingDetailPage({
 
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8">
-        {/* v2.5 — "← Browse" with filters preserved. Minimal, standalone,
-            visually quiet — deliberately NOT the Collector's Drawer (Ducky
-            3's, separately owned). Positioned first, near the top of the
-            page. Reuses the exact "← Back to X" visual convention already
-            established in PurchaseRequestForm.tsx rather than inventing a
-            new one. Built to be trivially removable/relocatable once the
-            real Drawer exists. */}
+      {/* v2.11 — RESPONSIVE COMPOSITION (locked ruling).
+          Desktop (xl+): the approved two-column composition — 974px primary
+          + 276px staggered rail, --space-6 gap, page-level Collector's Drawer
+          owning Back to Browse. The container widens to 1438px (1274 content
+          + 82px padding each side); the Drawer's collapsed tab lives at
+          left:-50px INSIDE that padding, which is why the padding is not
+          decorative and must not be reduced.
+          Mobile/tablet (<xl): today's single column, untouched, keeping the
+          standalone "Return to browse" link.
+          NO viewport shows both navigation mechanisms.
+          Breakpoint = xl (1280px), derived from the mockup rather than
+          picked: the approved grid needs 1274px, and the study's own floor is
+          min-width:1180px. Gating at 1280 means the two-column grid never
+          renders narrower than the Gate ever approved (at 1280 the primary
+          column still gets ~816px). iPad landscape (1024) reads as tablet;
+          iPad Pro landscape (1366) reads as desktop. */}
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 xl:max-w-[1438px] xl:px-[82px]">
+        {/* v2.11 — MOBILE/TABLET ONLY. On desktop this retires atomically in
+            favour of the Drawer's own Back to Browse, which carries the same
+            returnTo-preserved href — no dual navigation, no orphan link. It
+            is NOT deleted, because below xl the Drawer does not mount and
+            this is the collector's only way back. */}
         <Link
           href={browseHref}
           className={[
-            "mb-5 inline-flex items-center gap-1.5",
+            "mb-5 inline-flex items-center gap-1.5 xl:hidden",
             "font-display text-[16px] font-light tracking-[0.3px]",
             "text-[var(--gold)] transition hover:opacity-80",
           ].join(" ")}
@@ -305,16 +360,43 @@ export default async function ListingDetailPage({
           <WatchBlueprint completed="all" />
         </div>
 
-        {/* SECTION 1 — Media gallery */}
-        {photoUrls.length > 0 && (
-          <ListingGallery
-            photos={photoUrls}
-            initialIndex={heroIndex}
-            brandLabel={listing.brand}
-            modelLabel={listing.model}
-            dialUrl={dialPhotoUrl}
-          />
-        )}
+        {/* ── OPENING — the approved two-column composition at xl; plain
+               stacked flow below it. align-items:start so the rail's 112px
+               stagger reads as intended rather than being stretched. ── */}
+        <div className="relative xl:grid xl:grid-cols-[minmax(0,974px)_276px] xl:items-start xl:gap-[var(--space-6)]">
+          {/* PRIMARY COLUMN */}
+          <div className="relative">
+            {/* v2.11 — GALLERY WRAPPER. This `relative` div is the Drawer's
+                anchor and exists for exactly one reason: it lets the Drawer
+                be a SIBLING of ListingGallery (per the locked ruling) while
+                still overlaying it precisely. The overlay uses inset-y-0 on
+                this wrapper, so it matches the gallery's height at any
+                viewport with no measurement — and ListingGallery.tsx keeps
+                ZERO knowledge of the Drawer: no props, no imports, still
+                scoped to photography alone. */}
+            <div className="relative">
+              {/* Desktop only — mobile keeps the standalone link above.
+                  The mobile Drawer (smoked-blue-glass bottom sheet per
+                  PRODUCT_SOUL) is a later Design Gate flight. */}
+              <div className="hidden xl:block">
+                <CollectorsDrawer
+                  listingId={listing.id}
+                  browseHref={browseHref}
+                  similarHref={similarHref}
+                />
+              </div>
+
+              {/* SECTION 1 — Media gallery */}
+              {photoUrls.length > 0 && (
+                <ListingGallery
+                  photos={photoUrls}
+                  initialIndex={heroIndex}
+                  brandLabel={listing.brand}
+                  modelLabel={listing.model}
+                  dialUrl={dialPhotoUrl}
+                />
+              )}
+            </div>
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").
@@ -340,9 +422,12 @@ export default async function ListingDetailPage({
           <p className="mt-1 text-[13px] tracking-[0.5px] text-[var(--muted)]">
             Ref. {listing.reference}
           </p>
+          {/* v2.11 — RELOCATED, not duplicated: on desktop this same link
+              lives in the rail's Dealer Information card. Identical treatment,
+              one home per viewport. */}
           <Link
             href={`/sellers/${listing.seller_id}`}
-            className="mt-1 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)]"
+            className="mt-1 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)] xl:hidden"
           >
             Sold by {sellerName} →
           </Link>
@@ -392,6 +477,31 @@ export default async function ListingDetailPage({
             </div>
           )}
         </section>
+          </div>
+          {/* end PRIMARY COLUMN */}
+
+          {/* ── RIGHT RAIL — 276px. The 112px stagger and the -14px pull are
+                 the approved composition's, applied here rather than inside
+                 the component because they describe this column's
+                 relationship to the gallery, not the cards themselves. ── */}
+          <aside className="hidden xl:grid xl:mt-[112px] xl:-translate-x-[14px] xl:gap-[14px] xl:self-start">
+            <ListingActionRail
+              variant="rail"
+              listingId={listing.id}
+              sellerId={listing.seller_id}
+              sellerName={sellerName}
+              priceText={priceText}
+              isOwner={isOwner}
+              requestStatus={myLatestRequest?.status ?? null}
+            />
+          </aside>
+        </div>
+        {/* end OPENING */}
+
+        {/* ── LOWER FLOW — full-width sections beneath the opening. Capped at
+               974px so they align with the primary column and never run under
+               the rail. ── */}
+        <div className="xl:max-w-[974px]">
 
         {/* SECTIONS 3 & 4 — Collector Snapshot + collapsible Technical Specs */}
         <ListingSpecs
@@ -429,73 +539,35 @@ export default async function ListingDetailPage({
           isOwner={isOwner}
         />
 
-        {/* PRICE — last in-flow element before the buyer action below */}
-        <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
-          <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
-          <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
-            Asking Price · 5% platform fee applies
-          </p>
+        {/* v2.11 — MOBILE/TABLET price + purchase. Today's in-flow layout,
+            preserved exactly per the responsive ruling. On desktop this is
+            display:none and the rail's Purchase Request card carries the same
+            logic — ONE implementation (ListingActionRail), two dressings, so
+            the branches can never drift apart. Because `hidden` is
+            display:none, only one variant is ever in the accessibility tree. */}
+        <div className="xl:hidden">
+          <ListingActionRail
+            variant="inline"
+            listingId={listing.id}
+            sellerId={listing.seller_id}
+            sellerName={sellerName}
+            priceText={priceText}
+            isOwner={isOwner}
+            requestStatus={myLatestRequest?.status ?? null}
+          />
         </div>
-
-        {/* START PURCHASE REQUEST — buyer-only, owner-aware. Hidden entirely
-            for the listing's own seller. A pending or accepted request hides
-            the button (a second pending request would just 409; an accepted
-            one has already moved past this step). A declined request shows
-            a small note but still allows a new attempt — declined doesn't
-            trip the exclusivity rule. */}
-        {!isOwner && (
-          <div className="mt-6 space-y-3">
-            {myLatestRequest?.status === "declined" && (
-              <div className="inline-block border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
-                Your previous request was declined
-              </div>
-            )}
-
-            {myLatestRequest?.status === "superseded" ? (
-              /* superseded — the watch sold to ANOTHER buyer via an accepted
-                 request; this buyer was not individually declined. Explain the
-                 state honestly and suppress the CTA: a resubmission would
-                 contradict the state of the listing. */
-              <div className="inline-block border border-[var(--border-mid)] px-4 py-3 text-[11px] tracking-[0.5px] text-[var(--muted)]">
-                <div className="uppercase tracking-[2px] text-[var(--slate)]">
-                  Another purchase request for this watch was accepted
-                </div>
-                <div className="mt-1 text-[var(--ghost)]">
-                  This watch is no longer available.
-                </div>
-              </div>
-            ) : myLatestRequest?.status === "pending" ? (
-              <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
-                Your request is pending
-              </div>
-            ) : myLatestRequest?.status === "accepted" ? (
-              <div className="inline-block border border-[var(--success)] bg-[rgba(120,200,140,0.05)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--success)]">
-                Your request was accepted
-              </div>
-            ) : (
-              <Link
-                href={`/listings/${listing.id}/purchase-request`}
-                className="inline-block bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90"
-              >
-                Start Purchase Request
-              </Link>
-            )}
-          </div>
-        )}
+        </div>
+        {/* end LOWER FLOW */}
       </div>
 
-      {/* COLLECTOR'S DRAWER — Phase 2
-          Left-edge strip: stays CLOSED as a 28px collapsed strip with the word
-          "Explore" running vertically. On hover it expands RIGHTWARD to ~178px,
-          opening just over the LEFT PORTION of the hero shot — the dial behind
-          it lightly shines through. Smoked glass, not a wall:
-          background rgba(6,8,13,0.82) with backdrop-blur-md. The collector never
-          feels they've left the viewing room; the drawer floats over it.
-          Contains: Back to Browse (filters preserved), Similar Watches, Same
-          Reference, Same Movement, Same Case Size, Same Dial Color, Compare,
-          Recently Viewed, Add to My Catalogue.
-          Aesthetics & motion owned by Ducky 3 — build to the prototype.
-          Activation: when CollectorsDrawer component exists. */}
+      {/* COLLECTOR'S DRAWER — BUILT (v2.11). The Phase-2 note that lived here
+          described an OLDER, different spec (28px strip, hover-to-expand,
+          "Explore", nine items). It was replaced rather than activated: the
+          approved Design Gate composition is a 46px click-to-toggle tab with a
+          360px smoked-glass overlay and three live items. The component now
+          mounts up inside the opening grid as a sibling of ListingGallery —
+          see the gallery wrapper above. Desktop only; the mobile bottom-sheet
+          Drawer is its own later Design Gate flight. */}
 
       {/* MESSAGE BAR — v2.7: the disabled shell that lived here is retired.
           The live entry bar is rendered by <ListingCorrespondence /> above
