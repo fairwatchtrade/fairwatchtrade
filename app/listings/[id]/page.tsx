@@ -383,6 +383,7 @@ export default async function ListingDetailPage({
                   listingId={listing.id}
                   browseHref={browseHref}
                   similarHref={similarHref}
+                  thumbStrip={photoUrls.length > 1}
                 />
               </div>
 
