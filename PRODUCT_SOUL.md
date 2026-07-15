@@ -449,3 +449,133 @@ This principle was first applied to Research Reports (compose-on-read preserves 
 - **No orphaned components.** See Law 3.
 - **Build the locked design. Don't redesign it.** Once a design is approved through the Design Gate, the brief implements it. The build seat does not redesign.
 
+---
+
+## Image Authenticity Review
+*The Aubrey Check*
+
+*Named for Aubrey Mynatt, who suggested it while sitting with her father watching him build FairWatchTrade. This is not a side feature. It is one of the trust systems that changed what FairWatchTrade was becoming.*
+
+At photo upload, FairWatchTrade quietly checks seller photographs for signs they were scraped, reused, or taken from elsewhere online.
+
+**Principles:**
+- The system provides evidence. A human makes the judgment.
+- The seller is never accused. The listing is never automatically rejected.
+- Clean listings continue without friction.
+- Flagged listings receive human review before any action is taken.
+
+**Seller-facing language:**
+> *"Your photographs are receiving an additional authenticity review."*
+
+Never: *"We detected stolen images."*
+
+**The Aubrey Check should integrate with FairWatchTrade's existing administrative review workflow wherever practical, rather than creating a parallel review system.**
+
+**Credit:** Aubrey Mynatt. Permanent.
+
+---
+
+## Gallery View and Collector View
+
+*Two decision modes. Two card architectures. Not one card with more filters.*
+
+**Gallery View** lets the eye choose what deserves attention. Image-led. Open to surprise.
+
+**Collector View** lets the criteria decide what deserves emotion. Spec-first. Image-secondary.
+
+> *"Gallery View lets the eye choose what deserves attention. Collector View lets the criteria decide what deserves emotion."*
+
+This is not a filter feature. It is a theory of how collectors actually decide to care about something.
+
+**The gem-buying discipline:** Don't fall in love with a stone before confirming the specs meet your criteria. The photo is the reward for specs that already cleared the bar.
+
+---
+
+## Continuity Principle
+
+When collectors seek additional information or tools, the primary object of study should remain psychologically present whenever practical. FairWatchTrade prefers revealing layers within the same room over navigating away to different rooms.
+
+*The collector never feels they left the room.*
+
+This principle governs:
+- The Collector's Drawer — smoked glass, the watch shines through
+- Vault Galaxy — you fly to a brand, the galaxy breathes behind you
+- Correspondence — the conversation lives with the listing
+- Research Reports — knowledge reveals itself on the same page
+- Dial Reveal — the detail was always there, just made visible
+
+**Design Principles — the DNA:**
+- The collector never feels they left the room
+- The watch is always the primary object
+- No penalty for missing data. Only a penalty for bad data.
+- Information reveals itself; it does not overwhelm
+- Restraint over decoration
+- Continuity over navigation
+
+---
+
+## Collector Impressions
+
+*FairWatchTrade does not collect ordinary reviews. It collects Collector Impressions.*
+
+Dealer photographs answer: *"What am I buying?"*
+Collector Impressions answer: *"What is it like to live with?"*
+
+**Locked vocabulary:** Product UI always says **"Leave Your Collector Impression"** — never "Leave a Review."
+
+**Two independent clocks:**
+Collector confirms receipt
+│
+├── Eligible forever
+│
+└── Invitation sequence
+├── Day 14 — gentle invitation
+├── Day 25 — final invitation
+└── Invitations end permanently
+*Eligibility never expires. Invitations do.*
+
+The most valuable Collector Impression may be written years after purchase. FairWatchTrade never closes that door.
+
+**The "Enjoy Your Watch" moment:** After confirming receipt, FairWatchTrade says one thing: *"Enjoy your watch."* No wizard. No prompt. No countdown.
+
+**Dealer statistics are derived, never owned.** The impressions belong to the collector, the listing, and the watch.
+
+---
+
+## Correspondence
+
+*Every conversation deserves a home.*
+
+Conversations remain attached to their natural home. A question about a watch belongs with that watch. A relationship between two dealers belongs with the dealer.
+
+**The inbox is not the destination. It is simply a table of contents.**
+
+**Two Homes:**
+- **The Listing** — every conversation about a specific watch lives on that listing. *The listing remembers.*
+- **The Dealer** — dealer-to-dealer conversations belong to the dealer profile. *The dealer remembers.*
+
+**The Governing Rule:**
+> *Conversations belong where the subject lives.*
+
+**Left Nav Vocabulary:**
+Catalogue
+Listings
+Sales
+Correspondence
+**Commerce With Memory:** Dealer A writes "Looking for an early Datograph." Three months later Dealer B lists one. FairWatchTrade quietly notices. Not AI magic — just the platform remembering the relationships its users created.
+
+---
+
+## Legibility Is Part of Functional Completion
+
+A user-facing feature is not complete unless, at actual production scale:
+- The text is immediately readable
+- Contrast is sufficient
+- The action is recognizable
+- The element does not resemble disabled metadata
+- Mobile and desktop presentation have both been visually checked
+- A screenshot proves it works for a human, not merely that the DOM contains it
+
+No more separate legibility cleanup flights for newly built elements. The instance delivering the feature must include a real screenshot and explicitly verify: **visible, readable, recognizable, and usable.**
+
+If it fails that check, the flight is not done.
