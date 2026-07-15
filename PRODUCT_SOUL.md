@@ -607,3 +607,19 @@ These four tell an implementer exactly what success looks like without dictating
 > *"Its absence should not make the room collapse, and its presence must not redefine the room."*
 
 **Scope:** Remain specific to the Collector's Drawer until the lived product proves anything broader. Prove it once. Live with it. Then decide.
+
+## The Left Cliff Law
+
+**LOCKED — No Letter Walks the Edge**
+
+Every character on this platform gets a floor to stand on. Not one letter — not the first stroke of a word in a nav menu, not a kicker, not a label — is ever permitted to sit flush against the true edge of the viewport, clipped or half-clipped or looking like it's about to fall off the page.
+
+This has been fought and re-fought across many separate nights, on many separate pages (`/sell`, `/account`, the Catalogue sidebar), because it recurs quietly: a reset, a new component, a copied layout pattern without its inherited padding — and the cliff is back before anyone notices, because it doesn't break functionality, it just looks unfinished and cramped in a way that's easy to miss in a quick glance and impossible to miss once you're actually looking.
+
+**The test:** at the narrowest realistic viewport, is there visible, deliberate air between the first character of every line of text and the true edge of the screen? If the answer requires looking closely to be sure, that's already a fail — the air should be obvious, not just technically present.
+
+**Known cause pattern:** CSS resets and base layers, if not carefully scoped (e.g. via `@layer base`), can silently strip inherited padding/margin from components that assumed it would still be there. When this bug reappears, check the reset/layer ordering first, before assuming the component itself is wrong.
+
+---
+
+*This law exists because it was fought for, more than once, before anyone wrote it down. It shouldn't need to be fought for again.*
