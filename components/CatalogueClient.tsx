@@ -33,7 +33,11 @@ import { createClient } from "@/lib/supabase/client";
    reuse the /browse visual treatment (defined locally, NOT imported from
    BrowseClient, which is a filtering shell rather than a card library).
 
-   Outer spacing assumes the shared app layout provides page max-width and
+   v2.12 — the sidebar now OWNS its horizontal padding (px-5 on the sticky
+   wrapper) and the workspace gap is gap-4. The line below this note is the
+   original assumption, preserved for history because it was the Left Cliff's
+   root cause — no layout wrapper ever fulfilled it:
+   Outer spacing assumed the shared app layout provides page max-width and
    horizontal padding (same assumption BrowseClient makes).
    ──────────────────────────────────────────────────────────────────────── */
 
@@ -677,11 +681,29 @@ export default function CatalogueClient({
     };
   }, []);
 
+  /* v2.12 — workspace composition (Issue B). gap-8 (32px) was the sole,
+     quantified cause of the detached sidebar (verified: the content div adds
+     no compounding padding). gap-5 (20px) matches the sidebar's own px-5, so
+     the whole rhythm is ONE value doing every adjacent job: 20px viewport
+     air / text / 20px / 20px gap / content — a single intentional spacing
+     unit rather than two near-values that happen to be close (chain ruling:
+     fewer distinct values, each one intentional). Not gap-0: Catalogue has
+     no border-r stitching its columns the way Account does, and fully
+     collapsing the gap would merge two borderless columns rather than
+     compose them. */
   return (
-    <div className="flex gap-8 py-8">
+    <div className="flex gap-5 py-8">
       {/* Left nav — sticky, desktop only */}
+      {/* v2.12 — Left Cliff fix (Issue A). The chain below this point is
+          deliberately unpadded text; horizontal air is owned HERE, at the one
+          point every section and item inherits. px-5 (20px) is the Left Cliff
+          Law's proven floor (AccountDashboard's own sidebar blocks), applied
+          as Catalogue's own padding rather than an assumption about a layout
+          wrapper that does not exist. Width stays 200px; the text column
+          becomes 160px, which the longest item ("Purchase Requests", 12px)
+          fits comfortably. */}
       <nav className="hidden w-[200px] shrink-0 md:block">
-        <div className="sticky top-6 space-y-6">
+        <div className="sticky top-6 space-y-6 px-5">
           <NavSection title="Discover">
             <NavItem href="/browse">Browse</NavItem>
             <NavItem href="/browse">New Arrivals</NavItem>
