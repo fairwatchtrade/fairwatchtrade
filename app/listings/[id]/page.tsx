@@ -363,41 +363,48 @@ export default async function ListingDetailPage({
         {/* ── OPENING — the approved two-column composition at xl; plain
                stacked flow below it. align-items:start so the rail's 112px
                stagger reads as intended rather than being stretched. ── */}
-        <div className="relative xl:grid xl:grid-cols-[minmax(0,974px)_276px] xl:items-start xl:gap-[var(--space-6)]">
-          {/* PRIMARY COLUMN */}
-          <div className="relative">
-            {/* v2.11 — GALLERY WRAPPER. This `relative` div is the Drawer's
-                anchor and exists for exactly one reason: it lets the Drawer
-                be a SIBLING of ListingGallery (per the locked ruling) while
-                still overlaying it precisely. The overlay uses inset-y-0 on
-                this wrapper, so it matches the gallery's height at any
-                viewport with no measurement — and ListingGallery.tsx keeps
-                ZERO knowledge of the Drawer: no props, no imports, still
-                scoped to photography alone. */}
-            <div className="relative">
-              {/* Desktop only — mobile keeps the standalone link above.
-                  The mobile Drawer (smoked-blue-glass bottom sheet per
-                  PRODUCT_SOUL) is a later Design Gate flight. */}
-              <div className="hidden xl:block">
-                <CollectorsDrawer
-                  listingId={listing.id}
-                  browseHref={browseHref}
-                  similarHref={similarHref}
-                  thumbStrip={photoUrls.length > 1}
-                />
-              </div>
+        {/* v2.14 — the opening grid now has TWO rows in column 1: the gallery
+            row and the content row. This exists for exactly one reason: the
+            Collector's Drawer is a LISTING feature, and its spine rail (below)
+            inherits the gallery's height by occupying the gallery's grid row —
+            pure CSS, no measurement, no gallery coupling. gap-y is explicitly
+            zero so the split renders pixel-identically to the old single
+            column (identity keeps its own top margin). */}
+        <div className="relative xl:grid xl:grid-cols-[minmax(0,974px)_276px] xl:grid-rows-[auto_auto] xl:items-start xl:gap-x-[var(--space-6)] xl:gap-y-0">
+          {/* ── SPINE RAIL (v2.14) — a zero-width grid item sharing the
+                 gallery's cell (col 1, row 1) with self-stretch, so its height
+                 IS the gallery's height by grid construction. The Drawer
+                 anchors here: its geometry is owned by the LISTING layout —
+                 the rail's left edge is the content edge, fixed at every xl
+                 width regardless of how the gallery column resizes. The spine
+                 itself sits at −65px, centered in the page's 82px gutter.
+                 ListingGallery still has ZERO knowledge of the Drawer. */}
+          <div className="relative hidden w-0 xl:col-start-1 xl:row-start-1 xl:block xl:justify-self-start xl:self-stretch">
+            <CollectorsDrawer
+              listingId={listing.id}
+              browseHref={browseHref}
+              similarHref={similarHref}
+            />
+          </div>
 
-              {/* SECTION 1 — Media gallery */}
-              {photoUrls.length > 0 && (
-                <ListingGallery
-                  photos={photoUrls}
-                  initialIndex={heroIndex}
-                  brandLabel={listing.brand}
-                  modelLabel={listing.model}
-                  dialUrl={dialPhotoUrl}
-                />
-              )}
-            </div>
+          {/* GALLERY CELL — col 1, row 1. Its content defines the row height
+              the spine rail inherits. */}
+          <div className="xl:col-start-1 xl:row-start-1">
+            {/* SECTION 1 — Media gallery */}
+            {photoUrls.length > 0 && (
+              <ListingGallery
+                photos={photoUrls}
+                initialIndex={heroIndex}
+                brandLabel={listing.brand}
+                modelLabel={listing.model}
+                dialUrl={dialPhotoUrl}
+              />
+            )}
+          </div>
+
+          {/* CONTENT CELL — col 1, row 2: everything that followed the gallery
+              in the old primary column, unchanged. */}
+          <div className="xl:col-start-1 xl:row-start-2">
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").
@@ -479,13 +486,12 @@ export default async function ListingDetailPage({
           )}
         </section>
           </div>
-          {/* end PRIMARY COLUMN */}
+          {/* end CONTENT CELL */}
 
-          {/* ── RIGHT RAIL — 276px. The 112px stagger and the -14px pull are
-                 the approved composition's, applied here rather than inside
-                 the component because they describe this column's
-                 relationship to the gallery, not the cards themselves. ── */}
-          <aside className="hidden xl:grid xl:mt-[112px] xl:-translate-x-[14px] xl:gap-[14px] xl:self-start">
+          {/* ── RIGHT RAIL — 276px, col 2 spanning both rows. The 112px
+                 stagger and the -14px pull are the approved composition's,
+                 unchanged. ── */}
+          <aside className="hidden xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:mt-[112px] xl:grid xl:-translate-x-[14px] xl:gap-[14px] xl:self-start">
             <ListingActionRail
               variant="rail"
               listingId={listing.id}

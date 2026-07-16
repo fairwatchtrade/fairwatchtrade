@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   COLLECTOR'S DRAWER — components/CollectorsDrawer.tsx  (v2.13)
+   COLLECTOR'S DRAWER — components/CollectorsDrawer.tsx  (v2.14)
    INTEGRATED TOOL SPINE — production implementation of Study D (approved).
 
    The collapsed trigger is no longer a labeled tab: it is the Drawer's own
@@ -47,13 +47,26 @@ import { createClient } from "@/lib/supabase/client";
    list anchored top:119px, rows exactly 88px; foot at bottom:26px. Kicker +
    title occupy the space above 119px (ends ~93px — verified no overlap).
 
-   ── THUMB-STRIP INSET ──────────────────────────────────────────────────
-   The Drawer anchors to the gallery WRAPPER, which includes ListingGallery's
-   76px thumbnail strip (mt-3 + h-16) when a listing has multiple photos. An
-   always-visible spine would permanently cover the first thumbnail — a live
-   control. page.tsx now passes `thumbStrip`; spine and panel bottom out
-   above the strip. (The v2.11 overlay technically overlapped the strip when
-   open; the spine made it permanent, so it is fixed for both here.)
+   ── GEOMETRIC OWNERSHIP (v2.14) ────────────────────────────────────────
+   The Drawer is a LISTING feature, not a gallery feature. It now anchors to
+   a zero-width "spine rail" that page.tsx places in the listing opening
+   grid, occupying the gallery's own grid row — so the rail's height equals
+   the gallery's height by pure CSS (no measurement), and its left edge is
+   the listing content edge, independent of the gallery column's width.
+
+   The spine sits in the page's existing 82px left GUTTER: left:-65px from
+   the content edge = 48px spine centered in the gutter ((82−48)/2 = 17px of
+   air each side; 17+48 = 65). It no longer touches the photograph at all
+   when collapsed, its backdrop is the stable page ink rather than a
+   varying dial, and it cannot move or vanish when the gallery column
+   resizes — the content edge is fixed for every xl viewport. The old
+   `thumbStrip` inset died with the old anchor: a spine in the gutter covers
+   no thumbnails. (The open panel may overlay the gallery, including its
+   thumb strip — the original v2.11 overlay behavior, explicitly retained by
+   this flight's brief; not a law, just not today's question.)
+   NOTE: the -65px derives from the page container's xl:px-[82px]. If that
+   gutter ever changes, this offset changes with it — they are one design
+   fact in two files.
 
    ── INTERACTION ────────────────────────────────────────────────────────
    The whole spine is ONE toggle button in both states (Study D's own JS
@@ -112,16 +125,12 @@ export default function CollectorsDrawer({
   listingId,
   browseHref,
   similarHref,
-  thumbStrip = false,
 }: {
   listingId: string;
   browseHref: string;
   /** null when this listing has none of the four safe facets — the icon and
       the row are then omitted together, keeping spine and list in lockstep. */
   similarHref: string | null;
-  /** true when ListingGallery renders its thumbnail strip (photos > 1); the
-      spine and panel then bottom out above it instead of covering it. */
-  thumbStrip?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -226,10 +235,6 @@ export default function CollectorsDrawer({
     },
   ];
 
-  // Spine and panel share the SAME vertical bounds — equal height by
-  // construction, and neither ever covers the thumbnail strip.
-  const bounds = thumbStrip ? "top-0 bottom-[76px]" : "inset-y-0";
-
   return (
     <>
       {/* ── TOOL SPINE — the trigger, both states. z-10 keeps it ABOVE the
@@ -246,8 +251,8 @@ export default function CollectorsDrawer({
             : "Open Collector's Drawer. Contains Back to Browse, Around This Watch, and Add to My Catalogue."
         }
         className={[
-          "group absolute left-0 z-[10] w-[48px] cursor-pointer",
-          bounds,
+          // In the gutter: −65px from the listing content edge (see header).
+          "group absolute inset-y-0 left-[-65px] z-[10] w-[48px] cursor-pointer",
           "border border-[rgba(232,226,214,0.15)] border-l-[rgba(232,226,214,0.07)]",
           "backdrop-blur-[16px]",
           "[background:linear-gradient(180deg,rgba(229,225,215,0.035),transparent_24%),rgba(20,22,28,0.42)]",
@@ -324,8 +329,7 @@ export default function CollectorsDrawer({
         id="collectors-drawer-overlay"
         aria-hidden={!expanded}
         className={[
-          "absolute left-0 z-[8] w-[450px]",
-          bounds,
+          "absolute inset-y-0 left-0 z-[8] w-[450px]",
           "border-r border-[var(--border-gold)]",
           "bg-[rgba(20,22,28,0.35)] backdrop-blur-[16px]",
           "shadow-[18px_0_42px_rgba(0,0,0,0.26)]",
