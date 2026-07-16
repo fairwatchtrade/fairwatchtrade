@@ -623,3 +623,47 @@ This has been fought and re-fought across many separate nights, on many separate
 ---
 
 *This law exists because it was fought for, more than once, before anyone wrote it down. It shouldn't need to be fought for again.*
+
+### Reality Before Reasoning
+
+The Human Eye Is the Final Reviewer
+FairWatchTrade is built for human perception, not for component trees.
+When implementing any meaningful visual or interaction change, architectural correctness and code correctness are not sufficient by themselves. The final product exists in what a collector actually sees.
+Before production implementation begins, the implementer must first describe the completed visual experience.
+This description must explain what the human eye will see, not how the code will work.
+It should answer questions such as:
+
+Where does the new object appear?
+What remains visible?
+What moves?
+What stays fixed?
+What visually changes?
+What should the collector immediately understand?
+
+It should not describe:
+component hierarchy;
+CSS techniques;
+React structure;
+positioning strategy;
+implementation details.
+The purpose is to verify that everyone shares the same visual destination before engineering begins.
+Every implementation brief should conclude with:
+"Is this the experience you have in mind before I begin building?"
+No production implementation should begin until that question has been answered.
+Why This Exists
+During FairWatchTrade's Design Gate process, multiple discussions reached technically correct implementations that did not produce the intended visual experience.
+Examples included:
+the smoked-glass Drawer trigger;
+the Collector's Drawer ownership model;
+Browse Active Criteria persistence;
+remain-versus-retire behavior.
+
+In each case, the misunderstanding was not in the code.
+It was in the mental picture.
+Only after viewing real browser renders did the true design issue become obvious.
+The browser repeatedly proved that visual reality is a better judge than architectural reasoning alone.
+Product Law
+
+The human eye reviews the product. The code merely produces it.
+Whenever visual experience and implementation reasoning disagree, investigate the rendered experience first.
+Never assume that technically correct code produces the intended product.
