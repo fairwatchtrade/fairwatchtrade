@@ -85,11 +85,35 @@ Every animation should feel like architecture responding, never software reactin
 ## Locked Product Features
 
 ### Dial Reveal
-On hover over the dial photo only, a thin contrast/brightness slider appears. No zoom. No magnifying glass. Just the detail that was already there. Appears on the third visit. Never announced.
 
-*"Pull left and the MOP depth opens. Pull right and the printing surfaces. The detail was always there. FairWatchTrade just lets you see it."*
+Dial Reveal is an intentional inspection tool, not a browsing behavior.
 
-Copy: **"Dial Reveal · Hover the dial. Move the slider. No zoom. No magnifying glass. Just the detail that was already there."**
+At rest, the hero photograph remains completely quiet and untouched.
+
+- No hover-driven reveal
+- No mouse-following behavior
+- No horizontal yellow line
+- No permanent label
+- No automatic appearance on a later visit
+- No accidental activation while browsing the photograph
+
+A tiny muted-gold square sits quietly in the lower-right corner of the hero image. Only hovering directly over that control reveals the tooltip:
+
+**"Click for Dial Reveal"**
+
+When the collector activates it, a short vertical EQ-style control appears near the image edge. The control adjusts reveal strength while the photograph itself remains still. Moving the pointer around the image does nothing.
+
+Clicking the control off removes the lever and immediately restores the untouched photograph. The tooltip must also dismiss on that off-click and may return only after a fresh hover over the tiny control.
+
+No zoom. No magnifying glass. No performance.
+
+> **Great capability. Quiet invitation. No performance.**
+
+Dial Reveal remains disabled in production until this approved Discovery Mode is built, wired to the real hero photograph, and verified alongside the Collector's Drawer in one complete flight.
+
+Governing Design Gate artifact:
+
+`FairWatchTrade_Dial_Reveal_Discovery_Mode_Study(4)(1).html`
 
 Phase 1. High priority.
 
@@ -237,9 +261,9 @@ It honors the object. It honors the seller. It implies the buyer who's out there
 
 ## FairWatchTrade Correspondence
 
-**
+**Every conversation deserves a home.**
 
-Most marEvery conversation deserves a home.ketplaces separate conversations from the object they are about. Weeks later, buyers search an inbox trying to remember which watch they were discussing.
+Most marketplaces separate conversations from the object they are about. Weeks later, buyers search an inbox trying to remember which watch they were discussing.
 
 FairWatchTrade does the opposite.
 
@@ -382,7 +406,6 @@ That distinction is everything.
 
 Collector Impression Wizard v1.0 spec approved July 9, 2026. Design Gate required before implementation. Payment infrastructure prerequisite.
 
-Drop that at the bottom of PRODUCT_SOUL.md and push:
 ---
 
 ## Build & Workflow Laws
