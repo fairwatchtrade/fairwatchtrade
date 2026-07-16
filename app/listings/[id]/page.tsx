@@ -408,7 +408,12 @@ export default async function ListingDetailPage({
                 initialIndex={heroIndex}
                 brandLabel={listing.brand}
                 modelLabel={listing.model}
-                dialUrl={dialPhotoUrl}
+                dialUrl={null} /* v2.18 — Dial Reveal DISABLED by founder
+                    decision until it can be made worth having. null → the
+                    gallery takes its plain <img> path; the dial photo still
+                    leads as hero, just without the effect. Re-enable by
+                    restoring dialUrl={dialPhotoUrl}. DialReveal.tsx stays in
+                    the repo, unused. */
               />
             )}
           </div>
