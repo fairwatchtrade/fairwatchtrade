@@ -334,7 +334,7 @@ export default async function ListingDetailPage({
         <Link
           href={browseHref}
           className={[
-            "mb-5 inline-flex items-center gap-1.5 xl:hidden",
+            "mb-5 inline-flex items-center gap-1.5 lg:hidden",
             "font-display text-[16px] font-light tracking-[0.3px]",
             "text-[var(--gold)] transition hover:opacity-80",
           ].join(" ")}
@@ -370,7 +370,18 @@ export default async function ListingDetailPage({
             pure CSS, no measurement, no gallery coupling. gap-y is explicitly
             zero so the split renders pixel-identically to the old single
             column (identity keeps its own top margin). */}
-        <div className="relative xl:grid xl:grid-cols-[minmax(0,974px)_276px] xl:grid-rows-[auto_auto] xl:items-start xl:gap-x-[var(--space-6)] xl:gap-y-0">
+        {/* v2.17 — the grid now ACTIVATES at lg (1024) with a single column,
+            so the spine rail exists — and inherits the gallery row's height —
+            throughout the desktop range instead of popping into existence at
+            the xl edge (the reported 1mm-of-mouse defect: `hidden xl:block`
+            was a hard 1279↔1280 existence threshold). The approved TWO-COLUMN
+            form still waits for xl, untouched. At lg the spine sits in the
+            centered listing's side margin (≥128px available for its 65px
+            reach); the standalone link retires at lg so no viewport shows two
+            navigation mechanisms. Below lg: the locked mobile ruling, as
+            before. If the Gate wants iPad-landscape (1024) excluded,
+            min-[1152px] is a one-class change in the four lg: sites here. */}
+        <div className="relative lg:grid lg:grid-cols-[minmax(0,1fr)] lg:grid-rows-[auto_auto] lg:items-start lg:gap-y-0 xl:grid-cols-[minmax(0,974px)_276px] xl:gap-x-[var(--space-6)]">
           {/* ── SPINE RAIL (v2.14) — a zero-width grid item sharing the
                  gallery's cell (col 1, row 1) with self-stretch, so its height
                  IS the gallery's height by grid construction. The Drawer
@@ -379,7 +390,7 @@ export default async function ListingDetailPage({
                  width regardless of how the gallery column resizes. The spine
                  itself sits at −65px, centered in the page's 82px gutter.
                  ListingGallery still has ZERO knowledge of the Drawer. */}
-          <div className="relative hidden w-0 xl:col-start-1 xl:row-start-1 xl:block xl:justify-self-start xl:self-stretch">
+          <div className="relative hidden w-0 lg:col-start-1 lg:row-start-1 lg:block lg:justify-self-start lg:self-stretch">
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
@@ -389,7 +400,7 @@ export default async function ListingDetailPage({
 
           {/* GALLERY CELL — col 1, row 1. Its content defines the row height
               the spine rail inherits. */}
-          <div className="xl:col-start-1 xl:row-start-1">
+          <div className="lg:col-start-1 lg:row-start-1">
             {/* SECTION 1 — Media gallery */}
             {photoUrls.length > 0 && (
               <ListingGallery
@@ -404,7 +415,7 @@ export default async function ListingDetailPage({
 
           {/* CONTENT CELL — col 1, row 2: everything that followed the gallery
               in the old primary column, unchanged. */}
-          <div className="xl:col-start-1 xl:row-start-2">
+          <div className="lg:col-start-1 lg:row-start-2">
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").

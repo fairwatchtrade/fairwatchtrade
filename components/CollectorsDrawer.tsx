@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────────────────────────────────
-   COLLECTOR'S DRAWER — components/CollectorsDrawer.tsx  (v2.14)
+   COLLECTOR'S DRAWER — components/CollectorsDrawer.tsx  (v2.17)
    INTEGRATED TOOL SPINE — production implementation of Study D (approved).
 
    The collapsed trigger is no longer a labeled tab: it is the Drawer's own
@@ -79,12 +79,33 @@ import { createClient } from "@/lib/supabase/client";
    accessible name — never as permanent vertical text. No Escape/outside-
    click handler existed in production or the study; none is invented here.
 
-   ── NO ORPHANS / SAVE PATTERN ──────────────────────────────────────────
-   Unchanged from v2.11: Back to Browse carries the returnTo-preserving
-   href; Around This Watch uses only the four audited raw-match facets and
-   is omitted (icon and row together) when null; Add to My Catalogue reuses
-   the saved_watches upsert verbatim with honest idle/saving/saved/failed
-   states.
+   ── v2.17 CLEANUP FLIGHT ───────────────────────────────────────────────
+   · TOOL PALETTE COPY: one gold "Collector's Drawer" heading (the old
+     kicker + "Around this watch" title are gone), three actions with no
+     explanatory paragraphs — "← Back to Browse", "Search Similar Watches"
+     (renamed from Around This Watch), and "Add to My Catalogue" whose only
+     note is "Save for later." The prototype footer sentence is deleted.
+     All three action titles share identical default styling; gold appears
+     only on hover/focus. Rows stay exactly 88px — the icon-to-row
+     alignment architecture is untouched.
+   · REVERSIBLE SAVE: the catalogue action is now a toggle. On mount it
+     checks the real saved state (select, session client, RLS-scoped) so a
+     watch saved last week shows as saved today — without that, a saved
+     watch could never be removed here. Saved → click removes (DELETE,
+     RLS saved_watches_delete_own, proven live: owner removes 1, wrong
+     user removes 0). Never disabled while saved; honest states both ways.
+     (The Catalogue home page needs the same reversibility — separate
+     flight, flagged.)
+   · TOOLTIP: triggers only from the opening-cue affordance at the spine's
+     foot (plus keyboard focus on the button), not from the entire spine —
+     no more flicker as the pointer travels the rail. The full spine stays
+     clickable.
+   · DESKTOP PERSISTENCE: the spine no longer pops at the xl edge — the
+     mount now activates at lg (1024). See page.tsx; the grid's two-column
+     form still waits for xl, exactly as approved.
+   · "Search Similar Watches" still uses only the four audited raw-match
+     facets and is omitted (icon and row together) when null; the save
+     still reuses the saved_watches pattern — no second implementation.
 
    Canary: PFC274 = 62 — /api/evaluate untouched.
    ──────────────────────────────────────────────────────────────────────── */
@@ -138,9 +159,36 @@ export default function CollectorsDrawer({
   const [saveError, setSaveError] = useState(false);
   const router = useRouter();
 
-  // Unchanged v2.11 save path — BrowseClient's saved_watches pattern verbatim.
-  async function addToCatalogue() {
-    if (saved || saving) return;
+  // v2.17 — reversibility requires knowing the TRUTH on load: a watch saved
+  // in a previous session must present as saved, or it can never be removed
+  // from here. One RLS-scoped read; signed-out resolves to not-saved.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data } = await supabase
+        .from("saved_watches")
+        .select("listing_id")
+        .eq("user_id", user.id)
+        .eq("listing_id", listingId)
+        .maybeSingle();
+      if (!cancelled && data) setSaved(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId]);
+
+  // v2.17 — reversible toggle. Add uses the v2.11 upsert pattern verbatim;
+  // remove is a DELETE under saved_watches_delete_own (proven under real
+  // RLS: owner removes 1 row, a different user removes 0). Neither path
+  // ever reports a success that didn't happen.
+  async function toggleCatalogue() {
+    if (saving) return;
     setSaving(true);
     setSaveError(false);
 
@@ -154,20 +202,35 @@ export default function CollectorsDrawer({
       return;
     }
 
+    if (saved) {
+      const { error } = await supabase
+        .from("saved_watches")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("listing_id", listingId);
+      if (error) {
+        console.error("[FairWatchTrade] Remove from Catalogue failed:", error);
+        setSaveError(true);
+        setSaving(false);
+        return;
+      }
+      setSaved(false);
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase
       .from("saved_watches")
       .upsert(
         { user_id: user.id, listing_id: listingId },
         { onConflict: "user_id,listing_id", ignoreDuplicates: true }
       );
-
     if (error) {
       console.error("[FairWatchTrade] Add to Catalogue failed:", error);
       setSaveError(true);
       setSaving(false);
       return;
     }
-
     setSaved(true);
     setSaving(false);
   }
@@ -186,10 +249,9 @@ export default function CollectorsDrawer({
     {
       key: "browse",
       icon: ICON_BROWSE,
-      render: (row, title, note) => (
+      render: (row, title, _note) => (
         <Link key="browse" href={browseHref} className={row}>
-          <span className={title}>Back to Browse</span>
-          <span className={note}>Return with the current browse context preserved.</span>
+          <span className={title}>&larr; Back to Browse</span>
         </Link>
       ),
     },
@@ -198,12 +260,9 @@ export default function CollectorsDrawer({
           {
             key: "around",
             icon: ICON_AROUND,
-            render: (row: string, title: string, note: string) => (
+            render: (row: string, title: string, _note: string) => (
               <Link key="around" href={similarHref} className={row}>
-                <span className={title}>Around This Watch</span>
-                <span className={note}>
-                  Similar watches by brand, movement, case material, and dial colour.
-                </span>
+                <span className={title}>Search Similar Watches</span>
               </Link>
             ),
           } satisfies DrawerItem,
@@ -216,19 +275,27 @@ export default function CollectorsDrawer({
         <button
           key="catalogue"
           type="button"
-          onClick={addToCatalogue}
-          disabled={saved || saving}
-          className={`${row} w-full ${saved ? "cursor-default" : ""}`}
+          onClick={toggleCatalogue}
+          disabled={saving}
+          className={`${row} w-full`}
         >
-          <span className={saved ? titleCls.replace("group-hover/row:text-[var(--gold)]", "") : titleCls}>
-            {saved ? "In My Catalogue" : saving ? "Adding…" : "Add to My Catalogue"}
+          {/* v2.17 — identical default styling to the other two actions; the
+              saved state changes the WORDS, never the resting color. */}
+          <span className={titleCls}>
+            {saving
+              ? saved
+                ? "Removing…"
+                : "Adding…"
+              : saved
+                ? "In My Catalogue"
+                : "Add to My Catalogue"}
           </span>
           <span className={note}>
             {saveError
-              ? "That didn't save. Please try again."
+              ? "That didn't work. Please try again."
               : saved
-                ? "Kept with your saved collector context."
-                : "Keep this watch with the collector's saved context."}
+                ? "Saved — select again to remove."
+                : "Save for later."}
           </span>
         </button>
       ),
@@ -248,7 +315,7 @@ export default function CollectorsDrawer({
         aria-label={
           expanded
             ? "Close Collector's Drawer."
-            : "Open Collector's Drawer. Contains Back to Browse, Around This Watch, and Add to My Catalogue."
+            : "Open Collector's Drawer. Contains Back to Browse, Search Similar Watches, and Add to My Catalogue."
         }
         className={[
           // In the gutter: −65px from the listing content edge (see header).
@@ -293,32 +360,42 @@ export default function CollectorsDrawer({
           ))}
         </span>
 
-        {/* opening cue — rightward when closed, reversed when open */}
+        {/* v2.17 — opening cue, and the ONLY pointer trigger for the
+            tooltip: `group/cue` scopes hover to this 42px affordance, so the
+            label no longer flickers as the pointer travels the rail. The
+            whole spine stays clickable; keyboard focus on the button still
+            shows the label. NOTE: this span is inside the toggle button, so
+            hover state is fine, but it must not be a nested interactive —
+            it stays aria-hidden and non-focusable. */}
         <span
-          aria-hidden="true"
           className={[
-            "absolute bottom-[18px] left-[9px] right-[9px] grid h-[42px] place-items-center",
+            "group/cue absolute bottom-[18px] left-[9px] right-[9px] grid h-[42px] place-items-center",
             "border-t border-[rgba(232,226,214,0.10)] text-[rgba(201,168,76,0.68)]",
-            "transition-[color,transform] duration-[180ms] group-hover:text-[var(--gold)] group-focus-visible:text-[var(--gold)]",
-            expanded ? "rotate-180" : "",
+            "transition-colors duration-[180ms] hover:text-[var(--gold)] group-focus-visible:text-[var(--gold)]",
           ].join(" ")}
         >
-          {ICON_CUE}
-        </span>
+          <span
+            aria-hidden="true"
+            className={`grid place-items-center transition-transform duration-[180ms] ${expanded ? "rotate-180" : ""}`}
+          >
+            {ICON_CUE}
+          </span>
 
-        {/* accessible wording — tooltip on hover/focus, never permanent text */}
-        <span
-          role="tooltip"
-          className={[
-            "pointer-events-none absolute left-[58px] top-1/2 -translate-y-1/2 translate-x-1",
-            "whitespace-nowrap border border-[var(--border-mid)] bg-[rgba(13,15,20,0.96)] px-2.5 py-2",
-            "font-display text-[12px] text-[var(--platinum-dim)] shadow-[0_10px_28px_rgba(0,0,0,0.24)]",
-            "invisible opacity-0 transition-[opacity,transform,visibility] duration-[150ms]",
-            "group-hover:visible group-hover:translate-x-0 group-hover:opacity-100",
-            "group-focus-visible:visible group-focus-visible:translate-x-0 group-focus-visible:opacity-100",
-          ].join(" ")}
-        >
-          Collector&rsquo;s Drawer
+          {/* accessible wording — shown from the cue's own hover, or from
+              keyboard focus on the spine button; never permanent text */}
+          <span
+            role="tooltip"
+            className={[
+              "pointer-events-none absolute bottom-1/2 left-[49px] translate-x-1 translate-y-1/2",
+              "whitespace-nowrap border border-[var(--border-mid)] bg-[rgba(13,15,20,0.96)] px-2.5 py-2",
+              "font-display text-[12px] text-[var(--platinum-dim)] shadow-[0_10px_28px_rgba(0,0,0,0.24)]",
+              "invisible opacity-0 transition-[opacity,transform,visibility] duration-[150ms]",
+              "group-hover/cue:visible group-hover/cue:translate-x-0 group-hover/cue:opacity-100",
+              "group-focus-visible:visible group-focus-visible:translate-x-0 group-focus-visible:opacity-100",
+            ].join(" ")}
+          >
+            Collector&rsquo;s Drawer
+          </span>
         </span>
       </button>
 
@@ -338,11 +415,11 @@ export default function CollectorsDrawer({
         ].join(" ")}
       >
         <div className="relative h-full pb-[26px] pl-[82px] pr-[28px] pt-[42px] [background:linear-gradient(180deg,rgba(13,15,20,0.62)_0%,rgba(13,15,20,0.50)_30%,rgba(13,15,20,0.50)_100%)]">
-          <div className={`text-[10px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] ${glassText}`}>
+          {/* v2.17 — the Drawer's single heading: same prominence the old
+              title had, now carrying the Drawer's own name in gold. The
+              kicker and the "Around this watch" secondary title are gone. */}
+          <h2 className={`font-display text-[25px] font-normal uppercase leading-[1.15] tracking-[0.08em] text-[var(--gold)] ${glassText}`}>
             Collector&rsquo;s Drawer
-          </div>
-          <h2 className={`mt-[9px] font-display text-[25px] font-normal leading-[1.15] text-[var(--platinum)] ${glassText}`}>
-            Around this watch
           </h2>
 
           {/* the SAME items[], as rows — anchored at the SAME top:119px, on
@@ -351,11 +428,6 @@ export default function CollectorsDrawer({
             {items.map((it) => it.render(rowCls, titleCls, noteCls))}
           </div>
 
-          <div
-            className={`absolute bottom-[26px] left-[82px] right-[28px] border-t border-[var(--border-mid)] pt-[18px] text-[9px] uppercase leading-[1.6] tracking-[0.10em] text-[var(--platinum-dim)] ${glassText}`}
-          >
-            The gallery remains beneath the smoked glass.
-          </div>
         </div>
       </div>
     </>
