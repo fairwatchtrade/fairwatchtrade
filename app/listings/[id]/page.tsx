@@ -408,12 +408,20 @@ export default async function ListingDetailPage({
                 initialIndex={heroIndex}
                 brandLabel={listing.brand}
                 modelLabel={listing.model}
-                dialUrl={null} /* v2.18 — Dial Reveal DISABLED by founder
-                    decision until it can be made worth having. null → the
-                    gallery takes its plain <img> path; the dial photo still
-                    leads as hero, just without the effect. Re-enable by
-                    restoring dialUrl={dialPhotoUrl}. DialReveal.tsx stays in
-                    the repo, unused. */
+                dialUrl={dialPhotoUrl} /* v2.19 — Dial Reveal RECONNECTED as
+                    Discovery Mode. This is the exact one-line reversal of the
+                    v2.18 founder disable: dialPhotoUrl has been computed
+                    correctly all along (see § dial photo derivation above), it
+                    simply wasn't reaching its consumer. ListingGallery's
+                    (dialUrl && heroUrl === dialUrl) conditional is unchanged
+                    and still the ONE source of truth for "is the hero the dial
+                    photo" — no per-photo `dial` flag was added, because that
+                    would be a second source of truth for a fact this prop
+                    already carries. The feature is now worth having: the
+                    retired hover-driven reveal was REPLACED inside
+                    components/DialReveal.tsx (v2.19), not wrapped or
+                    re-enabled. Touch devices still take the plain <img> path,
+                    gated inside DialReveal pending a mobile Design Gate. */
               />
             )}
           </div>
