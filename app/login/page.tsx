@@ -164,6 +164,16 @@ export default function LoginPage() {
             </div>
             <div className="mb-7 h-px bg-gradient-to-r from-[rgba(201,168,76,0.2)] to-transparent" />
 
+            {/* A real <form> so Enter submits from either field — the same
+                keyboard behavior every sign-in form owes its user. The button
+                is type="submit"; onSubmit guards busy/empty exactly like the
+                button's disabled state. */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!busy && email && password) handleSignIn();
+              }}
+            >
             <div className="mb-5">
               <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
                 Email
@@ -202,12 +212,13 @@ export default function LoginPage() {
             </div>
 
             <button
-              onClick={handleSignIn}
+              type="submit"
               disabled={busy || !email || !password}
               className={`fw-btn-primary mb-4 w-full ${busy ? "cursor-wait" : ""}`}
             >
               {busy ? "Signing in…" : "Sign In"}
             </button>
+            </form>
 
             {error && (
               <div className="mt-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
