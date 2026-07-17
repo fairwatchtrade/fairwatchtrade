@@ -18,6 +18,12 @@ import { useState } from "react";
 
    Both confirm() before firing. Inline success/error feedback, no redirect.
 
+   v2.21 · Rejection reason (Dealer Accelerator Flight 2B): selecting
+   'rejected' reveals a bounded reason field (≤ 1000 chars) sent as
+   rejection_reason. The route stores it only on 'rejected' and clears it on
+   every other transition — only the current actionable reason ever exists.
+   The dealer sees it in the Review Workspace and corrects before resubmitting.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
@@ -41,6 +47,7 @@ export default function ListingStatusControls({
   );
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   async function apply(next: StatusOption, confirmText: string) {
     if (busy) return;
@@ -51,7 +58,11 @@ export default function ListingStatusControls({
       const res = await fetch(`/api/admin/listings/${listingId}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify(
+          next === "rejected" && rejectionReason.trim()
+            ? { status: next, rejection_reason: rejectionReason.trim() }
+            : { status: next }
+        ),
       });
       const data = (await res.json().catch(() => ({}))) as {
         status?: string;
@@ -159,6 +170,22 @@ export default function ListingStatusControls({
           Take Down
         </button>
       </div>
+
+      {selected === "rejected" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={label}>
+            Rejection reason (shown to the dealer · {rejectionReason.length} / 1000)
+          </span>
+          <textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value.slice(0, 1000))}
+            disabled={busy}
+            rows={3}
+            placeholder="What must the dealer correct before resubmitting?"
+            style={{ ...select, resize: "vertical", lineHeight: 1.5 }}
+          />
+        </div>
+      )}
 
       {feedback && (
         <div

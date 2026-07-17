@@ -25,6 +25,17 @@ import { createServiceClient } from "@/lib/supabase/service";
 
    No schema changes. No new tables. Status change only — never destroys a row.
 
+   ── v2.21 · Dealer Accelerator Flight 2B (bounded, this route stays the
+      ONE adjudication path — no parallel route) ──────────────────────────
+     · rejection_reason: optional body field, honored ONLY when the new
+       status is 'rejected' (bounded ≤ 1000 chars). On EVERY other
+       transition the column is set NULL — only the current actionable
+       reason ever exists. Written here via the trusted client only; the
+       v2.21 column grants leave dealers with no write access to it.
+     · availability gate: a listing whose details.availability is
+       'Not Currently Available' cannot be set 'published'. It stays out
+       of buyer view until the dealer returns it to In Stock.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
@@ -57,10 +68,10 @@ export async function POST(
     return NextResponse.json({ error: "forbidden", detail: "Admin only." }, { status: 403 });
   }
 
-  // 2 · parse + validate the requested status.
-  let body: { status?: unknown };
+  // 2 · parse + validate the requested status (+ optional bounded reason).
+  let body: { status?: unknown; rejection_reason?: unknown };
   try {
-    body = (await request.json()) as { status?: unknown };
+    body = (await request.json()) as { status?: unknown; rejection_reason?: unknown };
   } catch {
     return NextResponse.json(
       { error: "bad_request", detail: "Could not parse request body." },
@@ -82,6 +93,17 @@ export async function POST(
     );
   }
 
+  // v2.21 · rejection_reason is honored only on 'rejected'; every other
+  // transition clears it so only the current actionable reason exists.
+  const rawReason = typeof body.rejection_reason === "string" ? body.rejection_reason.trim() : "";
+  if (status === "rejected" && rawReason.length > 1000) {
+    return NextResponse.json(
+      { error: "reason_too_long", detail: "rejection_reason is limited to 1000 characters." },
+      { status: 400 }
+    );
+  }
+  const rejectionReason = status === "rejected" && rawReason ? rawReason : null;
+
   // 3 · perform the update with the trusted client (bypasses RLS; reached only
   //     after the admin gate above).
   let service;
@@ -95,9 +117,41 @@ export async function POST(
     );
   }
 
+  // v2.21 · availability gate — 'Not Currently Available' cannot publish.
+  if (status === "published") {
+    const { data: current, error: readErr } = await service
+      .from("listings")
+      .select("details")
+      .eq("id", id)
+      .maybeSingle();
+    if (readErr) {
+      return NextResponse.json({ error: "read_failed", detail: readErr.message }, { status: 500 });
+    }
+    if (!current) {
+      return NextResponse.json(
+        { error: "not_found", detail: `No listing with id ${id}.` },
+        { status: 404 }
+      );
+    }
+    const availability =
+      current.details && typeof current.details === "object"
+        ? (current.details as Record<string, unknown>).availability
+        : undefined;
+    if (availability === "Not Currently Available") {
+      return NextResponse.json(
+        {
+          error: "not_available",
+          detail:
+            "This listing's availability is 'Not Currently Available'. It cannot be published until the dealer marks it In Stock.",
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const { data, error } = await service
     .from("listings")
-    .update({ status: status as AllowedStatus })
+    .update({ status: status as AllowedStatus, rejection_reason: rejectionReason })
     .eq("id", id)
     .select("id, status")
     .maybeSingle();

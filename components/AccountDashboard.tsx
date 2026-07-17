@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -100,7 +101,14 @@ export type AccountListing = {
   photos?: ListingPhoto[];
 };
 
-type ModuleId = "dashboard" | "inventory" | "market" | "messages" | "requests" | "analytics";
+type ModuleId =
+  | "dashboard"
+  | "inventory"
+  | "accelerator"
+  | "market"
+  | "messages"
+  | "requests"
+  | "analytics";
 // "pending_review" is the REAL status value, not a UI-only id — InventoryView
 // filters with `l.status === activeTab`, so the id must equal the status.
 type TabId = "all" | "published" | "draft" | "pending_review" | "rejected";
@@ -144,6 +152,8 @@ function dialThumbUrl(photos?: ListingPhoto[]): string | null {
 const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
   { id: "dashboard", label: "Overview", soon: false },
   { id: "inventory", label: "Listings", soon: false },
+  // v2.21 — Dealer Accelerator Review Workspace. Desktop is governing scope.
+  { id: "accelerator", label: "Imported Drafts", soon: false },
   { id: "market", label: "Market Intel", soon: true },
   { id: "messages", label: "Messages", soon: false },
   { id: "requests", label: "Requests", soon: false },
@@ -1149,7 +1159,9 @@ export default function AccountDashboard({
         ? "Correspondence"
         : activeModule === "requests"
           ? "Purchase Requests"
-          : "Listings";
+          : activeModule === "accelerator"
+            ? "Review Imported Drafts"
+            : "Listings";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -1294,6 +1306,8 @@ export default function AccountDashboard({
               <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
             ) : activeModule === "requests" ? (
               <RequestsView requests={requests} onActionComplete={refreshRequests} />
+            ) : activeModule === "accelerator" ? (
+              <ImportedDraftsWorkspace />
             ) : (
               <InventoryView
                 listings={searchFiltered}
