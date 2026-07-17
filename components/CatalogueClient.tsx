@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
+import SavedSearchesCard from "@/components/SavedSearchesCard";
 
 /* ────────────────────────────────────────────────────────────────────────
    CATALOGUE CLIENT — the buyer's Catalogue  (v2.7b)
@@ -875,8 +876,16 @@ export default function CatalogueClient({
 
           {/* Right — 220px rail of shells */}
           <div className="w-full shrink-0 lg:w-[220px]">
+            {/* v2.25a — Saved Searches: its own top-level card, FIRST in the
+                rail (approved placement). Separation law: a completely
+                different product function from Saved Watches — independent
+                text-based criteria management, never merged/stacked/nested
+                with the watch-imagery column. Saved Watches (left column)
+                is byte-untouched. */}
+            <SavedSearchesCard />
+
             {/* My Catalogue — shell (Phase 2, catalogue table doesn't exist) */}
-            <div className="border border-[var(--border-subtle)] px-4 py-5">
+            <div className="mt-4 border border-[var(--border-subtle)] px-4 py-5">
               <div className="mb-3 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
                 My Catalogue
               </div>

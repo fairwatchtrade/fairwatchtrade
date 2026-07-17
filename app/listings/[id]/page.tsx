@@ -6,6 +6,7 @@ import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
+import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -326,24 +327,31 @@ export default async function ListingDetailPage({
           column still gets ~816px). iPad landscape (1024) reads as tablet;
           iPad Pro landscape (1366) reads as desktop. */}
       <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 xl:max-w-[1438px] xl:px-[82px]">
-        {/* v2.11 — MOBILE/TABLET ONLY. On desktop this retires atomically in
-            favour of the Drawer's own Back to Browse, which carries the same
-            returnTo-preserved href — no dual navigation, no orphan link. It
-            is NOT deleted, because below xl the Drawer does not mount and
-            this is the collector's only way back. */}
-        <Link
-          href={browseHref}
-          className={[
-            "mb-5 inline-flex items-center gap-1.5 lg:hidden",
-            "font-display text-[16px] font-light tracking-[0.3px]",
-            "text-[var(--gold)] transition hover:opacity-80",
-          ].join(" ")}
-        >
-          <span className="text-[13px] leading-none" aria-hidden="true">
-            ←
-          </span>
-          <span>Return to browse</span>
-        </Link>
+        {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
+            a Drawer exists (chain ruling: no dual Back-to-Browse controls).
+            Desktop retired it at lg in v2.11/v2.17 in favour of the spine
+            Drawer's row; the mobile Collector's Drawer now exists below lg
+            and carries the same returnTo-preserved href in its Back to Browse
+            row — the v2.11 law ("no viewport shows both navigation
+            mechanisms") is satisfied by the Drawer alone everywhere. ONE
+            degenerate exception, kept honest: a photo-less listing has no
+            gallery for the mobile Drawer to anchor to, so below lg it renders
+            this link instead — never both. */}
+        {photoUrls.length === 0 && (
+          <Link
+            href={browseHref}
+            className={[
+              "mb-5 inline-flex items-center gap-1.5 lg:hidden",
+              "font-display text-[16px] font-light tracking-[0.3px]",
+              "text-[var(--gold)] transition hover:opacity-80",
+            ].join(" ")}
+          >
+            <span className="text-[13px] leading-none" aria-hidden="true">
+              ←
+            </span>
+            <span>Return to browse</span>
+          </Link>
+        )}
 
         {/* WatchBlueprint — atmospheric background.
             completed="all": this watch has been fully documented. Nothing
@@ -399,8 +407,11 @@ export default async function ListingDetailPage({
           </div>
 
           {/* GALLERY CELL — col 1, row 1. Its content defines the row height
-              the spine rail inherits. */}
-          <div className="lg:col-start-1 lg:row-start-1">
+              the spine rail inherits. v2.25: `relative`, because the mobile
+              Collector's Drawer anchors here (inset-y-0) so its height IS the
+              gallery's height — the same zero-knowledge law the desktop spine
+              rail obeys; ListingGallery still knows nothing of any Drawer. */}
+          <div className="relative lg:col-start-1 lg:row-start-1">
             {/* SECTION 1 — Media gallery */}
             {photoUrls.length > 0 && (
               <ListingGallery
@@ -422,6 +433,20 @@ export default async function ListingDetailPage({
                     components/DialReveal.tsx (v2.19), not wrapped or
                     re-enabled. Touch devices still take the plain <img> path,
                     gated inside DialReveal pending a mobile Design Gate. */
+              />
+            )}
+
+            {/* v2.25 — MOBILE/TABLET Collector's Drawer (approved artifact:
+                side overlay + gold watch-hand pull, no spine). Mounts only
+                below lg — the component self-gates with lg:hidden — while the
+                desktop spine rail above stays byte-identical. Rendered only
+                when the gallery exists: the overlay inherits this cell's
+                height, and a photo-less listing has no gallery to anchor to. */}
+            {photoUrls.length > 0 && (
+              <MobileCollectorsDrawer
+                listingId={listing.id}
+                browseHref={browseHref}
+                similarHref={similarHref}
               />
             )}
           </div>

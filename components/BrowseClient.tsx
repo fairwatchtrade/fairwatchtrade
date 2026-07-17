@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import SaveSearchControl from "@/components/SaveSearchControl";
 
 /* ────────────────────────────────────────────────────────────────────────
    BROWSE CLIENT — client-side facet filtering shell for /browse (v1.57)
@@ -729,7 +730,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   return (
     <div>
       {/* Toggle bar */}
-      <div className="mt-8 flex items-center gap-3">
+      <div className="mt-8 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setIsFilterOpen((v) => !v)}
@@ -744,6 +745,10 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         >
           Refine
         </button>
+        {/* v2.25a — creation before consumption: the one real way to create
+            and name a saved search, beside the control that owns the filter
+            context. The Drawer's quick links only consume what this makes. */}
+        <SaveSearchControl />
       </div>
 
       {/* Layout controls bar — grid width + view mode + page size.

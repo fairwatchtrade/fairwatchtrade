@@ -113,6 +113,15 @@ export default function DialReveal({
   const [level, setLevel] = useState(FADER_DEFAULT);
   const [tooltipSuppressed, setTooltipSuppressed] = useState(false);
   const [supportsHover, setSupportsHover] = useState(false);
+  // v2.25 · MODE ARBITRATION — the mobile Collector's Drawer and Dial
+  // Reveal are mutually exclusive (chain ruling). While the Drawer is open
+  // this component SUSPENDS: reveal state resets and the controls unmount
+  // entirely, so nothing beneath the Drawer is paintable, clickable, or
+  // focusable (the old failure: our z-30 sat ABOVE the Drawer's overlay).
+  // The channel is a window CustomEvent ("fwt:mobile-drawer", detail
+  // {open}) dispatched by MobileCollectorsDrawer — loose coupling only:
+  // no imports, no props, ListingGallery still knows nothing of either.
+  const [suspended, setSuspended] = useState(false);
   const anchorRef = useRef<HTMLLabelElement>(null);
   const faderId = useId();
 
@@ -124,9 +133,27 @@ export default function DialReveal({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  useEffect(() => {
+    const onDrawer = (e: Event) => {
+      const open = (e as CustomEvent<{ open?: boolean }>).detail?.open === true;
+      setSuspended(open);
+      if (open) {
+        // Opening the Drawer RESETS Dial Reveal — closing it later returns
+        // the gallery to a clean neutral state, never half-active.
+        setActive(false);
+        setLevel(FADER_DEFAULT);
+        setTooltipSuppressed(false);
+      }
+    };
+    window.addEventListener("fwt:mobile-drawer", onDrawer);
+    return () => window.removeEventListener("fwt:mobile-drawer", onDrawer);
+  }, []);
+
   // Touch / coarse pointer: the plain photograph, same as before this
   // component existed. No anchor, no fader, no filter, nothing to discover.
-  if (!supportsHover) {
+  // v2.25: an open mobile Drawer takes the same path — suspension means the
+  // photograph and ONLY the photograph.
+  if (!supportsHover || suspended) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={photoUrl} alt="" className={className ?? "w-full"} />
