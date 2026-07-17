@@ -195,6 +195,11 @@ export default function ImportedDraftsWorkspace() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  /* v2.22 — the button briefly answers "Saved ✓" right where the click
+     happened, then settles back. Ref holds the timer so a rapid re-save
+     restarts the two seconds instead of cutting them short. */
+  const [justSaved, setJustSaved] = useState(false);
+  const justSavedTimer = useRef<number | null>(null);
 
   const [ceremony, setCeremony] = useState<Ceremony>(CEREMONY_CLEAR);
   const [submitting, setSubmitting] = useState(false);
@@ -301,6 +306,7 @@ export default function ImportedDraftsWorkspace() {
     setSaveError(null);
     setSubmitError(null);
     setSavedAt(null);
+    setJustSaved(false);
     setCeremony(CEREMONY_CLEAR);
     setActivePhoto(0);
   }
@@ -310,6 +316,7 @@ export default function ImportedDraftsWorkspace() {
     setBuffer({ ...buffer, ...patch });
     setDirty(true);
     setSavedAt(null);
+    setJustSaved(false);
   }
 
   const editable = selected ? selected.status === "draft" || selected.status === "rejected" : false;
@@ -378,6 +385,9 @@ export default function ImportedDraftsWorkspace() {
       setBuffer({ ...bufferFrom(fresh), newUploadUrls: [] });
       setDirty(false);
       setSavedAt(new Date().toLocaleTimeString());
+      setJustSaved(true);
+      if (justSavedTimer.current !== null) window.clearTimeout(justSavedTimer.current);
+      justSavedTimer.current = window.setTimeout(() => setJustSaved(false), 2000);
       return true;
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Could not save this draft.");
@@ -927,6 +937,8 @@ export default function ImportedDraftsWorkspace() {
 
           {/* Action bar */}
           <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[var(--border-faint)] bg-[var(--ink)] px-6 py-4">
+            {/* v2.22 — the LEFT line keeps errors and unsaved-state words; the
+                saved acknowledgement now lives beside the button that earned it. */}
             <div className="min-w-0 text-[11px] text-[var(--muted)]">
               {saveError ? (
                 <span className="text-[var(--danger)]">{saveError}</span>
@@ -934,20 +946,27 @@ export default function ImportedDraftsWorkspace() {
                 <span className="text-[var(--danger)]">{submitError}</span>
               ) : dirty ? (
                 "Unsaved changes"
-              ) : savedAt ? (
-                `Saved privately at ${savedAt}`
               ) : (
                 "No unsaved changes"
               )}
             </div>
-            <div className="flex shrink-0 gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5">
+              {savedAt && !dirty && (
+                <span className="text-[11px] text-[var(--muted)]">
+                  Saved privately at {savedAt}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => saveDraft()}
                 disabled={!editable || !dirty || saving}
-                className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                className={`border px-4 py-2 text-[10px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
+                  justSaved
+                    ? "border-[var(--border-gold)] text-[var(--gold)] disabled:opacity-100"
+                    : "border-[var(--border-mid)] text-[var(--muted)] hover:text-[var(--platinum)] disabled:opacity-40"
+                }`}
               >
-                {saving ? "Saving…" : "Save Draft"}
+                {saving ? "Saving…" : justSaved ? "Saved ✓" : "Save Draft"}
               </button>
               {selected.status === "pending_review" ? (
                 <button
