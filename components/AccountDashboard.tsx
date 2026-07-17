@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
+import SellerListingsRoom from "@/components/SellerListingsRoom";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -109,9 +110,8 @@ type ModuleId =
   | "messages"
   | "requests"
   | "analytics";
-// "pending_review" is the REAL status value, not a UI-only id — InventoryView
-// filters with `l.status === activeTab`, so the id must equal the status.
-type TabId = "all" | "published" | "draft" | "pending_review" | "rejected";
+// v2.23 — lifecycle tab state moved into SellerListingsRoom, which owns the
+// Listings room's tabs and selection (ids remain the REAL status values).
 
 type Counts = {
   total: number;
@@ -470,84 +470,12 @@ function DashboardView({
   );
 }
 
-/* ── INVENTORY module — status tabs, filtered list. Default module. ── */
-function InventoryView({
-  listings,
-  counts,
-  activeTab,
-  setActiveTab,
-  selectedListing,
-  onSelect,
-  onSubmitForReview,
-  submittingId,
-  submitErrorId,
-  submitErrorMsg,
-}: {
-  listings: AccountListing[];
-  counts: Counts;
-  activeTab: TabId;
-  setActiveTab: (t: TabId) => void;
-  selectedListing: string | null;
-  onSelect: (id: string) => void;
-} & SubmitProps) {
-  const tabs: Array<{ id: TabId; label: string; count: number }> = [
-    { id: "all", label: "All", count: counts.total },
-    { id: "published", label: "Active", count: counts.active },
-    { id: "draft", label: "Drafts", count: counts.draft },
-    { id: "pending_review", label: "Pending", count: counts.pending },
-    { id: "rejected", label: "Rejected", count: counts.rejected },
-  ];
-
-  const filtered =
-    activeTab === "all" ? listings : listings.filter((l) => l.status === activeTab);
-
-  return (
-    <div>
-      {/* STATUS TABS */}
-      <div className="flex border-b border-[var(--border-faint)]">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`border-b-2 px-4 py-[10px] text-[10px] uppercase tracking-[1.5px] transition ${
-                isActive
-                  ? "border-[var(--gold)] text-[var(--platinum)]"
-                  : "border-transparent text-[var(--ghost)] hover:text-[var(--slate)]"
-              }`}
-            >
-              {tab.label}
-              <span className="ml-1 text-[8px] text-[var(--gold)]">{tab.count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* FILTERED LIST */}
-      {filtered.length === 0 ? (
-        <div className="mx-6 mt-6 border border-[var(--border-faint)] px-6 py-10 text-center">
-          <p className="text-[13px] text-[var(--muted)]">No listings in this view.</p>
-        </div>
-      ) : (
-        <div>
-          {filtered.map((row) => (
-            <ListingRow
-              key={row.id}
-              row={row}
-              selected={selectedListing === row.id}
-              onSelect={onSelect}
-              onSubmitForReview={onSubmitForReview}
-              submitting={submittingId === row.id}
-              submitError={submitErrorId === row.id ? submitErrorMsg ?? null : null}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+/* ── INVENTORY module — v2.23: the Seller Listings Design Gate room.
+   InventoryView (status tabs + full-width ListingRow list) is retired,
+   replaced by <SellerListingsRoom /> (components/SellerListingsRoom.tsx):
+   compact one-watch-per-row inventory + contextual selected-listing rail.
+   The room owns its own tab and selection state; ListingRow remains in use
+   by DashboardView's recent-3 preview above. ── */
 
 /* ── v2.6 · MESSAGES module — Correspondence. Thread list + thread view.
    No chat bubbles: sender name, timestamp, body. Collector correspondence,
@@ -1020,7 +948,6 @@ export default function AccountDashboard({
 }) {
   // Default module = Inventory: the listings are the primary daily task.
   const [activeModule, setActiveModule] = useState<ModuleId>("inventory");
-  const [activeTab, setActiveTab] = useState<TabId>("published");
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1036,6 +963,10 @@ export default function AccountDashboard({
   // unread badge even before the module is opened) and re-fetched when the
   // module reports a change (read, reply, archive).
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  // v2.23 — Seller Listings room: the rail's Correspondence count composes
+  // from `threads` at read time, but an UNANSWERED source must render as a
+  // truthful unavailable state, never as 0. False until /api/messages answers.
+  const [threadsLoaded, setThreadsLoaded] = useState(false);
 
   // v2.7 — Purchase Requests. Same pattern: fetched on mount for the pending-
   // count badge, re-fetched after any accept/decline action.
@@ -1046,7 +977,10 @@ export default function AccountDashboard({
       const res = await fetch("/api/messages");
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.threads)) setThreads(data.threads);
+        if (Array.isArray(data.threads)) {
+          setThreads(data.threads);
+          setThreadsLoaded(true);
+        }
       }
     } catch {
       /* badge simply stays absent — never crashes the workspace */
@@ -1275,14 +1209,12 @@ export default function AccountDashboard({
               navigation is a separate UI decision beyond wiring the existing
               API to a UI, flagged rather than silently included. */}
           <div className="md:hidden">
-            <InventoryView
+            <SellerListingsRoom
               listings={searchFiltered}
-              counts={counts}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              selectedListing={selectedListing}
-              onSelect={setSelectedListing}
+              threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
+              threadsLoaded={threadsLoaded}
               onSubmitForReview={submitForReview}
+              onOpenImportedDrafts={() => setActiveModule("accelerator")}
               submittingId={submittingId}
               submitErrorId={submitErrorId}
               submitErrorMsg={submitErrorMsg}
@@ -1309,14 +1241,12 @@ export default function AccountDashboard({
             ) : activeModule === "accelerator" ? (
               <ImportedDraftsWorkspace />
             ) : (
-              <InventoryView
+              <SellerListingsRoom
                 listings={searchFiltered}
-                counts={counts}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                selectedListing={selectedListing}
-                onSelect={setSelectedListing}
+                threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
+                threadsLoaded={threadsLoaded}
                 onSubmitForReview={submitForReview}
+                onOpenImportedDrafts={() => setActiveModule("accelerator")}
                 submittingId={submittingId}
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
