@@ -410,6 +410,32 @@ export default function SellerListingsRoom({
                   </div>
                 )}
 
+                {/* v2.24 — locked held-state copy for an integrity-held
+                    listing; never names the machinery, never accuses. */}
+                {selected.status === "pending_review" && selected.integrity_hold_reason && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    Your photographs are receiving an additional authenticity review.
+                    <span className="mt-1 block">
+                      Your listing is saved and is not visible to buyers yet. Most reviews
+                      require no action from the seller.
+                    </span>
+                  </div>
+                )}
+
+                {/* v2.24 — clarification round: locked introduction + the
+                    founder's bounded note. Resubmitting clears it. */}
+                {selected.status === "draft" && selected.seller_clarification_note != null && (
+                  <div className="border-l border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    We need a little more information about one or more photographs before
+                    the listing can be published.
+                    {selected.seller_clarification_note.trim() !== "" && (
+                      <span className="mt-1 block text-[var(--platinum-dim)]">
+                        {selected.seller_clarification_note}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* EDIT — truthful per real routes (VisionGPT correction):
                     imported drafts/rejected imports have a REAL editing room;
                     everything else has none, and says so readably. */}

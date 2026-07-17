@@ -285,6 +285,9 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   const publishRequestIdRef = useRef<string>("");
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  // v2.24 · a publish can land held (pending_review) — the published screen
+  // then shows the locked held-state copy, never a false "in the marketplace".
+  const [publishHeld, setPublishHeld] = useState(false);
 
   const captureSteps = useMemo(
     () => (saleState ? buildCaptureSteps(saleState) : []),
@@ -687,6 +690,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           }),
         }).catch(() => {});
       }
+      setPublishHeld(data?.status === "pending_review");
       setStage("published");
     } catch {
       setPublishError("Network error — your listing wasn't published. Try again.");
@@ -719,6 +723,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     setBadgeForfeited(false);
     publishRequestIdRef.current = "";
     setPublishError(null);
+    setPublishHeld(false);
   }, []);
 
   /* ════════════════════ RENDER ════════════════════ */
@@ -1142,13 +1147,30 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   return (
     <Shell>
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
-          Listed.
-        </div>
-        <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
-          Your watch is in the marketplace. Curation reviews every listing;
-          you&apos;ll hear from us if anything needs attention.
-        </p>
+        {publishHeld ? (
+          /* v2.24 · held at publish — the locked held-state copy. Truthful,
+             never accusatory, no machinery named. */
+          <>
+            <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
+              Saved.
+            </div>
+            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+              Your photographs are receiving an additional authenticity review.
+              Your listing is saved and is not visible to buyers yet. Most
+              reviews require no action from the seller.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
+              Listed.
+            </div>
+            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+              Your watch is in the marketplace. Curation reviews every listing;
+              you&apos;ll hear from us if anything needs attention.
+            </p>
+          </>
+        )}
         <div className="flex flex-col gap-3">
           <Link
             href="/account"

@@ -29,9 +29,14 @@ export default async function AccountPage() {
     redirect("/sell");
   }
 
+  // v2.24 · integrity_hold_reason + seller_clarification_note join the
+  // buyer-safe set: both exist to be shown to the owner (held-state copy,
+  // clarification round). Still no scoring fields — PFC274 = 62 holds.
   const { data, error } = await supabase
     .from("listings")
-    .select("id, brand, model, reference, condition, asking_price, status, created_at, photos")
+    .select(
+      "id, brand, model, reference, condition, asking_price, status, created_at, photos, integrity_hold_reason, seller_clarification_note"
+    )
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 

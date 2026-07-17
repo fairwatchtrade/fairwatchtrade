@@ -24,10 +24,16 @@ import { useState } from "react";
    every other transition — only the current actionable reason ever exists.
    The dealer sees it in the Review Workspace and corrects before resubmitting.
 
+   v2.24 · Restyled to the approved Aubrey Design Gate artifact (head row,
+   "Update status", "Take Down → draft", select order) — VISUALS ONLY. The
+   behavior above (confirm dialogs, bounded rejection reason, feedback, the
+   one status route) is preserved unchanged per the "preserve the current
+   listing-status controls" ruling.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-const STATUS_OPTIONS = ["draft", "published", "rejected", "pending_review"] as const;
+const STATUS_OPTIONS = ["pending_review", "published", "draft", "rejected"] as const;
 type StatusOption = (typeof STATUS_OPTIONS)[number];
 
 function isStatusOption(v: string): v is StatusOption {
@@ -87,22 +93,29 @@ export default function ListingStatusControls({
     }
   }
 
+  // v2.24 · artifact styling — head row, control row, same behavior beneath.
   const panel: React.CSSProperties = {
-    border: "1px solid #2a2f3a",
-    background: "#15181e",
-    padding: "14px 16px",
+    border: "1px solid #2A2F3A",
+    background: "#12151B",
+    padding: 14,
     marginBottom: 18,
     display: "flex",
     flexDirection: "column",
     gap: 12,
   };
-  const label: React.CSSProperties = { color: "#8b93a1", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 };
+  const label: React.CSSProperties = {
+    color: "#8B93A1",
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: "0.14em",
+  };
   const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" };
   const select: React.CSSProperties = {
-    background: "#0f1115",
-    color: "#e6e8ec",
-    border: "1px solid #2a2f3a",
-    padding: "6px 10px",
+    background: "#0F1115",
+    color: "#E6E8EC",
+    border: "1px solid #303642",
+    padding: "8px 10px",
+    minWidth: 180,
     fontSize: 12,
     fontFamily: "inherit",
   };
@@ -128,9 +141,16 @@ export default function ListingStatusControls({
 
   return (
     <div style={panel}>
-      <div>
-        <span style={label}>Current status</span>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#e0a83c", marginTop: 2 }}>{status}</div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <span style={label}>Listing status controls</span>
+        <span style={{ color: "#C9A84C", fontSize: 11 }}>{status}</span>
       </div>
 
       <div style={row}>
@@ -153,7 +173,7 @@ export default function ListingStatusControls({
           disabled={applyDisabled}
           style={applyDisabled ? { ...btn, ...disabledBtn } : btn}
         >
-          {busy ? "Working…" : "Apply status"}
+          {busy ? "Working…" : "Update status"}
         </button>
 
         <button
@@ -167,7 +187,7 @@ export default function ListingStatusControls({
           disabled={takeDownDisabled}
           style={takeDownDisabled ? { ...takeDownBtn, ...disabledBtn } : takeDownBtn}
         >
-          Take Down
+          Take Down → draft
         </button>
       </div>
 

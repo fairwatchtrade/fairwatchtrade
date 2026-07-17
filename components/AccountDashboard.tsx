@@ -100,6 +100,10 @@ export type AccountListing = {
   status: string;
   created_at: string;
   photos?: ListingPhoto[];
+  // v2.24 · The Aubrey Check seller-facing state. Copy is locked by ruling;
+  // neither field ever carries provider names, scores, or sources.
+  integrity_hold_reason?: string | null;
+  seller_clarification_note?: string | null;
 };
 
 type ModuleId =
@@ -345,6 +349,21 @@ function ListingRow({
           reused verbatim. The line beneath it exists because "Submit for
           Review" could otherwise read as "publish now" — it says plainly that
           it doesn't. */}
+      {/* v2.24 — CLARIFICATION: the locked neutral introduction plus the
+          founder's bounded note. Shown on drafts only (clarify returns the
+          listing to draft); resubmitting answers it and clears the note. */}
+      {row.status === "draft" && row.seller_clarification_note != null && (
+        <div className="mt-3 border-l border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
+          We need a little more information about one or more photographs before
+          the listing can be published.
+          {row.seller_clarification_note.trim() !== "" && (
+            <span className="mt-1 block text-[var(--platinum-dim)]">
+              {row.seller_clarification_note}
+            </span>
+          )}
+        </div>
+      )}
+
       {row.status === "draft" && onSubmitForReview && (
         <div className="mt-3">
           <button
@@ -366,13 +385,24 @@ function ListingRow({
 
       {/* v2.8 — SUBMITTED: say what happened and what comes next. Never
           silence, never ambiguity. There is no resubmit action here because a
-          resubmission isn't a real thing the lifecycle supports. */}
-      {row.status === "pending_review" && (
-        <div className="mt-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
-          Submitted for review. FairWatchTrade will publish it or send it back —
-          no further action needed from you.
-        </div>
-      )}
+          resubmission isn't a real thing the lifecycle supports.
+          v2.24 — a listing held by the integrity gate shows the locked
+          held-state copy instead of the generic submission line. */}
+      {row.status === "pending_review" &&
+        (row.integrity_hold_reason ? (
+          <div className="mt-3 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
+            Your photographs are receiving an additional authenticity review.
+            <span className="mt-1 block">
+              Your listing is saved and is not visible to buyers yet. Most
+              reviews require no action from the seller.
+            </span>
+          </div>
+        ) : (
+          <div className="mt-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+            Submitted for review. FairWatchTrade will publish it or send it back —
+            no further action needed from you.
+          </div>
+        ))}
 
       {/* Failure is reported, never swallowed into a silent no-op. */}
       {submitError && (

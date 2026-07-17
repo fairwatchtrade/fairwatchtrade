@@ -179,6 +179,15 @@ export default function SellFlow() {
   // v2.4y — reference advisory lives at flow level so an unresolved
   // advisory can repeat at Review without touching ReviewStep itself.
   const [refAdvisory, setRefAdvisory] = useState<RefAdvisory | null>(null);
+  // v2.24 · The Aubrey Check — desktop correlation identity. One synthetic
+  // capture-session id (desk_ prefix, never collides with mobile wizard
+  // sessions) and one idempotency key per wizard session, so desktop photos
+  // get honest listing_media correlation and desktop publishes get the same
+  // retry safety mobile has. Lazy init: stable for the life of the flow.
+  const [desktopIds] = useState(() => ({
+    captureSessionId: "desk_" + crypto.randomUUID(),
+    publishRequestId: crypto.randomUUID(),
+  }));
 
   function patch(p: Partial<ListingDraft>) {
     setDraft((d) => ({ ...d, ...p }));
@@ -333,7 +342,11 @@ export default function SellFlow() {
                   {refAdvisory.message}
                 </p>
               )}
-              <ReviewStep draft={draft} />
+              <ReviewStep
+                draft={draft}
+                captureSessionId={desktopIds.captureSessionId}
+                publishRequestId={desktopIds.publishRequestId}
+              />
             </>
           )}
 

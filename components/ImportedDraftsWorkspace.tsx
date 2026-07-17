@@ -59,6 +59,9 @@ type ImportedListing = {
   photos: ImportedPhoto[];
   status: string;
   rejection_reason: string | null;
+  // v2.24 · active clarification round (founder's bounded note); cleared on
+  // resubmission by the submit RPC. Locked neutral intro lives in the UI.
+  seller_clarification_note: string | null;
   dealer_attested_at: string | null;
   dealer_attested_fingerprint: string | null;
   created_at: string;
@@ -234,7 +237,7 @@ export default function ImportedDraftsWorkspace() {
       const { data: listings, error: listErr } = await supabase
         .from("listings")
         .select(
-          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, dealer_attested_at, dealer_attested_fingerprint, created_at"
+          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
         )
         .in("id", ids);
       if (listErr) throw new Error(listErr.message);
@@ -356,7 +359,7 @@ export default function ImportedDraftsWorkspace() {
         })
         .eq("id", selected.id)
         .select(
-          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, dealer_attested_at, dealer_attested_fingerprint, created_at"
+          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
         )
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -629,6 +632,21 @@ export default function ImportedDraftsWorkspace() {
                     FairWatchTrade requested changes
                   </strong>
                   {selected.rejection_reason || REJECTION_FALLBACK}
+                </>
+              ) : selected.seller_clarification_note != null ? (
+                /* v2.24 — clarification round: locked neutral introduction +
+                   the founder's bounded note. Submitting again answers it. */
+                <>
+                  <strong className="block text-[var(--platinum)]">
+                    A little more information, please
+                  </strong>
+                  We need a little more information about one or more photographs before the
+                  listing can be published.
+                  {selected.seller_clarification_note.trim() !== "" && (
+                    <span className="mt-1 block text-[11px] text-[var(--muted)]">
+                      {selected.seller_clarification_note}
+                    </span>
+                  )}
                 </>
               ) : missing.length > 0 ? (
                 <>
