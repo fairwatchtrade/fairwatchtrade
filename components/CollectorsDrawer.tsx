@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
 
 /* ────────────────────────────────────────────────────────────────────────
    COLLECTOR'S DRAWER — components/CollectorsDrawer.tsx  (v2.17)
@@ -423,9 +424,71 @@ export default function CollectorsDrawer({
           </h2>
 
           {/* the SAME items[], as rows — anchored at the SAME top:119px, on
-              the SAME 88px rhythm as the icon cells. */}
+              the SAME 88px rhythm as the icon cells. IMMOVABLE: this block
+              never scrolls, so the spine's icon-to-row lockstep cannot break. */}
           <div className="absolute left-[82px] right-[28px] top-[119px] border-t border-[var(--border-mid)]">
             {items.map((it) => it.render(rowCls, titleCls, noteCls))}
+          </div>
+
+          {/* v2.26 — Saved Search Quick Links: the SHARED component (same
+              ranking, reopen, bump, empty copy as the mobile Drawer and the
+              buyer-dashboard card — lib/savedSearches.ts, no drift), mounted
+              BELOW the tool rows and deliberately NOT in items[] (the 5px law
+              pairs spine icons 1:1 with 88px rows; this section is neither).
+
+              SHORT-VIEWPORT GEOMETRY (gate rulings, this flight): the panel
+              stays gallery-height, the tool zone stays fixed, and this region
+              alone owns the flexibility — top computed from items.length
+              (119 + rows×88 + 18 gap), bottom at the 26px foot reserve, and
+              overflow-y:auto with a thin, ALWAYS-VISIBLE-when-overflowing
+              scrollbar (an honest cue that more saved searches are below —
+              never hidden-until-hover). The explanatory foot note rides
+              INSIDE the scroll region. Measured driver: at 1280×700 the
+              panel is 526px and a populated section needs ~225px from y=402
+              — this region contains it instead of bleeding past the glass. */}
+          {/* DISCLOSED DEVIATION from the pre-edit plan's "26px foot
+              reserve": the reserve is 12px here. Measured driver: at full
+              height (900) the region under a 26px reserve is 219px against
+              226px of populated content — a permanent 7px phantom scrollbar.
+              The 26px figure served the v2.11 foot sentence that v2.17
+              deleted; nothing occupies that glass. 12px keeps a visual
+              breath and gives the populated section 7px of spare at full
+              height. Flagged for gate review; one value, trivially
+              reversible. */}
+          <div
+            className="fwt-saved-scroll absolute bottom-[12px] left-[82px] right-[28px] overflow-y-auto"
+            style={{ top: 119 + items.length * 88 + 18 }}
+          >
+            <style>{`
+              .fwt-saved-scroll{scrollbar-width:thin;scrollbar-color:rgba(201,168,76,.32) transparent}
+              .fwt-saved-scroll::-webkit-scrollbar{width:6px}
+              .fwt-saved-scroll::-webkit-scrollbar-track{background:transparent}
+              .fwt-saved-scroll::-webkit-scrollbar-thumb{background:rgba(201,168,76,.30)}
+              .fwt-saved-scroll::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,.45)}
+            `}</style>
+            <section
+              aria-label="Saved Search Quick Links"
+              className="border-t border-[var(--border-gold)] pt-[17px]"
+            >
+              <div className="mb-2 flex items-center justify-between gap-2.5">
+                <b
+                  className={`text-[8px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] ${glassText}`}
+                >
+                  Saved Search Quick Links
+                </b>
+                <span
+                  className={`text-[8px] uppercase tracking-[0.11em] text-[var(--ghost)] ${glassText}`}
+                >
+                  Up to three
+                </span>
+              </div>
+              <SavedSearchQuickLinks />
+              <p
+                className={`mt-[17px] text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--ghost)] ${glassText}`}
+              >
+                Names reopen their saved browse query immediately.
+              </p>
+            </section>
           </div>
 
         </div>
