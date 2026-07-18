@@ -407,7 +407,13 @@ export default function CollectorsDrawer({
         id="collectors-drawer-overlay"
         aria-hidden={!expanded}
         className={[
-          "absolute inset-y-0 left-0 z-[8] w-[450px]",
+          // v2.26a — Design Gate Option B: 390px at lg so an open drawer
+          // stops dominating the narrower lg gallery (measured: 64% covered /
+          // 241px of watch visible at 450px; ~56% / ~301px at 390px). The
+          // approved 450px form returns at xl, where the gallery is wide
+          // enough to keep its presence. Every anchor (spine, content-edge,
+          // 82/28 insets, tool zone, scroll region) is untouched.
+          "absolute inset-y-0 left-0 z-[8] w-[390px] xl:w-[450px]",
           "border-r border-[var(--border-gold)]",
           "bg-[rgba(20,22,28,0.35)] backdrop-blur-[16px]",
           "shadow-[18px_0_42px_rgba(0,0,0,0.26)]",
