@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -13,12 +13,26 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // v2.26b — MOBILE AUTOFILL FIX (confirmed launch blocker, reproduced):
+  // phone autofill/password managers write values into the DOM without
+  // firing the events controlled inputs rely on, so the old email/password
+  // state stayed empty while the fields LOOKED full — leaving Sign In
+  // derived-disabled and the form guard refusing keyboard submits too.
+  // The inputs are now UNCONTROLLED (refs); submit reads the DOM, which is
+  // the only truth autofill actually writes to. The button disables only
+  // while busy; emptiness is validated at submit with honest copy.
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const passwordRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSignIn() {
+    const email = emailRef.current?.value.trim() ?? "";
+    const password = passwordRef.current?.value ?? "";
+    if (!email || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -171,7 +185,10 @@ export default function LoginPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!busy && email && password) handleSignIn();
+                // v2.26b — no value guard here: the DOM is read (and
+                // validated) inside handleSignIn, so autofilled values that
+                // React state never saw still sign in.
+                if (!busy) handleSignIn();
               }}
             >
             <div className="mb-5">
@@ -179,11 +196,14 @@ export default function LoginPage() {
                 Email
               </div>
               <input
+                ref={emailRef}
                 type="email"
+                name="email"
                 autoComplete="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={() => {
+                  if (error) setError(null);
+                }}
                 className="fw-input"
               />
             </div>
@@ -193,11 +213,14 @@ export default function LoginPage() {
                 Password
               </div>
               <input
+                ref={passwordRef}
                 type="password"
+                name="password"
                 autoComplete="current-password"
                 placeholder="••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={() => {
+                  if (error) setError(null);
+                }}
                 className="fw-input"
               />
             </div>
@@ -211,9 +234,12 @@ export default function LoginPage() {
               </Link>
             </div>
 
+            {/* v2.26b — disabled derives from busy ONLY. Value-derived
+                disabling is what stranded mobile autofill users: state never
+                saw the autofilled values, so the button never woke up. */}
             <button
               type="submit"
-              disabled={busy || !email || !password}
+              disabled={busy}
               className={`fw-btn-primary mb-4 w-full ${busy ? "cursor-wait" : ""}`}
             >
               {busy ? "Signing in…" : "Sign In"}
