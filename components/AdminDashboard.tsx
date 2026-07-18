@@ -110,11 +110,11 @@ function StatusPill({ status }: { status: string }) {
 function ComingSoonSection({ title }: { title: string }) {
   return (
     <section className="mt-8">
-      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
         {title}
       </div>
       <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-        <div className="font-display text-[11px] italic text-[var(--ghost)]">
+        <div className="font-display text-[11px] italic text-[var(--muted)]">
           Data model not yet available.
         </div>
       </div>
@@ -188,7 +188,10 @@ export default function AdminDashboard({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--border-faint)] bg-[var(--ink)] px-8 py-4">
         <div>
-          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+          {/* v2.26c legibility pass — supporting microtype lifted one notch:
+              --gold-subtle → --gold-dim (same gold family, opaque, ~2x
+              contrast). Heading below stays --platinum, untouched. */}
+          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-dim)]">
             Admin · FairWatchTrade
           </div>
           <div className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
@@ -222,7 +225,7 @@ export default function AdminDashboard({
               className={`text-[9px] uppercase tracking-[2.5px] ${
                 attentionItems.length
                   ? "text-[var(--danger)]"
-                  : "text-[var(--gold-subtle)]"
+                  : "text-[var(--gold-dim)]"
               }`}
             >
               {attentionItems.length
@@ -249,7 +252,7 @@ export default function AdminDashboard({
                 ))}
               </ul>
             ) : (
-              <div className="mt-2 font-display text-[12px] italic text-[var(--ghost)]">
+              <div className="mt-2 font-display text-[12px] italic text-[var(--muted)]">
                 Queue is clear — no AI failures, completeness gaps, or
                 custom-brand submissions pending.
               </div>
@@ -258,7 +261,7 @@ export default function AdminDashboard({
         </section>
 
         {/* ── ZONE 2: MARKETPLACE HEALTH — informational cards ── */}
-        <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+        <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
           Marketplace Health
         </div>
         {/* Stat cards — 2 col mobile, 3 tablet, 6 desktop */}
@@ -268,7 +271,7 @@ export default function AdminDashboard({
               key={s.label}
               className="border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-4"
             >
-              <div className="text-[8px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+              <div className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
                 {s.label}
               </div>
               <div
@@ -284,20 +287,20 @@ export default function AdminDashboard({
 
         {/* ── ZONE 3: MARKETPLACE EXPLORER — the operator table ── */}
         <section id="explorer" className="mt-10">
-          <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+          <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
             Marketplace Explorer · {listings.length} listing
             {listings.length === 1 ? "" : "s"} · problems first
           </div>
 
           {listings.length === 0 ? (
-            <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center font-display text-[11px] italic text-[var(--ghost)]">
+            <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center font-display text-[11px] italic text-[var(--muted)]">
               No listings in the marketplace yet.
             </div>
           ) : (
             <div className="overflow-x-auto border border-[var(--border-subtle)]">
               <table className="w-full min-w-[760px] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-white/5 text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">
+                  <tr className="border-b border-white/5 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
                     <th className="px-4 py-3 font-normal">Brand</th>
                     <th className="px-4 py-3 font-normal">Model</th>
                     <th className="px-4 py-3 font-normal">Reference</th>
@@ -385,7 +388,7 @@ export default function AdminDashboard({
                         <td className="px-4 py-3">
                           <Link
                             href={`/admin/listings/${l.id}`}
-                            className="text-[11px] uppercase tracking-[1.5px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
+                            className="text-[11px] uppercase tracking-[1.5px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)]"
                           >
                             Open →
                           </Link>
