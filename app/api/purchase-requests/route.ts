@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   // the request as listing_price), and brand/model for the notification text.
   const { data: listing, error: listingError } = await supabase
     .from("listings")
-    .select("id, brand, model, seller_id, asking_price, status")
+    .select("id, brand, model, reference, seller_id, asking_price, status")
     .eq("id", listingId)
     .single();
 
@@ -108,6 +108,12 @@ export async function POST(req: Request) {
       buyer_id: user.id,
       seller_id: listing.seller_id,
       listing_price: listing.asking_price,
+      // v2.27 — identity snapshot, captured at request time. Lets My Offers
+      // show the watch identity + outcome to a superseded/declined buyer even
+      // after the listing is reserved and RLS denies them the listing row.
+      listing_brand: listing.brand,
+      listing_model: listing.model ?? null,
+      listing_reference: listing.reference ?? null,
       proposed_purchase_price: proposedPurchasePrice,
       shipping_terms: shippingTerms ?? null,
       included_items: includedItems ?? null,

@@ -57,10 +57,15 @@ export type ListingThreadStat = {
   listingId: string | null;
 };
 
-type TabId = "all" | "published" | "draft" | "pending_review" | "rejected";
+type TabId = "all" | "published" | "reserved" | "draft" | "pending_review" | "rejected";
 
+// v2.27 — 'reserved' is an intentional lifecycle state, not a fall-through: a
+// listing whose offer was accepted (watch off the competitive market,
+// settlement not yet represented). It gets its own label, badge treatment, and
+// tab so it never renders as a blank status under "All".
 const STATUS_LABELS: Record<string, string> = {
   published: "Published",
+  reserved: "Sale Pending",
   pending_review: "Pending Review",
   rejected: "Rejected",
   draft: "Draft",
@@ -68,6 +73,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_CLASS: Record<string, string> = {
   published: "border-[rgba(121,191,144,0.28)] text-[var(--success)]",
+  reserved: "border-[var(--border-gold)] text-[var(--gold)]",
   pending_review: "border-[rgba(201,168,76,0.32)] text-[var(--gold)]",
   rejected: "border-[rgba(200,90,90,0.32)] text-[var(--danger)]",
   draft: "border-[var(--border-mid)] text-[var(--muted)]",
@@ -132,14 +138,21 @@ export default function SellerListingsRoom({
   const counts = {
     all: listings.length,
     published: listings.filter((l) => l.status === "published").length,
+    reserved: listings.filter((l) => l.status === "reserved").length,
     draft: listings.filter((l) => l.status === "draft").length,
     pending_review: listings.filter((l) => l.status === "pending_review").length,
     rejected: listings.filter((l) => l.status === "rejected").length,
   };
 
+  // The "Sale Pending" tab appears only once a reserved listing exists, so the
+  // inventory rail stays quiet for sellers who have none — but reserved rows
+  // are never silently absent (they also remain under "All").
   const tabs: Array<{ id: TabId; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.all },
     { id: "published", label: "Published", count: counts.published },
+    ...(counts.reserved > 0
+      ? [{ id: "reserved" as TabId, label: "Sale Pending", count: counts.reserved }]
+      : []),
     { id: "draft", label: "Drafts", count: counts.draft },
     { id: "pending_review", label: "Pending", count: counts.pending_review },
     { id: "rejected", label: "Rejected", count: counts.rejected },
@@ -266,7 +279,7 @@ export default function SellerListingsRoom({
                     >
                       {badge}
                     </span>
-                    {row.status === "published" && (
+                    {(row.status === "published" || row.status === "reserved") && (
                       <Link
                         href={`/listings/${row.id}`}
                         onClick={(e) => e.stopPropagation()}
@@ -397,12 +410,12 @@ export default function SellerListingsRoom({
               </div>
 
               <div className="mt-4 grid gap-2">
-                {selected.status === "published" ? (
+                {selected.status === "published" || selected.status === "reserved" ? (
                   <Link
                     href={`/listings/${selected.id}`}
                     className="border border-[rgba(201,168,76,0.34)] bg-[rgba(201,168,76,0.045)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.09)]"
                   >
-                    View Listing
+                    {selected.status === "reserved" ? "View Sale-Pending Listing" : "View Listing"}
                   </Link>
                 ) : (
                   <div className="border border-[var(--border-faint)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--muted)]">

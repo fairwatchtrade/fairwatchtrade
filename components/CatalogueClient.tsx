@@ -92,11 +92,18 @@ type OfferStatus =
 
 type MyOfferRow = {
   id: string;
+  listing_id: string | null; // stable grouping key even when the join is denied
   status: string; // raw DB value; narrowed via STATUS_LABELS at render time
   proposed_purchase_price: number | null;
   listing_price: number | null;
+  // v2.27 — identity snapshot captured at request time. Authoritative fallback
+  // for watch identity when the joined listing is null because RLS now denies a
+  // superseded/declined buyer the reserved listing row.
+  listing_brand: string | null;
+  listing_model: string | null;
+  listing_reference: string | null;
   created_at: string;
-  listing: ListingRow | null; // joined; may be null if the listing is gone
+  listing: ListingRow | null; // joined; may be null (listing gone OR RLS-denied)
 };
 
 // loaded state is deliberately distinct from empty (loaded + zero rows) and
@@ -320,7 +327,11 @@ function groupOffersByWatch(offers: MyOfferRow[]): WatchGroup[] {
   const groups: WatchGroup[] = [];
   const indexByKey = new Map<string, number>();
   for (const offer of offers) {
-    const key = offer.listing ? offer.listing.id : offer.id;
+    // Group by listing_id (a column on the request itself), so multiple
+    // requests to the same watch still merge even when RLS denies the joined
+    // listing row (reserved listing, unsuccessful buyer). Falls back to the
+    // offer id only when there is genuinely no listing_id.
+    const key = offer.listing_id ?? offer.id;
     const existing = indexByKey.get(key);
     if (existing === undefined) {
       groups.push({
@@ -395,7 +406,22 @@ function HistoryRow({ offer, listing }: { offer: MyOfferRow; listing: ListingRow
 function WatchOfferGroup({ group }: { group: WatchGroup }) {
   const { listing: l, current, history } = group;
   const { label, note, tone } = offerLabel(current.status);
-  const title = l ? (l.model ? `${l.brand} ${l.model}` : l.brand) : "Listing unavailable";
+  // Identity prefers the live joined listing; when RLS denies it (a reserved
+  // listing hidden from an unsuccessful buyer), fall back to the request's own
+  // authoritative snapshot so the watch identity is never lost — only the
+  // navigation/photo are withheld. "Listing unavailable" remains solely for the
+  // genuine no-identity case.
+  const snapshotTitle = current.listing_brand
+    ? current.listing_model
+      ? `${current.listing_brand} ${current.listing_model}`
+      : current.listing_brand
+    : null;
+  const title = l
+    ? l.model
+      ? `${l.brand} ${l.model}`
+      : l.brand
+    : snapshotTitle ?? "Listing unavailable";
+  const reference = l?.reference ?? current.listing_reference ?? null;
   const hero = l ? heroUrl(l.photos) : null;
   const currentPrice = offerPrice(current, l);
   const currentWhen = relativeTime(current.created_at);
@@ -418,9 +444,9 @@ function WatchOfferGroup({ group }: { group: WatchGroup }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-[13px] text-[var(--platinum)]">{title}</div>
-            {l?.reference && (
+            {reference && (
               <div className="mt-0.5 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
-                Ref. {l.reference}
+                Ref. {reference}
               </div>
             )}
           </div>
@@ -612,7 +638,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          "id, status, proposed_purchase_price, listing_price, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
+          "id, listing_id, status, proposed_purchase_price, listing_price, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
         )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
@@ -625,17 +651,25 @@ export default function CatalogueClient({
       const offers: MyOfferRow[] = (Array.isArray(data) ? data : []).map((r) => {
         const row = r as unknown as {
           id: string;
+          listing_id: string | null;
           status: string;
           proposed_purchase_price: number | null;
           listing_price: number | null;
+          listing_brand: string | null;
+          listing_model: string | null;
+          listing_reference: string | null;
           created_at: string;
           listings: ListingRow | null;
         };
         return {
           id: row.id,
+          listing_id: row.listing_id,
           status: row.status,
           proposed_purchase_price: row.proposed_purchase_price,
           listing_price: row.listing_price,
+          listing_brand: row.listing_brand,
+          listing_model: row.listing_model,
+          listing_reference: row.listing_reference,
           created_at: row.created_at,
           listing: row.listings ?? null,
         };

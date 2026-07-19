@@ -47,6 +47,7 @@ export default function ListingActionRail({
   priceText,
   isOwner,
   requestStatus,
+  listingStatus,
 }: {
   variant: "rail" | "inline";
   listingId: string;
@@ -55,9 +56,30 @@ export default function ListingActionRail({
   priceText: string;
   isOwner: boolean;
   requestStatus?: string | null;
+  /* v2.27 — the listing's own lifecycle status. 'reserved' means an offer was
+     accepted: the watch is off the competitive market and no new requests are
+     taken. Settlement is NOT represented — reserved never implies payment or
+     completion. Only authorized viewers (seller / accepted buyer) ever reach a
+     reserved listing detail page; RLS denies the row to everyone else. */
+  listingStatus?: string | null;
 }) {
-  /* The purchase state machine — identical branches to the shipped version. */
-  const purchaseBlock = isOwner ? null : (
+  const isReserved = listingStatus === "reserved";
+
+  /* The purchase state machine — identical branches to the shipped version,
+     with a v2.27 reserved short-circuit above them: on a reserved listing the
+     CTA is always suppressed and a truthful sale-pending state is shown. */
+  const purchaseBlock = isOwner ? null : isReserved ? (
+    <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
+      <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 text-[11px] tracking-[0.5px]">
+        <div className="uppercase tracking-[2px] text-[var(--gold-dim)]">
+          {requestStatus === "accepted" ? "Your request was accepted" : "Reserved"}
+        </div>
+        <div className="mt-1 text-[var(--muted)]">
+          Sale pending — this watch is no longer available for new requests.
+        </div>
+      </div>
+    </div>
+  ) : (
     <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
       {requestStatus === "declined" && (
         <div className="inline-block border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">

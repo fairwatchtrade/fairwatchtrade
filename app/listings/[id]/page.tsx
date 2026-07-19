@@ -221,7 +221,12 @@ export default async function ListingDetailPage({
     .eq("id", id)
     .single();
 
-  if (error || !data || data.status !== "published") {
+  // v2.27 — a 'reserved' listing (an offer was accepted; the watch is off the
+  // competitive market, settlement not yet represented) must NOT 404 for an
+  // authorized viewer. RLS already restricts a reserved row to the seller and
+  // the accepted buyer (published stays public), so an unauthorized viewer
+  // still receives no row here and correctly falls through to notFound().
+  if (error || !data || (data.status !== "published" && data.status !== "reserved")) {
     notFound();
   }
 
@@ -549,6 +554,7 @@ export default async function ListingDetailPage({
               priceText={priceText}
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
+              listingStatus={listing.status}
             />
           </aside>
         </div>
@@ -610,6 +616,7 @@ export default async function ListingDetailPage({
             priceText={priceText}
             isOwner={isOwner}
             requestStatus={myLatestRequest?.status ?? null}
+            listingStatus={listing.status}
           />
         </div>
         </div>

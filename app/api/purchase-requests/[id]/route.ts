@@ -105,38 +105,36 @@ export async function PATCH(
     return NextResponse.json({ status: "accepted", result: data });
   }
 
-  /* ── DECLINE — unchanged individual transition, stamps updated_at so
-        "resolved offers, newest resolution first" has a real timestamp
-        to sort on ── */
-  const { data: request, error: fetchError } = await supabase
-    .from("purchase_requests")
-    .select("id, seller_id, status")
-    .eq("id", id)
-    .single();
+  /* ── DECLINE — v2.27: routed through the dedicated SECURITY DEFINER
+        decline_purchase_request() RPC, mirroring accept. The direct table
+        UPDATE this route used is gone: the seller UPDATE RLS policy has been
+        removed, so lifecycle transitions are now database-authoritative and
+        can only happen inside a vetted function. The function stamps
+        updated_at itself (so "resolved offers, newest resolution first" keeps
+        a real timestamp to sort on) and enforces caller=seller, request
+        exists, and pending-only under the canonical listing→request lock
+        order. ── */
+  const { data, error } = await supabase.rpc("decline_purchase_request", {
+    p_request_id: id,
+  });
 
-  if (fetchError || !request) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
-  if (request.seller_id !== user.id) {
-    return NextResponse.json({ error: "not_allowed" }, { status: 403 });
-  }
-
-  if (request.status !== "pending") {
-    return NextResponse.json(
-      { error: "already_resolved", detail: `This request is already ${request.status}.` },
-      { status: 409 }
-    );
-  }
-
-  const { error: updateError } = await supabase
-    .from("purchase_requests")
-    .update({ status: "declined", updated_at: new Date().toISOString() })
-    .eq("id", id);
-
-  if (updateError) {
+  if (error) {
+    const msg = error.message || "";
+    if (msg.includes("not_found")) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (msg.includes("not_allowed")) {
+      return NextResponse.json({ error: "not_allowed" }, { status: 403 });
+    }
+    if (msg.includes("already_resolved")) {
+      return NextResponse.json(
+        { error: "already_resolved", detail: msg },
+        { status: 409 }
+      );
+    }
+    console.error("[purchase-requests] decline_purchase_request failed:", msg);
     return NextResponse.json({ error: "update_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ status: "declined" });
+  return NextResponse.json({ status: "declined", result: data });
 }
