@@ -66,6 +66,7 @@ type FailCause =
   | "no_device" // no camera present / usable
   | "busy" // camera in use or unreadable
   | "unsupported" // browser/device can't expose getUserMedia at all
+  | "interrupted" // a live stream ended mid-capture (revocation / lost device)
   | "unknown"; // classified fallthrough
 
 /* Thrown before getUserMedia when the camera API isn't reachable — this is
@@ -210,6 +211,32 @@ export default function CameraCapture({
   useEffect(() => {
     let cancelled = false;
 
+    // Involuntary end of the LIVE feed — permission revoked mid-stream, the
+    // device lost, or another app seizing the camera. Without this the video
+    // silently freezes on its last frame while phase stays "live" (a dead
+    // shutter and no message). Our OWN track.stop() (cleanup / Retry / remount)
+    // also fires "ended", but cleanup sets `cancelled` before stopping, so
+    // those are ignored here — only an involuntary end reaches the classified
+    // failure UI, on whatever step it happens.
+    async function onTrackEnded() {
+      if (cancelled) return;
+      // Best-effort: if the browser exposes camera permission state and it now
+      // reads "denied", this was a revocation → show the exact denial screen.
+      // Otherwise fall back to the truthful "interrupted" cause.
+      let cause: FailCause = "interrupted";
+      try {
+        const status = await navigator.permissions?.query({
+          name: "camera" as unknown as PermissionName,
+        });
+        if (status?.state === "denied") cause = "denied";
+      } catch {
+        /* Permissions API absent (e.g. Safari) — keep "interrupted". */
+      }
+      if (cancelled) return; // re-check after the await
+      setFailCause(cause);
+      setPhase("error");
+    }
+
     async function start() {
       try {
         const stream = await openRearCamera();
@@ -218,6 +245,9 @@ export default function CameraCapture({
           return;
         }
         streamRef.current = stream;
+        stream
+          .getVideoTracks()
+          .forEach((t) => t.addEventListener("ended", onTrackEnded));
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
@@ -234,7 +264,10 @@ export default function CameraCapture({
     start();
     return () => {
       cancelled = true;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((t) => {
+        t.removeEventListener("ended", onTrackEnded);
+        t.stop();
+      });
       streamRef.current = null;
       if (framingTimer.current) clearTimeout(framingTimer.current);
     };
@@ -358,6 +391,11 @@ export default function CameraCapture({
       unsupported: {
         title: "Camera isn't supported here.",
         body: "This browser or device can't open the camera for capture. Try a different browser, or finish this listing from the desktop flow. Your draft is safe.",
+        retry: true,
+      },
+      interrupted: {
+        title: "The camera stopped.",
+        body: "The live view was interrupted — camera permission may have been switched off, or another app took the camera. Retry, or step back — your draft is safe.",
         retry: true,
       },
       unknown: {
