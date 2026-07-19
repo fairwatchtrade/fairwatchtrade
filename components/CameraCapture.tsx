@@ -416,14 +416,14 @@ export default function CameraCapture({
         }}
       >
         {stepLabel && (
-          <div className="mb-4 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
             {stepLabel}
           </div>
         )}
         <div className="mb-3 font-display text-[20px] font-light text-[var(--platinum)]">
           {c.title}
         </div>
-        <p className="mb-8 max-w-[320px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+        <p className="mb-8 max-w-[320px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
           {c.body}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -449,7 +449,7 @@ export default function CameraCapture({
             <button
               type="button"
               onClick={onExit}
-              className="px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+              className="px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
             >
               Leave — draft saved
             </button>
@@ -470,7 +470,7 @@ export default function CameraCapture({
       {/* Instruction band */}
       <div className="z-10 px-6 pb-3 pt-5 text-center">
         {stepLabel && (
-          <div className="mb-1 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-1 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
             {stepLabel}
           </div>
         )}
@@ -478,7 +478,7 @@ export default function CameraCapture({
           {instruction}
         </div>
         {subInstruction && (
-          <div className="mt-1 font-display text-[12px] font-light italic text-[var(--muted)]">
+          <div className="mt-1 font-display text-[12px] font-light italic text-[#8A8F9E]">
             {subInstruction}
           </div>
         )}
@@ -540,7 +540,7 @@ export default function CameraCapture({
               <button
                 type="button"
                 onClick={onCancel}
-                className="w-16 text-[10px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+                className="w-16 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
               >
                 Back
               </button>
