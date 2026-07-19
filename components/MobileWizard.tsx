@@ -617,6 +617,21 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     }
   }, [captureIndex, captureSteps.length, optionalActive, optionalIndex, optionalSteps.length]);
 
+  // Backward navigation out of an optional offer — the same Back affordance the
+  // required capture steps and the reference step already have, so no capture
+  // step traps the seller with only forward exits. From a later optional offer,
+  // step to the previous one; from the first optional offer, return to the last
+  // required capture step. Forward movement (Skip / Add) is unchanged.
+  const backFromOptional = useCallback(() => {
+    if (optionalIndex > 0) {
+      setOptionalIndex((i) => i - 1);
+    } else {
+      setOptionalActive(false);
+      setCaptureIndex(Math.max(0, captureSteps.length - 1));
+      setStage("capture");
+    }
+  }, [optionalIndex, captureSteps.length]);
+
   /* ── Publish — ReviewStep's exact payload + additive v2.2 fields ── */
   const publish = useCallback(async () => {
     if (!publishRequestIdRef.current) {
@@ -999,6 +1014,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             Skip
           </button>
         </div>
+        <BackLink onClick={backFromOptional} />
       </Shell>
     );
   }
