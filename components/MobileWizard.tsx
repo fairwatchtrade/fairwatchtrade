@@ -957,7 +957,10 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     return (
       <>
         {hardFail && (
-          <div className="fixed left-0 right-0 top-0 z-[60] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm">
+          <div
+            className="fixed left-0 right-0 top-0 z-[80] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm"
+            style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+          >
             <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
               One more try
             </div>
@@ -979,7 +982,19 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               ? skipCurrent
               : captureIndex === 0
                 ? () => setStage("identity")
-                : undefined
+                : () => setCaptureIndex((i) => Math.max(0, i - 1))
+          }
+          // Camera-free escape hatch. Back either skips forward or steps to a
+          // previous shot — both reopen a camera, so on a systemic failure
+          // (e.g. insecure context) they can't escape. onExit → identity
+          // guarantees no dead-end and never auto-reopens the camera; draft +
+          // captured work persist in state/localStorage. The ONE case where
+          // Back already lands camera-free is the first, non-skippable step
+          // (Back → identity), so no separate exit is needed there.
+          onExit={
+            captureIndex === 0 && !step.skippable
+              ? undefined
+              : () => setStage("identity")
           }
         />
       </>
@@ -1024,7 +1039,10 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     return (
       <>
         {hardFail && (
-          <div className="fixed left-0 right-0 top-0 z-[60] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm">
+          <div
+            className="fixed left-0 right-0 top-0 z-[80] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm"
+            style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+          >
             <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
               One more try
             </div>
@@ -1040,6 +1058,9 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           instruction={step.instruction}
           subInstruction={step.subInstruction}
           onConfirmed={handleConfirmed(step)}
+          // Back returns to the (camera-free) Add/Skip offer, so a camera
+          // failure on an optional shot never traps the seller — no separate
+          // exit needed here.
           onCancel={() => setStage("optional")}
         />
       </>

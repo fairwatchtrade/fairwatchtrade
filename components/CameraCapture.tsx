@@ -53,7 +53,69 @@ export type ConfirmedCapture = {
   height: number;
 };
 
-type Phase = "starting" | "live" | "preview" | "uploading" | "denied" | "failed";
+type Phase = "starting" | "live" | "preview" | "uploading" | "error";
+
+/* ── Failure classification ──────────────────────────────────────────────
+   Camera startup fails by classified cause where the browser exposes one,
+   and every classified failure carries a truthful next action. We never
+   claim a device lacks a camera when the runtime only proves an insecure
+   context or an unavailable API (the plain LAN-HTTP case). ── */
+type FailCause =
+  | "insecure" // insecure context / mediaDevices API unavailable (HTTP LAN)
+  | "denied" // permission blocked
+  | "no_device" // no camera present / usable
+  | "busy" // camera in use or unreadable
+  | "unsupported" // browser/device can't expose getUserMedia at all
+  | "unknown"; // classified fallthrough
+
+/* Thrown before getUserMedia when the camera API isn't reachable — this is
+   the exact failure seen on http://192.168.x.x, where navigator.mediaDevices
+   is undefined and no permission prompt ever appears. */
+class CameraStartError extends Error {
+  cause: FailCause;
+  constructor(cause: FailCause) {
+    super(cause);
+    this.name = "CameraStartError";
+    this.cause = cause;
+  }
+}
+
+function cameraApiAvailable(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    !!navigator.mediaDevices &&
+    typeof navigator.mediaDevices.getUserMedia === "function"
+  );
+}
+
+/* Map a getUserMedia rejection to a cause. The insecure/unsupported split is
+   decided upstream (before the call); this only classifies live rejections. */
+function classifyCameraError(e: unknown): FailCause {
+  if (e instanceof CameraStartError) return e.cause;
+  if (e instanceof DOMException) {
+    switch (e.name) {
+      case "NotAllowedError":
+      case "SecurityError":
+        return "denied";
+      case "NotFoundError":
+      case "DevicesNotFoundError":
+      case "OverconstrainedError":
+      case "ConstraintNotSatisfiedError":
+        // Even the unconstrained `video: true` attempt failed to find a track.
+        return "no_device";
+      case "NotReadableError":
+      case "TrackStartError":
+      case "AbortError":
+        return "busy";
+      case "TypeError":
+        return "unsupported";
+    }
+  }
+  // A bare TypeError (e.g. reading getUserMedia off an undefined mediaDevices)
+  // means the API shape wasn't there — an environment problem, not a device.
+  if (e instanceof TypeError) return "unsupported";
+  return "unknown";
+}
 
 async function sha256Hex(blob: Blob): Promise<string> {
   try {
@@ -69,6 +131,14 @@ async function sha256Hex(blob: Blob): Promise<string> {
 
 /* iOS fallback chain — some iOS versions honor only `exact`. */
 async function openRearCamera(): Promise<MediaStream> {
+  // Secure-context / API guard — the LAN-HTTP dead-end. mediaDevices is
+  // absent on insecure origins, so distinguish "insecure site" (recoverable
+  // by using https) from a genuinely unsupported browser.
+  if (!cameraApiAvailable()) {
+    const insecure =
+      typeof window !== "undefined" && window.isSecureContext === false;
+    throw new CameraStartError(insecure ? "insecure" : "unsupported");
+  }
   const attempts: MediaStreamConstraints[] = [
     { video: { facingMode: { exact: "environment" } }, audio: false },
     { video: { facingMode: "environment" }, audio: false },
@@ -95,6 +165,7 @@ export default function CameraCapture({
   stepLabel,
   onConfirmed,
   onCancel,
+  onExit,
 }: {
   category: string;
   overlay: OverlayVariant;
@@ -103,7 +174,11 @@ export default function CameraCapture({
   /** "3 of 6" — number only, no progress bar. */
   stepLabel?: string;
   onConfirmed: (capture: ConfirmedCapture) => void | Promise<void>;
+  /** Step-level back — reflected as "Back" in live + failure states. */
   onCancel?: () => void;
+  /** Always-present safe exit out of capture — the seller is never trapped
+   *  on a failure screen. Draft survival is guaranteed by the wizard. */
+  onExit?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -114,7 +189,22 @@ export default function CameraCapture({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [framing, setFraming] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [failCause, setFailCause] = useState<FailCause | null>(null);
+  // Retry re-attempts camera start on explicit tap only — the camera never
+  // reopens on its own after the seller has deliberately left a failure.
+  const [startToken, setStartToken] = useState(0);
   const framingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ── Full-screen lock — the capture surface owns the whole viewport, so
+        the page behind it (header, metals ticker, footer) must not scroll
+        into view underneath the fixed overlay while capture is active. ── */
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
 
   /* ── Camera lifecycle ── */
   useEffect(() => {
@@ -136,12 +226,8 @@ export default function CameraCapture({
         setPhase("live");
       } catch (e) {
         if (cancelled) return;
-        if (e instanceof DOMException && e.name === "NotAllowedError") {
-          setPhase("denied");
-        } else {
-          setErrorMsg("The camera couldn't start on this device.");
-          setPhase("failed");
-        }
+        setFailCause(classifyCameraError(e));
+        setPhase("error");
       }
     }
 
@@ -152,8 +238,16 @@ export default function CameraCapture({
       streamRef.current = null;
       if (framingTimer.current) clearTimeout(framingTimer.current);
     };
-    // Camera opens once per mounted step; category change remounts via key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-runs only on an explicit Retry (startToken bump); category change
+    // remounts the whole component via key.
+  }, [startToken]);
+
+  /* ── Retry — re-attempt startup after a classified failure ── */
+  const retryStart = useCallback(() => {
+    setErrorMsg(null);
+    setFailCause(null);
+    setPhase("starting");
+    setStartToken((n) => n + 1);
   }, []);
 
   // Revoke preview object URLs when replaced/unmounted.
@@ -232,33 +326,109 @@ export default function CameraCapture({
     }
   }, [category, onConfirmed]);
 
-  /* ── Denied / failed — never strand the seller ── */
-  if (phase === "denied" || phase === "failed") {
+  /* ── Classified failure — never strand the seller ──────────────────────
+       Every branch keeps the draft safe (the wizard mirrors it to storage on
+       every change) and offers only actions this product actually supports:
+       there is no gallery/upload fallback in v2.2, so failures point to
+       Retry, another device, the secure site, or a safe exit — never a
+       phantom "upload instead". ── */
+  if (phase === "error") {
+    const cause: FailCause = failCause ?? "unknown";
+    const copy: Record<FailCause, { title: string; body: string; retry: boolean }> = {
+      insecure: {
+        title: "Camera needs the secure site.",
+        body: "Live capture only works on the secure FairWatchTrade site (https). This looks like a local or insecure address, so the browser is blocking the camera — no permission prompt will appear here. Your draft is saved; reopen FairWatchTrade over https to finish the photos.",
+        retry: false, // same insecure origin — retrying can't succeed
+      },
+      denied: {
+        title: "Camera access is off.",
+        body: "Camera permission is blocked for this site. Allow it in your browser settings, then retry. Your draft is safe either way.",
+        retry: true,
+      },
+      no_device: {
+        title: "No camera found.",
+        body: "We couldn't find a camera to use on this device. Try again, or continue on a device with a working camera — your draft is safe.",
+        retry: true,
+      },
+      busy: {
+        title: "The camera is busy.",
+        body: "Another app may be using the camera. Close it, then retry. Your draft is safe.",
+        retry: true,
+      },
+      unsupported: {
+        title: "Camera isn't supported here.",
+        body: "This browser or device can't open the camera for capture. Try a different browser, or finish this listing from the desktop flow. Your draft is safe.",
+        retry: true,
+      },
+      unknown: {
+        title: "The camera couldn't start.",
+        body:
+          errorMsg ??
+          "Something interrupted the camera. Retry, or step back — your draft is safe either way.",
+        retry: true,
+      },
+    };
+    const c = copy[cause];
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center px-8 text-center">
-        <div className="mb-3 font-display text-[20px] font-light text-[var(--platinum)]">
-          {phase === "denied" ? "Camera access is off." : "The camera couldn't start."}
-        </div>
-        <p className="mb-8 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
-          {phase === "denied"
-            ? "Allow camera access in your browser settings to continue — or finish this listing from the desktop flow. Your draft is safe either way."
-            : errorMsg ?? "Your draft is safe. You can finish this listing from the desktop flow."}
-        </p>
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="border border-[var(--border-mid)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
-          >
-            ← Back
-          </button>
+      <div
+        className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-[#000] px-8 text-center"
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        {stepLabel && (
+          <div className="mb-4 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            {stepLabel}
+          </div>
         )}
+        <div className="mb-3 font-display text-[20px] font-light text-[var(--platinum)]">
+          {c.title}
+        </div>
+        <p className="mb-8 max-w-[320px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+          {c.body}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {c.retry && (
+            <button
+              type="button"
+              onClick={retryStart}
+              className="bg-[var(--gold)] px-6 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition-opacity hover:opacity-90"
+            >
+              Retry
+            </button>
+          )}
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="border border-[var(--border-mid)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+            >
+              ← Back
+            </button>
+          )}
+          {onExit && (
+            <button
+              type="button"
+              onClick={onExit}
+              className="px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+            >
+              Leave — draft saved
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col bg-[#000]">
+    <div
+      className="fixed inset-0 z-[70] flex flex-col bg-[#000]"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
       {/* Instruction band */}
       <div className="z-10 px-6 pb-3 pt-5 text-center">
         {stepLabel && (
