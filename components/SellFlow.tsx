@@ -115,25 +115,55 @@ const PHOTO_LAYER_MAP: Partial<Record<string, Layer>> = {
   Box: "provenance",
 };
 
-// DetailsStep data-chapter values → WatchBlueprint Layer names. Verified against
-// the chapterKey values in DetailsStep.tsx (movement/case/dial/wearing/
-// complications/provenance).
-const CHAPTER_LAYER_MAP: Partial<Record<string, Layer>> = {
-  movement: "movement",
-  case: "case",
-  dial: "dial",
-  wearing: "strap",
-  complications: "complications",
-  provenance: "provenance",
+// DetailsStep data-chapter values → the WatchBlueprint Layer REGIONS each
+// chapter governs — the `active` prop on the Details step. A chapter owns more
+// than one anatomy region: "The Dial & Hands" (chapterKey "dial") holds the
+// dial, the hands, and the crown-present toggle; "The Wearing" holds the strap,
+// its clasp, and the lugs that bridge it to the case. Lighting the whole region
+// set keeps the active highlight honest to what the chapter actually covers.
+// Verified against the chapterKey values in DetailsStep.tsx.
+const CHAPTER_LAYERS: Partial<Record<string, Layer[]>> = {
+  movement: ["movement"],
+  case: ["case"],
+  dial: ["dial", "hands", "crown"],
+  wearing: ["strap", "clasp", "lugs"],
+  complications: ["complications"],
+  provenance: ["provenance"],
 };
 
+// The six exterior body layers the six primary photos map onto. When all six
+// are lit — "Required photos 6/6" — the required watch is fully documented and
+// reads as whole. Note these are LAYERS, derived purely from tagged photos; the
+// required-photo COUNTING in PhotoUpload is untouched.
+const SIX_BODY_LAYERS: Layer[] = ["dial", "case", "crown", "lugs", "clasp", "strap"];
+
+// The four layers no single primary photo maps to. Left unmapped, full plate
+// completion was visually impossible from the required run — the audited
+// defect. Resolved deliberately: `hands` are inseparable from the dial shot, so
+// they pair onto Dial below; the remaining three (movement/complications/
+// provenance) complete at the 6/6 milestone, when the required watch is whole.
+// movement and provenance still light individually via their own optional
+// photos (see PHOTO_LAYER_MAP) before the milestone.
+const MILESTONE_LAYERS: Layer[] = ["hands", "movement", "complications", "provenance"];
+
 // All layers with a tagged photo — the `completed` prop on the Photos step.
-// A Set dedupes (several photos of the same category = one layer).
+// A Set dedupes (several photos of the same category = one layer), so duplicate
+// tags of a category stay stable and removing/reassigning a photo simply drops
+// its layer on the next derivation. Cumulative model preserved; only the
+// hands-pairing and the 6/6 milestone are added.
 function deriveCompletedLayersFromPhotos(photos: ListingDraft["photos"]): Layer[] {
   const layers = new Set<Layer>();
   for (const p of photos ?? []) {
     const layer = PHOTO_LAYER_MAP[p.category as string];
     if (layer) layers.add(layer);
+    // The dial shot always shows the hands — a deliberate structural pairing,
+    // not a separate photo requirement.
+    if (layer === "dial") layers.add("hands");
+  }
+  // Required photos 6/6 → complete the required watch: the four otherwise
+  // unmapped layers light so the plate can actually reach a whole state.
+  if (SIX_BODY_LAYERS.every((l) => layers.has(l))) {
+    for (const l of MILESTONE_LAYERS) layers.add(l);
   }
   return [...layers];
 }
@@ -151,25 +181,59 @@ function deriveActiveLayerFromPhotos(
   return undefined;
 }
 
-// Layers whose chapter has any content — the `completed` prop on the Details
-// step. Cumulative: it only ever grows as chapters fill in. Field names verified
-// against the actual ListingDetails fields written in DetailsStep.tsx (all
-// nested under draft.details; provenanceNote is top-level on the draft). lugs
-// have no chapter data — they light only under completed="all" on Publish.
+// Layers whose chapter is MEANINGFULLY completed — the `completed` prop on the
+// Details step. Cumulative: it only grows as chapters fill in. Completion keys
+// on each chapter's primary (non-optional) field so a lone optional detail —
+// jewels, power reserve, a bracelet-size note, a crown toggle — can't falsely
+// light a whole chapter. Missing optional data is never penalized: it simply
+// doesn't gate completion. When a chapter IS complete, its full anatomy region
+// set lights (mirroring CHAPTER_LAYERS), including the previously-dark hands,
+// crown, clasp, and lugs. Field names verified against ListingDetails in
+// DetailsStep.tsx (nested under draft.details; provenanceNote is top-level).
 function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
   const d = draft.details;
-  const layers: Layer[] = [];
-  if (d.movementType || d.calibre || d.movementFrequency || d.jewels || d.powerReserve)
-    layers.push("movement");
-  if (d.caseMaterial || d.caseSizeMm || d.crystalMaterial || d.casebackType)
-    layers.push("case");
-  if (d.dialColorType) layers.push("dial", "hands");
-  if (d.crownPresent) layers.push("crown");
-  if (d.closureType || d.braceletWristSize || d.originalStrapBracelet)
-    layers.push("strap", "clasp");
-  if (d.complications?.length) layers.push("complications");
-  if (draft.provenanceNote?.trim()) layers.push("provenance");
-  return layers;
+  const layers = new Set<Layer>();
+
+  // I · The Watch Itself — movement type is the one required field; calibre,
+  // frequency, jewels, power reserve are all optional and can't complete alone.
+  if (d.movementType?.trim()) layers.add("movement");
+
+  // II · The Case — anchored on the two defining specs (size + material), not a
+  // single incidental entry.
+  if (d.caseMaterial?.trim() && d.caseSizeMm?.trim()) layers.add("case");
+
+  // III · The Dial & Hands — the dial color is the chapter's substance; it
+  // lights dial + hands together. The crown-present toggle lights the crown
+  // region on its own, but never completes the chapter by itself.
+  if (d.dialColorType?.trim()) {
+    layers.add("dial");
+    layers.add("hands");
+  }
+  if (d.crownPresent) layers.add("crown");
+
+  // IV · The Wearing — closure type is the substantive field; strap size and
+  // the original-strap toggle are optional and can't complete alone. A complete
+  // wearing chapter lights strap + clasp + the lugs that bridge to the case.
+  if (d.closureType?.trim()) {
+    layers.add("strap");
+    layers.add("clasp");
+    layers.add("lugs");
+  }
+
+  // V · Complications — at least one selected complication is real engagement.
+  if (d.complications?.length) layers.add("complications");
+
+  // VI · Provenance & Papers — a written note, included items, or service
+  // history. `documentation` defaults to "Watch Only", so it is deliberately
+  // excluded — its default must not auto-complete the chapter.
+  if (
+    draft.provenanceNote?.trim() ||
+    d.includedWithWatch?.length ||
+    d.serviceHistory?.length
+  )
+    layers.add("provenance");
+
+  return [...layers];
 }
 
 
@@ -406,14 +470,16 @@ export default function SellFlow() {
 
           {/* WatchBlueprint — Photos step.
            * Companion to the seller: layers fill gold as photos are tagged.
-           * Caseback tag flips the plate to reveal the reverse.
+           * The caseback auto-flip is intentionally NOT passed here: turning the
+           * plate to reveal the reverse swept the accumulated illuminated watch
+           * edge-on mid-run (audited). The Caseback tag now lights the case
+           * layer without rotating the figure.
            * WatchBlueprint is a companion, not a focal point. */}
           {step === 1 && (
             <div className="px-2 opacity-90">
               <WatchBlueprint
                 completed={deriveCompletedLayersFromPhotos(draft.photos)}
                 active={deriveActiveLayerFromPhotos(draft.photos)}
-                autoRotateOnCaseback
               />
             </div>
           )}
@@ -426,7 +492,7 @@ export default function SellFlow() {
             <div className="px-2 opacity-90">
               <WatchBlueprint
                 completed={deriveCompletedLayersFromDraft(draft)}
-                active={CHAPTER_LAYER_MAP[activeChapter] as Layer | undefined}
+                active={CHAPTER_LAYERS[activeChapter]}
               />
             </div>
           )}

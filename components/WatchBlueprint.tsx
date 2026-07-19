@@ -39,8 +39,11 @@ export type View = "front-quarter" | "front" | "back-quarter" | "back";
 export interface WatchBlueprintProps {
   /** Completed layers (faint gold), or "all" to complete every layer at once. */
   completed: Layer[] | "all";
-  /** The single layer in focus (bright gold). Absent = nothing active. */
-  active?: Layer;
+  /** The layer(s) in focus (bright gold). A chapter spanning several anatomy
+   *  regions (e.g. Dial & Hands → dial + hands + crown) passes an array so all
+   *  of its regions read as the active highlight together. Absent = nothing
+   *  active. A single Layer is still accepted unchanged. */
+  active?: Layer | Layer[];
   /** Face/angle. Default "front-quarter" — the only value used now; accepted
    *  and defaulted for a stable API as future surfaces need other defaults. */
   view?: View;
@@ -65,12 +68,21 @@ export default function WatchBlueprint({
   void view;
   void rotatable;
 
+  // Normalize active to a set — one primary layer or a multi-region chapter
+  // both resolve to membership tests below.
+  const activeSet = new Set<Layer>(
+    Array.isArray(active) ? active : active ? [active] : []
+  );
+
   // ── Caseback flip — the only motion ──
   const [rotation, setRotation] = useState(0); // rotateY, degrees
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    if (autoRotateOnCaseback && active === "case") {
+    const caseIsActive = Array.isArray(active)
+      ? active.includes("case")
+      : active === "case";
+    if (autoRotateOnCaseback && caseIsActive) {
       // Turn the plate over to reveal the caseback, then settle.
       setIsAnimating(true);
       setRotation(165);
@@ -86,7 +98,7 @@ export default function WatchBlueprint({
   }, [active, autoRotateOnCaseback]);
 
   function getLayerStyle(layer: Layer): CSSProperties {
-    const isActive = active === layer;
+    const isActive = activeSet.has(layer);
     const isCompleted =
       completed === "all" ||
       (Array.isArray(completed) && completed.includes(layer));
@@ -100,9 +112,12 @@ export default function WatchBlueprint({
       };
     }
     if (isCompleted) {
+      // Satisfied regions stay visibly but softly lit beside the active
+      // region — raised from 0.2, which read as nearly dark next to the 0.65
+      // active highlight (Photos + Details illumination audit).
       return {
         stroke: "#C9A84C",
-        opacity: 0.2,
+        opacity: 0.34,
         transition: "stroke 250ms ease, opacity 250ms ease",
       };
     }
