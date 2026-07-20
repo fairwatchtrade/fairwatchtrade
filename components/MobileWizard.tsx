@@ -311,8 +311,12 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         setOptionalActive(saved.optionalActive ?? false);
         setCaptureSessionId(saved.captureSessionId ?? null);
         setBadgeForfeited(saved.badgeForfeited === true);
-        setReferenceInput(saved.draft.reference ?? "");
-        setNotesInput(saved.draft.provenanceNote ?? "");
+        // Reference/notes live in their own state and only reach the draft at
+        // publish time — so mid-session the saved draft.reference is empty.
+        // Restore them from the blob's own fields; fall back to the draft
+        // fields for older blobs saved before these were persisted directly.
+        setReferenceInput(saved.referenceInput ?? saved.draft.reference ?? "");
+        setNotesInput(saved.notesInput ?? saved.draft.provenanceNote ?? "");
         setBrandQuery(saved.draft.brand ?? "");
         setModelQuery(saved.draft.model ?? "");
       }
@@ -342,10 +346,14 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           optionalActive,
           captureSessionId,
           badgeForfeited,
+          // Persisted directly: these live in their own state and only reach
+          // the draft at publish, so a resumed draft must carry them itself.
+          referenceInput,
+          notesInput,
         })
       );
     } catch {}
-  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited]);
+  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput]);
 
   /* ── Session lifecycle — best-effort, never blocking ── */
   const ensureSession = useCallback(async () => {
