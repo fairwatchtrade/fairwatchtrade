@@ -236,7 +236,7 @@ html, body {
   /* Legibility fix: input underline was --border-mid (8% white) — too faint
      to see where to type. Raised to a clearly-visible gold at rest, deepening
      to stronger gold on focus. Surgical: only .fw-input changed. */
-  border-bottom: 1px solid rgba(201,168,76,0.30);
+  border-bottom: 1px solid rgba(201,168,76,0.40);
   padding: 8px 0;
   font-family: 'Cormorant Garamond', serif;
   font-size: 16px;
@@ -249,7 +249,7 @@ html, body {
   color: var(--void);
   font-style: italic;
 }
-.fw-input:focus { border-bottom-color: rgba(201,168,76,0.35); }
+.fw-input:focus { border-bottom-color: rgba(201,168,76,0.50); }
 
 /* ── NAV ── */
 .fw-nav {

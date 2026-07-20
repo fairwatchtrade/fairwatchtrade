@@ -766,7 +766,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               className={`border px-4 py-5 text-center text-[12px] tracking-[0.5px] transition-colors ${
                 saleState === opt.value
                   ? "border-[var(--gold)] text-[var(--gold)]"
-                  : "border-[rgba(255,255,255,0.20)] text-[var(--platinum-dim)] hover:border-[var(--border-gold)]"
+                  : "border-[rgba(255,255,255,0.28)] text-[var(--platinum-dim)] hover:border-[var(--border-gold)]"
               }`}
             >
               {opt.label}
@@ -856,7 +856,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                   className={`border px-3 py-1.5 text-[11px] transition-colors ${
                     draft.model === m
                       ? "border-[var(--gold)] text-[var(--gold)]"
-                      : "border-[rgba(255,255,255,0.20)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                      : "border-[rgba(255,255,255,0.28)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
                   }`}
                 >
                   {m}
@@ -877,7 +877,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                 className={`border px-4 py-2 text-[11px] tracking-[0.5px] transition-colors ${
                   draft.condition === c
                     ? "border-[var(--gold)] text-[var(--gold)]"
-                    : "border-[rgba(255,255,255,0.20)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                    : "border-[rgba(255,255,255,0.28)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
                 }`}
               >
                 {c}
@@ -915,7 +915,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                   setPreflight({ state: "idle" });
                   startCapture();
                 }}
-                className="border border-[rgba(255,255,255,0.20)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
+                className="border border-[rgba(255,255,255,0.28)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
               >
                 Continue anyway
               </button>
@@ -1024,7 +1024,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           <button
             type="button"
             onClick={skipCurrent}
-            className="border border-[rgba(255,255,255,0.20)] px-4 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+            className="border border-[rgba(255,255,255,0.28)] px-4 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
           >
             Skip
           </button>
@@ -1092,7 +1092,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                 key={label}
                 type="button"
                 onClick={() => setReferenceInput("")}
-                className="border border-[rgba(255,255,255,0.20)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+                className="border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
               >
                 {label}
               </button>
