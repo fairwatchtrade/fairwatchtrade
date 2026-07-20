@@ -89,7 +89,7 @@ function buildCaptureSteps(saleState: SaleState): CaptureStep[] {
       skippable: false,
       instruction: "Turn to the crown side",
       subInstruction: "Crown and pushers visible.",
-      overlay: "side",
+      overlay: "crown-side",
       privacyReview: false, // GPT ruling: no serial exposure risk on the crown side
     },
     {
@@ -98,7 +98,7 @@ function buildCaptureSteps(saleState: SaleState): CaptureStep[] {
       skippable: false,
       instruction: "Rotate to the opposite side",
       subInstruction: "The side without the crown.",
-      overlay: "side",
+      overlay: "non-crown-side",
       privacyReview: true,
     },
     {
