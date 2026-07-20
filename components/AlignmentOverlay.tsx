@@ -87,16 +87,20 @@ function Silhouette({ variant }: { variant: OverlayVariant }) {
         </>
       );
     case "clasp":
-      // Buckle / clasp is the hero: large central hardware, straps thin and
-      // secondary, so the shot reads "photograph the fastening," not the strap.
+      // Pin buckle (Layout Duck's read, slimmed for the lens): the fastening
+      // hardware is the hero — frame + prong, strap threading through with its
+      // holes. Reads "photograph the closure" far clearer than a deployant box.
       return (
         <>
-          <rect x="44" y="14" width="12" height="42" rx="2" />
-          <rect x="44" y="84" width="12" height="42" rx="2" />
-          <rect x="28" y="52" width="44" height="36" rx="4" />
-          <line x1="28" y1="70" x2="72" y2="70" />
-          <rect x="44" y="52" width="12" height="6" rx="1" />
-          <line x1="35" y1="60" x2="65" y2="60" />
+          <rect x="42" y="12" width="16" height="46" rx="2" />
+          <rect x="33" y="55" width="34" height="31" rx="5" />
+          <rect x="39" y="61" width="22" height="19" rx="3" />
+          <line x1="60" y1="70.5" x2="37" y2="70.5" />
+          <circle cx="60" cy="70.5" r="1.8" />
+          <rect x="42" y="85" width="16" height="43" rx="2" />
+          <circle cx="50" cy="95" r="1.5" />
+          <circle cx="50" cy="104" r="1.5" />
+          <circle cx="50" cy="113" r="1.5" />
         </>
       );
     case "full":
