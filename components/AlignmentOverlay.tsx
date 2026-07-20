@@ -152,7 +152,7 @@ export default function AlignmentOverlay({
         strokeWidth={W}
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ height: "72%", maxHeight: "72vh", width: "auto" }}
+        style={{ height: "88%", maxHeight: "86vh", width: "auto" }}
         preserveAspectRatio="xMidYMid meet"
       >
         <Silhouette variant={variant} />
