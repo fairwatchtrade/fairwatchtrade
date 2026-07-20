@@ -106,7 +106,7 @@ const OPTION_STYLE: CSSProperties = {
 };
 
 const inputCls =
-  "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
+  "w-full border-b border-[rgba(201,168,76,0.40)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
 const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
 
 /* Final Review support type — the shape the /api/validate-provenance route
