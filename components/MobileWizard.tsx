@@ -766,7 +766,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               className={`border px-4 py-5 text-center text-[12px] tracking-[0.5px] transition-colors ${
                 saleState === opt.value
                   ? "border-[var(--gold)] text-[var(--gold)]"
-                  : "border-[var(--border-mid)] text-[var(--platinum-dim)] hover:border-[var(--border-gold)]"
+                  : "border-[rgba(255,255,255,0.20)] text-[var(--platinum-dim)] hover:border-[var(--border-gold)]"
               }`}
             >
               {opt.label}
@@ -809,7 +809,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               setDraft((d) => ({ ...d, brand: e.target.value, customBrandFlag: true }));
             }}
             placeholder="Start typing — 3 letters"
-            className="fw-input border-b-[rgba(255,255,255,0.18)] placeholder:text-[var(--slate)]"
+            className="fw-input placeholder:text-[var(--slate)]"
           />
           {brandSuggestions.length > 0 && brandId === null && (
             <div className="mt-1 border border-[var(--border-subtle)] bg-[var(--surface)]">
@@ -841,7 +841,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               setDraft((d) => ({ ...d, model: e.target.value }));
             }}
             placeholder={brandId ? "Vault suggestions below" : "Model name"}
-            className="fw-input border-b-[rgba(255,255,255,0.18)] placeholder:text-[var(--slate)]"
+            className="fw-input placeholder:text-[var(--slate)]"
           />
           {brandId !== null && modelSuggestions.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-2">
@@ -856,7 +856,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                   className={`border px-3 py-1.5 text-[11px] transition-colors ${
                     draft.model === m
                       ? "border-[var(--gold)] text-[var(--gold)]"
-                      : "border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                      : "border-[rgba(255,255,255,0.20)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
                   }`}
                 >
                   {m}
@@ -877,7 +877,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                 className={`border px-4 py-2 text-[11px] tracking-[0.5px] transition-colors ${
                   draft.condition === c
                     ? "border-[var(--gold)] text-[var(--gold)]"
-                    : "border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                    : "border-[rgba(255,255,255,0.20)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
                 }`}
               >
                 {c}
@@ -894,7 +894,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             value={draft.askingPrice}
             onChange={(e) => setDraft((d) => ({ ...d, askingPrice: e.target.value }))}
             placeholder="8500"
-            className="fw-input border-b-[rgba(255,255,255,0.18)] placeholder:text-[var(--slate)]"
+            className="fw-input placeholder:text-[var(--slate)]"
           />
         </Field>
 
@@ -915,7 +915,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                   setPreflight({ state: "idle" });
                   startCapture();
                 }}
-                className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
+                className="border border-[rgba(255,255,255,0.20)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
               >
                 Continue anyway
               </button>
@@ -1024,7 +1024,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           <button
             type="button"
             onClick={skipCurrent}
-            className="border border-[var(--border-mid)] px-4 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+            className="border border-[rgba(255,255,255,0.20)] px-4 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
           >
             Skip
           </button>
@@ -1084,7 +1084,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             value={referenceInput}
             onChange={(e) => setReferenceInput(e.target.value)}
             placeholder="e.g. PFC267-1207100"
-            className="fw-input border-b-[rgba(255,255,255,0.18)] placeholder:text-[var(--slate)]"
+            className="fw-input placeholder:text-[var(--slate)]"
           />
           <div className="mt-2 flex gap-2">
             {["Can't find it", "Not visible"].map((label) => (
@@ -1092,7 +1092,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                 key={label}
                 type="button"
                 onClick={() => setReferenceInput("")}
-                className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+                className="border border-[rgba(255,255,255,0.20)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
               >
                 {label}
               </button>
@@ -1105,7 +1105,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             onChange={(e) => setNotesInput(e.target.value)}
             rows={3}
             placeholder="Service history, story, anything a collector should know."
-            className="fw-input min-h-[80px] border-b-[rgba(255,255,255,0.18)] placeholder:text-[var(--slate)]"
+            className="fw-input min-h-[80px] placeholder:text-[var(--slate)]"
           />
         </Field>
         <button
