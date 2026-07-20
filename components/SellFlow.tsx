@@ -17,7 +17,7 @@ import PhotoUpload, {
 import DetailsStep from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
-import WatchBlueprint, { type Layer } from "@/components/WatchBlueprint";
+import WatchBlueprint, { type Layer, type Detail } from "@/components/WatchBlueprint";
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
@@ -115,21 +115,46 @@ const PHOTO_LAYER_MAP: Partial<Record<string, Layer>> = {
   Box: "provenance",
 };
 
-// DetailsStep data-chapter values → the WatchBlueprint Layer REGIONS each
-// chapter governs — the `active` prop on the Details step. A chapter owns more
-// than one anatomy region: "The Dial & Hands" (chapterKey "dial") holds the
-// dial, the hands, and the crown-present toggle; "The Wearing" holds the strap,
-// its clasp, and the lugs that bridge it to the case. Lighting the whole region
-// set keeps the active highlight honest to what the chapter actually covers.
-// Verified against the chapterKey values in DetailsStep.tsx.
-const CHAPTER_LAYERS: Partial<Record<string, Layer[]>> = {
-  movement: ["movement"],
-  case: ["case"],
-  dial: ["dial", "hands", "crown"],
-  wearing: ["strap", "clasp", "lugs"],
-  complications: ["complications"],
-  provenance: ["provenance"],
-};
+// DetailsStep chapter → the WatchBlueprint regions/details it lights (the
+// `active` prop on the Details step). A chapter owns more than one anatomy
+// region; the Complications chapter is data-driven — it lights only the
+// subdials / date the seller actually selected (the Moon Principle: the plate
+// reflects the real watch, not a generic one). Verified against the chapterKey
+// values in DetailsStep.tsx.
+function chapterComplicationDetails(draft: ListingDraft): Detail[] {
+  const comps = draft.details.complications ?? [];
+  const out: Detail[] = [];
+  if (comps.includes("Chronograph")) out.push("chrono");
+  if (comps.includes("Date") || comps.includes("Day-Date")) out.push("date");
+  return out;
+}
+
+function deriveActiveForChapter(chapter: WatchChapter, draft: ListingDraft): Layer[] {
+  switch (chapter) {
+    case "movement":
+      return ["movement"];
+    case "case":
+      return ["case", "crown", "lugs"];
+    case "dial":
+      return ["dial", "hands", "crown", "5min"];
+    case "wearing":
+      return ["strap", "clasp", "lugs"];
+    case "complications":
+      return chapterComplicationDetails(draft);
+    case "provenance":
+      return ["provenance"];
+    default:
+      return [];
+  }
+}
+
+// Fine-detail groups (5-min markers, chrono subdials, date) are visible only
+// while their chapter is active; the one-minute track is defined but never shown.
+function deriveDetailsForChapter(chapter: WatchChapter, draft: ListingDraft): Detail[] {
+  if (chapter === "dial") return ["5min"];
+  if (chapter === "complications") return chapterComplicationDetails(draft);
+  return [];
+}
 
 // The six exterior body layers the six primary photos map onto. When all six
 // are lit — "Required photos 6/6" — the required watch is fully documented and
@@ -144,7 +169,7 @@ const SIX_BODY_LAYERS: Layer[] = ["dial", "case", "crown", "lugs", "clasp", "str
 // provenance) complete at the 6/6 milestone, when the required watch is whole.
 // movement and provenance still light individually via their own optional
 // photos (see PHOTO_LAYER_MAP) before the milestone.
-const MILESTONE_LAYERS: Layer[] = ["hands", "movement", "complications", "provenance"];
+const MILESTONE_LAYERS: Layer[] = ["hands", "movement", "glass", "provenance"];
 
 // All layers with a tagged photo — the `completed` prop on the Photos step.
 // A Set dedupes (several photos of the same category = one layer), so duplicate
@@ -220,8 +245,8 @@ function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
     layers.add("lugs");
   }
 
-  // V · Complications — at least one selected complication is real engagement.
-  if (d.complications?.length) layers.add("complications");
+  // V · Complications — no persistent region; the selected complications light
+  // as fine details (chrono / date) only while the Complications chapter is active.
 
   // VI · Provenance & Papers — a written note, included items, or service
   // history. `documentation` defaults to "Watch Only", so it is deliberately
@@ -492,7 +517,9 @@ export default function SellFlow() {
             <div className="px-2 opacity-90">
               <WatchBlueprint
                 completed={deriveCompletedLayersFromDraft(draft)}
-                active={CHAPTER_LAYERS[activeChapter]}
+                active={deriveActiveForChapter(activeChapter, draft)}
+                details={deriveDetailsForChapter(activeChapter, draft)}
+                rotatable
               />
             </div>
           )}
