@@ -747,7 +747,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   if (stage === "sale_state") {
     return (
       <Shell>
-        <div className="mb-2 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+        <div className="mb-2 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
           List from Phone
         </div>
         <h1 className="mb-8 font-display text-[24px] font-light leading-[1.3] text-[var(--platinum)]">
@@ -773,14 +773,14 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             </button>
           ))}
         </div>
-        <p className="mt-8 font-display text-[12px] font-light italic leading-[1.7] text-[var(--ghost)]">
+        <p className="mt-8 font-display text-[12px] font-light italic leading-[1.7] text-[#8A8F9E]">
           Your answer shapes the photo sequence. Every listing includes a full-length shot.
         </p>
         {draft.brand && (
           <button
             type="button"
             onClick={startOver}
-            className="mt-10 text-[9px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+            className="mt-10 text-[9px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
           >
             Start over from scratch
           </button>
@@ -901,10 +901,10 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         {/* Curation preflight — advisory, gentle, before the camera */}
         {preflight.state === "notice" && (
           <div className="mb-6 border border-[var(--border-gold)] px-4 py-4">
-            <div className="mb-2 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+            <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               Before the camera opens
             </div>
-            <p className="mb-4 font-display text-[13px] font-light italic leading-[1.7] text-[var(--muted)]">
+            <p className="mb-4 font-display text-[13px] font-light italic leading-[1.7] text-[#8A8F9E]">
               {preflight.reasoning ||
                 "This watch may sit outside FairWatchTrade's curation focus. You can continue — curation reviews every listing before it goes live."}
             </p>
@@ -922,7 +922,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
               <button
                 type="button"
                 onClick={() => setPreflight({ state: "idle" })}
-                className="px-2 py-2 text-[10px] uppercase tracking-[2px] text-[var(--ghost)]"
+                className="px-2 py-2 text-[10px] uppercase tracking-[2px] text-[#8A8F9E]"
               >
                 Adjust details
               </button>
@@ -961,7 +961,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             className="fixed left-0 right-0 top-0 z-[80] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm"
             style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
           >
-            <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+            <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               One more try
             </div>
             <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
@@ -1010,7 +1010,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         <h1 className="mb-3 font-display text-[24px] font-light text-[var(--platinum)]">
           {step.instruction}
         </h1>
-        <p className="mb-10 font-display text-[13px] font-light italic leading-[1.7] text-[var(--muted)]">
+        <p className="mb-10 font-display text-[13px] font-light italic leading-[1.7] text-[#8A8F9E]">
           {step.subInstruction}
         </p>
         <div className="flex flex-col gap-3">
@@ -1043,7 +1043,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             className="fixed left-0 right-0 top-0 z-[80] bg-[rgba(13,15,20,0.94)] px-6 py-4 text-center backdrop-blur-sm"
             style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
           >
-            <div className="mb-1 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+            <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               One more try
             </div>
             <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
@@ -1075,7 +1075,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         <h1 className="mb-2 font-display text-[24px] font-light text-[var(--platinum)]">
           Reference number
         </h1>
-        <p className="mb-7 font-display text-[12px] font-light italic leading-[1.7] text-[var(--ghost)]">
+        <p className="mb-7 font-display text-[12px] font-light italic leading-[1.7] text-[#8A8F9E]">
           A missing reference is honest. A wrong one is a betrayal. Never guess.
         </p>
         <Field label="Reference">
@@ -1092,7 +1092,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
                 key={label}
                 type="button"
                 onClick={() => setReferenceInput("")}
-                className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+                className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
               >
                 {label}
               </button>
@@ -1172,7 +1172,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             "Publish Listing"
           )}
         </button>
-        <p className="mt-4 text-center font-display text-[11px] font-light italic text-[var(--ghost)]">
+        <p className="mt-4 text-center font-display text-[11px] font-light italic text-[#8A8F9E]">
           Double-taps are safe — publishing is idempotent.
         </p>
         <BackLink onClick={() => setStage("reference")} />
@@ -1191,7 +1191,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
               Saved.
             </div>
-            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
               Your photographs are receiving an additional authenticity review.
               Your listing is saved and is not visible to buyers yet. Most
               reviews require no action from the seller.
@@ -1202,7 +1202,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
             <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
               Listed.
             </div>
-            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[var(--muted)]">
+            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
               Your watch is in the marketplace. Curation reviews every listing;
               you&apos;ll hear from us if anything needs attention.
             </p>
@@ -1218,7 +1218,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           <button
             type="button"
             onClick={startOver}
-            className="text-[10px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+            className="text-[10px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
           >
             List another watch
           </button>
@@ -1240,7 +1240,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function StepCrumb({ label }: { label: string }) {
   return (
-    <div className="mb-2 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+    <div className="mb-2 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
       List from Phone · {label}
     </div>
   );
@@ -1249,7 +1249,7 @@ function StepCrumb({ label }: { label: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">{label}</div>
+      <div className="mb-2 text-[9px] uppercase tracking-[2.5px] text-[#8A8F9E]">{label}</div>
       {children}
     </div>
   );
@@ -1258,7 +1258,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function SummaryRow({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] pb-2">
-      <dt className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)]">{k}</dt>
+      <dt className="text-[9px] uppercase tracking-[2px] text-[#8A8F9E]">{k}</dt>
       <dd className="text-[13px] text-[var(--platinum-dim)]">{v}</dd>
     </div>
   );
@@ -1269,7 +1269,7 @@ function BackLink({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mt-6 block text-[9px] uppercase tracking-[2px] text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+      className="mt-6 block text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
     >
       ← Back
     </button>
