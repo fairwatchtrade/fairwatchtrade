@@ -138,11 +138,13 @@ function Badge({
   );
 }
 
-type NavItem = {
-  label: string;
-  href: string;
-  badge?: { variant: BadgeVariant; label: string };
-};
+// A nav item is either a real link, or a non-navigating "Soon" placeholder for
+// a feature that has no destination yet — mirrors the account sidebar's own
+// treatment of soon modules (AccountDashboard MODULES). A placeholder carries
+// no href, so it structurally cannot lie about where it goes.
+type NavItem =
+  | { label: string; href: string; badge?: { variant: BadgeVariant; label: string } }
+  | { label: string; soon: true };
 
 type NavSection = { section: string; items: NavItem[] };
 
@@ -167,7 +169,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Correspondence", href: "/account" },
       { label: "Vault", href: "/vault" },
-      { label: "Market Intel", href: "/account", badge: { variant: "gold", label: "Soon" } },
+      { label: "Market Intel", soon: true },
     ],
   },
 ];
@@ -249,6 +251,27 @@ export default function MobileNav({
                 {sec.section}
               </div>
               {sec.items.map((item) => {
+                // Non-navigating "Soon" placeholder — same row geometry as the
+                // links but ghost-toned and inert, so an unbuilt feature
+                // (Market Intel) reads as present-but-not-yet instead of a link
+                // that dumps you on the wrong page. Mirrors the account
+                // sidebar's soon-module treatment.
+                if ("soon" in item) {
+                  return (
+                    <div
+                      key={`${sec.section}-${item.label}`}
+                      className="flex items-center justify-between border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--ghost)]"
+                    >
+                      <span className="flex items-center gap-3">
+                        <NavIcon label={item.label} active={false} />
+                        <span>{item.label}</span>
+                      </span>
+                      <span className="text-[8px] uppercase tracking-[1px] text-[var(--ghost)]">
+                        Soon
+                      </span>
+                    </div>
+                  );
+                }
                 const isActive = pathname === item.href;
                 return (
                   <Link
