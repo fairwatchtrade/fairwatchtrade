@@ -8,12 +8,11 @@ import WatchSpinner from "@/components/WatchSpinner";
 const MOVEMENT_TYPES = ["Automatic", "Manual Wind", "Quartz"];
 const CLOSURE_TYPES = [
   "Pin Buckle",
-  "Deployant Clasp",
-  "Folding Clasp",
-  "None / Strap only",
+  "Folding / Deployant Clasp",
+  "None / Strap Only",
   "Other",
 ];
-const CASEBACK_TYPES = ["Solid", "Exhibition (Display)", "Other"];
+const CASEBACK_TYPES = ["Solid", "Exhibition / Display", "Other"];
 const CRYSTAL_MATERIALS = ["Sapphire", "Hesalite / Acrylic", "Mineral", "Other"];
 const CASE_MATERIALS = [
   "Stainless Steel",
@@ -27,7 +26,7 @@ const CASE_MATERIALS = [
   "Bronze",
 ];
 const BEZEL_MATERIALS = ["Steel", "Ceramic", "Gold", "Platinum", "Titanium", "Other"];
-const WATER_RESISTANCE_OPTIONS = ["30m", "50m", "100m", "200m", "300m+", "Not rated"];
+const WATER_RESISTANCE_OPTIONS = ["30 m", "50 m", "100 m", "200 m", "300 m+", "Not Rated"];
 const DOCS: DocumentationStatus[] = [
   "Full Set",
   "Papers Only",
@@ -64,12 +63,12 @@ const COMPLICATIONS = [
    the mutually-exclusive pair reads together on its own line (Jason 2026-07-20).
    Do not re-sort into strict alphabetical. */
 const SERVICE = [
-  "Never serviced",
-  "Recently serviced",
-  "Serviced by independent",
-  "Serviced by manufacturer",
+  "Never Serviced",
+  "Recently Serviced",
+  "Serviced by Independent",
+  "Serviced by Manufacturer",
   "Polished",
-  "Unpolished / original",
+  "Unpolished / Original",
 ];
 const DIAL_COLOR_SUGGESTIONS = [
   "Black", "White", "Silver", "Blue", "Champagne", "Green",
@@ -88,16 +87,16 @@ const DIAL_COLOR_SUGGESTIONS = [
    Note: Group A (service) and Group B (polish) are independent, so e.g.
    "Never serviced" + "Unpolished / original" remains a valid combo. */
 const SERVICE_EXCLUSIONS: Record<string, string[]> = {
-  "Never serviced": [
-    "Serviced by manufacturer",
-    "Serviced by independent",
-    "Recently serviced",
+  "Never Serviced": [
+    "Serviced by Manufacturer",
+    "Serviced by Independent",
+    "Recently Serviced",
   ],
-  "Serviced by manufacturer": ["Never serviced", "Serviced by independent"],
-  "Serviced by independent": ["Never serviced", "Serviced by manufacturer"],
-  "Recently serviced": ["Never serviced"],
-  "Polished": ["Unpolished / original"],
-  "Unpolished / original": ["Polished"],
+  "Serviced by Manufacturer": ["Never Serviced", "Serviced by Independent"],
+  "Serviced by Independent": ["Never Serviced", "Serviced by Manufacturer"],
+  "Recently Serviced": ["Never Serviced"],
+  "Polished": ["Unpolished / Original"],
+  "Unpolished / Original": ["Polished"],
 };
 
 /* Native <option> elements don't inherit the form's dark styling — when a
@@ -350,7 +349,7 @@ export default function DetailsStep({
       {/* ─────────────────────────────────────────────────────────────
           I · The Watch Itself
           What's inside before anything else. Movement first, always. */}
-      <Chapter numeral="I" title="The Watch Itself" caption="Movement first." chapterKey="movement">
+      <Chapter numeral="I" title="The Watch Itself" caption="Movement and mechanical details." chapterKey="movement">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Movement type">
             <TypeaheadField
@@ -449,7 +448,7 @@ export default function DetailsStep({
               value={d.waterResistance ?? ""}
               onChange={(v) => set("waterResistance", v)}
               suggestions={WATER_RESISTANCE_OPTIONS}
-              placeholder="100m"
+              placeholder="100 m"
             />
           </Field>
         </div>
@@ -458,7 +457,7 @@ export default function DetailsStep({
       {/* ─────────────────────────────────────────────────────────────
           III · The Dial & Hands
           The dial is the face. Its own chapter, not buried in the case. */}
-      <Chapter numeral="III" title="The Dial & Hands" caption="Dial and crown." chapterKey="dial">
+      <Chapter numeral="III" title="The Dial & Hands" caption="Dial, hands, and crown." chapterKey="dial">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dial color / type">
             <TypeaheadField
@@ -485,7 +484,7 @@ export default function DetailsStep({
               value={d.closureType ?? ""}
               onChange={(v) => set("closureType", v)}
               suggestions={CLOSURE_TYPES}
-              placeholder="Deployant Clasp"
+              placeholder="Folding / Deployant Clasp"
             />
           </Field>
 
@@ -499,7 +498,7 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Bracelet wrist size range (optional)">
-            <input className={inputCls} value={d.braceletWristSize ?? ""} onChange={(e) => set("braceletWristSize", e.target.value)} placeholder="Fits up to 7.5 in" />
+            <input className={inputCls} value={d.braceletWristSize ?? ""} onChange={(e) => set("braceletWristSize", e.target.value)} placeholder="Fits wrists up to 7.5 in" />
           </Field>
 
           <div className="flex items-end pb-1">
