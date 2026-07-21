@@ -71,7 +71,7 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
       <rect x="8" y="8" width="4" height="4" />
     </>
   ),
-  Messages: (
+  Correspondence: (
     <>
       <rect x="2" y="4" width="10" height="8" rx="1" />
       <path d="M2 4l5 5 5-5" />
@@ -152,7 +152,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Browse", href: "/browse" },
       { label: "My Catalogue", href: "/catalogue" },
-      { label: "Saved Watches", href: "/catalogue", badge: { variant: "gold", label: "Soon" } },
+      { label: "Saved Watches", href: "/catalogue" },
     ],
   },
   {
@@ -165,7 +165,7 @@ const SECTIONS: NavSection[] = [
   {
     section: "Intelligence",
     items: [
-      { label: "Messages", href: "/account", badge: { variant: "blue", label: "Soon" } },
+      { label: "Correspondence", href: "/account" },
       { label: "Vault", href: "/vault" },
       { label: "Market Intel", href: "/account", badge: { variant: "gold", label: "Soon" } },
     ],
@@ -226,15 +226,20 @@ export default function MobileNav({
           </button>
         </div>
 
-        {/* Greeting */}
-        <div className="border-b border-[var(--border-faint)] px-5 py-5">
-          <div className="font-display text-[16px] font-light text-[var(--platinum)]">
-            Welcome back.
+        {/* Greeting — authed only. "Welcome back" + "Your catalogue is
+            waiting" is personalized framing that must not greet a signed-out
+            visitor as a returning member (audit D5). Signed-out users get the
+            header, then straight to the nav sections. */}
+        {authed && (
+          <div className="border-b border-[var(--border-faint)] px-5 py-5">
+            <div className="font-display text-[16px] font-light text-[var(--platinum)]">
+              Welcome back.
+            </div>
+            <div className="mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
+              Your catalogue is waiting.
+            </div>
           </div>
-          <div className="mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
-            Your catalogue is waiting.
-          </div>
-        </div>
+        )}
 
         {/* Nav sections */}
         <div className="flex-1 overflow-y-auto py-3">
