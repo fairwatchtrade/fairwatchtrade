@@ -36,36 +36,40 @@ const DOCS: DocumentationStatus[] = [
 ];
 const INCLUDED = [
   "Box",
-  "Papers",
-  "Warranty Card",
   "Extra Links",
-  "Travel Case",
   "Hang Tags",
   "Manual / Booklet",
+  "Papers",
   "Service Receipt",
+  "Travel Case",
+  "Warranty Card",
 ];
 const COMPLICATIONS = [
+  "Annual Calendar",
+  "Center Seconds",
+  "Chronograph",
   "Date",
   "Day-Date",
-  "Chronograph",
   "GMT / Dual Time",
+  "Minute Repeater",
   "Moonphase",
+  "Perpetual Calendar",
   "Power Reserve",
   "Small Seconds",
-  "Center Seconds",
-  "Annual Calendar",
-  "Perpetual Calendar",
   "Tourbillon",
-  "Minute Repeater",
   "World Time",
 ];
+/* Service EVENTS alphabetized; the case-treatment PAIR (Polished / Unpolished)
+   is deliberately grouped LAST — out of pure alphabetical order on purpose — so
+   the mutually-exclusive pair reads together on its own line (Jason 2026-07-20).
+   Do not re-sort into strict alphabetical. */
 const SERVICE = [
   "Never serviced",
-  "Serviced by manufacturer",
-  "Serviced by independent",
   "Recently serviced",
-  "Unpolished / original",
+  "Serviced by independent",
+  "Serviced by manufacturer",
   "Polished",
+  "Unpolished / original",
 ];
 const DIAL_COLOR_SUGGESTIONS = [
   "Black", "White", "Silver", "Blue", "Champagne", "Green",
@@ -419,7 +423,7 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Case color / finish">
-            <input className={inputCls} value={d.caseColorFinish ?? ""} onChange={(e) => set("caseColorFinish", e.target.value)} placeholder="Polished, brushed lugs" spellCheck={false} />
+            <input className={inputCls} value={d.caseColorFinish ?? ""} onChange={(e) => set("caseColorFinish", e.target.value)} placeholder="e.g. Silver-tone with polished and brushed surfaces" spellCheck={false} />
           </Field>
 
           <Field label="Caseback type">
@@ -507,8 +511,8 @@ export default function DetailsStep({
       {/* ─────────────────────────────────────────────────────────────
           V · Complications & Character
           What does this watch do beyond telling time? */}
-      <Chapter numeral="V" title="Complications & Character" caption="Complications and functions." chapterKey="complications">
-        <MultiSelect label="Complication / function" options={COMPLICATIONS} selected={d.complications ?? []} onChange={(v) => set("complications", v)} />
+      <Chapter numeral="V" title="Complications & Character" caption="Select all functions that apply." chapterKey="complications">
+        <MultiSelect options={COMPLICATIONS} selected={d.complications ?? []} onChange={(v) => set("complications", v)} />
       </Chapter>
 
       {/* ─────────────────────────────────────────────────────────────
@@ -532,7 +536,7 @@ export default function DetailsStep({
         </div>
 
         <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => set("includedWithWatch", v)} />
-        <MultiSelect label="Service / repair history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
+        <MultiSelect label="Service, repair & case history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
 
         <div className="mt-4">
           {/* draft.provenanceNote has TWO entry points by design: the curation
@@ -725,7 +729,7 @@ function MultiSelect({
   onChange,
   exclusiveWith,
 }: {
-  label: string;
+  label?: string;
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
@@ -752,7 +756,7 @@ function MultiSelect({
   }
   return (
     <div className="mt-4">
-      <div className={labelCls}>{label}</div>
+      {label && <div className={labelCls}>{label}</div>}
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const on = selected.includes(opt);
