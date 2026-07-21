@@ -502,7 +502,7 @@ export default function DetailsStep({
           </Field>
 
           <div className="flex items-end pb-1">
-            <Toggle label="Original strap/bracelet & pins" checked={!!d.originalStrapBracelet} onChange={(v) => set("originalStrapBracelet", v)} />
+            <Toggle label="Original strap / bracelet & hardware" checked={!!d.originalStrapBracelet} onChange={(v) => set("originalStrapBracelet", v)} />
           </div>
         </div>
       </Chapter>
