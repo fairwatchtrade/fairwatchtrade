@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -193,6 +193,9 @@ function TypeaheadField({
   otherOption?: { label: string; onSelect: () => void };
 }) {
   const [focused, setFocused] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const filtered = useMemo(() => {
     const q = value.trim().toLowerCase();
     if (!q) return suggestions.slice(0, maxSuggestions);
@@ -200,31 +203,93 @@ function TypeaheadField({
   }, [value, suggestions, maxSuggestions]);
 
   const showMenu = focused && (filtered.length > 0 || !!otherOption);
+  // Rows in render order: filtered suggestions, then the optional pinned row.
+  const rowCount = filtered.length + (otherOption ? 1 : 0);
+
+  /* After a KEYBOARD selection, advance to the next visible field — the power-user
+     flow Brand/Model already give. Mouse clicks do NOT advance; only Enter does.
+     Global query is safe: only the current step is mounted, and the menu has
+     unmounted by the time the rAF fires. */
+  function advanceFocus() {
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      const fields = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "input:not([disabled]), select:not([disabled]), textarea:not([disabled])"
+        )
+      ).filter((f) => f.offsetParent !== null);
+      const i = fields.indexOf(el);
+      if (i >= 0 && i + 1 < fields.length) fields[i + 1].focus();
+    });
+  }
+
+  // idx into the combined [ ...filtered, otherOption? ] row list.
+  function commitRow(idx: number, advance: boolean) {
+    if (otherOption && idx === filtered.length) {
+      otherOption.onSelect();
+    } else if (filtered[idx] !== undefined) {
+      onChange(filtered[idx]);
+    } else {
+      return;
+    }
+    setFocused(false);
+    if (advance) advanceFocus();
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!showMenu) return; // a closed combobox behaves like a plain input
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, rowCount - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      // Core fix: Enter selects the highlighted option and NEVER submits the step.
+      e.preventDefault();
+      commitRow(activeIdx, true);
+    } else if (e.key === "Escape") {
+      setFocused(false);
+    }
+  }
 
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         className={inputCls}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setActiveIdx(0); // typing re-highlights the first match
+        }}
+        onFocus={() => {
+          setFocused(true);
+          setActiveIdx(0);
+        }}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
       />
       {showMenu && (
         <div className="absolute z-10 mt-1 w-full border border-[var(--border-mid)] bg-[var(--ink)]">
-          {filtered.map((s) => (
+          {filtered.map((s, i) => (
             <button
               key={s}
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault();
-                onChange(s);
-                setFocused(false);
+                commitRow(i, false);
               }}
-              className="block w-full px-3 py-2 text-left text-[13px] text-[var(--platinum)] hover:bg-[rgba(201,168,76,0.06)]"
+              onMouseEnter={() => setActiveIdx(i)}
+              className={`block w-full px-3 py-2 text-left text-[13px] ${
+                i === activeIdx
+                  ? "bg-[rgba(201,168,76,0.12)] text-[var(--platinum)]"
+                  : "text-[var(--platinum)] hover:bg-[rgba(201,168,76,0.06)]"
+              }`}
             >
               {s}
             </button>
@@ -234,10 +299,14 @@ function TypeaheadField({
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault();
-                otherOption.onSelect();
-                setFocused(false);
+                commitRow(filtered.length, false);
               }}
-              className="block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left text-[13px] italic text-[var(--muted)] hover:bg-[rgba(201,168,76,0.06)] hover:text-[var(--platinum)]"
+              onMouseEnter={() => setActiveIdx(filtered.length)}
+              className={`block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left text-[13px] italic ${
+                activeIdx === filtered.length
+                  ? "bg-[rgba(201,168,76,0.12)] text-[var(--platinum)]"
+                  : "text-[var(--muted)] hover:bg-[rgba(201,168,76,0.06)] hover:text-[var(--platinum)]"
+              }`}
             >
               {otherOption.label}
             </button>
