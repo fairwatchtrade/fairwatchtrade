@@ -473,12 +473,14 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   }, [draft, identityComplete, startCapture]);
 
   /* ── Capture confirmation — the dual-write metadata accumulates here ── */
-  /* ── Phase 5 · blur late-swap — fire-and-forget with a callback. The
-        seller advances immediately; when the processed image lands, its URL
-        replaces the original in BOTH the draft photos (what the listing
-        shows) and the media metadata (what the server records). If the
-        seller publishes before it resolves, the original stands — fail-open,
-        never a wait. Silent by design: the seller is never told. ── */
+  /* ── Phase 5 · blur late-swap — fire-and-forget with a callback. PREVIEW /
+        immediacy convenience ONLY, no longer authoritative for publication.
+        The seller advances immediately; when the processed image lands, its
+        URL replaces the original in the draft photos + media metadata so the
+        review screen shows the blurred version. Mobile Wizard 2A makes the
+        SERVER blur every serial-sensitive photo at publish, so even if this
+        races or fails, no unblurred original can become the canonical
+        published image. Silent by design: the seller is never told here. ── */
   const SERIAL_CATEGORIES: PhotoCategory[] = ["Caseback", "Non-Crown Side"];
 
   const fireBlurSerial = useCallback((category: PhotoCategory, originalUrl: string, originalPathname: string) => {
@@ -1130,6 +1132,11 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
 
   /* ── Screen 9 — review & publish ── */
   if (stage === "review") {
+    // 2A · serial-sensitive photos are privacy-processed server-side at
+    // publish; the Publish action stays in progress while that finishes.
+    const serialPhotoCount = draft.photos.filter((p) =>
+      SERIAL_CATEGORIES.includes(p.category)
+    ).length;
     return (
       <Shell>
         <StepCrumb label="Review" />
@@ -1174,7 +1181,12 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         >
           {publishing ? (
             <>
-              <WatchSpinner size={16} /> Publishing…
+              <WatchSpinner size={16} />{" "}
+              {serialPhotoCount > 0
+                ? `Finishing privacy protection for ${serialPhotoCount} photograph${
+                    serialPhotoCount === 1 ? "" : "s"
+                  }…`
+                : "Publishing…"}
             </>
           ) : (
             "Publish Listing"

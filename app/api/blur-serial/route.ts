@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import sharp from "sharp";
-import { createHash } from "crypto";
+import { blurSerialBuffer } from "@/lib/serialBlur";
 
 /* ════════════════════════════════════════════════════════════════════════
    BLUR SERIAL — app/api/blur-serial/route.ts   (v2.2 · Phase 5)
@@ -32,30 +31,6 @@ import { createHash } from "crypto";
    ════════════════════════════════════════════════════════════════════════ */
 
 export const runtime = "nodejs";
-
-type BlurRegion = { left: number; top: number; width: number; height: number };
-
-function regionFor(category: string, width: number, height: number): BlurRegion | null {
-  if (category === "Caseback") {
-    // Bottom-center third — where casebacks typically carry engravings.
-    return {
-      left: Math.floor(width * 0.2),
-      top: Math.floor(height * 0.65),
-      width: Math.floor(width * 0.6),
-      height: Math.floor(height * 0.25),
-    };
-  }
-  if (category === "Non-Crown Side") {
-    // Center horizontal band — where case-side serials appear.
-    return {
-      left: Math.floor(width * 0.1),
-      top: Math.floor(height * 0.4),
-      width: Math.floor(width * 0.8),
-      height: Math.floor(height * 0.2),
-    };
-  }
-  return null;
-}
 
 async function markRow(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -108,24 +83,15 @@ export async function POST(req: NextRequest) {
     if (!imgRes.ok) throw new Error(`fetch ${imgRes.status}`);
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
-    const metadata = await sharp(buffer).metadata();
-    const width = metadata.width ?? 800;
-    const height = metadata.height ?? 800;
-
-    const blurRegion = regionFor(category, width, height);
-    if (!blurRegion || blurRegion.width < 8 || blurRegion.height < 8) {
+    // The shared, established positional blur (lib/serialBlur) — byte-identical
+    // to the transform the publication path applies server-side.
+    const result = await blurSerialBuffer(buffer, category);
+    if (!result) {
       // No blur strategy for this category — untouched, honestly.
       return NextResponse.json({ processedUrl: photoUrl, blurred: false });
     }
-
-    // Extract the region, blur it, composite it back, re-encode.
-    const region = await sharp(buffer).extract(blurRegion).blur(12).toBuffer();
-    const processed = await sharp(buffer)
-      .composite([{ input: region, left: blurRegion.left, top: blurRegion.top }])
-      .jpeg({ quality: 92 })
-      .toBuffer();
-
-    const processedHash = createHash("sha256").update(processed).digest("hex");
+    const processed = result.buffer;
+    const processedHash = result.hash;
 
     // Re-upload via the same endpoint the client uses (uploadPhoto is
     // browser-only). Cookies forwarded so /api/upload sees the same seller.

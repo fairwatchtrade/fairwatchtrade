@@ -15,7 +15,14 @@ import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
 } from "@/lib/imageAuthenticity";
+import { put } from "@vercel/blob";
+import { createHash } from "crypto";
+import { blurSerialBuffer, isSerialSensitiveCategory } from "@/lib/serialBlur";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+// sharp (via lib/serialBlur, used at publish for server-authoritative serial
+// blur) is a native module — this route must run on the Node runtime.
+export const runtime = "nodejs";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/listings  — publish a listing
@@ -182,6 +189,92 @@ function sanitizeMediaMeta(raw: unknown[] | undefined): MediaMetaEntry[] {
     });
   }
   return out;
+}
+
+/** storage_path → public URL, from the payload's photos array (both halves of
+    the pair travel together). Rebuilt after server-side serial blur so Aubrey
+    execution and the gate see the final canonical assets. */
+function buildUrlByPath(photos: unknown[] | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const p of (photos ?? []) as { photo?: { url?: unknown; pathname?: unknown } }[]) {
+    const url = typeof p?.photo?.url === "string" ? p.photo.url : "";
+    const pathname = typeof p?.photo?.pathname === "string" ? p.photo.pathname : "";
+    if (url && pathname) map.set(pathname, url);
+  }
+  return map;
+}
+
+/* ── Mobile Wizard 2A · server-authoritative serial-photo privacy blur.
+
+   Canonical publication authority belongs to the SERVER. For every
+   serial-sensitive photo (Caseback / Non-Crown Side) the server applies the
+   established positional blur (lib/serialBlur — the same transform the client
+   preview uses) to WHATEVER the client submitted, and makes the processed
+   asset canonical, before any write. It never trusts that the client blurred:
+   a raced, unprocessed original is blurred here regardless.
+
+   Deterministic blob name = sha256(submitted pathname + category), no random
+   suffix, overwrite allowed — so the same submitted asset always resolves to
+   the same canonical URL. Repeated / concurrent publishes converge on one
+   stable blob: no duplicate artifacts, stable canonical URL across retries.
+
+   Mutates each serial photo's `photo` and the matching `mediaMeta` entry IN
+   PLACE to the processed url/path. Returns processed/failed counts. Any
+   failure means the caller must NOT publish (no raw serial-sensitive
+   original is ever accepted as canonical — never a raw fallback). ── */
+async function applyServerSerialBlur(
+  photos: { photo?: { url?: unknown; pathname?: unknown }; category?: unknown }[],
+  mediaMeta: MediaMetaEntry[]
+): Promise<{ processed: number; failed: number }> {
+  let processed = 0;
+  let failed = 0;
+
+  for (const p of photos) {
+    const category = typeof p?.category === "string" ? p.category : "";
+    if (!isSerialSensitiveCategory(category)) continue;
+
+    const photo = p.photo;
+    const url = photo && typeof photo.url === "string" ? photo.url : "";
+    const oldPath = photo && typeof photo.pathname === "string" ? photo.pathname : "";
+    if (!photo || !url) {
+      failed++;
+      continue;
+    }
+
+    try {
+      const imgRes = await fetch(url);
+      if (!imgRes.ok) throw new Error(`fetch ${imgRes.status}`);
+      const source = Buffer.from(await imgRes.arrayBuffer());
+
+      const result = await blurSerialBuffer(source, category);
+      // A serial-sensitive category always resolves a blur region; null means
+      // the image could not be sized — treat as failure, never publish raw.
+      if (!result) throw new Error("no_blur_region");
+
+      const name =
+        "listings/serial/" +
+        createHash("sha256").update(`${oldPath}|${category}`).digest("hex").slice(0, 32) +
+        ".jpg";
+      const blob = await put(name, result.buffer, {
+        access: "public",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "image/jpeg",
+      });
+
+      photo.url = blob.url;
+      photo.pathname = blob.pathname;
+      for (const m of mediaMeta) {
+        if (m.storage_path === oldPath) m.storage_path = blob.pathname;
+      }
+      processed++;
+    } catch (e) {
+      console.error("[2a] server serial blur failed for a photo:", e);
+      failed++;
+    }
+  }
+
+  return { processed, failed };
 }
 
 type ListingStatus = "published" | "pending_review";
@@ -569,14 +662,10 @@ export async function POST(request: NextRequest) {
   const captureSource: "live_camera" | "desktop_upload" =
     body.source === "desktop_sell" ? "desktop_upload" : "live_camera";
 
-  /* ── v2.24 · storage_path → public URL map, for Aubrey execution. The
-        payload's photos array already carries both halves of the pair. ── */
-  const urlByPath = new Map<string, string>();
-  for (const p of (body.photos ?? []) as { photo?: { url?: unknown; pathname?: unknown } }[]) {
-    const url = typeof p?.photo?.url === "string" ? p.photo.url : "";
-    const pathname = typeof p?.photo?.pathname === "string" ? p.photo.pathname : "";
-    if (url && pathname) urlByPath.set(pathname, url);
-  }
+  /* ── v2.24 · storage_path → public URL map, for Aubrey execution. Rebuilt
+        after the 2A server-side serial blur so it reflects the final
+        canonical assets. ── */
+  let urlByPath = buildUrlByPath(body.photos);
 
   const aubreyOn = aubreyEnforcementEnabled();
 
@@ -645,6 +734,36 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     }
+  }
+
+  /* ── Mobile Wizard 2A · server-authoritative serial-photo privacy barrier.
+        FRESH PATH ONLY — any idempotent resume already returned above. Every
+        Caseback / Non-Crown Side photo is blurred server-side and the
+        processed asset becomes canonical BEFORE badge / gate / insert /
+        listing_media. A single failure blocks publication: no raw
+        serial-sensitive original is ever written, no seller work discarded,
+        and the stable publish_request_id keeps the retry idempotent. ── */
+  {
+    const blurOutcome = await applyServerSerialBlur(
+      (body.photos ?? []) as {
+        photo?: { url?: unknown; pathname?: unknown };
+        category?: unknown;
+      }[],
+      mediaMeta
+    );
+    if (blurOutcome.failed > 0) {
+      return NextResponse.json(
+        {
+          error: "serial_blur_incomplete",
+          detail:
+            "We couldn't finish privacy protection on one of your photos. Your listing isn't lost — please try publishing again in a moment.",
+        },
+        { status: 422 }
+      );
+    }
+    // Rebuild the path→url map from the now-final canonical assets so Aubrey
+    // execution and the integrity gate evaluate the processed images.
+    urlByPath = buildUrlByPath(body.photos);
   }
 
   /* ── v2.2 · badge verification — server-authoritative, before insert ── */
