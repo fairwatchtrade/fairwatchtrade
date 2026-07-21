@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties, type PointerEvent } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
    THE ENGINEERING PLATE — components/WatchBlueprint.tsx   (v2.39 · layered 3D)
@@ -83,6 +83,8 @@ export default function WatchBlueprint({
   perspective = 650,
 }: WatchBlueprintProps) {
   const coreRef = useRef<HTMLDivElement>(null);
+  const hourHandRef = useRef<SVGGElement>(null);
+  const minHandRef = useRef<SVGGElement>(null);
   const drag = useRef({
     rx: 0,
     ry: 0,
@@ -94,6 +96,25 @@ export default function WatchBlueprint({
     sry: 0,
     pid: -1,
   });
+
+  /* ── Live local time — hour & minute hands show the visitor's real time (same
+        clock math as the homepage, app/page.tsx). Written IMPERATIVELY via refs,
+        never React state, so a time tick can't re-render the core and wipe the
+        Step-III drag rotation. The center chronograph seconds hand stays parked
+        at 12 (chrono at rest) — no sweep. ── */
+  useEffect(() => {
+    const setHands = () => {
+      const now = new Date();
+      const h = now.getHours() % 12;
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+      hourHandRef.current?.setAttribute("transform", `rotate(${h * 30 + m * 0.5} 130 214)`);
+      minHandRef.current?.setAttribute("transform", `rotate(${m * 6 + s * 0.1} 130 214)`);
+    };
+    setHands();
+    const id = setInterval(setHands, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const isAll = completed === "all";
   const completedSet = new Set<string>(isAll ? [] : (completed as Layer[]));
@@ -246,8 +267,8 @@ export default function WatchBlueprint({
               <circle cx="119" cy="237" r="17" />
               <path d="M92 183 C111 168 145 168 164 188" />
               <path d="M96 249 C116 262 148 260 164 242" />
-              <path d="M130 151 L130 277" />
-              <path d="M75 214 L185 214" />
+              {/* Centering crosshairs removed — they cluttered the dial and the
+                  12↔6 line hid the parked second hand at 12. */}
               <circle cx="130" cy="214" r="5" />
             </g>
           </svg>
@@ -279,10 +300,12 @@ export default function WatchBlueprint({
         <div style={planeStyle(5)}>
           <svg viewBox="0 0 260 430" fill="none" aria-hidden="true" style={svgStyle}>
             <g style={groupStyle("crown")} {...G}>
-              <path d="M212 204 L226 204 C232 204 235 208 235 214 C235 220 232 224 226 224 L212 224 Z" />
-              <line x1="217" y1="207" x2="217" y2="221" />
-              <line x1="221" y1="207" x2="221" y2="221" />
-              <line x1="225" y1="207" x2="225" y2="221" />
+              {/* v2.41 tune — crown pulled in ~⅓ (was jutting to x235; now x227),
+                  a snug fluted nub at 3 o'clock instead of a long stem. */}
+              <path d="M212 204 L220 204 C224 204 227 208 227 214 C227 220 224 224 220 224 L212 224 Z" />
+              <line x1="216" y1="207" x2="216" y2="221" />
+              <line x1="219" y1="207" x2="219" y2="221" />
+              <line x1="222" y1="207" x2="222" y2="221" />
             </g>
           </svg>
         </div>
@@ -320,8 +343,16 @@ export default function WatchBlueprint({
         <div style={planeStyle(15)}>
           <svg viewBox="0 0 260 430" fill="none" aria-hidden="true" style={svgStyle}>
             <g style={groupStyle("hands")} {...G}>
-              <line x1="130" y1="214" x2="103" y2="185" />
-              <line x1="130" y1="214" x2="164" y2="181" />
+              {/* Hour & minute drawn straight up (12), rotated to the visitor's
+                  live local time imperatively (see effect above). Approved length
+                  hierarchy kept: seconds 46 > minute 42 > hour 35. The center
+                  chronograph seconds hand stays parked at 12 (chrono at rest). */}
+              <g ref={hourHandRef}>
+                <line x1="130" y1="214" x2="130" y2="179" />
+              </g>
+              <g ref={minHandRef}>
+                <line x1="130" y1="214" x2="130" y2="172" />
+              </g>
               <line x1="130" y1="222" x2="130" y2="168" />
               <circle cx="130" cy="214" r="3.5" />
             </g>
