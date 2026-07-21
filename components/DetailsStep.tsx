@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -27,12 +27,21 @@ const CASE_MATERIALS = [
 ];
 const BEZEL_MATERIALS = ["Steel", "Ceramic", "Gold", "Platinum", "Titanium", "Other"];
 const WATER_RESISTANCE_OPTIONS = ["30 m", "50 m", "100 m", "200 m", "300 m+", "Not Rated"];
-const DOCS: DocumentationStatus[] = [
-  "Full Set",
-  "Papers Only",
-  "Box Only",
-  "Watch Only",
-];
+/* Documentation summary status is DERIVED from the "Included with Watch" checklist
+   (Jason ruling 2026-07-21) — no separate input, so it can never contradict the
+   itemized list. papers = Papers OR Warranty Card (a warranty card IS ownership
+   evidence collectors call "papers"); a Manual / Booklet is literature and does
+   NOT independently count as papers. Everything downstream (scoring DOC_POINTS,
+   listing badges, purchase-request "Included" row, browse facets) keeps reading
+   details.documentation unchanged — now guaranteed consistent with the checklist. */
+function deriveDocumentation(included: string[]): DocumentationStatus {
+  const hasPapers = included.includes("Papers") || included.includes("Warranty Card");
+  const hasBox = included.includes("Box");
+  if (hasBox && hasPapers) return "Full Set";
+  if (hasPapers) return "Papers Only";
+  if (hasBox) return "Box Only";
+  return "Watch Only";
+}
 const INCLUDED = [
   "Box",
   "Extra Links",
@@ -97,15 +106,6 @@ const SERVICE_EXCLUSIONS: Record<string, string[]> = {
   "Recently Serviced": ["Never Serviced"],
   "Polished": ["Unpolished / Original"],
   "Unpolished / Original": ["Polished"],
-};
-
-/* Native <option> elements don't inherit the form's dark styling — when a
-   <select> opens the browser renders the option list with defaults (often a
-   white menu), making our light --platinum option text invisible. Explicit hex
-   bg + text fixes it; CSS variables are ignored for <option> in some browsers. */
-const OPTION_STYLE: CSSProperties = {
-  backgroundColor: "#141821",
-  color: "#E8E4DC",
 };
 
 const inputCls =
@@ -518,23 +518,14 @@ export default function DetailsStep({
           VI · Provenance & Papers
           The watch's life before this moment. */}
       <Chapter numeral="VI" title="Provenance & Papers" caption="Documentation, service, and history." last chapterKey="provenance">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Documentation status">
-            {/* NOT converted to typeahead — deliberate judgment call (per
-                brief). This field always holds a valid DocumentationStatus
-                enum value and has no blank option; a typeahead's core premise
-                ("free text always works") is fundamentally in tension with a
-                field that must always resolve to one of exactly four values.
-                A plain <select> already does exactly what's needed — pattern
-                consistency isn't worth adopting a component whose main
-                behavior (arbitrary free text) this field must forbid. */}
-            <select className={inputCls} value={d.documentation} onChange={(e) => set("documentation", e.target.value as DocumentationStatus)}>
-              {DOCS.map((doc) => <option key={doc} value={doc} style={OPTION_STYLE}>{doc}</option>)}
-            </select>
-          </Field>
-        </div>
+        {/* Documentation Status input REMOVED (Jason ruling 2026-07-21): a separate
+            dropdown duplicated — and could contradict — the "Included with Watch"
+            checklist, and mislabeled a box as "documentation." The summary status is
+            now DERIVED from the checklist below via deriveDocumentation(). */}
 
-        <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => set("includedWithWatch", v)} />
+        {/* onChange derives the documentation summary status from the checklist —
+            single source of truth (see deriveDocumentation above). */}
+        <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => patch({ details: { ...d, includedWithWatch: v, documentation: deriveDocumentation(v) } })} />
         <MultiSelect label="Service, repair & case history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
 
         <div className="mt-4">
