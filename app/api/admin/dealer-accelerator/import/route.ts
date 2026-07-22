@@ -9,46 +9,47 @@ import type { SupabaseClient } from "@supabase/supabase-js";
    THE IMPORT SPINE. Admin-assisted, founder-initiated. Creates dealer-owned
    DRAFT listings on a selected existing dealer's behalf, then stops. It does
    not publish, does not enrich, does not certify — it accelerates creation and
-   hands the resulting drafts to FairWatchTrade's normal lifecycle and
-   enrichment systems. "Import once. Enrich forever."
+   hands the resulting drafts to FairWatchTrade's normal lifecycle. "Import
+   once. Enrich forever."
 
-   ── LIFECYCLE (locked) ─────────────────────────────────────────────────
-     Founder/Admin initiates → supplies an existing dealer profile UUID →
-     this route (service-role) creates dealer-owned rows as status='draft' →
-     the dealer later reviews and submits each for review → admin publishes
-     or rejects. One listing, one lifecycle: draft → pending_review →
-     published | rejected. The imported row IS the listings row from creation;
-     there is NO staging/mirror/parallel table.
+   ── FLIGHT 2A — ATOMIC INTEGRITY (locked) ──────────────────────────────
+     Each listing is created by ONE call to the SECURITY DEFINER RPC
+     public.dealer_import_one_listing(p_dealer_profile_id, p_listing, p_photos).
+     For a single listing, the listings row + listings.photos payload + EVERY
+     declared dealer_import listing_media row commit together, or nothing
+     commits. This closes the confirmed markerless-import bypass: a dealer
+     import can NEVER survive without its trusted dealer_import provenance, so
+     it can never be reclassified as a manual listing and skip the imported
+     availability/attestation ceremony. The old "insert listing, then best-
+     effort media (soft warning)" path is GONE — there is no fallback.
 
    ── AUTHORIZATION (defense-in-depth, matches /api/admin/listings/[id]/status)
-     Two independent things must hold:
+     Two independent things must hold, UNCHANGED by Flight 2A:
        · The founder gate below — a HARDCODED literal in THIS file, not an
          imported shared constant. A non-founder is rejected here regardless
          of any UI.
-       · The service-role write — reached ONLY after that gate. It bypasses
-         RLS (listings_insert_own requires auth.uid() = seller_id, which would
-         otherwise forbid creating a row owned by a DIFFERENT profile). The
-         trusted client is the whole reason admin-assisted import is possible.
+       · The service-role write — reached ONLY after that gate. The RPC is
+         EXECUTE-granted to service_role only (revoked from PUBLIC/anon/
+         authenticated); it is NOT a public dealer submission endpoint.
 
-   ── TRUTH BOUNDARIES (locked) ──────────────────────────────────────────
-     · status is ALWAYS 'draft'. Never published, never publicly visible,
-       never fires the publish notification trigger.
-     · Imported photos are stamped capture_source='dealer_import'. They are
-       NEVER 'live_camera' and can NEVER earn In Hand Verified — that badge is
-       granted only for live-camera capture sessions elsewhere, and nothing
-       here sets in_hand_verified or verified_at.
+   ── TRUTH BOUNDARIES (locked, enforced inside the RPC) ──────────────────
+     · status is ALWAYS 'draft'. Never published.
+     · Imported photos are stamped capture_source='dealer_import'. Never
+       'live_camera'; never earn In Hand Verified; in_hand_verified/verified_at
+       are never set.
      · No score is fabricated (significance/completeness/combined left null).
-       No penalty for missing data; only a penalty for bad data. A field we
-       cannot determine is left blank for the dealer to confirm — never guessed.
+       No caller-supplied scoring or trust state.
 
-   ── ERROR MODEL ────────────────────────────────────────────────────────
-     Row-level and partial-success. Each listing row is inserted independently;
-     one bad row never rolls back the good ones. The response reports, per row:
-     created (with any soft warnings) or failed (with a reason). A row missing
-     brand or reference is a HARD failure (both are NOT NULL and structurally
-     required). An unparseable asking price is a SOFT warning: the price is
-     left blank and the draft is still created, because inserting a wrong price
-     would force the dealer to undo it (Law 16) — worse than leaving it blank.
+   ── ERROR MODEL (Flight 2A) ─────────────────────────────────────────────
+     Per-listing, cross-listing partial success. Each row is one RPC call whose
+     truthful outcome is one of:
+       IMPORTED                    — the row and all its media committed.
+       REJECTED_BEFORE_MUTATION    — a validation failure; nothing was written.
+       ROLLED_BACK_MEDIA_FAILURE   — media insert failed; the whole row rolled
+                                     back (deterministic SQLSTATE 'DIM01').
+       ROLLED_BACK_DATABASE_ERROR  — any other DB failure; the whole row rolled
+                                     back. No markerless soft success can occur.
+     A rolled-back row NEVER returns a listing id and NEVER claims a write.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -66,12 +67,6 @@ const MAX_ROWS = 200;
 /* ── Input contract (the ROUTE's payload — NOT the dealer-facing intake
       format, which is deferred). An intake adapter (CSV / pasted text / admin
       form) is what will eventually PRODUCE this shape. ── */
-type ImportPhotoInput = {
-  url?: unknown;
-  pathname?: unknown;
-  category?: unknown;
-};
-
 type ImportListingInput = {
   brand?: unknown;
   model?: unknown;
@@ -91,87 +86,43 @@ type ImportBody = {
   listings?: unknown;
 };
 
-/* ── The buyer-facing photo shape stored in listings.photos (jsonb), mirroring
-      exactly what SellFlow/MobileWizard write: { photo:{url,pathname}, category,
-      isWristShot }. category may be null for an imported photo we can't classify
-      yet — no penalty for missing data. ── */
-type StoredPhoto = {
-  photo: { url: string; pathname: string | null };
-  category: string | null;
-  isWristShot: boolean;
-};
-
-/* ── A listing_media row for provenance tracking. category + storage_path +
-      capture_source are NOT NULL in the schema, so we only create a media row
-      for a photo that actually has a usable URL to serve as storage_path. ── */
-type MediaInsertRow = {
+/* Truthful per-listing classification. Field normalization, photo validation,
+   and atomicity all live inside the RPC — the route only classifies outcomes. */
+type RowOk = {
+  ok: true;
+  index: number;
+  result: "IMPORTED";
   listing_id: string;
-  category: string;
-  storage_path: string;
-  capture_source: "dealer_import";
-  ai_review_status: "pending";
-  privacy_review_status: "pending";
-  sequence_index: number;
+  brand: string;
+  reference: string;
+  warnings: string[];
+};
+type RowFail = {
+  ok: false;
+  index: number;
+  result:
+    | "REJECTED_BEFORE_MUTATION"
+    | "ROLLED_BACK_MEDIA_FAILURE"
+    | "ROLLED_BACK_DATABASE_ERROR";
+  reason: string;
+  brand: string | null;
+  reference: string | null;
+};
+type RowResult = RowOk | RowFail;
+
+type RpcReturn = {
+  result?: unknown;
+  listing_id?: unknown;
+  reason?: unknown;
+  warnings?: unknown;
 };
 
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function parsePrice(raw: unknown): number | null {
-  if (typeof raw === "number") return isFinite(raw) && raw > 0 ? raw : null;
-  if (typeof raw !== "string" || raw.trim() === "") return null;
-  const n = Number(raw.replace(/[^0-9.]/g, ""));
-  return isFinite(n) && n > 0 ? n : null;
-}
-
-/* ── Normalize one row's photos into the stored jsonb shape. A photo with no
-      usable url is dropped (nothing to display or serve). category is kept when
-      present, else null. Returns both the jsonb array and the subset that has a
-      url usable as a listing_media storage_path. ── */
-function normalizePhotos(raw: unknown): {
-  stored: StoredPhoto[];
-  media: Omit<MediaInsertRow, "listing_id">[];
-} {
-  if (!Array.isArray(raw)) return { stored: [], media: [] };
-  const stored: StoredPhoto[] = [];
-  const media: Omit<MediaInsertRow, "listing_id">[] = [];
-  for (const item of raw.slice(0, 40)) {
-    if (typeof item !== "object" || item === null) continue;
-    const p = item as ImportPhotoInput;
-    const url = str(p.url);
-    if (!url) continue; // no url → nothing to store or serve
-    const pathname = str(p.pathname) || null;
-    const category = str(p.category) || null;
-    stored.push({ photo: { url, pathname }, category, isWristShot: false });
-    // listing_media.storage_path + category are NOT NULL. Use the url as the
-    // storage_path (dealer-hosted or already-uploaded), and a neutral category
-    // label when the import didn't classify the shot.
-    media.push({
-      category: category ?? "Uncategorized",
-      storage_path: url,
-      capture_source: "dealer_import",
-      ai_review_status: "pending",
-      privacy_review_status: "pending",
-      sequence_index: media.length,
-    });
-  }
-  return { stored, media };
-}
-
-type RowResult =
-  | {
-      ok: true;
-      index: number;
-      listing_id: string;
-      brand: string;
-      reference: string;
-      warnings: string[];
-    }
-  | { ok: false; index: number; brand: string | null; reference: string | null; error: string };
-
 export async function POST(request: NextRequest) {
-  /* 1 · authenticate + founder gate (session client, independent). */
+  /* 1 · authenticate + founder gate (session client, independent). UNCHANGED. */
   const supabase = await createClient();
   const {
     data: { user },
@@ -220,7 +171,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* 3 · trusted client (bypasses RLS; reached only after the founder gate). */
+  /* 3 · trusted client (reached only after the founder gate). It is the caller
+        the RPC's EXECUTE grant is scoped to; the RPC itself re-validates the
+        dealer and enforces atomicity. */
   let service: SupabaseClient;
   try {
     service = createServiceClient();
@@ -232,9 +185,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* 4 · validate the dealer profile EXISTS. listings.seller_id has no FK, so
-        the DB will not reject a bogus UUID — an unvalidated id would create
-        orphaned listings owned by nobody. This check is the guard. */
+  /* 4 · fast dealer-existence pre-check (whole-batch fail). listings.seller_id
+        has no FK; the RPC also validates this per row (authoritative), but a
+        bogus dealer id should reject the batch before any RPC call. */
   const { data: dealer, error: dealerErr } = await service
     .from("profiles")
     .select("id")
@@ -254,103 +207,92 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* 5 · per-row insert. Independent inserts → partial success. */
+  /* 5 · per-row: ONE atomic RPC call per listing. Cross-listing partial success
+        is preserved; a single listing can never survive partially. There is no
+        direct listing/media insert fallback anywhere in this path. */
   const results: RowResult[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const raw = rows[i];
     if (typeof raw !== "object" || raw === null) {
-      results.push({ ok: false, index: i, brand: null, reference: null, error: "row_not_object" });
+      results.push({
+        ok: false,
+        index: i,
+        result: "REJECTED_BEFORE_MUTATION",
+        reason: "invalid_listing_payload",
+        brand: null,
+        reference: null,
+      });
       continue;
     }
     const r = raw as ImportListingInput;
-    const brand = str(r.brand);
-    const reference = str(r.reference);
+    const brandEcho = str(r.brand) || null;
+    const referenceEcho = str(r.reference) || null;
 
-    // Hard requirements: both are NOT NULL and structurally required.
-    if (!brand || !reference) {
-      results.push({
-        ok: false,
-        index: i,
-        brand: brand || null,
-        reference: reference || null,
-        error: "missing_brand_or_reference",
-      });
-      continue;
-    }
-
-    const warnings: string[] = [];
-
-    // Soft: unparseable price → leave blank, still create, warn. Preserve the
-    // dealer's original string in asking_price_raw when present (honest record
-    // of what they supplied, even if we couldn't parse a number from it).
-    const askingRaw = str(r.askingPrice);
-    const askingPrice = parsePrice(r.askingPrice);
-    if (askingRaw && askingPrice === null) {
-      warnings.push("asking_price_unparseable_left_blank");
-    }
-
-    const { stored, media } = normalizePhotos(r.photos);
-
-    const details =
-      typeof r.details === "object" && r.details !== null
-        ? (r.details as Record<string, unknown>)
-        : {};
-
-    const listingRow: Record<string, unknown> = {
-      seller_id: dealerId, // the DEALER owns it immediately — not the founder
-      status: "draft", // ALWAYS draft
-      brand,
-      reference,
-      model: str(r.model) || null,
-      year: str(r.year) || null,
-      condition: str(r.condition) || null,
-      asking_price: askingPrice,
-      asking_price_raw: askingRaw || null,
-      provenance_note: str(r.provenanceNote) || null,
-      description: str(r.description) || null,
-      has_bracelet: r.hasBracelet === true,
-      details,
-      photos: stored,
-      // Deliberately NOT set: significance_score / completeness_score /
-      // combined_score / score_state (no fabricated scoring), in_hand_verified /
-      // verified_at (imports never earn the badge), publish_request_id.
+    // Pass the row through verbatim; the RPC owns trimming, price parsing,
+    // photo validation, and the single validated photo set used for BOTH
+    // listings.photos and the dealer_import media rows.
+    const p_listing = {
+      brand: r.brand,
+      model: r.model,
+      reference: r.reference,
+      year: r.year,
+      condition: r.condition,
+      askingPrice: r.askingPrice,
+      provenanceNote: r.provenanceNote,
+      description: r.description,
+      hasBracelet: r.hasBracelet,
+      details: r.details ?? {},
     };
+    const p_photos = Array.isArray(r.photos) ? r.photos : null;
 
-    const { data: inserted, error: insErr } = await service
-      .from("listings")
-      .insert(listingRow)
-      .select("id")
-      .single();
+    const { data, error } = await service.rpc("dealer_import_one_listing", {
+      p_dealer_profile_id: dealerId,
+      p_listing,
+      p_photos,
+    });
 
-    if (insErr || !inserted) {
+    if (error) {
+      // A raised RPC = a rolled-back transaction. No listing survives. Classify
+      // by the deterministic media SQLSTATE; sanitize everything else.
+      const isMedia = error.code === "DIM01";
       results.push({
         ok: false,
         index: i,
-        brand,
-        reference,
-        error: insErr ? `insert_failed: ${insErr.message}` : "insert_failed",
+        result: isMedia ? "ROLLED_BACK_MEDIA_FAILURE" : "ROLLED_BACK_DATABASE_ERROR",
+        reason: isMedia ? "dealer_import_media_insert_failed" : "database_error",
+        brand: brandEcho,
+        reference: referenceEcho,
       });
       continue;
     }
 
-    const listingId = inserted.id as string;
-
-    // Provenance media rows — only where photographs exist. Non-fatal to the
-    // listing: a media failure warns but does not undo a created draft.
-    if (media.length > 0) {
-      const mediaRows: MediaInsertRow[] = media.map((m) => ({ ...m, listing_id: listingId }));
-      const { error: mediaErr } = await service.from("listing_media").insert(mediaRows);
-      if (mediaErr) {
-        warnings.push(`listing_media_insert_failed: ${mediaErr.message}`);
-      }
+    const d = (data ?? {}) as RpcReturn;
+    if (d.result === "IMPORTED" && typeof d.listing_id === "string") {
+      results.push({
+        ok: true,
+        index: i,
+        result: "IMPORTED",
+        listing_id: d.listing_id,
+        brand: str(r.brand),
+        reference: str(r.reference),
+        warnings: Array.isArray(d.warnings) ? (d.warnings as string[]) : [],
+      });
+    } else {
+      // REJECTED_BEFORE_MUTATION (validation) — nothing was written.
+      results.push({
+        ok: false,
+        index: i,
+        result: "REJECTED_BEFORE_MUTATION",
+        reason: typeof d.reason === "string" ? d.reason : "rejected_before_mutation",
+        brand: brandEcho,
+        reference: referenceEcho,
+      });
     }
-
-    results.push({ ok: true, index: i, listing_id: listingId, brand, reference, warnings });
   }
 
-  const created = results.filter((x): x is Extract<RowResult, { ok: true }> => x.ok);
-  const failed = results.filter((x): x is Extract<RowResult, { ok: false }> => !x.ok);
+  const created = results.filter((x): x is RowOk => x.ok);
+  const failed = results.filter((x): x is RowFail => !x.ok);
 
   return NextResponse.json(
     {
