@@ -172,6 +172,28 @@ type MediaMeta = {
   /** Phase 5 — per-photo AI verdict. hard_fail never lands here (those
    *  photos are never added). Sent additively at publish. */
   ai_review_status: "pending" | "passed" | "soft_fail";
+  /** The draft attempt this photo was captured under. Publish refuses a set
+   *  whose photos don't all share the active attempt — the backstop behind
+   *  the resume-choice gate against cross-watch photo contamination. */
+  draft_attempt_id: string;
+};
+
+/* ── Persisted resume blob — the exact shape mirrored to localStorage. The
+     attempt identity travels with it so a resumed draft keeps the attempt its
+     photos were stamped under. ── */
+type ResumeBlob = {
+  draft: ListingDraft;
+  saleState: SaleState | null;
+  mediaMeta: MediaMeta[];
+  stage: Stage;
+  captureIndex?: number;
+  optionalIndex?: number;
+  optionalActive?: boolean;
+  captureSessionId?: string | null;
+  badgeForfeited?: boolean;
+  referenceInput?: string;
+  notesInput?: string;
+  attemptId?: string;
 };
 
 /* ── Curation — the desktop contract, mirrored defensively ── */
@@ -247,6 +269,19 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   const [draft, setDraft] = useState<ListingDraft>(() => emptyDraft());
   const [mediaMeta, setMediaMeta] = useState<MediaMeta[]>([]);
 
+  // ── Draft-attempt identity ── one token per listing attempt. Minted on a
+  // fresh start and re-minted on "Start a new listing"; every photo is stamped
+  // with it, and publish refuses a set that doesn't all match. This is what
+  // makes a new attempt truly new — no field or photo survives from a prior
+  // watch. A ref, not state: it changes only alongside a full reset.
+  const attemptIdRef = useRef<string>("");
+  // blockSaveRef starts true so the first render's save-effect pass can't
+  // clobber a stored draft before the resume decision is made.
+  const blockSaveRef = useRef<boolean>(true);
+  // A held prior draft awaiting the seller's resume/start-new choice. While
+  // set, nothing is restored and nothing is saved.
+  const [pendingResume, setPendingResume] = useState<ResumeBlob | null>(null);
+
   // Capture run
   const [captureIndex, setCaptureIndex] = useState(0);
   const [optionalIndex, setOptionalIndex] = useState(0);
@@ -295,35 +330,56 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   );
   const optionalSteps = useMemo(() => buildOptionalSteps(), []);
 
-  /* ── Resume — the draft outlives refreshes and crashes ── */
+  /* ── Resume gate — a prior unpublished draft is NEVER silently restored.
+     Layer-1 fix for the cross-watch draft leak: silent auto-resume let one
+     watch's fields and photos ride under the next watch's session. Now, if an
+     unpublished draft exists, we hold and let the seller choose — resume it,
+     or start a new listing (a full, atomic clear). Only after that choice does
+     any draft state, or any save, proceed. ── */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(RESUME_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (saved && saved.draft && saved.stage && saved.stage !== "published") {
-        setDraft(saved.draft);
-        setSaleState(saved.saleState ?? null);
-        setMediaMeta(Array.isArray(saved.mediaMeta) ? saved.mediaMeta : []);
-        setStage(saved.stage);
-        setCaptureIndex(saved.captureIndex ?? 0);
-        setOptionalIndex(saved.optionalIndex ?? 0);
-        setOptionalActive(saved.optionalActive ?? false);
-        setCaptureSessionId(saved.captureSessionId ?? null);
-        setBadgeForfeited(saved.badgeForfeited === true);
-        // Reference/notes live in their own state and only reach the draft at
-        // publish time — so mid-session the saved draft.reference is empty.
-        // Restore them from the blob's own fields; fall back to the draft
-        // fields for older blobs saved before these were persisted directly.
-        setReferenceInput(saved.referenceInput ?? saved.draft.reference ?? "");
-        setNotesInput(saved.notesInput ?? saved.draft.provenanceNote ?? "");
-        setBrandQuery(saved.draft.brand ?? "");
-        setModelQuery(saved.draft.model ?? "");
+      if (raw) {
+        const saved = JSON.parse(raw) as ResumeBlob;
+        if (saved && saved.draft && saved.stage && saved.stage !== "published") {
+          // Hold for the seller's choice. blockSaveRef stays true so the draft
+          // in storage is preserved untouched until they decide.
+          setPendingResume(saved);
+          return;
+        }
       }
     } catch {
       /* a bad resume blob is discarded, never fatal */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // No resumable draft → a fresh attempt. Mint its identity, open the save
+    // path.
+    attemptIdRef.current = crypto.randomUUID();
+    blockSaveRef.current = false;
+  }, []);
+
+  /* Apply a held draft when the seller chooses to resume it. The attempt keeps
+     its original identity (older blobs with no attemptId adopt a fresh one). */
+  const resumeSaved = useCallback((saved: ResumeBlob) => {
+    setDraft(saved.draft);
+    setSaleState(saved.saleState ?? null);
+    setMediaMeta(Array.isArray(saved.mediaMeta) ? saved.mediaMeta : []);
+    setStage(saved.stage);
+    setCaptureIndex(saved.captureIndex ?? 0);
+    setOptionalIndex(saved.optionalIndex ?? 0);
+    setOptionalActive(saved.optionalActive ?? false);
+    setCaptureSessionId(saved.captureSessionId ?? null);
+    setBadgeForfeited(saved.badgeForfeited === true);
+    // Reference/notes live in their own state and only reach the draft at
+    // publish time — so mid-session the saved draft.reference is empty.
+    // Restore them from the blob's own fields; fall back to the draft fields
+    // for older blobs saved before these were persisted directly.
+    setReferenceInput(saved.referenceInput ?? saved.draft.reference ?? "");
+    setNotesInput(saved.notesInput ?? saved.draft.provenanceNote ?? "");
+    setBrandQuery(saved.draft.brand ?? "");
+    setModelQuery(saved.draft.model ?? "");
+    attemptIdRef.current = saved.attemptId || crypto.randomUUID();
+    blockSaveRef.current = false;
+    setPendingResume(null);
   }, []);
 
   useEffect(() => {
@@ -333,6 +389,9 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
       } catch {}
       return;
     }
+    // Held on the resume decision → never write. This also stops the first
+    // render's pass from clobbering a stored draft before the gate reads it.
+    if (blockSaveRef.current) return;
     try {
       localStorage.setItem(
         RESUME_KEY,
@@ -350,10 +409,13 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           // the draft at publish, so a resumed draft must carry them itself.
           referenceInput,
           notesInput,
+          // The attempt identity travels with the draft so a resumed draft
+          // keeps the same attempt its photos were stamped under.
+          attemptId: attemptIdRef.current,
         })
       );
     } catch {}
-  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput]);
+  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput, pendingResume]);
 
   /* ── Session lifecycle — best-effort, never blocking ── */
   const ensureSession = useCallback(async () => {
@@ -579,6 +641,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           privacy_review_requested: step.privacyReview,
           is_wrist_shot: step.isWristShot === true,
           ai_review_status: verdict,
+          draft_attempt_id: attemptIdRef.current,
         },
       ]);
 
@@ -642,6 +705,21 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
 
   /* ── Publish — ReviewStep's exact payload + additive v2.2 fields ── */
   const publish = useCallback(async () => {
+    // ── Publish-time identity hardening ── every photo must belong to the
+    // active draft attempt, and the dual-write arrays must agree. Backstop
+    // behind the resume-choice gate: a photo set carrying another watch's
+    // shots can never publish, even if some future path reintroduces one.
+    const activeAttempt = attemptIdRef.current;
+    const photosBelong =
+      !!activeAttempt &&
+      mediaMeta.length === draft.photos.length &&
+      mediaMeta.every((m) => m.draft_attempt_id === activeAttempt);
+    if (!photosBelong) {
+      setPublishError(
+        "These photos don't all belong to this listing. Please start a new listing and retake them."
+      );
+      return;
+    }
     if (!publishRequestIdRef.current) {
       publishRequestIdRef.current = crypto.randomUUID(); // stable across retries — that's the idempotency
     }
@@ -687,6 +765,9 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           device_session_token: getDeviceToken(),
           sale_state: saleState,
           media_meta: mediaMeta,
+          // Additive — the active draft attempt. Ignored by today's route;
+          // available for future server-side identity enforcement.
+          draft_attempt_id: activeAttempt,
           source: "mobile_wizard",
         }),
       });
@@ -745,11 +826,60 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     setRetakeNonce(0);
     setBadgeForfeited(false);
     publishRequestIdRef.current = "";
+    // A new attempt gets a new identity, and the save path reopens. Nothing
+    // from the prior watch — field or photo — can survive this.
+    attemptIdRef.current = crypto.randomUUID();
+    blockSaveRef.current = false;
+    setPendingResume(null);
     setPublishError(null);
     setPublishHeld(false);
   }, []);
 
   /* ════════════════════ RENDER ════════════════════ */
+
+  /* ── Resume gate — shown before anything else when a prior unpublished
+     draft exists. The seller chooses; nothing is silently inherited. ── */
+  if (pendingResume) {
+    const brand = pendingResume.draft?.brand?.trim();
+    const model = pendingResume.draft?.model?.trim();
+    const label = [brand, model].filter(Boolean).join(" ");
+    return (
+      <Shell>
+        <div className="mb-2 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
+          List from Phone
+        </div>
+        <h1 className="mb-3 font-display text-[24px] font-light leading-[1.3] text-[var(--platinum)]">
+          You have an unfinished listing
+        </h1>
+        <p className="mb-8 font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
+          {label
+            ? `A draft for ${label} is still in progress on this device. `
+            : "A draft is still in progress on this device. "}
+          Pick up where you left off, or start a new listing.
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => resumeSaved(pendingResume)}
+            className="fw-btn-primary w-full text-center"
+          >
+            {label ? `Resume ${label}` : "Resume this listing"}
+          </button>
+          <button
+            type="button"
+            onClick={startOver}
+            className="w-full border border-[rgba(255,255,255,0.28)] px-4 py-4 text-center text-[12px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+          >
+            Start a new listing
+          </button>
+        </div>
+        <p className="mt-8 font-display text-[11px] font-light italic leading-[1.7] text-[#6B7080]">
+          Starting new clears the previous watch entirely — its photos and
+          details won&apos;t carry over.
+        </p>
+      </Shell>
+    );
+  }
 
   /* ── Screen 0 — sale-state declaration ── */
   if (stage === "sale_state") {
@@ -788,7 +918,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
           <button
             type="button"
             onClick={startOver}
-            className="mt-10 text-[9px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
+            className="mt-10 w-full border border-[rgba(255,255,255,0.28)] px-4 py-3 text-center text-[11px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
           >
             Start over from scratch
           </button>
