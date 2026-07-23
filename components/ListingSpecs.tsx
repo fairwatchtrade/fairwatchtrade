@@ -39,6 +39,33 @@ const MOVEMENT_LABELS: Record<string, string> = {
   "Solar/Kinetic": "Solar/Kinetic",
 };
 
+/* v2.57 — Disclosure caret for §4. Same geometry and stroke as the
+   project-standard chevron (NavBar), rendered at 14px and inheriting the
+   corrected label's color. Replaces the literal ∨ (U+2228) that stood in
+   for a chevron here. */
+function DisclosureChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 8 8"
+      fill="none"
+      aria-hidden="true"
+      className={`text-[var(--gold-dim)] transition-all duration-300 group-hover:text-[var(--gold)] ${
+        open ? "rotate-180" : ""
+      }`}
+    >
+      <path
+        d="M1 2.5L4 5.5L7 2.5"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function ListingSpecs({
   details,
   year,
@@ -95,7 +122,7 @@ export default function ListingSpecs({
         <section className="mt-8">
           <div className="pt-8">
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               Collector Snapshot
             </span>
           </div>
@@ -132,17 +159,10 @@ export default function ListingSpecs({
           >
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
             <div className="flex items-center justify-end gap-2">
-              <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
                 Technical Specifications
               </span>
-              <span
-                aria-hidden="true"
-                className={`text-[var(--gold-subtle)] transition-all duration-300 group-hover:text-[var(--gold)] ${
-                  open ? "rotate-180" : ""
-                }`}
-              >
-                ∨
-              </span>
+              <DisclosureChevron open={open} />
             </div>
           </div>
 
@@ -158,7 +178,9 @@ export default function ListingSpecs({
                     <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
                       {row.label}
                     </dt>
-                    <dd className="mt-0.5 text-[13px] text-[var(--slate)]">{row.value}</dd>
+                    <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">
+                      {row.value}
+                    </dd>
                   </div>
                 ))}
               </dl>

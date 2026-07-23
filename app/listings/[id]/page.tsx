@@ -575,7 +575,7 @@ export default async function ListingDetailPage({
         {/* SECTION 5 — From the Seller */}
         {listing.description && (
           <section className="mt-8">
-            <div className="border-t border-[var(--border-faint)] pt-6 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            <div className="border-t border-[var(--border-faint)] pt-6 text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               From the Seller
             </div>
             <p className="mt-3 mb-8 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
