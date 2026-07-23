@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { sellerLabel } from "@/lib/listingStatus";
+import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import type { AccountListing } from "@/components/AccountDashboard";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -61,19 +61,52 @@ export type ListingThreadStat = {
 type TabId = "all" | "published" | "reserved" | "draft" | "pending_review" | "rejected";
 
 // v2.27 — 'reserved' is an intentional lifecycle state, not a fall-through: a
-// listing whose offer was accepted (watch off the competitive market,
-// settlement not yet represented). It gets its own badge treatment and tab so
-// it never renders as a blank status under "All". Labels now come from the
-// shared lib/listingStatus.ts helper (single source of truth; 'reserved' →
-// "Sale Pending" lives there). STATUS_CLASS below stays this surface's current
-// visual treatment — the Hybrid C perimeter lands in the Seller order.
-const STATUS_CLASS: Record<string, string> = {
-  published: "border-[rgba(121,191,144,0.28)] text-[var(--success)]",
-  reserved: "border-[var(--border-gold)] text-[var(--gold)]",
-  pending_review: "border-[rgba(201,168,76,0.32)] text-[var(--gold)]",
-  rejected: "border-[rgba(200,90,90,0.32)] text-[var(--danger)]",
-  draft: "border-[var(--border-mid)] text-[var(--muted)]",
-};
+// listing whose offer was accepted (watch off the competitive market). It gets
+// its own tab and, under Hybrid C, its own perimeter + badge so it never
+// renders blank under "All". Labels come from lib/listingStatus.ts.
+//
+// Hybrid C (Design Gate closed) — the CONTAINER carries lifecycle: a faint
+// perimeter in the state's --lc-<key>-line (+ a wash on the larger rail card),
+// with the exact word in the badge. The teal --lc-attn-edge is Channel 2
+// (attention / new change), shown only on a real condition. Selection is
+// neutral (Channel 4) — gold no longer means "selected".
+function lifecycleContainerStyle(
+  status: string,
+  opts: { selected?: boolean; attention?: boolean; wash?: boolean } = {}
+): React.CSSProperties {
+  const key = statusTokenKey(status);
+  const shadows: string[] = [];
+  if (opts.selected) shadows.push("inset 0 0 0 1px var(--lc-select-line)");
+  if (opts.attention) shadows.push("inset 3px 0 0 0 var(--lc-attn-edge)");
+  const style: React.CSSProperties = {
+    borderColor: `var(--lc-${key}-line)`,
+    boxShadow: shadows.length ? shadows.join(", ") : undefined,
+  };
+  if (opts.selected) style.backgroundColor = "var(--lc-select-fill)";
+  else if (opts.wash) style.backgroundColor = `var(--lc-${key}-wash, transparent)`;
+  return style;
+}
+
+function statusBadgeStyle(status: string): React.CSSProperties {
+  const key = statusTokenKey(status);
+  return {
+    borderColor: `var(--lc-${key}-line)`,
+    color: `var(--lc-${key}-badge, var(--muted))`,
+  };
+}
+
+// A real attention/new-change condition today: an integrity hold on a Pending,
+// or a clarification round on a Draft (Channel 2 — the teal edge).
+function hasAttention(row: {
+  status: string;
+  integrity_hold_reason?: string | null;
+  seller_clarification_note?: string | null;
+}): boolean {
+  return (
+    (row.status === "pending_review" && !!row.integrity_hold_reason) ||
+    (row.status === "draft" && row.seller_clarification_note != null)
+  );
+}
 
 function thumbUrl(photos?: ListingPhoto[]): string | null {
   if (!Array.isArray(photos) || photos.length === 0) return null;
@@ -216,27 +249,28 @@ export default function SellerListingsRoom({
         ) : (
           <div>
             {/* Column guide — quiet, uppercase, from the locked artifact. */}
-            <div className="hidden gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-2 text-[8px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_110px_150px]">
+            <div className="hidden gap-3 px-7 py-2 text-[8px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_110px_150px]">
               <span>Image</span>
               <span>Listing</span>
               <span className="text-right">Price</span>
               <span className="text-right">Status · Actions</span>
             </div>
 
+            {/* Hybrid C — each listing is its own container carrying its
+                lifecycle perimeter; a faint gap separates them so the states
+                read as distinct without a wash at this compact density. */}
+            <div className="flex flex-col gap-[6px] px-3 pb-4 pt-1">
             {visible.map((row) => {
               const isSel = row.id === selectedId;
               const thumb = thumbUrl(row.photos);
               const badge = sellerLabel(row.status);
-              const badgeCls = STATUS_CLASS[row.status] ?? STATUS_CLASS.draft;
+              const attn = hasAttention(row);
               return (
                 <div
                   key={row.id}
                   onClick={() => setSelectedId(row.id)}
-                  className={`relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[13px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(0,1fr)_110px_150px] ${
-                    isSel
-                      ? "bg-[rgba(201,168,76,0.045)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
-                      : ""
-                  }`}
+                  style={lifecycleContainerStyle(row.status, { selected: isSel, attention: attn })}
+                  className="relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border px-4 py-[12px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(0,1fr)_110px_150px]"
                 >
                   {/* Real listing photograph */}
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
@@ -271,7 +305,8 @@ export default function SellerListingsRoom({
                   {/* Status + restrained real actions */}
                   <div className="hidden items-center justify-end gap-2 md:flex">
                     <span
-                      className={`border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px] ${badgeCls}`}
+                      className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                      style={statusBadgeStyle(row.status)}
                     >
                       {badge}
                     </span>
@@ -306,7 +341,10 @@ export default function SellerListingsRoom({
                     <span className="font-display text-[14px] font-light text-[var(--platinum-dim)]">
                       {price(row.asking_price)}
                     </span>
-                    <span className={`border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px] ${badgeCls}`}>
+                    <span
+                      className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                      style={statusBadgeStyle(row.status)}
+                    >
                       {badge}
                     </span>
                   </div>
@@ -319,6 +357,7 @@ export default function SellerListingsRoom({
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>
@@ -327,9 +366,23 @@ export default function SellerListingsRoom({
       <aside className="w-full shrink-0 border-t border-[var(--border-faint)] p-4 lg:w-[316px] lg:border-t-0">
         {selected ? (
           <div className="flex flex-col gap-4">
-            <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.01)] p-4">
-              <div className="mb-3 text-[9px] uppercase tracking-[2.2px] text-[var(--gold)]">
-                Selected Listing
+            <div
+              className="border p-4"
+              style={lifecycleContainerStyle(selected.status, {
+                attention: hasAttention(selected),
+                wash: true,
+              })}
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold)]">
+                  Selected Listing
+                </span>
+                <span
+                  className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                  style={statusBadgeStyle(selected.status)}
+                >
+                  {sellerLabel(selected.status)}
+                </span>
               </div>
 
               {/* Substantially larger real photograph */}
@@ -434,7 +487,7 @@ export default function SellerListingsRoom({
                 {/* v2.24 — clarification round: locked introduction + the
                     founder's bounded note. Resubmitting clears it. */}
                 {selected.status === "draft" && selected.seller_clarification_note != null && (
-                  <div className="border-l border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
                     We need a little more information about one or more photographs before
                     the listing can be published.
                     {selected.seller_clarification_note.trim() !== "" && (
