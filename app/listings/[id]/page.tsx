@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -143,6 +144,25 @@ const PHOTO_ORDER = [
   "Wrist shot",
   "Other",
 ];
+
+/* Manufacturer reference, rendered whole with a break opportunity after each
+   REAL hyphen. <wbr /> contributes no text, so the value a collector copies —
+   and the value a screen reader speaks — is byte-identical to the stored
+   reference. Deliberately not character-level breaking: a reference must never
+   fragment at an arbitrary position, and never dangerouslySetInnerHTML. */
+function ReferenceValue({ value }: { value: string }) {
+  const segments = value.split(/(?<=-)/);
+  return (
+    <>
+      {segments.map((segment, i) => (
+        <Fragment key={i}>
+          {segment}
+          {i < segments.length - 1 && <wbr />}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 // returnTo is read from a request-controlled query string — untrusted input —
 // and must be validated as a genuine internal FairWatchTrade path before ever
@@ -292,26 +312,53 @@ export default async function ListingDetailPage({
   const dialPhoto = sorted.find((p) => p?.category === "Dial");
   const dialPhotoUrl = dialPhoto?.photo.url ?? null;
 
-  // Header title.
-  const title = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
+  /* §2 IDENTITY — maker eyebrow, model heading, reference signature.
+     `brand` and `model` are separate columns; the model value is normally the
+     model alone. Some records carry the maker inside the model string, which
+     would print the brand twice now that the eyebrow carries it — so the
+     leading maker is dropped from the heading only when it is actually there.
+     With no model at all the maker becomes the heading and the eyebrow is
+     omitted, rather than leaving an eyebrow above a repeat of itself. */
+  const maker = listing.brand?.trim() ?? "";
+  const modelRaw = listing.model?.trim() ?? "";
+  const model =
+    modelRaw && maker && modelRaw.toLowerCase().startsWith(maker.toLowerCase())
+      ? modelRaw.slice(maker.length).trim()
+      : modelRaw;
+  const headingText = model || maker;
+  const showMaker = Boolean(model) && Boolean(maker);
+  const reference = listing.reference?.trim() ?? "";
 
-  // Box & Papers badge — only Full Set or Papers Only.
-  const showBoxPapers =
-    details.documentation === "Full Set" || details.documentation === "Papers Only";
+  /* Box and papers — stated, not certified. The predicate is the seller's own
+     documentation value. "Full Set" is the only value that means both a box
+     AND papers, so it is the only value this sentence can truthfully describe;
+     "Papers Only" now renders nothing rather than claiming a box that is not
+     there. No checkmark, no verification implication. */
+  const includesBoxAndPapers = details.documentation === "Full Set";
 
   const priceText = `$${Number(listing.asking_price).toLocaleString()}`;
 
-  // §2 — Identity snapshot pills (raw values; each complication its own pill).
-  const snapshotPills: string[] = [];
-  if (details.caseSizeMm) snapshotPills.push(`${details.caseSizeMm} mm`);
-  if (details.caseThicknessMm) snapshotPills.push(`${details.caseThicknessMm} mm thick`);
-  if (details.movementType) snapshotPills.push(details.movementType);
-  if (listing.year) snapshotPills.push(listing.year);
-  if (Array.isArray(details.complications)) {
-    for (const c of details.complications) {
-      if (c && String(c).trim() !== "") snapshotPills.push(String(c));
-    }
-  }
+  /* §2 — Collector shorthand. Built from the same live values the rest of the
+     page uses, never a stored copy. Only facts that actually exist join the
+     line, so separators are emitted between rendered facts and can never lead,
+     trail, or double up. Chronograph folds into the movement as one phrase;
+     the remaining complications stay in Collector Snapshot. */
+  const hasChronograph =
+    Array.isArray(details.complications) &&
+    details.complications.some((c) => String(c).trim().toLowerCase() === "chronograph");
+  const movementPhrase = details.movementType
+    ? hasChronograph
+      ? `${details.movementType} chronograph`
+      : details.movementType
+    : hasChronograph
+      ? "Chronograph"
+      : "";
+
+  const shorthand: string[] = [];
+  if (details.caseSizeMm) shorthand.push(`${details.caseSizeMm} mm case`);
+  if (details.caseThicknessMm) shorthand.push(`${details.caseThicknessMm} mm thick`);
+  if (movementPhrase) shorthand.push(movementPhrase);
+  if (listing.year) shorthand.push(listing.year);
 
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
@@ -476,28 +523,65 @@ export default async function ListingDetailPage({
             a non-dial photo, and reactivates if they click back to it, since
             heroUrl and dialUrl are both derived from the same category match. */}
 
-        {/* SECTION 2 — Identity block */}
+        {/* SECTION 2 — Identity block. LD1.7: the watch is introduced as one
+            composed identity — maker, model, reference signature, inclusion
+            statement, collector shorthand — rather than as unrelated data
+            components stacked in sequence. Nothing here is boxed. */}
         <section className="mt-6">
-          <h1 className="font-display text-[28px] font-light leading-tight tracking-[0.3px] text-[var(--platinum)]">
-            {title}
+          {showMaker && (
+            <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[12px]">
+              {maker}
+            </div>
+          )}
+          <h1 className="font-display text-[35px] font-light leading-[1.03] tracking-[-0.018em] text-[var(--platinum)] sm:text-[48px] sm:leading-[1.06]">
+            {headingText}
           </h1>
-          <p className="mt-1 text-[13px] tracking-[0.5px] text-[var(--muted)]">
-            Ref. {listing.reference}
-          </p>
+
+          {/* Reference signature — the manufacturer reference is part of the
+              watch's identity, not a database footnote under the title. The
+              rule beneath it starts gold with meaning and fades into the
+              graphite. Absent reference omits the whole signature cleanly. */}
+          {reference && (
+            <div className="mt-[22px] max-w-[760px] sm:mt-[27px]">
+              <span className="mb-2 block text-[10px] uppercase tracking-[0.24em] text-[var(--gold)]">
+                Reference
+              </span>
+              <span className="block font-display text-[15px] leading-[1.55] tracking-[0.065em] text-[var(--platinum-dim)] sm:inline sm:text-[18px] sm:leading-[1.45] sm:tracking-[0.085em]">
+                <ReferenceValue value={reference} />
+              </span>
+              <div
+                aria-hidden="true"
+                className="mt-[9px] h-px bg-[linear-gradient(90deg,rgba(201,168,76,0.85),rgba(201,168,76,0.18)_38%,transparent_76%)]"
+              />
+            </div>
+          )}
           {/* v2.11 — RELOCATED, not duplicated: on desktop this same link
               lives in the rail's Dealer Information card. Identical treatment,
               one home per viewport. */}
           <Link
             href={`/sellers/${listing.seller_id}`}
-            className="mt-1 inline-block text-[11px] text-[var(--muted)] transition hover:text-[var(--gold)] xl:hidden"
+            className="mt-1 inline-block text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)] xl:hidden"
           >
             Sold by {sellerName} →
           </Link>
 
-          {showBoxPapers && (
-            <div className="mt-2">
-              <span className="inline-flex border border-[var(--border-gold)] px-3 py-1 text-[11px] uppercase tracking-[1px] text-[var(--gold)]">
-                Box &amp; Papers ✓
+          {/* Stated by the seller, not certified by the platform: a sentence,
+              no chip, no checkmark. The outline mark is decoration only. */}
+          {includesBoxAndPapers && (
+            <div className="mt-[21px] flex items-center gap-[10px] sm:mt-[23px]">
+              <svg
+                width="16"
+                height="17"
+                viewBox="0 0 16 17"
+                fill="none"
+                aria-hidden="true"
+                className="flex-none text-[var(--gold-dim)]"
+              >
+                <rect x="0.5" y="5.5" width="15" height="11" stroke="currentColor" />
+                <path d="M3.5 5.5V1.5h9v4" stroke="currentColor" />
+              </svg>
+              <span className="font-display text-[16px] leading-[1.4] text-[var(--platinum-dim)] sm:text-[17px]">
+                Includes box and papers
               </span>
             </div>
           )}
@@ -526,14 +610,27 @@ export default async function ListingDetailPage({
             </div>
           )}
 
-          {snapshotPills.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {snapshotPills.map((pill, i) => (
-                <span
-                  key={i}
-                  className="border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 font-[Inter] text-[11px] tracking-[0.3px] text-[var(--slate)]"
-                >
-                  {pill}
+          {/* Collector shorthand — one unboxed line. Every fact carries the
+              same weight and colour; the gold separators do the composing.
+              The facts are flex items; each gold separator is a pseudo-element
+              sitting in the inter-fact gap, not a glyph in the text flow. On a
+              wrapped line the leading fact's separator falls at negative-left,
+              outside the box, and is clipped by overflow-hidden — so no
+              rendered line can begin OR end with a separator. Missing facts
+              never render, so there is never a stray separator. */}
+          {shorthand.length > 0 && (
+            <div className="mt-[22px] flex flex-wrap items-baseline gap-x-4 gap-y-1 overflow-hidden border-t border-[var(--border-subtle)] pt-[18px] font-display text-[16px] leading-[1.7] text-[var(--platinum-dim)] sm:mt-[28px] sm:gap-x-7 sm:pt-[22px] sm:text-[18px] sm:leading-[1.55]">
+              {shorthand.map((fact, i) => (
+                <span key={fact} className="relative">
+                  {i > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 -left-2 flex items-center text-[12px] text-[var(--gold-dim)] sm:-left-[14px]"
+                    >
+                      ·
+                    </span>
+                  )}
+                  {fact}
                 </span>
               ))}
             </div>
