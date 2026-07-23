@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
+import { sellerLabel } from "@/lib/listingStatus";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -136,15 +137,9 @@ type SubmitProps = {
   submitErrorMsg?: string | null;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  published: "Published",
-  // Keyed on the real status value. Was "pending" — a value the listings table
-  // never produces — so a submitted listing fell through to its raw status.
-  pending_review: "Pending Review",
-  rejected: "Rejected",
-  draft: "Draft",
-};
-
+// Labels come from the shared lib/listingStatus.ts helper (single source of
+// truth). This preview previously had no 'reserved' key — a Sale Pending
+// listing fell through to the raw "reserved"; the helper closes that gap.
 function dialThumbUrl(photos?: ListingPhoto[]): string | null {
   if (!Array.isArray(photos) || photos.length === 0) return null;
   const dial = photos.find((p) => p?.category === "Dial");
@@ -253,7 +248,7 @@ function ListingRow({
   submitError?: string | null;
 }) {
   const price = `$${Number(row.asking_price).toLocaleString("en-US")}`;
-  const badgeLabel = STATUS_LABELS[row.status] ?? row.status;
+  const badgeLabel = sellerLabel(row.status);
   const badgeClass =
     row.status === "published"
       ? "text-[var(--success)]"

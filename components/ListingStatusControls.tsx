@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { WRITABLE_STATUSES, isWritableStatus, type WritableStatus } from "@/lib/listingStatus";
 
 /* ════════════════════════════════════════════════════════════════════════
    ListingStatusControls — components/ListingStatusControls.tsx
@@ -33,12 +34,12 @@ import { useState } from "react";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-const STATUS_OPTIONS = ["pending_review", "published", "draft", "rejected"] as const;
-type StatusOption = (typeof STATUS_OPTIONS)[number];
-
-function isStatusOption(v: string): v is StatusOption {
-  return (STATUS_OPTIONS as readonly string[]).includes(v);
-}
+// The writable set + guard now come from the shared lib/listingStatus.ts
+// helper (single source of truth); order and values are unchanged, so the
+// founder dropdown renders identically.
+const STATUS_OPTIONS = WRITABLE_STATUSES;
+type StatusOption = WritableStatus;
+const isStatusOption = isWritableStatus;
 
 export default function ListingStatusControls({
   listingId,

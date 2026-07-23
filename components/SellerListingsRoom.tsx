@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { sellerLabel } from "@/lib/listingStatus";
 import type { AccountListing } from "@/components/AccountDashboard";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -61,16 +62,11 @@ type TabId = "all" | "published" | "reserved" | "draft" | "pending_review" | "re
 
 // v2.27 — 'reserved' is an intentional lifecycle state, not a fall-through: a
 // listing whose offer was accepted (watch off the competitive market,
-// settlement not yet represented). It gets its own label, badge treatment, and
-// tab so it never renders as a blank status under "All".
-const STATUS_LABELS: Record<string, string> = {
-  published: "Published",
-  reserved: "Sale Pending",
-  pending_review: "Pending Review",
-  rejected: "Rejected",
-  draft: "Draft",
-};
-
+// settlement not yet represented). It gets its own badge treatment and tab so
+// it never renders as a blank status under "All". Labels now come from the
+// shared lib/listingStatus.ts helper (single source of truth; 'reserved' →
+// "Sale Pending" lives there). STATUS_CLASS below stays this surface's current
+// visual treatment — the Hybrid C perimeter lands in the Seller order.
 const STATUS_CLASS: Record<string, string> = {
   published: "border-[rgba(121,191,144,0.28)] text-[var(--success)]",
   reserved: "border-[var(--border-gold)] text-[var(--gold)]",
@@ -230,7 +226,7 @@ export default function SellerListingsRoom({
             {visible.map((row) => {
               const isSel = row.id === selectedId;
               const thumb = thumbUrl(row.photos);
-              const badge = STATUS_LABELS[row.status] ?? row.status;
+              const badge = sellerLabel(row.status);
               const badgeCls = STATUS_CLASS[row.status] ?? STATUS_CLASS.draft;
               return (
                 <div

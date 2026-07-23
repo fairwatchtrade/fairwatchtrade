@@ -59,6 +59,32 @@
   --border-faint:       rgba(255,255,255,0.04);
   --border-mid:         rgba(255,255,255,0.08);
 
+  /* ── LIFECYCLE STATUS CONTAINER LANGUAGE (Hybrid C · Design Gate closed) ──
+     Channel 1 lifecycle = faint perimeter (+ wash on larger Seller cards);
+     Channel 2 attention = teal LEFT edge only; Channel 4 interaction = neutral.
+     Defined here as the single palette; applied per surface in the Seller and
+     Admin implementation orders. Sale Pending is badge-led warm ivory. ── */
+  --lc-draft-line:           rgba(201,168,76,0.34);
+  --lc-draft-wash:           rgba(201,168,76,0.045);
+  --lc-draft-badge:          #C9A84C;
+  --lc-pending_review-line:  rgba(156,161,176,0.40);
+  --lc-pending_review-wash:  rgba(156,161,176,0.045);
+  --lc-pending_review-badge: #B9BECC;
+  --lc-published-line:       rgba(112,192,144,0.34);
+  --lc-published-wash:       rgba(112,192,144,0.038);
+  --lc-published-badge:      #70C090;
+  --lc-rejected-line:        rgba(190,86,80,0.44);
+  --lc-rejected-wash:        rgba(190,86,80,0.05);
+  --lc-rejected-badge:       #DB8E88;
+  --lc-reserved-line:        rgba(228,216,188,0.62);
+  --lc-reserved-wash:        rgba(228,216,188,0.05);
+  --lc-reserved-badge:       #EFE4CB;
+  --lc-neutral-line:         var(--border-subtle);
+  --lc-attn-edge:            #58B4BE;
+  --lc-select-line:          rgba(232,228,220,0.30);
+  --lc-select-fill:          rgba(255,255,255,0.028);
+  --lc-focus-ring:           rgba(232,228,220,0.55);
+
   /* ── SPACING ── */
   --space-1:  4px;
   --space-2:  8px;
