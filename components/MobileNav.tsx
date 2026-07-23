@@ -309,20 +309,22 @@ export default function MobileNav({
           ) : (
             /* v2.55 — signed-out: the Account slot invites the visitor to join
                instead of one-click-bouncing them into /sell. Browsing is free. */
-            <div className="px-5 py-4">
-              <div className="font-display text-[15px] font-light text-[var(--platinum)]">
-                Make FairWatchTrade yours
+            <div className="px-5 py-5">
+              <div className="font-display text-[16px] font-light leading-[1.35] text-[var(--platinum)]">
+                Make FairWatchTrade your home for watches and knowledge.
               </div>
-              <div className="mt-1 text-[11px] leading-[1.55] text-[var(--muted)]">
-                Save watches, build your Catalogue, manage offers, and list when you&apos;re ready.
-              </div>
-              <div className="mt-3 flex flex-col gap-2">
+              <ul className="mt-4 flex flex-col gap-3.5 text-[11px] leading-[1.6] text-[var(--muted)]">
+                <li>Keep your saved watches, saved searches, offers, listings, and correspondence together in one place.</li>
+                <li>See new listings in your FairWatchTrade notifications as soon as they are published — never held for a daily batch.</li>
+                <li>Sell for 5% only when a sale is completed. No listing fees. No paid placement.</li>
+              </ul>
+              <div className="mt-4 flex flex-col gap-2">
                 <Link
                   href="/signup"
                   onClick={onClose}
                   className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-4 py-2.5 text-center text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
                 >
-                  Create yours
+                  Create account
                 </Link>
                 <Link
                   href="/login"

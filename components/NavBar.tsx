@@ -165,20 +165,22 @@ export default function NavBar({
                   {joinOpen && (
                     <div
                       role="menu"
-                      className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-60 -translate-x-1/2 border border-[var(--border-subtle)] bg-[var(--surface)] p-4"
+                      className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-[340px] max-w-[calc(100vw-32px)] -translate-x-1/2 border border-[var(--border-subtle)] bg-[var(--surface)] p-5"
                     >
-                      <div className="mb-1.5 font-display text-[15px] font-light text-[var(--platinum)]">
-                        Make FairWatchTrade yours
+                      <div className="mb-4 font-display text-[16px] font-light leading-[1.35] text-[var(--platinum)]">
+                        Make FairWatchTrade your home for watches and knowledge.
                       </div>
-                      <div className="mb-3 text-[10px] leading-[1.55] text-[var(--muted)]">
-                        Save watches, build your Catalogue, manage offers, and list when you&apos;re ready.
-                      </div>
+                      <ul className="mb-4 flex flex-col gap-3.5 text-[11px] leading-[1.55] text-[var(--muted)]">
+                        <li>Keep your saved watches, saved searches, offers, listings, and correspondence together in one place.</li>
+                        <li>See new listings in your FairWatchTrade notifications as soon as they are published — never held for a daily batch.</li>
+                        <li>Sell for 5% only when a sale is completed. No listing fees. No paid placement.</li>
+                      </ul>
                       <Link
                         href="/signup"
                         onClick={() => setJoinOpen(false)}
                         className="mb-2 block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-3 py-2.5 text-center text-[9px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
                       >
-                        Create yours
+                        Create account
                       </Link>
                       <Link
                         href="/login"
