@@ -93,7 +93,9 @@ export default function NavBar({
 } = {}) {
   const [open, setOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const joinRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -108,6 +110,18 @@ export default function NavBar({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [accountOpen]);
+
+  // v2.55 — close the signed-out "join" prompt on outside click.
+  useEffect(() => {
+    if (!joinOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (joinRef.current && !joinRef.current.contains(e.target as Node)) {
+        setJoinOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [joinOpen]);
 
   // v2.5 — Sign Out. Auth-flow law: this is the only place NavBar redirects
   // on its own initiative (a deliberate user action, not a login side
@@ -127,19 +141,71 @@ export default function NavBar({
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
-                pathname === item.href
-                  ? "text-[var(--gold)]"
-                  : "text-[var(--slate)] hover:text-[var(--platinum)]"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((item) => {
+            // v2.55 — the "Account" word must never one-click-bounce a
+            // signed-out browser into /sell. Signed in: an ordinary link to
+            // /account. Signed out: it opens a small join prompt in place —
+            // create an account or sign in — never an ambush. Browsing is free.
+            if (item.label === "Account" && !authed) {
+              return (
+                <div key="account-join" ref={joinRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setJoinOpen((v) => !v)}
+                    aria-expanded={joinOpen}
+                    aria-haspopup="menu"
+                    className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                      joinOpen
+                        ? "text-[var(--gold)]"
+                        : "text-[var(--slate)] hover:text-[var(--platinum)]"
+                    }`}
+                  >
+                    Account
+                  </button>
+                  {joinOpen && (
+                    <div
+                      role="menu"
+                      className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-60 -translate-x-1/2 border border-[var(--border-subtle)] bg-[var(--surface)] p-4"
+                    >
+                      <div className="mb-1.5 font-display text-[15px] font-light text-[var(--platinum)]">
+                        Make FairWatchTrade yours
+                      </div>
+                      <div className="mb-3 text-[10px] leading-[1.55] text-[var(--muted)]">
+                        Save watches, build your Catalogue, manage offers, and list when you&apos;re ready.
+                      </div>
+                      <Link
+                        href="/signup"
+                        onClick={() => setJoinOpen(false)}
+                        className="mb-2 block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-3 py-2.5 text-center text-[9px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+                      >
+                        Create yours
+                      </Link>
+                      <Link
+                        href="/login"
+                        onClick={() => setJoinOpen(false)}
+                        className="block px-3 py-1 text-center text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+                      >
+                        Sign in
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                  pathname === item.href
+                    ? "text-[var(--gold)]"
+                    : "text-[var(--slate)] hover:text-[var(--platinum)]"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
           {/* Bell — authenticated users only; count seeded server-side. */}
           {authed && <NotificationsBell initialUnreadCount={initialUnreadCount} />}
 

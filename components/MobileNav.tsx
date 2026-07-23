@@ -297,14 +297,43 @@ export default function MobileNav({
 
           {/* Account — below a divider */}
           <div className="my-2 border-t border-[var(--border-faint)]" />
-          <Link
-            href="/account"
-            onClick={onClose}
-            className="flex items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
-          >
-            <NavIcon label="Account" active={pathname === "/account"} />
-            <span>Account</span>
-          </Link>
+          {authed ? (
+            <Link
+              href="/account"
+              onClick={onClose}
+              className="flex items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
+            >
+              <NavIcon label="Account" active={pathname === "/account"} />
+              <span>Account</span>
+            </Link>
+          ) : (
+            /* v2.55 — signed-out: the Account slot invites the visitor to join
+               instead of one-click-bouncing them into /sell. Browsing is free. */
+            <div className="px-5 py-4">
+              <div className="font-display text-[15px] font-light text-[var(--platinum)]">
+                Make FairWatchTrade yours
+              </div>
+              <div className="mt-1 text-[11px] leading-[1.55] text-[var(--muted)]">
+                Save watches, build your Catalogue, manage offers, and list when you&apos;re ready.
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
+                <Link
+                  href="/signup"
+                  onClick={onClose}
+                  className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-4 py-2.5 text-center text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+                >
+                  Create yours
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={onClose}
+                  className="px-4 py-1 text-center text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* v2.5 — Sign Out, logged-in users only. The brief's referenced
               --ghost styling doesn't actually apply to interactive nav items
