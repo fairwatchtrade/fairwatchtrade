@@ -1721,22 +1721,24 @@ export default function VaultGalaxy({
                       References
                     </div>
                     {selectedVariant.vault_references.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-baseline justify-between gap-4 py-1 text-[12px] text-[var(--slate)]"
-                      >
-                        <span>{r.reference ?? "—"}</span>
+                      <div key={r.id}>
+                        <div className="flex items-baseline justify-between gap-4 py-1 text-[12px] text-[var(--slate)]">
+                          <span>{r.reference ?? "—"}</span>
+                        </div>
+                        {/* v2.65 Market Evidence (ME3) · v5 exact-reference scope:
+                            reviewed exact-match sale evidence for THIS reference
+                            only (market_evidence_for_reference), fetched live and
+                            rights-gated server-side. A sibling reference never
+                            inherits another's evidence. Renders NOTHING when no
+                            rights-cleared evidence exists, so the reference list
+                            is byte-identical to before while artifacts remain
+                            internal_only. Desktop: summary open, source
+                            collapsed. Galaxy: collapsed to one row by default. */}
+                        <VaultMarketEvidence referenceId={r.id} />
                       </div>
                     ))}
                   </div>
                 )}
-                {/* v2.65 — Market Evidence (ME3): reviewed exact-match sale
-                    evidence for this variant's references, fetched live and
-                    eligibility-checked server-side. Renders NOTHING when no
-                    eligible evidence exists, so every other card is
-                    untouched. Desktop: summary open, source collapsed.
-                    Galaxy: whole section collapsed to one row by default. */}
-                <VaultMarketEvidence variantId={selectedVariant.id} />
                 {/* v2.66 — mobile: the gold primary was wrapping to a
                     three-line slab that outweighed the evidence above it.
                     Compact one-line buttons on the phone card only; desktop

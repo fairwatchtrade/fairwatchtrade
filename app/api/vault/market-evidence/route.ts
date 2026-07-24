@@ -1,39 +1,38 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 
 /* ════════════════════════════════════════════════════════════════════════
    MARKET EVIDENCE — public read  (app/api/vault/market-evidence/route.ts)
 
-   GET /api/vault/market-evidence?variantId=<uuid>
+   GET /api/vault/market-evidence?referenceId=<uuid>
+   → { evidence: MarketEvidenceRecord | null }
 
-   Returns reviewed Market Evidence for the Vault references of one variant —
-   and ONLY when every eligibility law holds live (Identity Resolution
-   Architecture §9). Nothing is stored pre-computed; nothing is trusted from
-   the client; auction facts are never duplicated into Vault rows or UI code.
+   v5 (Public Rights Gate + Exact Reference Scope). This route no longer reads
+   the protected Auction Evidence / Identity Resolution tables with a
+   service-role client. It calls ONE narrow read-only database function,
+   public.market_evidence_for_reference(uuid), through the ordinary
+   cookie-bound anon/authenticated SSR client. The input is the EXACT
+   vault_references.id being rendered — never a variant — so a reference never
+   inherits a sibling reference's evidence. That function:
 
-   A record is returned only when ALL of:
-     · the identity decision is current and outcome = 'exact';
-     · human review is present (reviewer UID + time — RPC-guaranteed);
-     · the server-recomputed claim fingerprint still matches;
-     · the selected target is a Vault reference of the requested variant
-       and still exists;
-     · the Auction Evidence result is current and sold;
-     · the result's source artifact is not publication-blocked (takedown).
+     · runs security-definer with a fixed empty search_path and no dynamic SQL;
+     · enforces the FULL eligibility + rights law server-side — in particular
+       it fails CLOSED unless every supporting artifact's publication_status is
+       'allowed' with a permitting permission_status (the prior route let
+       merely 'internal_only' artifacts through, which is the leak v5 closes);
+     · returns at most ONE deterministically selected row;
+     · returns ONLY public fields — no database ids, storage paths, signed
+       URLs, reviewer identity, notes, or credentials.
 
-   Returned fields are the public set only: house, sale title/code, date,
-   location, lot number, price, currency, basis, and the PUBLIC lot-page URL
-   (the artifact whose source_url is a public Phillips page). Internal-only
-   storage paths are never exposed — the results PDF is identified as the
-   result authority by NAME, never by link.
-
-   Non-exact, stale, unresolved, related, probable, ambiguous, rejected,
-   passed, withdrawn, or takedown-blocked evidence never appears here.
+   The browser never queries the protected tables directly, and execute on the
+   function is granted only to anon and authenticated. A reference with no
+   eligible, rights-cleared evidence yields null and renders nothing — so while
+   the Phillips artifacts remain 'internal_only', no card appears.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
 export type MarketEvidenceRecord = {
-  referenceId: string;
   reference: string;
   house: string;
   saleTitle: string;
@@ -41,148 +40,69 @@ export type MarketEvidenceRecord = {
   saleDate: string | null;
   location: string | null;
   lotNumber: string;
-  priceRealized: number;
-  currency: string;
-  priceBasis: string;
+  priceRealized: number | null;
+  currency: string | null;
+  priceBasis: string | null;
   lotPageUrl: string | null;
+  salePageUrl: string | null;
   identitySourceLabel: string;
   resultSourceLabel: string;
   reviewedExact: true;
 };
 
-const SALE_CODE = /\/auction\/([A-Z0-9]+)/;
+type Row = {
+  reference: string;
+  house: string;
+  sale_title: string;
+  sale_code: string | null;
+  sale_date: string | null;
+  location: string | null;
+  lot_number: string;
+  price_realized: number | string | null;
+  currency: string | null;
+  price_basis: string | null;
+  lot_page_url: string | null;
+  sale_page_url: string | null;
+  identity_source_label: string;
+  result_source_label: string;
+};
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const variantId = url.searchParams.get("variantId");
-  if (!variantId || !/^[0-9a-f-]{36}$/i.test(variantId)) {
-    return NextResponse.json({ evidence: [] });
+  const referenceId = url.searchParams.get("referenceId");
+  if (!referenceId || !/^[0-9a-f-]{36}$/i.test(referenceId)) {
+    return NextResponse.json({ evidence: null });
   }
 
-  const db = createServiceClient();
-  const out: MarketEvidenceRecord[] = [];
-
-  // References of this variant — the only identities this surface may speak for.
-  const { data: refs } = await db
-    .from("vault_references")
-    .select("id,reference")
-    .eq("variant_id", variantId);
-  if (!refs?.length) return NextResponse.json({ evidence: [] });
-  const refIds = refs.map((r) => r.id);
-  const refById = new Map(refs.map((r) => [r.id, r.reference]));
-
-  // Current EXACT decisions whose selected target is one of those references.
-  const { data: candidates } = await db
-    .from("identity_resolution_candidate")
-    .select("decision_id,vault_reference_id")
-    .in("vault_reference_id", refIds)
-    .eq("candidate_role", "selected");
-  if (!candidates?.length) return NextResponse.json({ evidence: [] });
-
-  for (const cand of candidates) {
-    const { data: decision } = await db
-      .from("identity_resolution_decision")
-      .select("id,case_id,outcome,is_current,claim_fingerprint,reviewed_by,reviewed_at")
-      .eq("id", cand.decision_id)
-      .maybeSingle();
-    if (!decision?.is_current || decision.outcome !== "exact") continue;
-    if (!decision.reviewed_by || !decision.reviewed_at) continue;
-
-    const { data: kase } = await db
-      .from("identity_resolution_case")
-      .select("subject_type,auction_lot_id")
-      .eq("id", decision.case_id)
-      .maybeSingle();
-    if (kase?.subject_type !== "auction_lot" || !kase.auction_lot_id) continue;
-
-    // Staleness: the ONE canonical fingerprint implementation, recomputed live.
-    const { data: liveFp, error: fpErr } = await db.rpc(
-      "identity_resolution_claim_fingerprint",
-      { p_subject_type: "auction_lot", p_subject_id: kase.auction_lot_id }
-    );
-    if (fpErr || liveFp !== decision.claim_fingerprint) continue;
-
-    // The lot, its sale + house, and its CURRENT sold result.
-    const { data: lot } = await db
-      .from("auction_evidence_lot")
-      .select("id,lot_number,sale_id")
-      .eq("id", kase.auction_lot_id)
-      .maybeSingle();
-    if (!lot) continue;
-
-    const { data: result } = await db
-      .from("auction_evidence_result")
-      .select("sale_outcome,price_realized,currency,price_basis,source_artifact_id,is_current")
-      .eq("lot_id", lot.id)
-      .eq("is_current", true)
-      .maybeSingle();
-    if (!result || result.sale_outcome !== "sold") continue;
-    if (result.price_realized == null || !result.currency || !result.price_basis) continue;
-
-    // Takedown law: a publication-blocked result artifact suppresses the record.
-    if (result.source_artifact_id) {
-      const { data: resultArtifact } = await db
-        .from("auction_evidence_source_artifact")
-        .select("publication_status")
-        .eq("id", result.source_artifact_id)
-        .maybeSingle();
-      if (resultArtifact?.publication_status === "blocked") continue;
-    }
-
-    const { data: sale } = await db
-      .from("auction_evidence_sale")
-      .select("sale_name,sale_date,location,source_url,house_id")
-      .eq("id", lot.sale_id)
-      .maybeSingle();
-    if (!sale) continue;
-    const { data: house } = await db
-      .from("auction_evidence_house")
-      .select("name")
-      .eq("id", sale.house_id)
-      .maybeSingle();
-    if (!house) continue;
-
-    // Public lot-page URL: the lot's own identity artifact, only when its
-    // source_url is a public web page and it is not publication-blocked.
-    let lotPageUrl: string | null = null;
-    const { data: lotRow } = await db
-      .from("auction_evidence_lot")
-      .select("source_artifact_id")
-      .eq("id", lot.id)
-      .maybeSingle();
-    if (lotRow?.source_artifact_id) {
-      const { data: identityArtifact } = await db
-        .from("auction_evidence_source_artifact")
-        .select("source_url,publication_status")
-        .eq("id", lotRow.source_artifact_id)
-        .maybeSingle();
-      if (
-        identityArtifact &&
-        identityArtifact.publication_status !== "blocked" &&
-        /^https:\/\/www\.phillips\.com\/detail\//.test(identityArtifact.source_url ?? "")
-      ) {
-        lotPageUrl = identityArtifact.source_url;
-      }
-    }
-
-    out.push({
-      referenceId: cand.vault_reference_id!,
-      reference: refById.get(cand.vault_reference_id!) ?? "",
-      house: house.name,
-      saleTitle: sale.sale_name,
-      saleCode: sale.source_url?.match(SALE_CODE)?.[1] ?? null,
-      saleDate: sale.sale_date,
-      location: sale.location,
-      lotNumber: lot.lot_number,
-      priceRealized: Number(result.price_realized),
-      currency: result.currency,
-      priceBasis: result.price_basis,
-      lotPageUrl,
-      identitySourceLabel: `Phillips Lot ${lot.lot_number}`,
-      resultSourceLabel: "Official Phillips results PDF",
-      reviewedExact: true,
-    });
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("market_evidence_for_reference", {
+    p_reference_id: referenceId,
+  });
+  if (error) {
+    // Fail closed: never fabricate or leak on error.
+    return NextResponse.json({ evidence: null });
   }
 
-  return NextResponse.json({ evidence: out });
+  const row = (Array.isArray(data) ? data[0] : null) as Row | null;
+  if (!row) return NextResponse.json({ evidence: null });
+
+  const evidence: MarketEvidenceRecord = {
+    reference: row.reference,
+    house: row.house,
+    saleTitle: row.sale_title,
+    saleCode: row.sale_code,
+    saleDate: row.sale_date,
+    location: row.location,
+    lotNumber: row.lot_number,
+    priceRealized: row.price_realized == null ? null : Number(row.price_realized),
+    currency: row.currency,
+    priceBasis: row.price_basis,
+    lotPageUrl: row.lot_page_url,
+    salePageUrl: row.sale_page_url,
+    identitySourceLabel: row.identity_source_label,
+    resultSourceLabel: row.result_source_label,
+    reviewedExact: true,
+  };
+
+  return NextResponse.json({ evidence });
 }

@@ -4,27 +4,36 @@ import { useEffect, useState } from "react";
 import type { MarketEvidenceRecord } from "@/app/api/vault/market-evidence/route";
 
 /* ════════════════════════════════════════════════════════════════════════
-   MARKET EVIDENCE — Vault reference-card section  (ME3, hash-pinned)
+   MARKET EVIDENCE — Vault reference-card section  (ME3 · v5 rights gate)
 
    Renders reviewed Market Evidence beneath a variant's reference list in the
    VaultGalaxy detail card. Subordinate to the watch identity — the watch is
    the star; this section quietly supports it.
 
-   Data comes live from /api/vault/market-evidence (eligibility computed
-   server-side on every request). Nothing here hardcodes the Phillips record;
-   a reference with no eligible evidence renders NOTHING at all, so every
-   other card in the Vault is byte-identical to before.
+   Mounted once per Vault reference. Data comes live from
+   /api/vault/market-evidence?referenceId=<exact vault_references.id>, which
+   calls the narrow read-only RPC market_evidence_for_reference. Eligibility AND
+   source-rights are enforced in the database, scoped to THIS exact reference —
+   a sibling reference of the same variant never inherits its evidence. This
+   component hardcodes nothing and renders NOTHING when there is no
+   rights-cleared evidence, so every other card in the Vault is byte-identical
+   to before. While the Phillips artifacts remain 'internal_only', this section
+   does not appear.
 
-   Jason's final ME3 ruling, implemented:
-     · Desktop: the evidence summary is visible by default; "View source
-       evidence" is a second, collapsed disclosure.
-     · Galaxy (mobile): the ENTIRE section is collapsed by default to one
-       ≥44px row — "Market Evidence · 1 reviewed sale" + a restrained
-       chevron. Tapping expands the summary in place; the source disclosure
-       stays collapsed inside it; closing the parent hides the child too.
+   v5 changes, all truth-preserving:
+     · at most ONE result (the RPC selects deterministically) — no array;
+     · a sold result with no disclosed price renders "Price undisclosed" rather
+       than being hidden or given an invented number;
+     · the identity-source label links out ONLY when a genuine public lot-detail
+       URL is available; a sale-page URL is never dressed up as a lot link;
+     · the sale is linked, labelled as the sale, only when a public sale-page
+       URL is rights-eligible.
 
-   One reviewed sale is evidence only. No range, no valuation, no comparison
-   — and no language implying one.
+   Jason's ME3 layout ruling is preserved: desktop shows the summary by default
+   with a collapsed source disclosure; Galaxy (mobile) collapses the whole
+   section to one ≥44px row that expands in place.
+
+   One reviewed sale is evidence only. No range, no valuation, no comparison.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -60,38 +69,46 @@ function defaultSectionOpen(): boolean {
   );
 }
 
-export default function VaultMarketEvidence({ variantId }: { variantId: string }) {
-  const [records, setRecords] = useState<MarketEvidenceRecord[] | null>(null);
+export default function VaultMarketEvidence({ referenceId }: { referenceId: string }) {
+  const [record, setRecord] = useState<MarketEvidenceRecord | null>(null);
   const [sectionOpen, setSectionOpen] = useState<boolean>(defaultSectionOpen);
   const [sourceOpen, setSourceOpen] = useState(false);
 
-  // A new variant resets the section during render (no cascading effect):
-  // fresh records, closed source panel, viewport-default parent state.
-  const [mirroredVariant, setMirroredVariant] = useState(variantId);
-  if (variantId !== mirroredVariant) {
-    setMirroredVariant(variantId);
-    setRecords(null);
+  // Mounted once per reference, so element ids must be reference-scoped —
+  // otherwise sibling references collide on duplicate DOM ids behind
+  // aria-controls (the double-mount defect learned in Saved Searches).
+  const titleId = `market-evidence-title-${referenceId}`;
+  const panelId = `market-evidence-panel-${referenceId}`;
+  const sourceId = `market-evidence-source-${referenceId}`;
+
+  // A new reference resets the section during render (no cascading effect):
+  // fresh record, closed source panel, viewport-default parent state.
+  const [mirroredReference, setMirroredReference] = useState(referenceId);
+  if (referenceId !== mirroredReference) {
+    setMirroredReference(referenceId);
+    setRecord(null);
     setSourceOpen(false);
     setSectionOpen(defaultSectionOpen());
   }
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/vault/market-evidence?variantId=${encodeURIComponent(variantId)}`)
-      .then((r) => (r.ok ? r.json() : { evidence: [] }))
+    fetch(`/api/vault/market-evidence?referenceId=${encodeURIComponent(referenceId)}`)
+      .then((r) => (r.ok ? r.json() : { evidence: null }))
       .then((j) => {
-        if (!cancelled) setRecords(Array.isArray(j.evidence) ? j.evidence : []);
+        if (!cancelled) setRecord(j && j.evidence ? (j.evidence as MarketEvidenceRecord) : null);
       })
       .catch(() => {
-        if (!cancelled) setRecords([]);
+        if (!cancelled) setRecord(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [variantId]);
+  }, [referenceId]);
 
-  // No eligible evidence → render nothing: other reference cards unchanged.
-  if (!records || records.length === 0) return null;
+  // No eligible, rights-cleared evidence → render nothing.
+  if (!record) return null;
+  const ev = record;
 
   const toggleSection = () => {
     setSectionOpen((open) => {
@@ -103,7 +120,7 @@ export default function VaultMarketEvidence({ variantId }: { variantId: string }
 
   return (
     <section
-      aria-labelledby="market-evidence-title"
+      aria-labelledby={titleId}
       className="mt-3 border-t border-[var(--border-faint)] pt-3"
     >
       {/* Parent disclosure row — the only visible element while collapsed.
@@ -112,16 +129,16 @@ export default function VaultMarketEvidence({ variantId }: { variantId: string }
         type="button"
         onClick={toggleSection}
         aria-expanded={sectionOpen}
-        aria-controls="market-evidence-panel"
+        aria-controls={panelId}
         className="flex min-h-[44px] w-full items-center justify-between gap-2 text-left sm:min-h-0"
       >
         <span
-          id="market-evidence-title"
+          id={titleId}
           className="text-[9px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
         >
           Market Evidence
           <span className="ml-2 normal-case tracking-normal text-[var(--muted)]">
-            · {records.length} reviewed sale{records.length === 1 ? "" : "s"}
+            · 1 reviewed sale
           </span>
         </span>
         <svg
@@ -144,91 +161,110 @@ export default function VaultMarketEvidence({ variantId }: { variantId: string }
         </svg>
       </button>
 
-      <div id="market-evidence-panel" hidden={!sectionOpen}>
-        {records.map((ev) => (
-          <div key={ev.referenceId} className="mt-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="text-[11px] leading-[1.5] text-[var(--muted)]">
-                <strong className="font-medium text-[var(--platinum-dim)]">
-                  {ev.house}
-                </strong>
-                {ev.location ? ` · ${ev.location}` : ""}
-                {formatSaleDate(ev.saleDate) ? ` · ${formatSaleDate(ev.saleDate)}` : ""}
-                {` · Lot ${ev.lotNumber}`}
-              </div>
-              <span className="flex-none border border-[rgba(112,192,144,0.28)] px-[6px] py-[3px] text-[8px] uppercase tracking-[1px] text-[var(--success)]">
-                Reviewed exact match
-              </span>
+      <div id={panelId} hidden={!sectionOpen}>
+        <div className="mt-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-[11px] leading-[1.5] text-[var(--muted)]">
+              <strong className="font-medium text-[var(--platinum-dim)]">
+                {ev.house}
+              </strong>
+              {ev.location ? ` · ${ev.location}` : ""}
+              {formatSaleDate(ev.saleDate) ? ` · ${formatSaleDate(ev.saleDate)}` : ""}
+              {` · Lot ${ev.lotNumber}`}
             </div>
+            <span className="flex-none border border-[rgba(112,192,144,0.28)] px-[6px] py-[3px] text-[8px] uppercase tracking-[1px] text-[var(--success)]">
+              Reviewed exact match
+            </span>
+          </div>
 
-            <div className="mt-2 font-display text-[20px] font-light text-[var(--platinum)]">
-              Sold for {formatPrice(ev.priceRealized, ev.currency)}
-            </div>
+          {/* Price line — a sold-with-price-undisclosed result stays visible and
+              states the truth rather than inventing a number. */}
+          <div className="mt-2 font-display text-[20px] font-light text-[var(--platinum)]">
+            {ev.priceRealized == null || ev.currency == null
+              ? "Price undisclosed"
+              : `Sold for ${formatPrice(ev.priceRealized, ev.currency)}`}
+          </div>
+          {ev.priceBasis && (
             <div className="mt-[2px] text-[10px] text-[var(--muted)]">
               {BASIS_LABELS[ev.priceBasis] ?? ev.priceBasis}
             </div>
+          )}
 
-            <p className="mt-2 text-[10px] leading-[1.5] text-[var(--muted)]">
-              One reviewed sale result attached to this exact reference. Evidence
-              only — no range or valuation is inferred.
-            </p>
+          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--muted)]">
+            One reviewed sale result attached to this exact reference. Evidence
+            only — no range or valuation is inferred.
+          </p>
 
-            {/* Nested source disclosure — collapsed by default everywhere. */}
-            <button
-              type="button"
-              onClick={() => setSourceOpen((v) => !v)}
-              aria-expanded={sourceOpen}
-              aria-controls={`market-evidence-source-${ev.referenceId}`}
-              className="mt-2 min-h-[44px] p-0 text-left text-[11px] text-[var(--gold-dim)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-4 transition-colors hover:text-[var(--gold)] sm:min-h-0"
-            >
-              {sourceOpen ? "Hide source evidence" : "View source evidence"}
-            </button>
+          {/* Nested source disclosure — collapsed by default everywhere. */}
+          <button
+            type="button"
+            onClick={() => setSourceOpen((val) => !val)}
+            aria-expanded={sourceOpen}
+            aria-controls={sourceId}
+            className="mt-2 min-h-[44px] p-0 text-left text-[11px] text-[var(--gold-dim)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-4 transition-colors hover:text-[var(--gold)] sm:min-h-0"
+          >
+            {sourceOpen ? "Hide source evidence" : "View source evidence"}
+          </button>
 
-            <div
-              id={`market-evidence-source-${ev.referenceId}`}
-              hidden={!sourceOpen}
-              className="mt-2 border-l border-[var(--gold-dim)] pl-3"
-            >
-              <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
-                <b className="font-medium text-[var(--platinum-dim)]">Sale:</b>{" "}
-                {ev.saleTitle}
-              </p>
-              {ev.saleCode && (
-                <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
-                  <b className="font-medium text-[var(--platinum-dim)]">Sale code:</b>{" "}
-                  {ev.saleCode}
-                </p>
+          <div
+            id={sourceId}
+            hidden={!sourceOpen}
+            className="mt-2 border-l border-[var(--gold-dim)] pl-3"
+          >
+            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+              <b className="font-medium text-[var(--platinum-dim)]">Sale:</b>{" "}
+              {/* Linked only when a public sale-page URL is rights-eligible;
+                  the label names the sale, never the lot. */}
+              {ev.salePageUrl ? (
+                <a
+                  href={ev.salePageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--gold-dim)] underline underline-offset-2 transition-colors hover:text-[var(--gold)]"
+                >
+                  {ev.saleTitle}
+                </a>
+              ) : (
+                ev.saleTitle
               )}
+            </p>
+            {ev.saleCode && (
               <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
-                <b className="font-medium text-[var(--platinum-dim)]">Lot:</b>{" "}
-                {ev.lotNumber}
+                <b className="font-medium text-[var(--platinum-dim)]">Sale code:</b>{" "}
+                {ev.saleCode}
               </p>
-              <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
-                <b className="font-medium text-[var(--platinum-dim)]">
-                  Identity source:
-                </b>{" "}
-                {ev.lotPageUrl ? (
-                  <a
-                    href={ev.lotPageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--gold-dim)] underline underline-offset-2 transition-colors hover:text-[var(--gold)]"
-                  >
-                    {ev.identitySourceLabel}
-                  </a>
-                ) : (
-                  ev.identitySourceLabel
-                )}
-              </p>
-              <p className="text-[10px] leading-[1.5] text-[var(--muted)]">
-                <b className="font-medium text-[var(--platinum-dim)]">
-                  Result source:
-                </b>{" "}
-                {ev.resultSourceLabel}
-              </p>
-            </div>
+            )}
+            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+              <b className="font-medium text-[var(--platinum-dim)]">Lot:</b>{" "}
+              {ev.lotNumber}
+            </p>
+            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+              <b className="font-medium text-[var(--platinum-dim)]">
+                Identity source:
+              </b>{" "}
+              {/* Linked ONLY to a genuine public lot-detail URL. A sale-page URL
+                  never becomes a lot link — the label would then be untrue. */}
+              {ev.lotPageUrl ? (
+                <a
+                  href={ev.lotPageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--gold-dim)] underline underline-offset-2 transition-colors hover:text-[var(--gold)]"
+                >
+                  {ev.identitySourceLabel}
+                </a>
+              ) : (
+                ev.identitySourceLabel
+              )}
+            </p>
+            <p className="text-[10px] leading-[1.5] text-[var(--muted)]">
+              <b className="font-medium text-[var(--platinum-dim)]">
+                Result source:
+              </b>{" "}
+              {ev.resultSourceLabel}
+            </p>
           </div>
-        ))}
+        </div>
       </div>
     </section>
   );
