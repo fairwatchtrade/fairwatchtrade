@@ -63,9 +63,21 @@ export default function SavedSearchQuickLinks() {
     router.push(await bumpAndHref(search));
   }
 
+  /* v2.69 — both of this component's own lines sat at --muted (#818799), the
+     lowest readable tier, over smoked glass whose backdrop is the listing
+     photograph and therefore changes constantly. Raised to --platinum-dim
+     (the tier the quick-link names beside them already use) AND given the
+     drawer's production glass-text shadow, which is what actually keeps light
+     type legible when a bright region of the photo passes underneath.
+     Contrast alone would not have survived a pale hero. */
+  const glassText =
+    "[text-shadow:0_1px_2px_rgba(0,0,0,0.90),0_0_8px_rgba(0,0,0,0.70)]";
+
   if (links.length === 0) {
     return (
-      <p className="py-3 font-display text-[13px] font-light italic leading-[1.5] text-[var(--muted)] max-[470px]:text-[11.5px]">
+      <p
+        className={`py-3 font-display text-[13px] font-light italic leading-[1.5] text-[var(--platinum)] max-[470px]:text-[11.5px] ${glassText}`}
+      >
         Save a search to keep quick links here.
       </p>
     );
@@ -79,7 +91,7 @@ export default function SavedSearchQuickLinks() {
             key={s.id}
             type="button"
             onClick={() => reopen(s)}
-            className="flex min-w-0 items-center justify-between gap-3 border-b border-[rgba(232,226,214,0.075)] py-2.5 text-left font-display text-[13px] font-light leading-[1.3] text-[var(--platinum-dim)] transition hover:text-[var(--gold)] max-[470px]:text-[11.5px] max-[767px]:py-2 max-[767px]:text-[12px]"
+            className={`flex min-w-0 items-center justify-between gap-3 border-b border-[rgba(232,226,214,0.075)] py-2.5 text-left font-display text-[15px] font-light leading-[1.3] text-[var(--platinum)] transition hover:text-[var(--gold)] max-[470px]:text-[13px] max-[767px]:py-2 max-[767px]:text-[14px] ${glassText}`}
           >
             <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{s.name}</span>
             <span className="shrink-0 font-[Inter] text-[11px] text-[var(--gold)]">&rarr;</span>
@@ -88,7 +100,7 @@ export default function SavedSearchQuickLinks() {
       </div>
       <a
         href="/account?module=saved"
-        className="mt-3 inline-block text-[10px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] max-[470px]:text-[9px]"
+        className={`mt-3 inline-block text-[12px] text-[var(--platinum-dim)] transition hover:text-[var(--gold)] max-[470px]:text-[11px] ${glassText}`}
       >
         View all saved searches
       </a>

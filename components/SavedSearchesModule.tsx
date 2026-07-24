@@ -259,11 +259,12 @@ export default function SavedSearchesModule() {
 
   return (
     <section aria-label="Saved Searches" className="px-6 pb-16 pt-6">
+      {/* v2.69 — no heading here: the Account workspace header already titles
+          this room "Saved Searches" directly above. A second one read as a
+          duplicate. The supporting line stays; the section keeps its
+          accessible name via aria-label. */}
       <div className="mb-6">
-        <h3 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          Saved Searches
-        </h3>
-        <p className="mt-2 text-[12px] leading-[1.5] text-[var(--muted)]">
+        <p className="text-[12px] leading-[1.5] text-[var(--muted)]">
           FairWatchTrade watches quietly for the searches you choose to save.
         </p>
       </div>
