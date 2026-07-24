@@ -1,0 +1,1457 @@
+{
+  "version": 1,
+  "flight": "phillips-sale-batch",
+  "saleCode": "NY080126",
+  "saleManifestHash": "10379c934b4abcf38b48553a9134513a86235e68fdf698b6e7189d7c5873c93f",
+  "sources": {
+    "auctionPageUrl": "https://www.phillips.com/auction/NY080126",
+    "resultsPdfSha256": "357c66dc52804cd3a82f7ead899fc92f189ed9fb16f14e98585cd6435702d181",
+    "auctionPagePdfSha256": "05267b61a7c9bae345ebc0f02679ba1f1c5b15b29730674ada3e14597021642f",
+    "salePageContentSha256": "fb87100275a85210fd35a100bb5eb428225241ffc3c151bdb61bd60fee765d69",
+    "priceBasisStatement": "The official results PDF states its US-dollar prices include the buyer's premium and are rounded to the nearest dollar."
+  },
+  "reconciliation": {
+    "lotCount": 156,
+    "totalSoldIncludingPremium": 75807200,
+    "absentLotNumbers": [
+      "103",
+      "123"
+    ]
+  },
+  "reviewerUid": "77a6893a-54fe-4373-9bf7-3327d0ba69cf",
+  "ids": {
+    "house": "bb8637b1-e726-4e5d-9735-4c320730e36f",
+    "sale": "a59c5c56-a9b9-4300-88ec-4cf2f63406a6",
+    "resultsPdfArtifact": "403bf1fd-b256-4cf7-aed5-367f913ef6d7",
+    "auctionPagePdfArtifact": "43da11af-d8e6-4bec-897b-f8b7dbb007ff"
+  },
+  "artifactMetadataSteps": [
+    {
+      "action": "append_omission",
+      "artifactId": "43da11af-d8e6-4bec-897b-f8b7dbb007ff",
+      "sentence": "Phillips printed pre-sale estimates for the lots; estimates are deliberately not captured anywhere in this evidence layer (the schema does not model them, and realized prices are never used to carry them)."
+    }
+  ],
+  "lots": [
+    {
+      "lot_number": "1",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre Souverain “Nacre”",
+      "reference_text": null,
+      "price_realized": 508000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "2",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Grande Lange 1 Limited Edition for Dubail Paris",
+      "reference_text": "117.040",
+      "price_realized": 279400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "3",
+      "brand_text": "Krayon",
+      "model_text": "Anywhere Aurora Limited Edition",
+      "reference_text": null,
+      "price_realized": 241300,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "4",
+      "brand_text": "Patek Philippe",
+      "model_text": "Aquanaut \"Tiffany & Co.\"",
+      "reference_text": "5168G-010",
+      "price_realized": 203200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "5",
+      "brand_text": "Patek Philippe",
+      "model_text": "\"Tiffany & Co.\"",
+      "reference_text": "5960/1A-001",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "6",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus Perpetual Calendar “Tiffany & Co.”",
+      "reference_text": "5740/1G-001",
+      "price_realized": 469900,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "7",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "5004P-022",
+      "price_realized": 571500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "8",
+      "brand_text": "Richard Mille",
+      "model_text": "RM035 \"Baby Nadal\"",
+      "reference_text": "RM035 AL ALMG",
+      "price_realized": 190500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "9",
+      "brand_text": "Voutilainen",
+      "model_text": "Vingt-8 Inversé",
+      "reference_text": null,
+      "price_realized": 1155700,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "10",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre à Résonance “Souscription, No. 007”",
+      "reference_text": null,
+      "price_realized": 13922000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "11",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre Souverain “008”",
+      "reference_text": null,
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "12",
+      "brand_text": "Patek Philippe",
+      "model_text": "Annual Calendar \"Sincere Fine Watches\"",
+      "reference_text": "5035G-043",
+      "price_realized": 50800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "13",
+      "brand_text": "Cartier",
+      "model_text": "Tank Cintrée CPCP",
+      "reference_text": "2843",
+      "price_realized": 88900,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "14",
+      "brand_text": "Patek Philippe",
+      "model_text": "Perpetual Calendar Chronograph “Special Order\"",
+      "reference_text": "5970R-019",
+      "price_realized": 825500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "15",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Code 11.59, Star Wheel",
+      "reference_text": "15212NB.00.A002KB.01",
+      "price_realized": 69850,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "16",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Tourbillon",
+      "reference_text": "25902OR.OO.1110OR.01",
+      "price_realized": 317500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "17",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Traditionnelle Twin-Beat Perpetual Calendar",
+      "reference_text": "3200T/001P-B578",
+      "price_realized": 260350,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "18",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Perpetual Calendar “Qatar Edition”",
+      "reference_text": "26574BC",
+      "price_realized": 254000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "19",
+      "brand_text": "De Bethune",
+      "model_text": "DB15 \"Number 001\"",
+      "reference_text": "DB15WT",
+      "price_realized": 406400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "20",
+      "brand_text": "Urban Jürgensen",
+      "model_text": "Tourbillon Minute Repeater “Unique Piece, Prototype”",
+      "reference_text": "Proto of 3pcs",
+      "price_realized": 1041400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "21",
+      "brand_text": "Universal Genève",
+      "model_text": "Film-Compax",
+      "reference_text": "22522",
+      "price_realized": 101600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "22",
+      "brand_text": "Omega",
+      "model_text": "Speedmaster",
+      "reference_text": "2998-5",
+      "price_realized": 22860,
+      "lotAction": "reuse",
+      "resultAction": "reuse",
+      "existingLotId": "57710608-da11-491a-a6d9-a3cd8946039f",
+      "existingResultId": "32aa8f45-cebc-43fa-a413-b5f5f3d918b6"
+    },
+    {
+      "lot_number": "23",
+      "brand_text": "Patek Philippe",
+      "model_text": "Amagnetic",
+      "reference_text": "3417",
+      "price_realized": 190500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "24",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "3205/43",
+      "price_realized": 215900,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "25",
+      "brand_text": "Patek Philippe",
+      "model_text": "Perpetual Calendar \"First Series, Beyer\"",
+      "reference_text": "3940",
+      "price_realized": 965200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "26",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus “Jumbo” Tiffany & Co.",
+      "reference_text": "3700/11",
+      "price_realized": 355600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "27",
+      "brand_text": "Patek Philippe",
+      "model_text": "\"Tiffany & Co., Paul Starrett\"",
+      "reference_text": null,
+      "price_realized": 292100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "28",
+      "brand_text": "Rolex",
+      "model_text": "Submariner, \"Meters First\"",
+      "reference_text": "1680",
+      "price_realized": 120650,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "29",
+      "brand_text": "Rolex",
+      "model_text": "Oyster Perpetual Ovettone \"Stelline\"",
+      "reference_text": "6098",
+      "price_realized": 114300,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "30",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Paul Newman Panda”",
+      "reference_text": "6263",
+      "price_realized": 825500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "31",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “John Player Special”",
+      "reference_text": "6241",
+      "price_realized": 1803400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "32",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "1815 Up/Down Homage to Walter Lange",
+      "reference_text": "223.026",
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "33",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "1815 Up/Down Homage to Walter Lange",
+      "reference_text": "223.032",
+      "price_realized": 52070,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "34",
+      "brand_text": "Patek Philippe",
+      "model_text": "World-Time, “New York Edition”",
+      "reference_text": "5230G-010",
+      "price_realized": 78740,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "35",
+      "brand_text": "Patek Philippe",
+      "model_text": "In-Line Perpetual Calendar “Salmon”",
+      "reference_text": "5236P-010",
+      "price_realized": 114300,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "36",
+      "brand_text": "Patek Philippe",
+      "model_text": "Ladies' Perpetual Calendar",
+      "reference_text": "7140G-001",
+      "price_realized": 63500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "37",
+      "brand_text": "Patek Philippe",
+      "model_text": "Cubitus",
+      "reference_text": "5822P-001",
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "38",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus",
+      "reference_text": "5711/1A-014",
+      "price_realized": 266700,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "39",
+      "brand_text": "Patek Philippe",
+      "model_text": "Aquanaut Luce \"Rainbow\" Chronograph",
+      "reference_text": "7968/300R-001",
+      "price_realized": 444500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "40",
+      "brand_text": "Omega",
+      "model_text": "Speedmaster Professional Moonwatch “Rainbow, Moonshine Gold”",
+      "reference_text": "310.55.42.50.99.002",
+      "price_realized": 107950,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "41",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Lange 1 Perpetual Calendar",
+      "reference_text": "345.056",
+      "price_realized": 158750,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "42",
+      "brand_text": "Patek Philippe",
+      "model_text": "\"Saatchi Gallery\"",
+      "reference_text": "5070G-014",
+      "price_realized": 889000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "43",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "5373P-001",
+      "price_realized": 558800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "44",
+      "brand_text": "Patek Philippe",
+      "model_text": "“Observatory Chronometer”",
+      "reference_text": null,
+      "price_realized": 33020,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "45",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "1569",
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "46",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona \"Baby Blue\"",
+      "reference_text": "6262",
+      "price_realized": 57150,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "47",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "2526",
+      "price_realized": 95250,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "48",
+      "brand_text": "Rolex",
+      "model_text": "Day-Date \"Platinum, Large Diamond Indices\"",
+      "reference_text": "1802",
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "49",
+      "brand_text": "Patek Philippe",
+      "model_text": "Calatrava",
+      "reference_text": "570",
+      "price_realized": 57150,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "50",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus “Jumbo”",
+      "reference_text": "3711/1G-001",
+      "price_realized": 196850,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "51",
+      "brand_text": "Rolex",
+      "model_text": "Day-Date",
+      "reference_text": "128396TBR",
+      "price_realized": 95250,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "52",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Flying Tourbillon",
+      "reference_text": "26730ST.00.1320ST.02",
+      "price_realized": 165100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "53",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Concept Flying Tourbillon GMT",
+      "reference_text": "26589IO.OO.D002CA.01",
+      "price_realized": 101600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "54",
+      "brand_text": "Richard Mille",
+      "model_text": "RM011 AO RG-CA R. Grosjean",
+      "reference_text": "RM011",
+      "price_realized": 254000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "55",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Lange 1 “Soirée”",
+      "reference_text": "110.030",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "56",
+      "brand_text": "Cartier",
+      "model_text": "Tank Louis Cartier",
+      "reference_text": "WGTA0175",
+      "price_realized": 85090,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "57",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak",
+      "reference_text": "77350CE.OO.1266CE.03",
+      "price_realized": 69850,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "58",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Little Lange 1 Moon Phase “Gold Flux”",
+      "reference_text": "182.886",
+      "price_realized": 69850,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "59",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Alcaraz”",
+      "reference_text": "126518LN-0014",
+      "price_realized": 107950,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "60",
+      "brand_text": "Rolex",
+      "model_text": "Yacht-Master 40 “Cotton Candy”",
+      "reference_text": "126679SABR",
+      "price_realized": 196850,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "61",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Platona”",
+      "reference_text": "126506",
+      "price_realized": 165100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "62",
+      "brand_text": "Rolex",
+      "model_text": "Day-Date “Malachite”",
+      "reference_text": "18238",
+      "price_realized": 203200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "63",
+      "brand_text": "Cartier",
+      "model_text": "Crash \"Platinum\"",
+      "reference_text": null,
+      "price_realized": 571500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "64",
+      "brand_text": "Patek Philippe",
+      "model_text": "Rare Handcrafts Pocket Watch “Swan”, Pièce Unique",
+      "reference_text": "982/116J-001",
+      "price_realized": 393700,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "65",
+      "brand_text": "Patek Philippe",
+      "model_text": "“Factory Double-Sealed”",
+      "reference_text": "5970P-001",
+      "price_realized": 381000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "66",
+      "brand_text": "Patek Philippe",
+      "model_text": "Perpetual Calendar Chronograph “Sapphire-Set”",
+      "reference_text": "5271/11P-010",
+      "price_realized": 508000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "67",
+      "brand_text": "F.P. Journe",
+      "model_text": "Élégante 40 \"Platinum\"",
+      "reference_text": null,
+      "price_realized": 355600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "68",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre Souverain “Black Label”",
+      "reference_text": null,
+      "price_realized": 317500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "69",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Chronographe “38MM”",
+      "reference_text": null,
+      "price_realized": 711200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "70",
+      "brand_text": "Credor",
+      "model_text": "Eichi II",
+      "reference_text": "GBLT998",
+      "price_realized": 38100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "71",
+      "brand_text": "De Bethune",
+      "model_text": "DB28 “Aérolite”",
+      "reference_text": "DB28XSZM",
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "72",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Overseas Perpetual Calendar Ultra-Thin",
+      "reference_text": "4300V/220R-B509",
+      "price_realized": 95250,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "73",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Chronograph “Black Ceramic”",
+      "reference_text": "26240CE.OO.1225CE.02",
+      "price_realized": 95250,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "74",
+      "brand_text": "Greubel Forsey",
+      "model_text": "Balancier Contemporain",
+      "reference_text": null,
+      "price_realized": 254000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "75",
+      "brand_text": "Richard Mille",
+      "model_text": "RM67-02 “Alexander Zverev”",
+      "reference_text": "RM67-02 FQ-CA TPT GR2",
+      "price_realized": 381000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "76",
+      "brand_text": "Urban Jürgensen",
+      "model_text": "Reference 3",
+      "reference_text": null,
+      "price_realized": 279400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "77",
+      "brand_text": "Roger Smith",
+      "model_text": "Series 3 “Unique Piece”",
+      "reference_text": "Series 3",
+      "price_realized": 1219200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "78",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Divine “36MM, Brass Movement”",
+      "reference_text": null,
+      "price_realized": 533400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "79",
+      "brand_text": "F.P. Journe",
+      "model_text": "Tourbillon Anniversaire Historique “T30”",
+      "reference_text": null,
+      "price_realized": 2032000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "80",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Automatique Lune “Nacre”",
+      "reference_text": null,
+      "price_realized": 482600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "81",
+      "brand_text": "De Bethune",
+      "model_text": "DB25 Starry Varius “Number 1 of 5”",
+      "reference_text": "DB25VUS",
+      "price_realized": 120650,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "82",
+      "brand_text": "Voutilainen",
+      "model_text": "Observatoire",
+      "reference_text": null,
+      "price_realized": 1041400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "83",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Chronographe “Swiss FineTiming”",
+      "reference_text": null,
+      "price_realized": 2032000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "84",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre Souverain “Swiss FineTiming”",
+      "reference_text": null,
+      "price_realized": 1968500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "85",
+      "brand_text": "F.P. Journe",
+      "model_text": "Tourbillon Souverain Anniversaire “Hong Kong”, \"Number 1 of 5”",
+      "reference_text": null,
+      "price_realized": 4355000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "86",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus “Eric Clapton\"",
+      "reference_text": "5711/1A-010",
+      "price_realized": 266700,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "87",
+      "brand_text": "Patek Philippe",
+      "model_text": "\"Saatchi Edition\"",
+      "reference_text": "3940G-029",
+      "price_realized": 419100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "88",
+      "brand_text": "Patek Philippe",
+      "model_text": "“Eric Clapton”",
+      "reference_text": "5004G-020",
+      "price_realized": 5202000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "89",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Langematik Anniversary Jubilee",
+      "reference_text": "302.025",
+      "price_realized": 48260,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "90",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Lange 1 “Darth”",
+      "reference_text": "101.035",
+      "price_realized": 57150,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "91",
+      "brand_text": "A. Lange & Söhne",
+      "model_text": "Pour Le Mérite Tourbillon",
+      "reference_text": "701.021",
+      "price_realized": 469900,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "92",
+      "brand_text": "Rolex",
+      "model_text": "King Midas \"Buddy Bray\"",
+      "reference_text": "9630",
+      "price_realized": 82550,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "93",
+      "brand_text": "Rolex",
+      "model_text": "Cocktail",
+      "reference_text": "1400",
+      "price_realized": 15240,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "94",
+      "brand_text": "Patek Philippe",
+      "model_text": "“Blue-headed Macaw” by Anita Porchet",
+      "reference_text": "974/24J",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "95",
+      "brand_text": "Patek Philippe",
+      "model_text": "“Gazelle” by Anita Porchet",
+      "reference_text": "974/21",
+      "price_realized": 107950,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "96",
+      "brand_text": "Cartier",
+      "model_text": "Louis Cartier Tank",
+      "reference_text": null,
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "97",
+      "brand_text": "Patek Philippe",
+      "model_text": "Calatrava",
+      "reference_text": "6196P-001",
+      "price_realized": 63500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "98",
+      "brand_text": "Patek Philippe",
+      "model_text": "\"Lindo Turtle\"",
+      "reference_text": "2550",
+      "price_realized": 254000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "99",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus “Jumbo”",
+      "reference_text": "3700/11",
+      "price_realized": 228600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "100",
+      "brand_text": "Patek Philippe",
+      "model_text": "“First Series”",
+      "reference_text": "3970",
+      "price_realized": 838200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "101",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "1518",
+      "price_realized": 3992000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "102",
+      "brand_text": "Rolex",
+      "model_text": "Datejust Ovettone “Serpico & Laino”",
+      "reference_text": "6305",
+      "price_realized": 82550,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "104",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Paul Newman”",
+      "reference_text": "6239",
+      "price_realized": 1079500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "105",
+      "brand_text": "Voutilainen",
+      "model_text": "Masterpiece Chronograph II “Number 1 of 10”",
+      "reference_text": null,
+      "price_realized": 1841500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "106",
+      "brand_text": "Richard Mille",
+      "model_text": "Yohan Blake “The Beast 2”",
+      "reference_text": "RM61-01 CA-TZP",
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "107",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Frosted Gold Double Balance Wheel Openworked “Rainbow”",
+      "reference_text": "15412BA.YG.1224BA.01-B",
+      "price_realized": 406400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "108",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak “Flying Tourbillon”",
+      "reference_text": "26530Ti.00.1220Ti.01",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "109",
+      "brand_text": "Richard Mille",
+      "model_text": "RM52-01 Tourbillon “Skull, Piece Unique”",
+      "reference_text": "RM52-01 AN RG-TZP",
+      "price_realized": 1397000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "110",
+      "brand_text": "Breguet",
+      "model_text": "Classique La Chronométrie “10Hz”",
+      "reference_text": "7727",
+      "price_realized": 53340,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "111",
+      "brand_text": "Breguet",
+      "model_text": "La Tradition",
+      "reference_text": "7057BR",
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "112",
+      "brand_text": "Patek Philippe",
+      "model_text": "Annual Calendar",
+      "reference_text": "5037/1G-001",
+      "price_realized": 27940,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "113",
+      "brand_text": "Rolex",
+      "model_text": "Pearlmaster Lady-Datejust",
+      "reference_text": "80285",
+      "price_realized": 38100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "114",
+      "brand_text": "Rolex",
+      "model_text": "Day-Date 40 “Green Ombré”",
+      "reference_text": "228348RBR",
+      "price_realized": 76200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "115",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus",
+      "reference_text": "5980/60G-001",
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "116",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak “Jumbo” Extra-Thin",
+      "reference_text": "16202BC.OO.1240BC.02",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "117",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus \"40th Anniversary, Factory Double-Sealed\"",
+      "reference_text": "5711/1P-001",
+      "price_realized": 546100,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "118",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "5950A-001",
+      "price_realized": 520700,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "119",
+      "brand_text": "Cartier",
+      "model_text": "Santos Dumont XL “La Demoiselle”",
+      "reference_text": "WGSA0036",
+      "price_realized": 40640,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "120",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Chronographe Historique",
+      "reference_text": "47101/2",
+      "price_realized": 74930,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "121",
+      "brand_text": "Girard Perregaux",
+      "model_text": "Ferrari F50 Owner",
+      "reference_text": null,
+      "price_realized": 22860,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "122",
+      "brand_text": "Jaeger-LeCoultre",
+      "model_text": "Reverso Tribute Chronograph",
+      "reference_text": "216.2.S0, LE50 Q389256J",
+      "price_realized": 48260,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "124",
+      "brand_text": "Grand Seiko",
+      "model_text": "Spring Drive Masterpiece Collection, Boutique Limited Edition",
+      "reference_text": "SBGZ007",
+      "price_realized": 78740,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "125",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Patrimony Tribute to the Great Explorers, Christopher Columbus",
+      "reference_text": "47070/000J-9085",
+      "price_realized": 87630,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "126",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Harmony Chronograph 260th Anniversary",
+      "reference_text": "5300S",
+      "price_realized": 60960,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "127",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Offshore “Black Ceramic”",
+      "reference_text": "26238CE.OO.1300CE.02",
+      "price_realized": 76200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "128",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Overseas Tourbillon",
+      "reference_text": "6000V/110R-B733",
+      "price_realized": 133350,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "129",
+      "brand_text": "Patek Philippe",
+      "model_text": "Nautilus Chronograph",
+      "reference_text": "5980/1A-014",
+      "price_realized": 101600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "130",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "5170P-010",
+      "price_realized": 127000,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "131",
+      "brand_text": "Patek Philippe",
+      "model_text": null,
+      "reference_text": "5970R-001",
+      "price_realized": 241300,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "132",
+      "brand_text": "Richard Mille",
+      "model_text": "RM11-05 Automatic Flyback Chronograph GMT",
+      "reference_text": "MON-01784",
+      "price_realized": 330200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "133",
+      "brand_text": "Cartier",
+      "model_text": "Tank Normale",
+      "reference_text": "78092",
+      "price_realized": 17780,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "134",
+      "brand_text": "Cartier",
+      "model_text": "Tank Louis Cartier Squelette",
+      "reference_text": "2671",
+      "price_realized": 33020,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "135",
+      "brand_text": "Bulgari",
+      "model_text": "Octo Finissimo Skeleton",
+      "reference_text": "103527",
+      "price_realized": 17780,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "136",
+      "brand_text": "Vacheron Constantin",
+      "model_text": "Overseas",
+      "reference_text": "4500V/110A-B128",
+      "price_realized": 33020,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "137",
+      "brand_text": "Breguet",
+      "model_text": "Perpetual Calendar Chronograph, Classique",
+      "reference_text": "3617",
+      "price_realized": 85090,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "138",
+      "brand_text": "De Bethune",
+      "model_text": "DB Eight",
+      "reference_text": "DB8RETIS1",
+      "price_realized": 107950,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "139",
+      "brand_text": "Romain Gauthier",
+      "model_text": "C by Romain Gauthier, Titanium Edition",
+      "reference_text": null,
+      "price_realized": 44450,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "140",
+      "brand_text": "Voutilainen",
+      "model_text": "Vingt-8 ISO",
+      "reference_text": null,
+      "price_realized": 1206500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "141",
+      "brand_text": "Greubel Forsey",
+      "model_text": "Balancier Convexe GMT Brazalete",
+      "reference_text": null,
+      "price_realized": 355600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "142",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Automatique Lune \"Number 016”",
+      "reference_text": null,
+      "price_realized": 203200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "143",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Selfwinding",
+      "reference_text": "15510BC.OO.1320BC.04",
+      "price_realized": 95250,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "144",
+      "brand_text": "Audemars Piguet",
+      "model_text": "Royal Oak Chronograph 41MM “Limited Edition of 125”",
+      "reference_text": "26331BA.OO.1220BA.02",
+      "price_realized": 177800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "145",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronographe Rattrapante",
+      "reference_text": null,
+      "price_realized": 304800,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "146",
+      "brand_text": "Richard Mille",
+      "model_text": "RM33-03 Automatic",
+      "reference_text": "MON-02072",
+      "price_realized": 190500,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "147",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona",
+      "reference_text": "116520",
+      "price_realized": 25400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "148",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona \"New-Old-Stock\"",
+      "reference_text": "16520",
+      "price_realized": 60960,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "149",
+      "brand_text": "Rolex",
+      "model_text": "Milgauss \"From the Collection of Isaac Slade\"",
+      "reference_text": "1019",
+      "price_realized": 33020,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "150",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Jumbo Logo”",
+      "reference_text": "6239",
+      "price_realized": 57150,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "151",
+      "brand_text": "Rolex",
+      "model_text": "“Dato-Compax Killy”",
+      "reference_text": "6036",
+      "price_realized": 152400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "152",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona \"Big Red\"",
+      "reference_text": "6265",
+      "price_realized": 114300,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "153",
+      "brand_text": "Rolex",
+      "model_text": "Day-Date \"Eastern Arabic\"",
+      "reference_text": "128238",
+      "price_realized": 76200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "154",
+      "brand_text": "Rolex",
+      "model_text": "Cosmograph Daytona “Rainbow”",
+      "reference_text": "116598RBOW",
+      "price_realized": 330200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "155",
+      "brand_text": "F.P. Journe",
+      "model_text": "Octa Réserve de Marche",
+      "reference_text": null,
+      "price_realized": 406400,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "156",
+      "brand_text": "F.P. Journe",
+      "model_text": "Centigraphe Souverain",
+      "reference_text": null,
+      "price_realized": 482600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "157",
+      "brand_text": "F.P. Journe",
+      "model_text": "Chronomètre à Résonance “RQ 40MM”",
+      "reference_text": null,
+      "price_realized": 609600,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    },
+    {
+      "lot_number": "158",
+      "brand_text": "Vianney Halter",
+      "model_text": "Antiqua",
+      "reference_text": null,
+      "price_realized": 584200,
+      "lotAction": "create",
+      "resultAction": "create_via_rpc"
+    }
+  ],
+  "contradictions": [],
+  "summary": {
+    "lotCreates": 155,
+    "lotReuses": 1,
+    "resultCreates": 155,
+    "resultReuses": 1,
+    "contradictions": 0
+  },
+  "resultDefaults": {
+    "sale_outcome": "sold",
+    "currency": "USD",
+    "price_basis": "hammer_plus_premium",
+    "result_date": "2026-06-13"
+  }
+}
