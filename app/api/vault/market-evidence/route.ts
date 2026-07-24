@@ -178,7 +178,7 @@ export async function GET(request: Request) {
       currency: result.currency,
       priceBasis: result.price_basis,
       lotPageUrl,
-      identitySourceLabel: `Phillips Lot ${lot.lot_number} page`,
+      identitySourceLabel: `Phillips Lot ${lot.lot_number}`,
       resultSourceLabel: "Official Phillips results PDF",
       reviewedExact: true,
     });
