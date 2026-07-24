@@ -1,5 +1,7 @@
 "use client";
 
+import VaultMarketEvidence from "@/components/VaultMarketEvidence";
+
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1728,6 +1730,13 @@ export default function VaultGalaxy({
                     ))}
                   </div>
                 )}
+                {/* v2.65 — Market Evidence (ME3): reviewed exact-match sale
+                    evidence for this variant's references, fetched live and
+                    eligibility-checked server-side. Renders NOTHING when no
+                    eligible evidence exists, so every other card is
+                    untouched. Desktop: summary open, source collapsed.
+                    Galaxy: whole section collapsed to one row by default. */}
+                <VaultMarketEvidence variantId={selectedVariant.id} />
                 <div className="mt-[18px] flex gap-2">
                   <button onClick={resetGalaxy} className="fw-btn-primary">
                     Return to Galaxy
