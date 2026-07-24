@@ -5,6 +5,14 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
+import BrowseSearch, { type SearchChip } from "@/components/BrowseSearch";
+import SearchEmptyState from "@/components/SearchEmptyState";
+import {
+  parseSearch,
+  matchesSearch,
+  removeMeaningFromQuery,
+  type Meaning,
+} from "@/lib/search/parse";
 
 /* ────────────────────────────────────────────────────────────────────────
    BROWSE CLIENT — client-side facet filtering shell for /browse (v1.57)
@@ -116,6 +124,8 @@ type ListingRow = {
   brand: string;
   model: string | null;
   reference: string;
+  public_code?: string | null;
+  description?: string | null;
   year: string;
   condition: string;
   asking_price: number;
@@ -490,6 +500,109 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const selectedDials = useMemo(() => new Set(searchParams.getAll("dialColor")), [searchParams]);
   const selectedDocs = useMemo(() => new Set(searchParams.getAll("docs")), [searchParams]);
 
+  /* ── SEARCH ──────────────────────────────────────────────────────────────
+     Search lives in the URL beside the filters, in the same derived-from-URL
+     model v2.10 established. That single decision is what makes Refine
+     preserve Search, Search preserve Refine, and a return from a listing
+     restore both — no synchronisation code, because there is no second copy
+     of the truth. */
+  const queryText = searchParams.get("q") ?? "";
+
+  // Reference resolution is an exact identity lookup against real listings,
+  // never a broad keyword match.
+  const knownReferences = useMemo(
+    () => listings.map((l) => l.reference).filter(Boolean),
+    [listings]
+  );
+
+  const activeSearch = useMemo(
+    () => parseSearch(queryText, { knownReferences }),
+    [queryText, knownReferences]
+  );
+
+  const searchActive = Boolean(
+    activeSearch.code || activeSearch.reference || activeSearch.meanings.length
+  );
+
+  const setQuery = (value: string) =>
+    navigateWithParams((next) => {
+      if (value.trim()) next.set("q", value);
+      else next.delete("q");
+    });
+
+  // Removing a Search-made row edits the TEXT it came from — the input and
+  // the actual result state can never contradict each other. Removing
+  // "Collection: Kalpa" from "parmigiani kalpa -gold" leaves
+  // "parmigiani -gold".
+  const removeMeaning = (meaning: Meaning) =>
+    setQuery(removeMeaningFromQuery(queryText, meaning));
+
+  const clearSearchText = () =>
+    navigateWithParams((next) => {
+      next.delete("q");
+    });
+
+  const FILTER_KEYS: [string, string][] = [
+    ["brand", "Brand"],
+    ["condition", "Condition"],
+    ["caseSize", "Case size"],
+    ["movement", "Movement"],
+    ["beatRate", "Beat rate"],
+    ["powerReserve", "Power Reserve"],
+    ["caseMaterial", "Case Material"],
+    ["dialColor", "Dial Color"],
+    ["docs", "Documentation"],
+  ];
+
+  const clearAll = () =>
+    navigateWithParams((next) => {
+      next.delete("q");
+      for (const [key] of FILTER_KEYS) next.delete(key);
+    });
+
+  // Search-made meanings and manual Refine choices become the same kind of
+  // removable row — one shared state, two origins.
+  const searchChips = useMemo<SearchChip[]>(() => {
+    const out: SearchChip[] = [];
+
+    if (activeSearch.code) {
+      out.push({
+        id: `code:${activeSearch.code}`,
+        label: `Listing: ${activeSearch.code}`,
+        source: "search",
+        onRemove: clearSearchText,
+      });
+    }
+    if (activeSearch.reference) {
+      out.push({
+        id: `reference:${activeSearch.reference}`,
+        label: `Reference: ${activeSearch.reference}`,
+        source: "search",
+        onRemove: clearSearchText,
+      });
+    }
+    for (const m of activeSearch.meanings) {
+      out.push({
+        id: `${m.kind}:${m.value}`,
+        label: m.label,
+        source: "search",
+        onRemove: () => removeMeaning(m),
+      });
+    }
+    for (const [key, label] of FILTER_KEYS) {
+      for (const value of searchParams.getAll(key)) {
+        out.push({
+          id: `${key}:${value}`,
+          label: `${label}: ${value}`,
+          source: "filter",
+          onRemove: () => toggleFilterParam(key, value),
+        });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSearch, searchParams]);
+
   const brandFacets = useMemo(() => countBy(listings, (l) => l.brand), [listings]);
   const conditionFacets = useMemo(
     () => countBy(listings, (l) => l.condition),
@@ -551,7 +664,10 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         const docOk =
           selectedDocs.size === 0 ||
           selectedDocs.has(l.details?.documentation ?? "");
+        // Search narrows the same set the facets narrow — one result set.
+        const searchOk = !searchActive || matchesSearch(l, activeSearch);
         return (
+          searchOk &&
           brandOk &&
           condOk &&
           sizeOk &&
@@ -574,6 +690,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       selectedMaterials,
       selectedDials,
       selectedDocs,
+      searchActive,
+      activeSearch,
     ]
   );
 
@@ -729,6 +847,17 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
 
   return (
     <div>
+      {/* SEARCH — DD10. Sits above the existing Refine controls; the real
+          production header and hamburger above it are untouched. */}
+      <div className="-mx-6 -mt-5">
+        <BrowseSearch
+          query={queryText}
+          onCommit={setQuery}
+          chips={searchChips}
+          onClearAll={clearAll}
+        />
+      </div>
+
       {/* Toggle bar */}
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <button
@@ -747,8 +876,11 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         </button>
         {/* v2.25a — creation before consumption: the one real way to create
             and name a saved search, beside the control that owns the filter
-            context. The Drawer's quick links only consume what this makes. */}
-        <SaveSearchControl />
+            context. The Drawer's quick links only consume what this makes.
+            When the result set is EMPTY the approved inline "save it" inside
+            the empty state is the only save affordance — two save controls on
+            one empty screen contradict each other. */}
+        {paginated.length > 0 && <SaveSearchControl />}
       </div>
 
       {/* Layout controls bar — grid width + view mode + page size.
@@ -830,9 +962,17 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         {/* Grid wrapper — expands as the sidebar collapses */}
         <div className="min-w-0 flex-1">
           {paginated.length === 0 ? (
-            <p className="text-[14px] text-[var(--slate)]">
-              No watches match your selection.
-            </p>
+            searchActive ? (
+              <SearchEmptyState
+                searchState={activeSearch}
+                queryString={searchParams.toString()}
+                browseUrl={currentBrowseUrl}
+              />
+            ) : (
+              <p className="text-[14px] text-[var(--slate)]">
+                No watches match your selection.
+              </p>
+            )
           ) : (
             <div
               // v1.61 — Collector View: stacked block, not a grid. space-y-*

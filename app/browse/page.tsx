@@ -39,6 +39,9 @@ type ListingRow = {
   brand: string;
   model: string | null;
   reference: string;
+  /** Public listing code (q15932) — issued by the database, searchable. */
+  public_code: string | null;
+  description?: string | null;
   year: string;
   condition: string;
   asking_price: number;
