@@ -35,7 +35,15 @@ const NAME_MAX = 60;
 
 type Phase = "resting" | "naming" | "saving" | "saved";
 
-export default function SaveSearchControl() {
+/* v2.68 — searchState: the parsed Search meaning BrowseClient already holds.
+   Stored alongside query_string so a control-created save is WATCHED by the
+   v2.60 publish watcher (which skips null-state rows). Optional so nothing
+   else that mounts this control breaks. */
+export default function SaveSearchControl({
+  searchState,
+}: {
+  searchState?: unknown;
+} = {}) {
   const [phase, setPhase] = useState<Phase>("resting");
   const [name, setName] = useState("");
   const [savedName, setSavedName] = useState("");
@@ -81,6 +89,11 @@ export default function SaveSearchControl() {
       user_id: user.id,
       name: trimmed,
       query_string: searchParams.toString(),
+      // v2.68 — the interpreted meaning travels with the save so the
+      // publish watcher can evaluate it. Null stays valid (quick-link-only).
+      search_state: searchState ?? null,
+      meaning_version: 1,
+      paused: false,
     });
 
     if (insErr) {
@@ -97,7 +110,8 @@ export default function SaveSearchControl() {
     setSavedName(trimmed);
     setName("");
     setPhase("saved");
-    setTimeout(() => setPhase((p) => (p === "saved" ? "resting" : p)), 3500);
+    // Long enough to read AND take the "View saved searches" path (v2.68).
+    setTimeout(() => setPhase((p) => (p === "saved" ? "resting" : p)), 8000);
   }
 
   function cancel() {
@@ -107,9 +121,23 @@ export default function SaveSearchControl() {
   }
 
   if (phase === "saved") {
+    /* v2.68 — DD1's restrained confirmation: the fact, then the one real
+       destination. (Replaces the drawer-pointing sentence; the saved name
+       still anchors it so the collector knows what landed.) */
     return (
-      <span className="font-display text-[12px] font-light italic text-[var(--gold-subtle)]">
-        Saved &ldquo;{savedName}&rdquo; — it&rsquo;s in your Collector&rsquo;s Drawer.
+      <span className="flex flex-wrap items-center gap-2">
+        <strong className="text-[12px] font-medium text-[var(--platinum-dim)]">
+          Search saved.
+        </strong>
+        <span className="font-display text-[12px] font-light italic text-[var(--gold-subtle)]">
+          &ldquo;{savedName}&rdquo;
+        </span>
+        <a
+          href="/account?module=saved"
+          className="text-[12px] text-[var(--gold)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-[3px] transition hover:decoration-[var(--gold)]"
+        >
+          View saved searches
+        </a>
       </span>
     );
   }

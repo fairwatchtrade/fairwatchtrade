@@ -880,7 +880,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             When the result set is EMPTY the approved inline "save it" inside
             the empty state is the only save affordance — two save controls on
             one empty screen contradict each other. */}
-        {paginated.length > 0 && <SaveSearchControl />}
+        {paginated.length > 0 && <SaveSearchControl searchState={activeSearch} />}
       </div>
 
       {/* Layout controls bar — grid width + view mode + page size.

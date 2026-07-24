@@ -87,7 +87,7 @@ export default function SavedSearchQuickLinks() {
         ))}
       </div>
       <a
-        href="/catalogue?savedSearches=true"
+        href="/account?module=saved"
         className="mt-3 inline-block text-[10px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] max-[470px]:text-[9px]"
       >
         View all saved searches

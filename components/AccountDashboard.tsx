@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
+import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
 import { sellerLabel } from "@/lib/listingStatus";
 
@@ -114,6 +115,7 @@ type ModuleId =
   | "market"
   | "messages"
   | "requests"
+  | "saved"
   | "analytics";
 // v2.23 — lifecycle tab state moved into SellerListingsRoom, which owns the
 // Listings room's tabs and selection (ids remain the REAL status values).
@@ -156,6 +158,9 @@ const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
   { id: "market", label: "Market Intel", soon: true },
   { id: "messages", label: "Messages", soon: false },
   { id: "requests", label: "Requests", soon: false },
+  // v2.68 — Saved Searches Account Surface (DD1). The buyer's watched
+  // searches live in Account beside everything else the collector owns.
+  { id: "saved", label: "Saved Searches", soon: false },
   { id: "analytics", label: "Analytics", soon: true },
 ];
 
@@ -972,7 +977,15 @@ export default function AccountDashboard({
   listings: AccountListing[];
 }) {
   // Default module = Inventory: the listings are the primary daily task.
-  const [activeModule, setActiveModule] = useState<ModuleId>("inventory");
+  /* v2.68 — ?module=saved is the one supported deep link (the Browse
+     "View saved searches" confirmation and the Drawer footer land here).
+     Read once as the initial module; module switching stays client state.
+     On mobile — deliberately Inventory-only since v2.7 — the deep link is
+     the ONLY route to Saved Searches; no mobile module nav is added. */
+  const initialModuleParam = useSearchParams().get("module");
+  const [activeModule, setActiveModule] = useState<ModuleId>(
+    initialModuleParam === "saved" ? "saved" : "inventory"
+  );
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1120,7 +1133,9 @@ export default function AccountDashboard({
           ? "Purchase Requests"
           : activeModule === "accelerator"
             ? "Review Imported Drafts"
-            : "Listings";
+            : activeModule === "saved"
+              ? "Saved Searches"
+              : "Listings";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -1214,9 +1229,12 @@ export default function AccountDashboard({
           {/* Shared workspace header */}
           <div className="flex-shrink-0 border-b border-[var(--border-faint)] px-6 pt-5 pb-0">
             <div className="mb-4 flex items-center justify-between">
-              {/* Mobile is Inventory-only; desktop reflects the active module. */}
+              {/* Mobile is Inventory-only — except the explicit Saved
+                  Searches deep link, which is the only mobile path there. */}
               <h2 className="font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)]">
-                <span className="md:hidden">Listings</span>
+                <span className="md:hidden">
+                  {activeModule === "saved" ? "Saved Searches" : "Listings"}
+                </span>
                 <span className="hidden md:inline">{moduleTitle}</span>
               </h2>
               <Link
@@ -1233,22 +1251,33 @@ export default function AccountDashboard({
               deliberate scope decision, not an oversight; expanding mobile
               navigation is a separate UI decision beyond wiring the existing
               API to a UI, flagged rather than silently included. */}
-          <div className="md:hidden">
-            <SellerListingsRoom
-              listings={searchFiltered}
-              threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
-              threadsLoaded={threadsLoaded}
-              onSubmitForReview={submitForReview}
-              onOpenImportedDrafts={() => setActiveModule("accelerator")}
-              submittingId={submittingId}
-              submitErrorId={submitErrorId}
-              submitErrorMsg={submitErrorMsg}
-            />
-          </div>
+          {/* v2.68 — Saved Searches renders ONCE, outside the mobile/desktop
+              split. The existing split mounts both branches and hides one with
+              CSS; for this module that would duplicate every entry's DOM id
+              (which aria-controls points at) and fetch the collector's data
+              twice — caught in evidence as 8 entries for 4 saved searches.
+              One instance, full width, correct on both viewports. On mobile it
+              is reached only via the explicit ?module=saved deep link. */}
+          {activeModule === "saved" ? (
+            <SavedSearchesModule />
+          ) : (
+            <>
+              <div className="md:hidden">
+                <SellerListingsRoom
+                  listings={searchFiltered}
+                  threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
+                  threadsLoaded={threadsLoaded}
+                  onSubmitForReview={submitForReview}
+                  onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                  submittingId={submittingId}
+                  submitErrorId={submitErrorId}
+                  submitErrorMsg={submitErrorMsg}
+                />
+              </div>
 
-          {/* Desktop: module-driven. */}
-          <div className="hidden md:block">
-            {activeModule === "dashboard" ? (
+              {/* Desktop: module-driven. */}
+              <div className="hidden md:block">
+                {activeModule === "dashboard" ? (
               <DashboardView
                 listings={searchFiltered}
                 counts={counts}
@@ -1259,25 +1288,27 @@ export default function AccountDashboard({
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
               />
-            ) : activeModule === "messages" ? (
-              <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
-            ) : activeModule === "requests" ? (
-              <RequestsView requests={requests} onActionComplete={refreshRequests} />
-            ) : activeModule === "accelerator" ? (
-              <ImportedDraftsWorkspace />
-            ) : (
-              <SellerListingsRoom
-                listings={searchFiltered}
-                threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
-                threadsLoaded={threadsLoaded}
-                onSubmitForReview={submitForReview}
-                onOpenImportedDrafts={() => setActiveModule("accelerator")}
-                submittingId={submittingId}
-                submitErrorId={submitErrorId}
-                submitErrorMsg={submitErrorMsg}
-              />
-            )}
-          </div>
+                ) : activeModule === "messages" ? (
+                  <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
+                ) : activeModule === "requests" ? (
+                  <RequestsView requests={requests} onActionComplete={refreshRequests} />
+                ) : activeModule === "accelerator" ? (
+                  <ImportedDraftsWorkspace />
+                ) : (
+                  <SellerListingsRoom
+                    listings={searchFiltered}
+                    threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
+                    threadsLoaded={threadsLoaded}
+                    onSubmitForReview={submitForReview}
+                    onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                    submittingId={submittingId}
+                    submitErrorId={submitErrorId}
+                    submitErrorMsg={submitErrorMsg}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>

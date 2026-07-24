@@ -67,7 +67,7 @@ export default function SearchEmptyState({
     }
 
     setState("saved");
-    setMessage("Saved in place. Your Search has not moved.");
+    setMessage("Search saved.");
   };
 
   return (
@@ -101,7 +101,22 @@ export default function SearchEmptyState({
           state === "error" ? "text-[var(--danger)]" : "text-[var(--muted)]"
         }`}
       >
-        {message}
+        {state === "saved" ? (
+          /* v2.68 — DD1 confirmation: the fact, then the real destination. */
+          <>
+            <strong className="font-medium text-[var(--platinum-dim)]">
+              Search saved.
+            </strong>{" "}
+            <a
+              href="/account?module=saved"
+              className="text-[var(--gold-dim)] underline underline-offset-[3px] transition-colors hover:text-[var(--gold)]"
+            >
+              View saved searches
+            </a>
+          </>
+        ) : (
+          message
+        )}
       </div>
 
       {state === "error" && (
