@@ -1737,11 +1737,21 @@ export default function VaultGalaxy({
                     untouched. Desktop: summary open, source collapsed.
                     Galaxy: whole section collapsed to one row by default. */}
                 <VaultMarketEvidence variantId={selectedVariant.id} />
+                {/* v2.66 — mobile: the gold primary was wrapping to a
+                    three-line slab that outweighed the evidence above it.
+                    Compact one-line buttons on the phone card only; desktop
+                    classes untouched (fw-btn-* serve other surfaces). */}
                 <div className="mt-[18px] flex gap-2">
-                  <button onClick={resetGalaxy} className="fw-btn-primary">
+                  <button
+                    onClick={resetGalaxy}
+                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                  >
                     Return to Galaxy
                   </button>
-                  <button onClick={historyBack} className="fw-btn-secondary">
+                  <button
+                    onClick={historyBack}
+                    className="fw-btn-secondary whitespace-nowrap max-sm:!px-[10px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                  >
                     Back
                   </button>
                 </div>
