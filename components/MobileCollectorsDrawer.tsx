@@ -251,7 +251,12 @@ export default function MobileCollectorsDrawer({
             className="mt-[14px] border-t border-[var(--border-gold)] pt-[14px] md:mt-[18px] md:pt-[17px]"
           >
             <div className="mb-2 flex items-center justify-between gap-2.5">
-              <b className="text-[7px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] min-[470px]:text-[8px]">
+              {/* v2.70 — 7px/8px → 11px/12px, device-tuned on the XCover 7 Pro.
+                  At 7px the gold label read as a caption beside the quick-link
+                  names (13px) instead of the head of the section above them.
+                  Matches the desktop drawer's 12px. "Up to three" is untouched
+                  and still hidden below 470px, so the label leads alone. */}
+              <b className="text-[11px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] min-[470px]:text-[12px]">
                 Saved Search Quick Links
               </b>
               <span className="hidden text-[8px] uppercase tracking-[0.11em] text-[var(--ghost)] min-[470px]:inline">

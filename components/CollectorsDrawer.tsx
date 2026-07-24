@@ -477,8 +477,12 @@ export default function CollectorsDrawer({
               className="border-t border-[var(--border-gold)] pt-[17px]"
             >
               <div className="mb-2 flex items-center justify-between gap-2.5">
+                {/* v2.70 — 8px → 10px → 12px, device-tuned: the label has to
+                    read as the section's head above the quick-link names, not
+                    as a caption beside them. The qualifier stays at 8px on
+                    purpose: the label leads, "Up to three" recedes. */}
                 <b
-                  className={`text-[8px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] ${glassText}`}
+                  className={`text-[12px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] ${glassText}`}
                 >
                   Saved Search Quick Links
                 </b>

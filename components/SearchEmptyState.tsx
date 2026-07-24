@@ -82,6 +82,10 @@ export default function SearchEmptyState({
         >
           Nothing yet.
         </strong>
+        {/* v2.70 — the sentence is fixed copy and never rewrites itself. The
+            button previously became "Saving…"/"Saved", mutating the approved
+            line into "Simplify your search, or Saved — …". Progress belongs to
+            the live-region below; the words here stay put. */}
         Simplify your search, or{" "}
         <button
           type="button"
@@ -89,7 +93,7 @@ export default function SearchEmptyState({
           disabled={state === "saving" || state === "saved"}
           className="appearance-none bg-transparent p-0 text-[var(--gold-dim)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-[3px] transition-colors hover:text-[var(--gold)] hover:decoration-[var(--gold)] disabled:cursor-default disabled:text-[var(--platinum-dim)] disabled:no-underline"
         >
-          {state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "save it"}
+          save it
         </button>
         <span aria-hidden="true">&nbsp;—&nbsp;</span>
         <span>we&rsquo;ll keep watching for your watch.</span>

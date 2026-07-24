@@ -63,20 +63,19 @@ export default function SavedSearchQuickLinks() {
     router.push(await bumpAndHref(search));
   }
 
-  /* v2.69 — both of this component's own lines sat at --muted (#818799), the
-     lowest readable tier, over smoked glass whose backdrop is the listing
-     photograph and therefore changes constantly. Raised to --platinum-dim
-     (the tier the quick-link names beside them already use) AND given the
-     drawer's production glass-text shadow, which is what actually keeps light
-     type legible when a bright region of the photo passes underneath.
-     Contrast alone would not have survived a pale hero. */
-  const glassText =
-    "[text-shadow:0_1px_2px_rgba(0,0,0,0.90),0_0_8px_rgba(0,0,0,0.70)]";
+  /* v2.69 raised these lines off --muted (#818799) — too dim over smoked glass
+     whose backdrop is the listing photograph — AND added the drawer's glass
+     text-shadow at the same time.
 
+     v2.70 keeps the colour and DROPS the shadow everywhere in this component.
+     Verified on the XCover 7 Pro: the shadow read as an emboss beside the clean
+     tool rows ("Add to My Catalogue") — a second material system inside one
+     drawer, on the empty line AND on the quick-link names. --platinum carries
+     the legibility the contrast pass was actually after. */
   if (links.length === 0) {
     return (
       <p
-        className={`py-3 font-display text-[13px] font-light italic leading-[1.5] text-[var(--platinum)] max-[470px]:text-[11.5px] ${glassText}`}
+        className="py-3 font-display text-[13px] font-light italic leading-[1.5] text-[var(--platinum)] max-[470px]:text-[11.5px]"
       >
         Save a search to keep quick links here.
       </p>
@@ -87,20 +86,29 @@ export default function SavedSearchQuickLinks() {
     <div>
       <div className="grid">
         {links.map((s) => (
+          /* v2.70 — the arrow was pinned to the far right by justify-between.
+             Across the drawer's width that put it hundreds of px from the name,
+             where it read as row furniture: Jason didn't register it was there
+             at all. It now rides immediately after the name, so it binds to the
+             word it belongs to. No new symbol introduced — same glyph, moved. */
           <button
             key={s.id}
             type="button"
             onClick={() => reopen(s)}
-            className={`flex min-w-0 items-center justify-between gap-3 border-b border-[rgba(232,226,214,0.075)] py-2.5 text-left font-display text-[15px] font-light leading-[1.3] text-[var(--platinum)] transition hover:text-[var(--gold)] max-[470px]:text-[13px] max-[767px]:py-2 max-[767px]:text-[14px] ${glassText}`}
+            className="flex min-w-0 items-center gap-2 border-b border-[rgba(232,226,214,0.075)] py-2.5 text-left font-display text-[15px] font-light leading-[1.3] text-[var(--platinum)] transition hover:text-[var(--gold)] max-[470px]:text-[13px] max-[767px]:py-2 max-[767px]:text-[14px]"
           >
             <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{s.name}</span>
             <span className="shrink-0 font-[Inter] text-[11px] text-[var(--gold)]">&rarr;</span>
           </button>
         ))}
       </div>
+      {/* v2.70 — was 12px with a max-[470px] shrink to 11px. The XCover 7 Pro
+          sits below that breakpoint, so the phone was getting the SMALLEST type
+          in the section for what is a real destination. Now 13px flat, shrink
+          dropped, still --platinum-dim so it stays subordinate to the names. */}
       <a
         href="/account?module=saved"
-        className={`mt-3 inline-block text-[12px] text-[var(--platinum-dim)] transition hover:text-[var(--gold)] max-[470px]:text-[11px] ${glassText}`}
+        className="mt-3 inline-block text-[13px] text-[var(--platinum-dim)] transition hover:text-[var(--gold)]"
       >
         View all saved searches
       </a>
