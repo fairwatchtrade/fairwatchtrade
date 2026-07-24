@@ -1,0 +1,62 @@
+{
+  "$comment": "Phillips Adapter Flight 1 — reviewed source packet for NY080126 lot 22. This manifest binds the exact URLs and PDF SHA-256 hashes from the 2026-07-24 implementation order. It contains reviewed FACTS only — no Phillips essays, photography, credentials, cookies, session data, or unrelated lots.",
+  "packet": {
+    "auctionPageUrl": "https://www.phillips.com/auction/NY080126",
+    "lotPageUrl": "https://www.phillips.com/detail/omega/229882",
+    "resultsPdf": {
+      "filename": "auctionResultsFile_NY080126.pdf",
+      "sha256": "357c66dc52804cd3a82f7ead899fc92f189ed9fb16f14e98585cd6435702d181"
+    },
+    "auctionPagePdf": {
+      "filename": "The New York Watch Auction_ XIV Saturday, June 13, 2026.pdf",
+      "sha256": "05267b61a7c9bae345ebc0f02679ba1f1c5b15b29730674ada3e14597021642f"
+    }
+  },
+  "house": {
+    "name": "Phillips",
+    "slug": "phillips",
+    "website_url": "https://www.phillips.com/"
+  },
+  "sale": {
+    "sale_number": "NY080126",
+    "sale_name": "The New York Watch Auction: XIV",
+    "location": "New York",
+    "sale_date": "2026-06-13",
+    "$sale_date_rationale": "Date printed on the official results file and in the founder-supplied auction-page title. The auction page's separate 'Concluded Jun 14 2026' statement is preserved in source-artifact attribution — the two claims are not collapsed and no range is invented.",
+    "concluded_statement": "Concluded Jun 14 2026"
+  },
+  "lot": {
+    "lot_number": "22",
+    "brand_text": "Omega",
+    "model_text": "Speedmaster",
+    "reference_text": "2998-5",
+    "phillips_object_id": "229882",
+    "as_stated_description": "An attractive stainless steel chronograph wristwatch with tachymeter scale and bracelet",
+    "attributed_summary": "Phillips-attributed catalogue facts: year 1960, Switzerland; movement number 17'301'309; manual calibre 321, 17 jewels; stainless steel; Omega ladder bracelet, endlinks stamped 6, maximum overall length 200 mm; Omega deployant clasp reference 7912, stamped 3.63; diameter printed by Phillips as 39.5mmm (as-printed source-text anomaly, not a measured dimension); case, dial, movement, and bracelet signed; described by Phillips as original and well preserved, with a likely original Omega crystal and prior Phillips provenance."
+  },
+  "result": {
+    "sale_outcome": "sold",
+    "price_realized": 22860,
+    "currency": "USD",
+    "price_basis": "hammer_plus_premium",
+    "result_date": "2026-06-13",
+    "$price_basis_authority": "The official results PDF states its US-dollar prices include the buyer's premium and are rounded to the nearest dollar."
+  },
+  "artifacts": {
+    "results_pdf": {
+      "intake_method": "public_file",
+      "attribution_note": "Official Phillips results file auctionResultsFile_NY080126.pdf for sale NY080126, published from the auction page. Prices in USD include buyer's premium, rounded to the nearest dollar (per the file's own statement).",
+      "omission_statement": "Full PDF not retained (metadata_only). Only the reviewed lot-22 result row and the premium statement were used."
+    },
+    "auction_page_pdf": {
+      "intake_method": "founder_supplied_file",
+      "attribution_note": "Founder-supplied browser print of the Phillips auction page for NY080126. The page states 'Concluded Jun 14 2026'; the official results file is dated 2026-06-13. sale_date stores the results-file date; the two dated claims are preserved separately, not collapsed.",
+      "omission_statement": "Full PDF not retained (metadata_only). Image-based print; catalogue essay and photography deliberately not captured."
+    },
+    "lot_page": {
+      "intake_method": "manual_entry",
+      "attribution_note": "Phillips lot page for NY080126 lot 22 (object 229882). Facts were manually reviewed from the source packet; an anonymous fetch of this URL validates their presence and records the page's content hash at plan time.",
+      "omission_statement": "Page HTML not retained (metadata_only). Catalogue essay, condition report, and photography deliberately not captured."
+    }
+  }
+}
