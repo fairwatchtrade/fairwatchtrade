@@ -18,6 +18,16 @@ export default function SellPage() {
             Independent &amp; boutique makers only. Curated before listed.
           </p>
 
+          {/* v2.56 — the seller's answer, near the entry (Design Duck approved). */}
+          <div className="mt-4 text-[14px] leading-[1.6]">
+            <span className="font-display text-[16px] text-[var(--platinum)]">
+              Pay a flat 5% only when your watch sells.
+            </span>
+            <span className="mt-0.5 block text-[13px] text-[var(--muted)]">
+              No listing fee. No paid placement. No games.
+            </span>
+          </div>
+
           {/* v2.2 — List from Phone. A quiet, explicit opt-in for mobile
               sellers (md:hidden). Never an auto-redirect: tablets, foldables,
               desktop-mode browsers, and sellers who prefer this form all stay
