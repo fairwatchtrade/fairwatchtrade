@@ -41,6 +41,7 @@ export default function ReviewStep({
   draft,
   captureSessionId,
   publishRequestId,
+  onPublished,
 }: {
   draft: ListingDraft;
   // v2.24 · The Aubrey Check desktop correlation — supplied by SellFlow.
@@ -48,6 +49,9 @@ export default function ReviewStep({
   // style) if mounted without them.
   captureSessionId?: string;
   publishRequestId?: string;
+  // List From Phone — lets SellFlow close its server draft (idempotent) once
+  // the real listing exists. Additive; publish behavior itself is untouched.
+  onPublished?: (listingId: string) => void;
 }) {
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
@@ -116,6 +120,7 @@ export default function ReviewStep({
       window.scrollTo(0, 0);
       setHeld(data?.status === "pending_review");
       setPublished(true);
+      if (data?.id && onPublished) onPublished(String(data.id));
     } catch {
       setError("Network error — your listing wasn't published. Try again.");
     } finally {

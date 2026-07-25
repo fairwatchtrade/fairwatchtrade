@@ -21,6 +21,21 @@ import WatchBlueprint, { type Layer, type Detail } from "@/components/WatchBluep
 import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
+import { randomUUID } from "@/lib/uuid";
+import ListFromPhoneHandoff from "@/components/ListFromPhoneHandoff";
+import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  createDraft,
+  saveContent,
+  draftStatus,
+  returnAuthority,
+  markPublished,
+  fetchDraftRow,
+  fetchNewestActiveDraft,
+  handoffIsLive,
+  desktopIsPaused,
+  type StatusResult,
+} from "@/lib/listingDraft";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -274,12 +289,164 @@ export default function SellFlow() {
   // get honest listing_media correlation and desktop publishes get the same
   // retry safety mobile has. Lazy init: stable for the life of the flow.
   const [desktopIds] = useState(() => ({
-    captureSessionId: "desk_" + crypto.randomUUID(),
-    publishRequestId: crypto.randomUUID(),
+    captureSessionId: "desk_" + randomUUID(),
+    publishRequestId: randomUUID(),
   }));
 
+  /* ── List From Phone — server-backed draft + single-active-editor baton ──
+     When the seller is signed in, the server draft (listing_drafts, RPCs only)
+     is the canonical copy: it survives refresh/close and is what a redeemed
+     phone continues. Desktop holds the 'desktop' baton; while the phone holds
+     it, this flow renders paused/read-only and only polls status (5s). Guests
+     keep today's in-memory behavior — the handoff itself requires sign-in. */
+  const [authed, setAuthed] = useState(false);
+  const [serverDraftId, setServerDraftId] = useState<string | null>(null);
+  const revisionRef = useRef(0);
+  const userTouchedRef = useRef(false);
+  const creatingRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [phoneActive, setPhoneActive] = useState(false);
+  const [pollLive, setPollLive] = useState(false);
+  // Closing the handoff panel returns focus to the control that opened it
+  // (Layout Duck ruling). Ref-not-state, consumed in an effect after the
+  // close commits — the proven SavedSearches focus-restoration pattern.
+  const handoffOpenerRef = useRef<HTMLButtonElement | null>(null);
+  const restoreOpenerFocusRef = useRef(false);
+  useEffect(() => {
+    if (!handoffOpen && restoreOpenerFocusRef.current) {
+      restoreOpenerFocusRef.current = false;
+      handoffOpenerRef.current?.focus();
+    }
+  }, [handoffOpen]);
+
+  // Adopt a server row into local state (content.draft is the ListingDraft).
+  const adoptRow = (row: { id: string; content: Record<string, unknown>; revision: number }) => {
+    const d = row.content?.draft as ListingDraft | undefined;
+    if (d && typeof d === "object") setDraft({ ...emptyDraft(), ...d });
+    revisionRef.current = row.revision;
+    setServerDraftId(row.id);
+  };
+
+  // Mount: resume the newest active server draft (survives refresh/close).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase.auth.getUser();
+      if (cancelled || !data.user) return;
+      setAuthed(true);
+      const row = await fetchNewestActiveDraft();
+      if (cancelled || !row) return;
+      // Never clobber typing that happened before this resolved.
+      if (!userTouchedRef.current) {
+        adoptRow(row);
+        if (row.active_editor === "phone") {
+          setPhoneActive(true);
+          setPollLive(true);
+        } else if (row.handoff_status === "issued" || row.handoff_status === "redeemed") {
+          setPollLive(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function patch(p: Partial<ListingDraft>) {
+    userTouchedRef.current = true;
     setDraft((d) => ({ ...d, ...p }));
+  }
+
+  // Debounced canonical save — active desktop editor only, revision-guarded.
+  useEffect(() => {
+    if (!authed || phoneActive) return;
+    if (!userTouchedRef.current) return; // nothing meaningful yet
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const content = { draft };
+      if (!serverDraftId) {
+        if (creatingRef.current) return;
+        creatingRef.current = true;
+        const id = await createDraft(content);
+        creatingRef.current = false;
+        if (id) {
+          revisionRef.current = 0;
+          setServerDraftId(id);
+        }
+        return;
+      }
+      const res = await saveContent(serverDraftId, content, revisionRef.current, "desktop");
+      if (res.state === "SAVED" && typeof res.revision === "number") {
+        revisionRef.current = res.revision;
+      } else if (res.state === "NOT_ACTIVE_EDITOR") {
+        // The phone took the baton between polls — pause immediately.
+        setPhoneActive(true);
+        setPollLive(true);
+      } else if (res.state === "STALE") {
+        // A newer revision exists (e.g. the phone saved then returned).
+        const row = await fetchDraftRow(serverDraftId);
+        if (row) adoptRow(row);
+      }
+    }, 1200);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [draft, authed, phoneActive, serverDraftId]);
+
+  // Status poll — ONLY while a handoff is live (issued/redeemed) or the panel
+  // is open. 5s interval; stops on return/expiry/publish/unmount.
+  useEffect(() => {
+    if (!serverDraftId || (!pollLive && !handoffOpen)) return;
+    let stopped = false;
+    const tick = async () => {
+      const s: StatusResult = await draftStatus(serverDraftId);
+      if (stopped || s.state !== "OK") return;
+      const paused = desktopIsPaused(s);
+      if (paused !== phoneActive) {
+        if (!paused) {
+          // Authority came back (returned/expired) — adopt the phone's work.
+          const row = await fetchDraftRow(serverDraftId);
+          if (row && !stopped) adoptRow(row);
+        }
+        if (!stopped) setPhoneActive(paused);
+      }
+      if (!handoffIsLive(s) && !paused && !stopped) setPollLive(false);
+    };
+    const iv = setInterval(tick, 5000);
+    tick();
+    return () => {
+      stopped = true;
+      clearInterval(iv);
+    };
+  }, [serverDraftId, pollLive, handoffOpen, phoneActive]);
+
+  // Explicit hand-back from the desktop side ("Resume on desktop").
+  async function resumeOnDesktop() {
+    if (!serverDraftId) return;
+    const res = await returnAuthority(serverDraftId);
+    if (res.state === "RETURNED") {
+      const row = await fetchDraftRow(serverDraftId);
+      if (row) adoptRow(row);
+      setPhoneActive(false);
+      setPollLive(false);
+      setHandoffOpen(false);
+    }
+  }
+
+  // Open the handoff panel — ensures the server draft exists first so the QR
+  // always points at real, saved work.
+  async function openHandoff() {
+    if (!authed) return;
+    if (!serverDraftId) {
+      const id = await createDraft({ draft });
+      if (!id) return;
+      revisionRef.current = 0;
+      setServerDraftId(id);
+    }
+    setHandoffOpen(true);
+    setPollLive(true);
   }
 
   const photoRef = useRef<PhotoUploadHandle | null>(null);
@@ -386,9 +553,62 @@ export default function SellFlow() {
   // Per-step gate for the Next button. Step 0 advances via the curation pass.
   const canProceed = step === 1 ? mandatoryDone(draft) : true;
 
+  // ── Paused: the phone holds the baton. The flow stays mounted but inert
+  // under an honest, calm panel. Not an error — a location.
+  if (phoneActive) {
+    return (
+      <div className="space-y-6">
+        <ProgressBar step={step} />
+        <div className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-14 text-center">
+          <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+            List from phone
+          </div>
+          <h2 className="mt-2 font-display text-[22px] font-light text-[var(--platinum)]">
+            Continuing on your phone
+          </h2>
+          <p className="mx-auto mt-2 max-w-[420px] text-[13px] leading-[1.6] text-[var(--muted)]">
+            This listing is open on your phone right now. Your work saves there
+            as you go — this page will pick it up the moment you bring it back.
+          </p>
+          <button
+            type="button"
+            onClick={resumeOnDesktop}
+            className="mt-6 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+          >
+            Resume on desktop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <ProgressBar step={step} />
+
+      {/* List From Phone — quiet affordance (signed-in sellers, desktop). */}
+      {authed && !handoffOpen && (
+        <div className="hidden justify-end md:flex">
+          <button
+            ref={handoffOpenerRef}
+            type="button"
+            onClick={openHandoff}
+            className="border border-[var(--border-subtle)] px-3 py-1.5 text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+          >
+            List from phone
+          </button>
+        </div>
+      )}
+      {handoffOpen && serverDraftId && (
+        <ListFromPhoneHandoff
+          draftId={serverDraftId}
+          onClose={() => {
+            restoreOpenerFocusRef.current = true;
+            setHandoffOpen(false);
+            setPollLive(false);
+          }}
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
         <div
@@ -435,6 +655,11 @@ export default function SellFlow() {
                 draft={draft}
                 captureSessionId={desktopIds.captureSessionId}
                 publishRequestId={desktopIds.publishRequestId}
+                onPublished={(listingId) => {
+                  // Close the server draft idempotently — the real listing now
+                  // owns the work; the draft can never publish twice.
+                  if (serverDraftId) void markPublished(serverDraftId, listingId);
+                }}
               />
             </>
           )}

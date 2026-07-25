@@ -13,6 +13,15 @@ import { type PhotoCategory, type SaleState } from "@/lib/scoring";
 import CameraCapture, { type ConfirmedCapture } from "@/components/CameraCapture";
 import { type OverlayVariant } from "@/components/AlignmentOverlay";
 import WatchSpinner from "@/components/WatchSpinner";
+import { randomUUID } from "@/lib/uuid";
+import {
+  createDraft,
+  saveContent,
+  returnAuthority,
+  markPublished,
+  fetchDraftRow,
+  fetchNewestActiveDraft,
+} from "@/lib/listingDraft";
 
 /* ════════════════════════════════════════════════════════════════════════
    MOBILE WIZARD — components/MobileWizard.tsx   (v2.2 · Phase 3)
@@ -233,11 +242,11 @@ function getDeviceToken(): string {
   try {
     const existing = localStorage.getItem(DEVICE_TOKEN_KEY);
     if (existing) return existing;
-    const fresh = crypto.randomUUID();
+    const fresh = randomUUID();
     localStorage.setItem(DEVICE_TOKEN_KEY, fresh);
     return fresh;
   } catch {
-    return crypto.randomUUID(); // storage blocked → session still works, badge may not persist
+    return randomUUID(); // storage blocked → session still works, badge may not persist
   }
 }
 
@@ -261,7 +270,16 @@ const SALE_STATE_OPTIONS: { value: SaleState; label: string }[] = [
   { value: "other", label: "Other / mixed" },
 ];
 
-export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
+export default function MobileWizard({
+  brands,
+  serverDraftId = null,
+}: {
+  brands: VaultBrandLite[];
+  // List From Phone — set when this wizard opens via a redeemed handoff
+  // (/sell/continue/[token] → /sell/mobile?draft=<id>). The server draft is
+  // then canonical and this device holds the 'phone' baton.
+  serverDraftId?: string | null;
+}) {
   const supabase = useMemo(() => createClient(), []);
 
   const [stage, setStage] = useState<Stage>("sale_state");
@@ -281,6 +299,27 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   // A held prior draft awaiting the seller's resume/start-new choice. While
   // set, nothing is restored and nothing is saved.
   const [pendingResume, setPendingResume] = useState<ResumeBlob | null>(null);
+
+  /* ── List From Phone — server-backed draft (canonical) ──
+     serverIdRef/serverRevRef track the listing_drafts row + optimistic
+     revision. serverEditorRef is the baton label this device saves under:
+     'phone' when the wizard opened via a redeemed handoff, 'desktop' (origin
+     authority) for an organic same-device wizard draft — the baton only
+     distinguishes devices once a handoff exists. localStorage remains a
+     same-device recovery aid only; after import, server state wins and a
+     stale local blob can never overwrite a newer server revision (the RPC's
+     revision guard enforces this even if a delayed tab tries). */
+  const serverIdRef = useRef<string | null>(serverDraftId);
+  const serverRevRef = useRef(0);
+  const serverEditorRef = useRef<"desktop" | "phone">(serverDraftId ? "phone" : "desktop");
+  const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const creatingServerRef = useRef(false);
+  const [serverPhase, setServerPhase] = useState<"idle" | "loading" | "gone">(
+    serverDraftId ? "loading" : "idle"
+  );
+  // The baton left this device (hand-back completed, or desktop reclaimed).
+  const [batonAway, setBatonAway] = useState<null | "handed_back" | "reclaimed">(null);
+  const [handingBack, setHandingBack] = useState(false);
 
   // Capture run
   const [captureIndex, setCaptureIndex] = useState(0);
@@ -330,32 +369,6 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   );
   const optionalSteps = useMemo(() => buildOptionalSteps(), []);
 
-  /* ── Resume gate — a prior unpublished draft is NEVER silently restored.
-     Layer-1 fix for the cross-watch draft leak: silent auto-resume let one
-     watch's fields and photos ride under the next watch's session. Now, if an
-     unpublished draft exists, we hold and let the seller choose — resume it,
-     or start a new listing (a full, atomic clear). Only after that choice does
-     any draft state, or any save, proceed. ── */
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RESUME_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as ResumeBlob;
-        if (saved && saved.draft && saved.stage && saved.stage !== "published") {
-          // Hold for the seller's choice. blockSaveRef stays true so the draft
-          // in storage is preserved untouched until they decide.
-          setPendingResume(saved);
-          return;
-        }
-      }
-    } catch {
-      /* a bad resume blob is discarded, never fatal */
-    }
-    // No resumable draft → a fresh attempt. Mint its identity, open the save
-    // path.
-    attemptIdRef.current = crypto.randomUUID();
-    blockSaveRef.current = false;
-  }, []);
 
   /* Apply a held draft when the seller chooses to resume it. The attempt keeps
      its original identity (older blobs with no attemptId adopt a fresh one). */
@@ -377,9 +390,101 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     setNotesInput(saved.notesInput ?? saved.draft.provenanceNote ?? "");
     setBrandQuery(saved.draft.brand ?? "");
     setModelQuery(saved.draft.model ?? "");
-    attemptIdRef.current = saved.attemptId || crypto.randomUUID();
+    attemptIdRef.current = saved.attemptId || randomUUID();
     blockSaveRef.current = false;
     setPendingResume(null);
+  }, []);
+
+  /* ── Resume gate — a prior unpublished draft is NEVER silently restored.
+     Layer-1 fix for the cross-watch draft leak: silent auto-resume let one
+     watch's fields and photos ride under the next watch's session. Now, if an
+     unpublished draft exists, we hold and let the seller choose — resume it,
+     or start a new listing (a full, atomic clear). Only after that choice does
+     any draft state, or any save, proceed. ── */
+  useEffect(() => {
+    let cancelled = false;
+
+    // Server content → the wizard's blob shape. A desktop-origin draft carries
+    // only { draft }; wizard extras default to a fresh capture flow around the
+    // preserved field values.
+    const toBlob = (content: Record<string, unknown>): ResumeBlob | null => {
+      const d = content?.draft as ListingDraft | undefined;
+      if (!d || typeof d !== "object") return null;
+      const c = content as Partial<ResumeBlob>;
+      return {
+        draft: { ...emptyDraft(), ...d },
+        saleState: c.saleState ?? null,
+        mediaMeta: Array.isArray(c.mediaMeta) ? c.mediaMeta : [],
+        stage: c.stage && c.stage !== "published" ? c.stage : "sale_state",
+        captureIndex: c.captureIndex ?? 0,
+        optionalIndex: c.optionalIndex ?? 0,
+        optionalActive: c.optionalActive ?? false,
+        captureSessionId: c.captureSessionId ?? null,
+        badgeForfeited: c.badgeForfeited === true,
+        referenceInput: c.referenceInput,
+        notesInput: c.notesInput,
+        attemptId: c.attemptId,
+      };
+    };
+
+    (async () => {
+      // ── Handoff mode: the server draft is canonical; local resume is skipped
+      // entirely (the phone is continuing the seller's other-device work). ──
+      if (serverDraftId) {
+        const row = await fetchDraftRow(serverDraftId);
+        if (cancelled) return;
+        const blob = row ? toBlob(row.content) : null;
+        if (!row || !blob || row.status !== "active") {
+          setServerPhase("gone");
+          return;
+        }
+        serverRevRef.current = row.revision;
+        resumeSaved(blob); // opens the save path with the same attempt identity
+        setServerPhase("idle");
+        return;
+      }
+
+      // ── Organic wizard visit: the server draft (if any) is canonical and is
+      // offered through the SAME resume-choice gate as before — never silently
+      // restored. A local-only blob keeps today's behavior and is imported
+      // once to the server on its first save after resume. ──
+      const row = await fetchNewestActiveDraft().catch(() => null);
+      if (cancelled) return;
+      const serverBlob = row ? toBlob(row.content) : null;
+      const serverMeaningful =
+        serverBlob &&
+        (serverBlob.draft.brand.trim() !== "" || serverBlob.draft.photos.length > 0);
+      if (row && serverBlob && serverMeaningful) {
+        serverIdRef.current = row.id;
+        serverRevRef.current = row.revision;
+        serverEditorRef.current = row.active_editor === "phone" ? "phone" : "desktop";
+        setPendingResume(serverBlob);
+        return;
+      }
+      try {
+        const raw = localStorage.getItem(RESUME_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw) as ResumeBlob;
+          if (saved && saved.draft && saved.stage && saved.stage !== "published") {
+            // Hold for the seller's choice. blockSaveRef stays true so the
+            // draft in storage is preserved untouched until they decide.
+            setPendingResume(saved);
+            return;
+          }
+        }
+      } catch {
+        /* a bad resume blob is discarded, never fatal */
+      }
+      // No resumable draft → a fresh attempt. Mint its identity, open the save
+      // path.
+      attemptIdRef.current = randomUUID();
+      blockSaveRef.current = false;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -416,6 +521,97 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
       );
     } catch {}
   }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput, pendingResume]);
+
+  /* ── Canonical server save — debounced, revision-guarded, baton-aware.
+     Mirrors the exact blob shape localStorage carries, so either device can
+     continue it. Creates the server draft lazily on the first meaningful save
+     (which is also the one-time import of a resumed local blob). ── */
+  useEffect(() => {
+    if (blockSaveRef.current || pendingResume || batonAway) return;
+    if (stage === "published" || serverPhase === "loading") return;
+    if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
+    serverSaveTimer.current = setTimeout(async () => {
+      const content = {
+        draft,
+        saleState,
+        mediaMeta,
+        stage,
+        captureIndex,
+        optionalIndex,
+        optionalActive,
+        captureSessionId,
+        badgeForfeited,
+        referenceInput,
+        notesInput,
+        attemptId: attemptIdRef.current,
+      };
+      if (!serverIdRef.current) {
+        // Lazy create / one-time import — only once there is something to keep.
+        const meaningful = draft.brand.trim() !== "" || draft.photos.length > 0;
+        if (!meaningful || creatingServerRef.current) return;
+        creatingServerRef.current = true;
+        const id = await createDraft(content);
+        creatingServerRef.current = false;
+        if (id) {
+          serverIdRef.current = id;
+          serverRevRef.current = 0;
+        }
+        return;
+      }
+      const res = await saveContent(
+        serverIdRef.current,
+        content,
+        serverRevRef.current,
+        serverEditorRef.current
+      );
+      if (res.state === "SAVED" && typeof res.revision === "number") {
+        serverRevRef.current = res.revision;
+      } else if (res.state === "NOT_ACTIVE_EDITOR") {
+        // The desktop reclaimed authority — this device goes read-only.
+        setBatonAway("reclaimed");
+      } else if (res.state === "STALE") {
+        // A newer revision exists elsewhere; adopt its counter so the next
+        // save is judged against truth (content adoption happens on the
+        // resume path, never silently mid-edit).
+        const row = await fetchDraftRow(serverIdRef.current);
+        if (row) serverRevRef.current = row.revision;
+      }
+    }, 1200);
+    return () => {
+      if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
+    };
+  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput, pendingResume, batonAway, serverPhase]);
+
+  /* ── Explicit hand-back: save the final phone state and return the baton. ── */
+  const handBackToDesktop = useCallback(async () => {
+    const id = serverIdRef.current;
+    if (!id || handingBack) return;
+    setHandingBack(true);
+    const content = {
+      draft,
+      saleState,
+      mediaMeta,
+      stage,
+      captureIndex,
+      optionalIndex,
+      optionalActive,
+      captureSessionId,
+      badgeForfeited,
+      referenceInput,
+      notesInput,
+      attemptId: attemptIdRef.current,
+    };
+    let res = await returnAuthority(id, content, serverRevRef.current);
+    if (res.state === "STALE") {
+      // One honest retry against the server's current revision.
+      const row = await fetchDraftRow(id);
+      if (row) res = await returnAuthority(id, content, row.revision);
+    }
+    setHandingBack(false);
+    if (res.state === "RETURNED") {
+      setBatonAway("handed_back");
+    }
+  }, [draft, saleState, mediaMeta, stage, captureIndex, optionalIndex, optionalActive, captureSessionId, badgeForfeited, referenceInput, notesInput, handingBack]);
 
   /* ── Session lifecycle — best-effort, never blocking ── */
   const ensureSession = useCallback(async () => {
@@ -721,7 +917,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
       return;
     }
     if (!publishRequestIdRef.current) {
-      publishRequestIdRef.current = crypto.randomUUID(); // stable across retries — that's the idempotency
+      publishRequestIdRef.current = randomUUID(); // stable across retries — that's the idempotency
     }
     setPublishing(true);
     setPublishError(null);
@@ -795,6 +991,11 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
         }).catch(() => {});
       }
       setPublishHeld(data?.status === "pending_review");
+      // List From Phone — close the server draft idempotently now that the
+      // real listing owns the work (it can never publish twice).
+      if (serverIdRef.current && data?.id) {
+        void markPublished(serverIdRef.current, String(data.id));
+      }
       setStage("published");
     } catch {
       setPublishError("Network error — your listing wasn't published. Try again.");
@@ -828,7 +1029,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     publishRequestIdRef.current = "";
     // A new attempt gets a new identity, and the save path reopens. Nothing
     // from the prior watch — field or photo — can survive this.
-    attemptIdRef.current = crypto.randomUUID();
+    attemptIdRef.current = randomUUID();
     blockSaveRef.current = false;
     setPendingResume(null);
     setPublishError(null);
@@ -837,6 +1038,73 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
 
   /* ════════════════════ RENDER ════════════════════ */
 
+  // ── List From Phone panels — before any stage renders. ──
+  // The hand-back chip rides every screen while this device holds the baton
+  // via a redeemed handoff (explicit "Resume on desktop", order §8).
+  const handBackChip =
+    serverDraftId && serverPhase === "idle" && !batonAway && stage !== "published" ? (
+      <button
+        type="button"
+        onClick={handBackToDesktop}
+        disabled={handingBack}
+        className="fixed bottom-4 right-4 z-40 border border-[var(--border-subtle)] bg-[#0d1118] px-3 py-2 text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)] disabled:opacity-60"
+      >
+        {handingBack ? "Saving…" : "Resume on desktop"}
+      </button>
+    ) : null;
+
+  if (serverPhase === "loading") {
+    return (
+      <Shell handBack={handBackChip}>
+        <div className="py-24 text-center text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
+          Opening your listing…
+        </div>
+      </Shell>
+    );
+  }
+
+  if (serverPhase === "gone") {
+    return (
+      <Shell handBack={handBackChip}>
+        <div className="py-16 text-center">
+          <h1 className="font-display text-[22px] font-light text-[var(--platinum)]">
+            Listing not available
+          </h1>
+          <p className="mx-auto mt-3 max-w-[300px] text-[13px] leading-[1.6] text-[var(--muted)]">
+            This handoff is no longer active. Your work is safe — continue from
+            the device where you started, or begin here fresh.
+          </p>
+          <Link
+            href="/sell/mobile"
+            className="mt-8 inline-block border border-[rgba(255,255,255,0.28)] px-5 py-3 text-[11px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+          >
+            Start a new listing
+          </Link>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (batonAway) {
+    return (
+      <Shell handBack={handBackChip}>
+        <div className="py-16 text-center">
+          <div className="text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
+            List from Phone
+          </div>
+          <h1 className="mt-3 font-display text-[22px] font-light text-[var(--platinum)]">
+            {batonAway === "handed_back" ? "Back on your desktop" : "Editing moved to your desktop"}
+          </h1>
+          <p className="mx-auto mt-3 max-w-[300px] text-[13px] leading-[1.6] text-[var(--muted)]">
+            {batonAway === "handed_back"
+              ? "Everything you did here is saved. Pick the listing up on your desktop — this phone is now read-only."
+              : "Your desktop resumed this listing. Everything saved here travelled with it — this phone is now read-only."}
+          </p>
+        </div>
+      </Shell>
+    );
+  }
+
   /* ── Resume gate — shown before anything else when a prior unpublished
      draft exists. The seller chooses; nothing is silently inherited. ── */
   if (pendingResume) {
@@ -844,7 +1112,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
     const model = pendingResume.draft?.model?.trim();
     const label = [brand, model].filter(Boolean).join(" ");
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <div className="mb-2 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
           List from Phone
         </div>
@@ -884,7 +1152,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   /* ── Screen 0 — sale-state declaration ── */
   if (stage === "sale_state") {
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <div className="mb-2 text-[11px] uppercase tracking-[3px] text-[rgba(201,168,76,0.85)]">
           List from Phone
         </div>
@@ -930,7 +1198,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   /* ── Screen 1 — identity ── */
   if (stage === "identity") {
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <StepCrumb label="Identity" />
         <h1 className="mb-7 font-display text-[24px] font-light text-[var(--platinum)]">
           The watch, in four answers.
@@ -1143,7 +1411,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   if (stage === "optional") {
     const step = optionalSteps[Math.min(optionalIndex, optionalSteps.length - 1)];
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <StepCrumb label="Optional" />
         <h1 className="mb-3 font-display text-[24px] font-light text-[var(--platinum)]">
           {step.instruction}
@@ -1208,7 +1476,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   /* ── Screen 8 — reference & notes ── */
   if (stage === "reference") {
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <StepCrumb label="Reference" />
         <h1 className="mb-2 font-display text-[24px] font-light text-[var(--platinum)]">
           Reference number
@@ -1261,7 +1529,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
   /* ── Screen 9 — review & publish ── */
   if (stage === "review") {
     return (
-      <Shell>
+      <Shell handBack={handBackChip}>
         <StepCrumb label="Review" />
         <h1 className="mb-6 font-display text-[24px] font-light text-[var(--platinum)]">
           {draft.brand} {draft.model}
@@ -1320,7 +1588,7 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
 
   /* ── Published ── */
   return (
-    <Shell>
+    <Shell handBack={handBackChip}>
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         {publishHeld ? (
           /* v2.24 · held at publish — the locked held-state copy. Truthful,
@@ -1368,10 +1636,19 @@ export default function MobileWizard({ brands }: { brands: VaultBrandLite[] }) {
 
 /* ── Small shared pieces ── */
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({
+  children,
+  handBack = null,
+}: {
+  children: React.ReactNode;
+  // List From Phone — the fixed "Resume on desktop" chip, present on every
+  // screen while this device holds a redeemed handoff baton (null otherwise).
+  handBack?: React.ReactNode;
+}) {
   return (
     <main className="min-h-[100dvh] bg-[var(--ink)]">
       <div className="mx-auto w-full max-w-[420px] px-6 py-8">{children}</div>
+      {handBack}
     </main>
   );
 }

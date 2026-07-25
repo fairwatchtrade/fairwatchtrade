@@ -19,14 +19,28 @@ import MobileWizard, { type VaultBrandLite } from "@/components/MobileWizard";
    selected here. PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-export default async function SellMobilePage() {
+export default async function SellMobilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ draft?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // List From Phone — ?draft=<server draft id> arrives from the redeemed
+  // handoff (/sell/continue/[token]). Preserve it through sign-in so a
+  // refresh mid-flow returns to the same draft, not a blank wizard.
+  const { draft } = await searchParams;
+  const serverDraftId = typeof draft === "string" && draft ? draft : null;
+
   if (!user) {
-    redirect("/login");
+    redirect(
+      `/login?callbackUrl=${encodeURIComponent(
+        serverDraftId ? `/sell/mobile?draft=${serverDraftId}` : "/sell/mobile"
+      )}`
+    );
   }
 
   const { data } = await supabase
@@ -36,5 +50,5 @@ export default async function SellMobilePage() {
 
   const brands: VaultBrandLite[] = Array.isArray(data) ? data : [];
 
-  return <MobileWizard brands={brands} />;
+  return <MobileWizard brands={brands} serverDraftId={serverDraftId} />;
 }

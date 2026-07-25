@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { randomUUID } from "@/lib/uuid";
 import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -97,7 +98,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
       if (list.length === 0) return;
 
       const incoming: Item[] = list.map((f) => ({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         name: f.name,
         previewUrl: URL.createObjectURL(f),
         status: "uploading",
