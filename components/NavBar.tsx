@@ -96,8 +96,12 @@ export default function NavBar({
   const [joinOpen, setJoinOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const joinRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  // Compact Global Search does NOT live in the masthead. It mounts once BELOW
+  // the metals/auction strip via <HeaderSearchSlot> (layout.tsx), so the header
+  // stack reads masthead → strip → search → content.
 
   // v2.5 — close the account dropdown on outside click.
   useEffect(() => {
@@ -300,6 +304,7 @@ export default function NavBar({
 
         {/* Mobile hamburger */}
         <button
+          ref={hamburgerRef}
           type="button"
           aria-label="Open menu"
           aria-expanded={open}
@@ -324,7 +329,12 @@ export default function NavBar({
       </div>
 
       {/* Mobile drawer — the watch-roll nav */}
-      <MobileNav open={open} onClose={() => setOpen(false)} authed={authed} />
+      <MobileNav
+        open={open}
+        onClose={() => setOpen(false)}
+        authed={authed}
+        triggerRef={hamburgerRef}
+      />
     </nav>
   );
 }

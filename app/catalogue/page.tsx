@@ -8,10 +8,15 @@ import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
    "What happened while I was away?" — a collector's morning brief, not an
    account page. Server wrapper following the same server-fetch → client-props
    pattern as app/account/page.tsx → AccountDashboard and browse/page.tsx →
-   BrowseClient. Reads the user from the SSR Supabase client, redirects to
-   /sell (the login entry point for now) if unauthenticated, pulls the
-   greeting name from profiles and the newest 3 published listings for the
-   discovery feed, and hands them to the client <CatalogueClient />.
+   BrowseClient. Reads the user from the SSR Supabase client; an unauthenticated
+   visitor is sent to SIGN-IN with /catalogue preserved as the callbackUrl (the
+   project's standard auth-flow contract — login returns them straight to
+   Catalogue), NOT bounced through /sell and never dropped on the generic error
+   page. Catalogue is an authenticated personal surface and appears in the
+   approved primary mobile navigation, so a signed-out tap must resolve to
+   sign-in with continuity. Then pulls the greeting name from profiles and the
+   newest 3 published listings for the discovery feed, and hands them to the
+   client <CatalogueClient />.
 
    Catalogue + saved-watches are Phase 2 (tables don't exist yet) — the client
    renders honest empty shells, no fabricated matches.
@@ -29,7 +34,7 @@ export default async function CataloguePage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/sell");
+    redirect("/login?callbackUrl=/catalogue");
   }
 
   // Greeting name.

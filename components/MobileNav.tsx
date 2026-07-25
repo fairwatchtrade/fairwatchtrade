@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -56,11 +57,30 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
       <line x1="7" y1="3" x2="7" y2="10" />
     </>
   ),
+  Catalogue: (
+    <>
+      <path d="M7 3C5 3 3 3.5 3 5v7c0-1.5 2-2 4-2s4 .5 4 2V5c0-1.5-2-2-4-2z" />
+      <line x1="7" y1="3" x2="7" y2="10" />
+    </>
+  ),
   "Saved Watches": <path d="M4 2h6a1 1 0 011 1v9l-4-2.5L3 12V3a1 1 0 011-1z" />,
   "Sell a Watch": (
     <>
       <path d="M3 3h4l5 5-4 4-5-5V3z" />
       <circle cx="5.5" cy="5.5" r="1" />
+    </>
+  ),
+  Sell: (
+    <>
+      <path d="M3 3h4l5 5-4 4-5-5V3z" />
+      <circle cx="5.5" cy="5.5" r="1" />
+    </>
+  ),
+  About: (
+    <>
+      <circle cx="7" cy="7" r="5.5" />
+      <line x1="7" y1="6.2" x2="7" y2="10" />
+      <circle cx="7" cy="4.2" r="0.6" fill="currentColor" stroke="none" />
     </>
   ),
   "My Listings": (
@@ -138,53 +158,54 @@ function Badge({
   );
 }
 
-// A nav item is either a real link, or a non-navigating "Soon" placeholder for
-// a feature that has no destination yet — mirrors the account sidebar's own
-// treatment of soon modules (AccountDashboard MODULES). A placeholder carries
-// no href, so it structurally cannot lie about where it goes.
-type NavItem =
-  | { label: string; href: string; badge?: { variant: BadgeVariant; label: string } }
-  | { label: string; soon: true };
+// Global Search DD2 — approved XCover hierarchy. Account is promoted OUT of the
+// old bottom utility tier into the PRIMARY group; Browse/Sell/Catalogue/Vault
+// surround it so the hierarchy stays legible. Correspondence and About sit in a
+// quieter secondary group below. Account itself is rendered auth-aware (a link
+// when signed in; the preserved join panel when signed out — never a /sell
+// bounce), so it is not in this static list.
+type NavLink = { label: string; href: string; badge?: { variant: BadgeVariant; label: string } };
 
-type NavSection = { section: string; items: NavItem[] };
+const PRIMARY_LINKS: NavLink[] = [
+  { label: "Browse", href: "/browse" },
+  { label: "Sell", href: "/sell" },
+  { label: "Catalogue", href: "/catalogue" },
+  { label: "Vault", href: "/vault" },
+];
 
-const SECTIONS: NavSection[] = [
-  {
-    section: "Discover",
-    items: [
-      { label: "Browse", href: "/browse" },
-      { label: "My Catalogue", href: "/catalogue" },
-      { label: "Saved Watches", href: "/catalogue" },
-    ],
-  },
-  {
-    section: "Trade",
-    items: [
-      { label: "Sell a Watch", href: "/sell" },
-      { label: "My Listings", href: "/account", badge: { variant: "gold", label: "Active" } },
-    ],
-  },
-  {
-    section: "Intelligence",
-    items: [
-      { label: "Correspondence", href: "/account" },
-      { label: "Vault", href: "/vault" },
-      { label: "Market Intel", soon: true },
-    ],
-  },
+const SECONDARY_LINKS: NavLink[] = [
+  { label: "Correspondence", href: "/account" },
+  { label: "About", href: "/about" },
 ];
 
 export default function MobileNav({
   open,
   onClose,
   authed = false,
+  triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
   authed?: boolean;
+  triggerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Escape closes the drawer and returns focus to the hamburger trigger (a11y:
+  // the keyboard user lands back where they opened it). Outside interaction
+  // (the peek) already closes via its onClick below.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+        triggerRef?.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose, triggerRef]);
 
   // v2.5 — Sign Out, mobile. Mirrors NavBar's desktop handler exactly (no
   // shared hook introduced — the brief didn't ask for one, and the logic is
@@ -245,70 +266,54 @@ export default function MobileNav({
 
         {/* Nav sections */}
         <div className="flex-1 overflow-y-auto py-3">
-          {SECTIONS.map((sec) => (
-            <div key={sec.section}>
-              <div className="px-5 pb-2 pt-4 text-[8.5px] uppercase tracking-[3px] text-[var(--muted)]">
-                {sec.section}
-              </div>
-              {sec.items.map((item) => {
-                // Non-navigating "Soon" placeholder — same row geometry as the
-                // links but ghost-toned and inert, so an unbuilt feature
-                // (Market Intel) reads as present-but-not-yet instead of a link
-                // that dumps you on the wrong page. Mirrors the account
-                // sidebar's soon-module treatment.
-                if ("soon" in item) {
-                  return (
-                    <div
-                      key={`${sec.section}-${item.label}`}
-                      className="flex items-center justify-between border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--ghost)]"
-                    >
-                      <span className="flex items-center gap-3">
-                        <NavIcon label={item.label} active={false} />
-                        <span>{item.label}</span>
-                      </span>
-                      <span className="text-[8px] uppercase tracking-[1px] text-[var(--ghost)]">
-                        Soon
-                      </span>
-                    </div>
-                  );
-                }
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={`${sec.section}-${item.label}`}
-                    href={item.href}
-                    onClick={onClose}
-                    className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[13px] transition ${
-                      isActive
-                        ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
-                        : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <NavIcon label={item.label} active={isActive} />
-                      <span>{item.label}</span>
-                    </span>
-                    {item.badge && <Badge variant={item.badge.variant}>{item.badge.label}</Badge>}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+          {/* ── PRIMARY tier — Browse · Sell · Catalogue · Vault · Account ──
+              Account is promoted here (was bottom utility) and given a slightly
+              elevated tone so it reads as primary, not an afterthought. */}
+          <div className="px-5 pb-2 pt-2 text-[8.5px] uppercase tracking-[3px] text-[var(--muted)]">
+            Primary
+          </div>
+          {PRIMARY_LINKS.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={`primary-${item.label}`}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[13px] transition ${
+                  isActive
+                    ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
+                    : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <NavIcon label={item.label} active={isActive} />
+                  <span>{item.label}</span>
+                </span>
+                {item.badge && <Badge variant={item.badge.variant}>{item.badge.label}</Badge>}
+              </Link>
+            );
+          })}
 
-          {/* Account — below a divider */}
-          <div className="my-2 border-t border-[var(--border-faint)]" />
+          {/* Account — primary tier. Signed in: an elevated link to /account.
+              Signed out: the preserved join panel (never a /sell bounce),
+              occupying the primary tier so Account is visible for guests too. */}
           {authed ? (
             <Link
               href="/account"
               onClick={onClose}
-              className="flex items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-[13px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
+              className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[13px] transition ${
+                pathname === "/account"
+                  ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
+                  : "border-transparent text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
+              }`}
             >
               <NavIcon label="Account" active={pathname === "/account"} />
               <span>Account</span>
             </Link>
           ) : (
-            /* v2.55 — signed-out: the Account slot invites the visitor to join
-               instead of one-click-bouncing them into /sell. Browsing is free. */
+            /* v2.55 — signed-out Account: invite the visitor to join instead of
+               one-click-bouncing into /sell. Panel content preserved verbatim;
+               only its position moved up into the primary tier (DD2). */
             <div className="px-5 py-5">
               <div className="font-display text-[16px] font-light leading-[1.35] text-[var(--platinum)]">
                 Make FairWatchTrade your home for watches and knowledge.
@@ -336,6 +341,29 @@ export default function MobileNav({
               </div>
             </div>
           )}
+
+          {/* ── Quieter secondary group — Correspondence · About ──
+              Correspondence targets an account surface, so it is shown only when
+              signed in (a guest tap would bounce). About is public, always shown. */}
+          <div className="my-2 border-t border-[var(--border-faint)]" />
+          {SECONDARY_LINKS.filter((item) => authed || item.href !== "/account").map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={`secondary-${item.label}`}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[13px] transition ${
+                  isActive
+                    ? "border-[var(--gold)] text-[var(--platinum)]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--platinum)]"
+                }`}
+              >
+                <NavIcon label={item.label} active={isActive} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
 
           {/* v2.5 — Sign Out, logged-in users only. The brief's referenced
               --ghost styling doesn't actually apply to interactive nav items

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
+import HeaderSearchSlot from "@/components/HeaderSearchSlot";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -84,6 +85,10 @@ export default async function RootLayout({
             isAdmin={footerIsAdmin}
           />
           <MarketBar />
+          {/* Correction A — compact Global Search sits BELOW the metals strip,
+              part of the header stack but visually distinct from the masthead.
+              Route-gated inside the slot; renders nothing off-allowlist. */}
+          <HeaderSearchSlot />
         </header>
         {children}
         <SiteFooter
