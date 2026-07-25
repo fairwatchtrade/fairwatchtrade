@@ -1,6 +1,7 @@
 "use client";
 
 import VaultMarketEvidence from "@/components/VaultMarketEvidence";
+import VaultEnrichmentFacts from "@/components/VaultEnrichmentFacts";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
@@ -1725,6 +1726,12 @@ export default function VaultGalaxy({
                         <div className="flex items-baseline justify-between gap-4 py-1 text-[12px] text-[var(--slate)]">
                           <span>{r.reference ?? "—"}</span>
                         </div>
+                        {/* v2.73 — verified enrichment facts (beat rate, power
+                            reserve) as quiet always-visible value lines beneath
+                            the reference number and above Market Evidence.
+                            Composed from canonical r.metadata.enrichment at read
+                            time; renders nothing when absent. */}
+                        <VaultEnrichmentFacts metadata={r.metadata} />
                         {/* v2.65 Market Evidence (ME3) · v5 exact-reference scope:
                             reviewed exact-match sale evidence for THIS reference
                             only (market_evidence_for_reference), fetched live and
