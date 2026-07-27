@@ -1607,9 +1607,20 @@ export default function VaultGalaxy({
                 inert page label. */}
             <Link
               href="/"
-              className="pointer-events-auto rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              aria-describedby="vault-wordmark-exit-hint"
+              className="group pointer-events-auto relative rounded-sm decoration-[rgba(201,168,76,0.5)] decoration-[0.5px] underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
             >
               Fair<span className="text-[var(--gold)]">Watch</span>Trade
+              {/* The click doesn't just navigate — it exits the immersive
+                  Vault. Say so before it happens. Quiet micro-label, no box,
+                  hover/focus only; pointer-events-none so it can never
+                  intercept a galaxy tap. */}
+              <span
+                id="vault-wordmark-exit-hint"
+                className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap font-sans text-[8px] uppercase tracking-[2px] text-[var(--muted)] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+              >
+                Return to homepage — leaves the Vault
+              </span>
             </Link>{" "}
             Vault
           </div>
