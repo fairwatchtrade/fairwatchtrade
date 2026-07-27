@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import VaultMarketEvidence from "@/components/VaultMarketEvidence";
 import VaultEnrichmentFacts from "@/components/VaultEnrichmentFacts";
 
@@ -1600,7 +1601,17 @@ export default function VaultGalaxy({
         {/* Crumb trail */}
         <div className="pointer-events-none fixed left-0 right-0 top-0 z-[5] flex items-start justify-between gap-4 px-4 py-4 sm:items-center sm:px-7">
           <div className="shrink-0 font-display text-[14px] text-[var(--platinum)] sm:text-[16px]">
-            Fair<span className="text-[var(--gold)]">Watch</span>Trade Vault
+            {/* Site-name-goes-home convention (backlog Item 3). The bar is
+                pointer-events-none so the canvas owns drags; the link alone
+                re-enables events for exactly its own text. "Vault" stays an
+                inert page label. */}
+            <Link
+              href="/"
+              className="pointer-events-auto rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+            >
+              Fair<span className="text-[var(--gold)]">Watch</span>Trade
+            </Link>{" "}
+            Vault
           </div>
           <div className="max-w-[45vw] truncate text-right text-[8px] uppercase tracking-[1.6px] text-[var(--muted)] sm:max-w-none sm:text-[10px] sm:tracking-[2px]">
             {crumb}
