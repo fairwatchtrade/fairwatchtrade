@@ -1039,18 +1039,25 @@ export default function MobileWizard({
   /* ════════════════════ RENDER ════════════════════ */
 
   // ── List From Phone panels — before any stage renders. ──
-  // The hand-back chip rides every screen while this device holds the baton
-  // via a redeemed handoff (explicit "Resume on desktop", order §8).
+  // Hand-back is a DEVICE-TRANSFER action, not global chrome (Layout Duck
+  // ruling): it lives in a quiet handoff status row at the TOP of every
+  // wizard screen — semantically tied to the handoff, always findable, never
+  // fighting the step's real CTA or the Android bottom-control zone.
   const handBackChip =
     serverDraftId && serverPhase === "idle" && !batonAway && stage !== "published" ? (
-      <button
-        type="button"
-        onClick={handBackToDesktop}
-        disabled={handingBack}
-        className="fixed bottom-4 right-4 z-40 border border-[var(--border-subtle)] bg-[#0d1118] px-3 py-2 text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)] disabled:opacity-60"
-      >
-        {handingBack ? "Saving…" : "Resume on desktop"}
-      </button>
+      <div className="mb-6 flex min-h-[44px] items-center justify-between gap-3 border-b border-[var(--border-faint)] pb-2">
+        <span className="text-[9px] uppercase tracking-[2.5px] text-[rgba(201,168,76,0.85)]">
+          Editing on phone
+        </span>
+        <button
+          type="button"
+          onClick={handBackToDesktop}
+          disabled={handingBack}
+          className="flex min-h-[44px] items-center text-[10px] uppercase tracking-[2px] text-[var(--platinum)] transition-colors hover:text-[var(--gold)] disabled:opacity-60"
+        >
+          {handingBack ? "Saving…" : "Resume on desktop"}
+        </button>
+      </div>
     ) : null;
 
   if (serverPhase === "loading") {
@@ -1647,8 +1654,12 @@ function Shell({
 }) {
   return (
     <main className="min-h-[100dvh] bg-[var(--ink)]">
-      <div className="mx-auto w-full max-w-[420px] px-6 py-8">{children}</div>
-      {handBack}
+      {/* The handoff status row renders ABOVE the screen content — a transfer
+          action tied to the handoff, never floating chrome (Layout Duck). */}
+      <div className="mx-auto w-full max-w-[420px] px-6 py-8">
+        {handBack}
+        {children}
+      </div>
     </main>
   );
 }

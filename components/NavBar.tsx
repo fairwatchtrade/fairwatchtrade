@@ -152,7 +152,11 @@ export default function NavBar({
             // create an account or sign in — never an ambush. Browsing is free.
             if (item.label === "Account" && !authed) {
               return (
-                <div key="account-join" ref={joinRef} className="relative">
+                // flex items-center: the wrapper must center its button like
+                // the row centers the sibling links — without it, the button
+                // rides the div's taller text baseline and "Account" sits
+                // ~1.5px low (Jason's off-center nav finding, v2.55-era).
+                <div key="account-join" ref={joinRef} className="relative flex items-center">
                   <button
                     type="button"
                     onClick={() => setJoinOpen((v) => !v)}
