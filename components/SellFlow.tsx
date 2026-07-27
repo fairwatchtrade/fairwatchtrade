@@ -586,9 +586,12 @@ export default function SellFlow() {
     <div className="space-y-6">
       <ProgressBar step={step} />
 
-      {/* List From Phone — quiet affordance (signed-in sellers, desktop). */}
+      {/* List From Phone — quiet affordance (signed-in sellers, desktop).
+          Layout Duck: it belongs to the WORK, not the score panel — same left
+          edge as the step card, directly above it, content width. Stranded on
+          the right it read as a detached utility for Listing Strength. */}
       {authed && !handoffOpen && (
-        <div className="hidden justify-end md:flex">
+        <div className="hidden md:flex">
           <button
             ref={handoffOpenerRef}
             type="button"
