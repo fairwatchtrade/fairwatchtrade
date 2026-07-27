@@ -9,6 +9,7 @@ import ListingCorrespondence from "@/components/ListingCorrespondence";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
+import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
@@ -22,7 +23,8 @@ import ListingActionRail from "@/components/ListingActionRail";
 
    Six-section layout (top → bottom):
      1. Media gallery (hero w/ brand·model overlay + thumbnail strip)
-     2. Identity block — brand+model, Ref., Box & Papers badge, snapshot pills
+     2. Identity block — brand+model, Ref., Box & Papers sentence, Collector
+        Fingerprint (unboxed quick-read lines — Design Gate v2)
      3. Collector Snapshot — prominent two-column spec grid
      4. Technical Specifications — remaining specs, never duplicating §3
      5. From the Seller — full description, mb-8 reserve for the message stream
@@ -338,27 +340,25 @@ export default async function ListingDetailPage({
 
   const priceText = `$${Number(listing.asking_price).toLocaleString()}`;
 
-  /* §2 — Collector shorthand. Built from the same live values the rest of the
-     page uses, never a stored copy. Only facts that actually exist join the
-     line, so separators are emitted between rendered facts and can never lead,
-     trail, or double up. Chronograph folds into the movement as one phrase;
-     the remaining complications stay in Collector Snapshot. */
-  const hasChronograph =
-    Array.isArray(details.complications) &&
-    details.complications.some((c) => String(c).trim().toLowerCase() === "chronograph");
-  const movementPhrase = details.movementType
-    ? hasChronograph
-      ? `${details.movementType} chronograph`
-      : details.movementType
-    : hasChronograph
-      ? "Chronograph"
-      : "";
-
-  const shorthand: string[] = [];
-  if (details.caseSizeMm) shorthand.push(`${details.caseSizeMm} mm case`);
-  if (details.caseThicknessMm) shorthand.push(`${details.caseThicknessMm} mm thick`);
-  if (movementPhrase) shorthand.push(movementPhrase);
-  if (listing.year) shorthand.push(listing.year);
+  /* §2 — Collector Fingerprint (Design Gate v2). Built from the same live
+     values the rest of the page uses, never a stored copy. Two conceptual
+     lines — identity, then complications — each rendered only when it has
+     facts. The v2 Gate supersedes LD1.7's chronograph fold: the movement
+     reads plain, and Chronograph joins its sibling complications in the
+     truthful stored order. Only facts that exist join a line, so separators
+     can never lead, trail, or double up. */
+  const fingerprint = buildCollectorFingerprint(
+    {
+      caseSizeMm: details.caseSizeMm,
+      caseThicknessMm: details.caseThicknessMm,
+      movementType: details.movementType,
+      complications: details.complications,
+    },
+    listing.year,
+  );
+  const fingerprintLines = [fingerprint.primary, fingerprint.complications].filter(
+    (line) => line.length > 0,
+  );
 
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
@@ -610,28 +610,40 @@ export default async function ListingDetailPage({
             </div>
           )}
 
-          {/* Collector shorthand — one unboxed line. Every fact carries the
-              same weight and colour; the gold separators do the composing.
-              The facts are flex items; each gold separator is a pseudo-element
-              sitting in the inter-fact gap, not a glyph in the text flow. On a
-              wrapped line the leading fact's separator falls at negative-left,
-              outside the box, and is clipped by overflow-hidden — so no
-              rendered line can begin OR end with a separator. Missing facts
-              never render, so there is never a stray separator. */}
-          {shorthand.length > 0 && (
-            <div className="mt-[22px] flex flex-wrap items-baseline gap-x-4 gap-y-1 overflow-hidden border-t border-[var(--border-subtle)] pt-[18px] font-display text-[16px] leading-[1.7] text-[var(--platinum-dim)] sm:mt-[28px] sm:gap-x-7 sm:pt-[22px] sm:text-[18px] sm:leading-[1.55]">
-              {shorthand.map((fact, i) => (
-                <span key={fact} className="relative">
-                  {i > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-y-0 -left-2 flex items-center text-[12px] text-[var(--gold-dim)] sm:-left-[14px]"
-                    >
-                      ·
+          {/* Collector Fingerprint — unboxed quick read, Design Gate v2. Two
+              conceptual lines (identity, then complications), each rendered
+              only when it has facts. Every fact carries the same weight and
+              colour; the gold separators do the composing. The facts are flex
+              items; each gold separator is a pseudo-element sitting in the
+              inter-fact gap, not a glyph in the text flow. On a wrapped line
+              the leading fact's separator falls at negative-left, outside the
+              box, and is clipped by overflow-hidden — so no rendered line can
+              begin OR end with a separator. Missing facts never render, so
+              there is never a stray separator. Static facts: semantic text —
+              no roles, no handlers, no affordance. */}
+          {fingerprintLines.length > 0 && (
+            <div className="mt-[22px] border-t border-[var(--border-subtle)] pt-[18px] sm:mt-[28px] sm:pt-[22px]">
+              {fingerprintLines.map((line, li) => (
+                <div
+                  key={li}
+                  className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 overflow-hidden font-display text-[16px] leading-[1.7] text-[var(--platinum-dim)] sm:gap-x-7 sm:text-[18px] sm:leading-[1.55] ${
+                    li > 0 ? "mt-1" : ""
+                  }`}
+                >
+                  {line.map((fact, i) => (
+                    <span key={fact} className="relative">
+                      {i > 0 && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-y-0 -left-2 flex items-center text-[12px] text-[var(--gold-dim)] sm:-left-[14px]"
+                        >
+                          ·
+                        </span>
+                      )}
+                      {fact}
                     </span>
-                  )}
-                  {fact}
-                </span>
+                  ))}
+                </div>
               ))}
             </div>
           )}
