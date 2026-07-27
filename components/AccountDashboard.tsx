@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
@@ -433,11 +434,15 @@ function DashboardView({
   submittingId,
   submitErrorId,
   submitErrorMsg,
+  hasImportedDrafts,
+  onOpenImportedDrafts,
 }: {
   listings: AccountListing[];
   counts: Counts;
   selectedListing: string | null;
   onSelect: (id: string) => void;
+  hasImportedDrafts: boolean | null;
+  onOpenImportedDrafts: () => void;
 } & SubmitProps) {
   const kpis: Array<{ label: string; value: number; valueClass: string }> = [
     { label: "Active Listings", value: counts.active, valueClass: "text-[var(--gold)]" },
@@ -469,6 +474,16 @@ function DashboardView({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Dealer Accelerator entry — Design Gate v2 (hash-pinned). The
+          prominent doorway, directly below the activity strip: discoverable,
+          never a buried settings feature. */}
+      <div className="px-6 pt-6">
+        <DealerAcceleratorEntry
+          hasImportedDrafts={hasImportedDrafts}
+          onOpenImportedDrafts={onOpenImportedDrafts}
+        />
       </div>
 
       {/* RECENT PREVIEW — last 3, no tabs */}
@@ -990,6 +1005,30 @@ export default function AccountDashboard({
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  /* Dealer Accelerator entry (Design Gate v2) — the REAL returning-dealer
+     predicate: does this dealer own any listing_media row with
+     capture_source='dealer_import' (unforgeable per v2.21 RLS)? Fetched ONCE
+     here and passed down as a prop, so the CSS-gated mobile/desktop mounts
+     never each fetch (the v2.68 double-mount lesson). Boolean only — no
+     counts are rendered anywhere. null = unknown; the card shows no state
+     line until the truth arrives. */
+  const [hasImportedDrafts, setHasImportedDrafts] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("listing_media")
+        .select("listing_id", { count: "exact", head: true })
+        .eq("capture_source", "dealer_import");
+      if (!cancelled && !error) setHasImportedDrafts((count ?? 0) > 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // v2.8 — Submit for Review. router is used only to re-run the SERVER page's
   // own listings query after a successful transition; see submitForReview().
   const router = useRouter();
@@ -1263,6 +1302,16 @@ export default function AccountDashboard({
           ) : (
             <>
               <div className="md:hidden">
+                {/* Dealer Accelerator entry on mobile — the card renders
+                    above the listings room (mobile Account has no Overview
+                    module to host it). Its returning state is TEXT-ONLY here
+                    per Jason's 2026-07-27 ruling; no mobile nav is added. */}
+                <div className="px-4 pt-4">
+                  <DealerAcceleratorEntry
+                    hasImportedDrafts={hasImportedDrafts}
+                    onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                  />
+                </div>
                 <SellerListingsRoom
                   listings={searchFiltered}
                   threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
@@ -1287,6 +1336,8 @@ export default function AccountDashboard({
                 submittingId={submittingId}
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
+                hasImportedDrafts={hasImportedDrafts}
+                onOpenImportedDrafts={() => setActiveModule("accelerator")}
               />
                 ) : activeModule === "messages" ? (
                   <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
