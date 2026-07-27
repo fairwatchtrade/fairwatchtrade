@@ -5,6 +5,20 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
 
+/* Content-aware Catalogue sizing — static class maps so Tailwind sees every
+   variant. Card cells target ~280px; the section width = cards + 220px rail
+   + the gap, so the rail always hugs the content instead of the far edge. */
+const CARD_COLS: Record<1 | 2 | 3, string> = {
+  1: "sm:grid-cols-1",
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+};
+const SECTION_MAX_W: Record<1 | 2 | 3, string> = {
+  1: "lg:max-w-[560px]",
+  2: "lg:max-w-[840px]",
+  3: "lg:max-w-[1100px]",
+};
+
 /* ────────────────────────────────────────────────────────────────────────
    CATALOGUE CLIENT — the buyer's Catalogue  (v2.7b)
 
@@ -726,6 +740,14 @@ export default function CatalogueClient({
      no border-r stitching its columns the way Account does, and fully
      collapsing the gap would merge two borderless columns rather than
      compose them. */
+  /* Smart section sizing (Jason's 2026-07-27 ruling): the card grids and the
+     two-column section width follow the REAL listing count — the larger of
+     the two card sections, capped at three columns, floored at one. */
+  const contentCols = Math.min(
+    3,
+    Math.max(recentListings.length, savedListings.length, 1),
+  ) as 1 | 2 | 3;
+
   return (
     <div className="flex gap-5 py-8">
       {/* Left nav — sticky, desktop only */}
@@ -847,7 +869,19 @@ export default function CatalogueClient({
             desktop-only until their features exist: placeholder furniture
             never outranks a watch on a narrow screen. Single mount = no
             double fetch, no duplicate ids (the v2.68 lesson). */}
-        <div className="mt-8 grid grid-cols-1 gap-x-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+        {/* Smart width — Jason's 2026-07-27 compression ruling. Uncapped, the
+            1fr content column stretched the card grids' EMPTY cells into a
+            dead band between the watches and the rail. The section now COUNTS
+            the real listings (the larger of Discovery / Saved Watches, capped
+            at three) and sizes both the card columns and its own width to
+            that truth: two watches → two ~280px columns, rail hugging close;
+            a third listing → the full three-across row returns by itself.
+            Data-driven layout, no fabricated fill, nothing to revert as
+            inventory grows. Spare width breathes at the page edge, where it
+            reads as intent. */}
+        <div
+          className={`mt-8 grid grid-cols-1 gap-x-8 ${SECTION_MAX_W[contentCols]} lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start`}
+        >
           {/* Saved Searches — narrow: first and visible; lg+: rail top. */}
           <div className="lg:col-start-2 lg:row-start-1">
             <SavedSearchesCard />
@@ -875,7 +909,7 @@ export default function CatalogueClient({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-px bg-[var(--border-faint)] sm:grid-cols-3">
+                <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
                   {recentListings.map((row) => (
                     <ListingCard key={row.id} row={row} />
                   ))}
@@ -892,7 +926,7 @@ export default function CatalogueClient({
                 Saved Watches
               </div>
               {savedListings.length > 0 ? (
-                <div className="grid grid-cols-1 gap-px bg-[var(--border-faint)] sm:grid-cols-3">
+                <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
                   {savedListings.map((row) => (
                     <ListingCard key={row.id} row={row} />
                   ))}
