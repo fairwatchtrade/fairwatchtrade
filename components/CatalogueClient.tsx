@@ -838,10 +838,23 @@ export default function CatalogueClient({
             Saved Watches). */}
         <MyOffersSection state={myOffers} />
 
-        {/* Two-column below the hero */}
-        <div className="mt-8 flex flex-col gap-8 lg:flex-row">
+        {/* Two-column below the hero — GRID, not flex (Jason's 2026-07-27
+            narrow-width ruling). One SavedSearchesCard mount, placed by grid:
+            at lg+ it is the rail's top card exactly as v2.25a approved; below
+            lg it renders FIRST — eye-level, above Discovery — instead of the
+            whole rail teleporting to the bottom of a long scroll on a 1px
+            crossing of the lg boundary. The three Phase-2 shells are
+            desktop-only until their features exist: placeholder furniture
+            never outranks a watch on a narrow screen. Single mount = no
+            double fetch, no duplicate ids (the v2.68 lesson). */}
+        <div className="mt-8 grid grid-cols-1 gap-x-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+          {/* Saved Searches — narrow: first and visible; lg+: rail top. */}
+          <div className="lg:col-start-2 lg:row-start-1">
+            <SavedSearchesCard />
+          </div>
+
           {/* Left — discovery feed + saved watches */}
-          <div className="min-w-0 flex-1">
+          <div className="mt-8 min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:mt-0">
             <div>
               <div className="mb-4 flex items-center justify-between">
                 <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
@@ -908,16 +921,13 @@ export default function CatalogueClient({
             </div>
           </div>
 
-          {/* Right — 220px rail of shells */}
-          <div className="w-full shrink-0 lg:w-[220px]">
-            {/* v2.25a — Saved Searches: its own top-level card, FIRST in the
-                rail (approved placement). Separation law: a completely
-                different product function from Saved Watches — independent
-                text-based criteria management, never merged/stacked/nested
-                with the watch-imagery column. Saved Watches (left column)
-                is byte-untouched. */}
-            <SavedSearchesCard />
-
+          {/* Right rail, row 2 — the three Phase-2 shells. Desktop-only by
+              Jason's 2026-07-27 ruling: at narrow widths these placeholders
+              yield entirely; they return to narrow layouts only when their
+              features become real. SavedSearchesCard sits in the grid cell
+              above (v2.25a rail-first placement preserved at lg+; separation
+              law intact — still never merged into the watch-imagery column). */}
+          <div className="hidden lg:col-start-2 lg:row-start-2 lg:block">
             {/* My Catalogue — shell (Phase 2, catalogue table doesn't exist) */}
             <div className="mt-4 border border-[var(--border-subtle)] px-4 py-5">
               <div className="mb-3 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
