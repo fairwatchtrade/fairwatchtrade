@@ -68,7 +68,7 @@ export type ListingRow = {
   reference: string;
   year: string;
   condition: string;
-  asking_price: number;
+  asking_price: number | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -200,7 +200,9 @@ function greeting(): string {
   return "Good evening";
 }
 
-function formatPrice(value: number): string {
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
+function formatPrice(value: number | null): string {
+  if (value == null) return "Price undisclosed";
   return `$${Number(value).toLocaleString("en-US")}`;
 }
 
@@ -304,7 +306,7 @@ function ListingCard({ row }: { row: ListingRow }) {
         </div>
       )}
       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-        {formatPrice(Number(row.asking_price))}
+        {formatPrice(row.asking_price)}
       </div>
     </Link>
   );
@@ -362,13 +364,14 @@ function groupOffersByWatch(offers: MyOfferRow[]): WatchGroup[] {
   return groups;
 }
 
-function offerPrice(offer: MyOfferRow, listing: ListingRow | null): number | null {
-  return (
-    offer.proposed_purchase_price ??
-    offer.listing_price ??
-    listing?.asking_price ??
-    null
-  );
+/* The historical-offer slot shows ONE fact: the buyer's snapshotted offer
+   amount on that purchase request. It must never borrow the asking-price
+   snapshot (a different fact) or the listing's CURRENT asking price (a live
+   value masquerading as history) — Buyer Price Truth order, Bug 2. Absence
+   renders the component's honest absence states ("Offer" / blank), never a
+   reconstructed number. */
+function offerPrice(offer: MyOfferRow): number | null {
+  return offer.proposed_purchase_price ?? null;
 }
 
 // Relative time for offer history — "just now", "2 hours ago", "3 days ago",
@@ -400,9 +403,9 @@ function relativeTime(iso: string): string {
 // One prior request, rendered quietly beneath the current one. Subordinate but
 // fully readable — each row still answers Offer Amount / Status / When, with no
 // repeated watch identity.
-function HistoryRow({ offer, listing }: { offer: MyOfferRow; listing: ListingRow | null }) {
+function HistoryRow({ offer }: { offer: MyOfferRow }) {
   const { label } = offerLabel(offer.status);
-  const price = offerPrice(offer, listing);
+  const price = offerPrice(offer);
   const when = relativeTime(offer.created_at);
   return (
     <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
@@ -437,7 +440,7 @@ function WatchOfferGroup({ group }: { group: WatchGroup }) {
     : snapshotTitle ?? "Listing unavailable";
   const reference = l?.reference ?? current.listing_reference ?? null;
   const hero = l ? heroUrl(l.photos) : null;
-  const currentPrice = offerPrice(current, l);
+  const currentPrice = offerPrice(current);
   const currentWhen = relativeTime(current.created_at);
 
   const inner = (
@@ -499,7 +502,7 @@ function WatchOfferGroup({ group }: { group: WatchGroup }) {
               Previous requests
             </div>
             {history.map((h) => (
-              <HistoryRow key={h.id} offer={h} listing={l} />
+              <HistoryRow key={h.id} offer={h} />
             ))}
           </div>
         )}

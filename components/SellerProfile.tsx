@@ -33,7 +33,7 @@ export type SellerCardListing = {
   reference: string;
   year: string;
   condition: string;
-  asking_price: number;
+  asking_price: number | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -49,7 +49,9 @@ export type SellerView = {
   createdAt: string;
 };
 
-function formatPrice(value: number): string {
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
+function formatPrice(value: number | null): string {
+  if (value == null) return "Price undisclosed";
   return `$${Number(value).toLocaleString("en-US")}`;
 }
 
@@ -305,7 +307,7 @@ export default function SellerProfile({
                       </div>
                     )}
                     <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                      {formatPrice(Number(row.asking_price))}
+                      {formatPrice(row.asking_price)}
                     </div>
                   </Link>
                 );

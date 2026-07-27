@@ -128,7 +128,7 @@ type ListingRow = {
   description?: string | null;
   year: string;
   condition: string;
-  asking_price: number;
+  asking_price: number | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -166,7 +166,10 @@ type ListingRow = {
   in_hand_verified?: boolean;
 };
 
-function formatPrice(value: number): string {
+/* Null asking price is a truth, not a zero — render the evidence layer's
+   honest words, never $0/$NaN (Buyer Price Truth order, Bug 1). */
+function formatPrice(value: number | null): string {
+  if (value == null) return "Price undisclosed";
   return `$${Number(value).toLocaleString("en-US")}`;
 }
 
@@ -1056,7 +1059,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
 
                       {/* Price */}
                       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                        {formatPrice(Number(row.asking_price))}
+                        {formatPrice(row.asking_price)}
                       </div>
 
                       {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
@@ -1172,7 +1175,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     {/* Right — price + workflow actions. */}
                     <div className="flex w-[190px] shrink-0 flex-col items-end justify-between gap-4">
                       <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
-                        {formatPrice(Number(row.asking_price))}
+                        {formatPrice(row.asking_price)}
                       </div>
 
                       <div className="w-full">

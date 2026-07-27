@@ -338,7 +338,13 @@ export default async function ListingDetailPage({
      there. No checkmark, no verification implication. */
   const includesBoxAndPapers = details.documentation === "Full Set";
 
-  const priceText = `$${Number(listing.asking_price).toLocaleString()}`;
+  /* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth,
+     Bug 1) — the evidence layer's words, and en-US pinned so the server's
+     locale can't reshape the number. */
+  const priceText =
+    listing.asking_price == null
+      ? "Price undisclosed"
+      : `$${Number(listing.asking_price).toLocaleString("en-US")}`;
 
   /* §2 — Collector Fingerprint (Design Gate v2). Built from the same live
      values the rest of the page uses, never a stored copy. Two conceptual

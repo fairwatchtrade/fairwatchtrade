@@ -30,7 +30,7 @@ export type ListingRow = {
   reference: string;
   year: string;
   condition: string;
-  asking_price: number;
+  asking_price: number | null;
   photos: { photo: { url: string }; category: string }[];
   status: string;
   created_at: string;
@@ -43,7 +43,9 @@ function heroUrl(listing: ListingRow): string | null {
   return (dial ?? photos[0])?.photo?.url ?? null;
 }
 
-function formatPrice(n: number): string {
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
+function formatPrice(n: number | null): string {
+  if (n == null) return "Price undisclosed";
   return `$${Number(n).toLocaleString("en-US")}`;
 }
 
@@ -79,7 +81,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
         </div>
       )}
       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-        {formatPrice(Number(listing.asking_price))}
+        {formatPrice(listing.asking_price)}
       </div>
     </Link>
   );
