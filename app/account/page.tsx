@@ -5,9 +5,10 @@ import AccountDashboard, { type AccountListing } from "@/components/AccountDashb
 /* ────────────────────────────────────────────────────────────────────────
    MY LISTINGS — /account  (v1.43)
 
-   Server wrapper. Reads the user from the SSR Supabase client, redirects to
-   /sell (the login entry point for now) if unauthenticated, fetches the
-   seller's own listings newest-first, and hands them to the client
+   Server wrapper. Reads the user from the SSR Supabase client; an
+   unauthenticated visitor is sent to SIGN-IN with /account preserved as the
+   callbackUrl (the same pattern as /catalogue — never bounced to /sell).
+   Fetches the seller's own listings newest-first and hands them to the client
    <AccountDashboard /> (same server-fetch → client-props pattern as
    browse/page.tsx → BrowseClient.tsx).
 
@@ -26,7 +27,7 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/sell");
+    redirect("/login?callbackUrl=/account");
   }
 
   // v2.24 · integrity_hold_reason + seller_clarification_note join the
