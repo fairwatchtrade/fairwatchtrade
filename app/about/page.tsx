@@ -6,8 +6,12 @@
    text-rendering: optimizeLegibility added to html/body in globals.css.
    Paragraph spacing via .fw-body p (globals.css). sm:py-40 breathing room.
    Cormorant on title, body, pull quotes, and signature — as designed.
-   Inter on eyebrow and tagline only. All copy verbatim. Canary: PFC274 = 62.
-   The about page is done. Moving on.
+   Inter on eyebrow and tagline only. Canary: PFC274 = 62.
+   v2.56 — founder story kept; the formal "My name is…" opening removed (the
+   name still signs at the bottom); a quiet "What FairWatchTrade does
+   differently" payoff added after the signature (approved product decision). Honest
+   untargeted-instant notification wording — the targeted saved-search match
+   promise stays reserved for a later build.
    ──────────────────────────────────────────────────────────────────────── */
 
 import FounderSignature from "@/components/FounderSignature";
@@ -63,10 +67,10 @@ export default function AboutPage() {
             Studio spec. Done. */}
         <div className="fw-body font-display px-1 text-left text-[14px] font-light text-[var(--platinum-dim)] sm:text-[16.5px]">
           <p>
-            My name is William Mynatt. Long before I devoted my free time to
-            collecting watches, I worked in IT infrastructure consulting in
-            Northern Virginia. FairWatchTrade wasn&apos;t born from a business
-            plan — it grew out of a personal search.
+            Long before I devoted my free time to collecting watches, I worked
+            in IT infrastructure consulting in Northern Virginia. FairWatchTrade
+            wasn&apos;t born from a business plan — it grew out of a personal
+            search.
           </p>
 
           <p>
@@ -95,6 +99,43 @@ export default function AboutPage() {
         {/* Signature — William's actual hand, vectorized (FounderSignature). */}
         <div className="mt-9 flex justify-end px-1">
           <FounderSignature width={180} withRule className="text-[var(--platinum-dim)]" />
+        </div>
+      </div>
+
+      {/* v2.56 — "What FairWatchTrade does differently": the founder story earns
+          the trust; this is the practical payoff it was missing. Story above is
+          unchanged. Approved wording — honest untargeted-instant
+          notification language; the targeted saved-search match promise stays
+          reserved until that capability is built. Quiet stanzas, not a feature grid. */}
+      <div className="relative z-[1] mt-16 w-full max-w-[560px] text-center">
+        <div className="mb-7 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+          What FairWatchTrade Does Differently
+        </div>
+        <div className="flex flex-col gap-6 font-display text-[14px] font-light leading-[1.5] sm:text-[16px]">
+          <div>
+            <div className="text-[var(--platinum)]">5% when a sale is completed.</div>
+            <div className="text-[var(--muted)]">No listing fees. No paid placement.</div>
+          </div>
+          <div>
+            <div className="text-[var(--platinum)]">Discovery begins with the watch itself.</div>
+            <div className="text-[var(--muted)]">
+              Explore by the details collectors actually recognize — not only by manufacturer hierarchy.
+            </div>
+          </div>
+          <div>
+            <div className="text-[var(--platinum)]">
+              New listings appear in FairWatchTrade notifications as soon as they are published.
+            </div>
+            <div className="text-[var(--muted)]">
+              No daily batch standing between the listing and the collector.
+            </div>
+          </div>
+          <div>
+            <div className="text-[var(--platinum)]">Evidence before marketing.</div>
+            <div className="text-[var(--muted)]">
+              Built to help collectors understand the watch, not reward whoever paid to be seen.
+            </div>
+          </div>
         </div>
       </div>
 
