@@ -398,7 +398,11 @@ export default async function ListingDetailPage({
           primary then grows fluidly 816 → 974, reaching the approved
           974+276 geometry at ≥1438. A scrollbar-width oscillation now moves
           only the rail's presence, never the composition. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[1152px]:max-w-[880px] xl:max-w-[1438px] xl:px-[82px]">
+      {/* min-[72rem] (=1152px) deliberately in REM: Tailwind v4 sorts px-unit
+          arbitrary variants BEFORE the rem breakpoints, so a min-[1152px]
+          rule lands earlier in the sheet than lg (64rem) and loses the
+          equal-specificity tie. Same unit family → correct order. */}
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[72rem]:max-w-[880px] xl:max-w-[1438px] xl:px-[82px]">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
             Desktop retired it at lg in v2.11/v2.17 in favour of the spine
