@@ -1280,7 +1280,13 @@ export default function AccountDashboard({
         </aside>
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* WS1 (2026-07-28) — bounded workspace width. Ultrawide screens were
+            stretching every row's justify-between into distant islands
+            (identity far left, status/actions at the viewport cliff). The cap
+            binds ONLY beyond 1280px — normal desktop, tablet, and mobile are
+            untouched by construction; spare width breathes at the page edge
+            (the v2.84 Catalogue precedent). No row internals changed. */}
+        <div className="flex min-w-0 max-w-[1280px] flex-1 flex-col">
           {/* Shared workspace header */}
           <div className="flex-shrink-0 border-b border-[var(--border-faint)] px-6 pt-5 pb-0">
             <div className="mb-4 flex items-center justify-between">

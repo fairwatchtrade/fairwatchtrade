@@ -347,7 +347,10 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Share a concise note with the seller."
                       spellCheck={false}
-                      className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[12px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+                      // WS4 (2026-07-28) — Jason's ruled 1px increase to the
+                      // ENTERED message text at normal zoom; the placeholder
+                      // shares the size by inheritance, so no state jump.
+                      className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
                     />
                     <div className="mt-1.5 text-[9px] leading-[1.5] text-[var(--ghost)]">
                       Ask a concise question or share a short note with the seller.

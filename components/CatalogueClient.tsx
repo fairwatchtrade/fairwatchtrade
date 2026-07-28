@@ -622,7 +622,10 @@ function MyOffersSection({
   }
 
   return (
-    <div className="mt-8">
+    // WS1 (2026-07-28) — bounded section width: this section sits OUTSIDE the
+    // v2.84-capped two-column grid, so on ultrawide screens its rows stretched
+    // status to the viewport cliff. The cap binds only beyond 1100px.
+    <div className="mt-8 max-w-[1100px]">
       <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
         My Offers
       </div>
@@ -986,7 +989,9 @@ export default function CatalogueClient({
             destination: every row goes to the listing, where the
             conversation lives. Rendered only when threads exist. */}
         {activeThreads.length > 0 && (
-          <div className="mt-8">
+          // WS1 (2026-07-28) — bounded: keeps each thread's timestamp attached
+          // to its conversation instead of the far viewport edge on ultrawide.
+          <div className="mt-8 max-w-[1100px]">
             <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
               Correspondence
             </div>
