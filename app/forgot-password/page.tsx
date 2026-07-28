@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="relative z-[1] flex flex-1 flex-col justify-center">
-          <div className="mb-5 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-5 text-[8px] uppercase tracking-[3px] text-[var(--gold-dim)]">
             Why we are here
           </div>
 
@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
 
           <div className="mb-8">
             <div className="mb-[14px] flex items-start gap-3">
-              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-subtle)]">I</div>
+              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">I</div>
               <div className="flex-1">
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Capital Efficiency
@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
             <div className="mb-[14px] flex items-start gap-3">
-              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-subtle)]">II</div>
+              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">II</div>
               <div className="flex-1">
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Collector-First Discovery
@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-subtle)]">III</div>
+              <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">III</div>
               <div className="flex-1">
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Authenticity-First
