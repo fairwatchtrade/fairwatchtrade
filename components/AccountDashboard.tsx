@@ -228,7 +228,10 @@ type PurchaseRequestSummary = {
   shipping_terms: string | null;
   included_items: string | null;
   notes: string | null;
-  status: "pending" | "accepted" | "declined";
+  // Full live vocabulary — a status must never silently vanish from the
+  // seller's view. 'cancelled' renders as "Withdrawn" (public terminology,
+  // v2.86); the DB word stays internal.
+  status: "pending" | "accepted" | "declined" | "expired" | "cancelled" | "superseded";
   created_at: string;
   listings: PurchaseRequestListing | PurchaseRequestListing[] | null;
 };
@@ -817,6 +820,19 @@ function RequestsView({
     pending: "text-[var(--muted)]",
     accepted: "text-[var(--success)]",
     declined: "text-[var(--danger)]",
+    expired: "text-[var(--ghost)]",
+    cancelled: "text-[var(--ghost)]",
+    superseded: "text-[var(--ghost)]",
+  };
+  // Public vocabulary (v2.86): the seller sees "Withdrawn", never the
+  // internal 'cancelled'. Other statuses render their own names.
+  const STATUS_LABEL: Record<PurchaseRequestSummary["status"], string> = {
+    pending: "pending",
+    accepted: "accepted",
+    declined: "declined",
+    expired: "expired",
+    cancelled: "withdrawn",
+    superseded: "superseded",
   };
 
   async function act(id: string, status: "accepted" | "declined") {
@@ -912,9 +928,9 @@ function RequestsView({
                         {title}
                       </span>
                       <span
-                        className={`shrink-0 text-[9px] uppercase tracking-[1.5px] ${STATUS_COLOR[r.status]}`}
+                        className={`shrink-0 text-[9px] uppercase tracking-[1.5px] ${STATUS_COLOR[r.status] ?? "text-[var(--ghost)]"}`}
                       >
-                        {r.status}
+                        {STATUS_LABEL[r.status] ?? r.status}
                       </span>
                     </div>
                     {listing && (

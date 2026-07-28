@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
+import { offerPrice } from "@/lib/offerPresentation";
 
 /* Content-aware Catalogue sizing — static class maps so Tailwind sees every
    variant. Card cells target ~280px; the section width = cards + 220px rail
@@ -162,9 +163,11 @@ const STATUS_LABELS: Record<
     note: "This request expired before it was answered.",
     tone: "ghost",
   },
+  // Public vocabulary law (Withdraw Offer v4): the buyer-facing status is
+  // "Withdrawn"; 'cancelled' is internal database vocabulary only.
   cancelled: {
-    label: "Cancelled",
-    note: "This request was cancelled.",
+    label: "Withdrawn",
+    note: "You withdrew this offer.",
     tone: "ghost",
   },
 };
@@ -364,15 +367,9 @@ function groupOffersByWatch(offers: MyOfferRow[]): WatchGroup[] {
   return groups;
 }
 
-/* The historical-offer slot shows ONE fact: the buyer's snapshotted offer
-   amount on that purchase request. It must never borrow the asking-price
-   snapshot (a different fact) or the listing's CURRENT asking price (a live
-   value masquerading as history) — Buyer Price Truth order, Bug 2. Absence
-   renders the component's honest absence states ("Offer" / blank), never a
-   reconstructed number. */
-function offerPrice(offer: MyOfferRow): number | null {
-  return offer.proposed_purchase_price ?? null;
-}
+/* offerPrice lives in lib/offerPresentation.ts (v2.86): the v2.85 Bug-2
+   contract — snapshot-only, never a live fallback — now sits behind a
+   regression test (scripts/offer-price-truth.test.mjs). */
 
 // Relative time for offer history — "just now", "2 hours ago", "3 days ago",
 // then falls back to an absolute date past ~30 days (older history reads better
@@ -420,7 +417,13 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
 }
 
 // One watch group: identity once, current request dominant, history beneath.
-function WatchOfferGroup({ group }: { group: WatchGroup }) {
+function WatchOfferGroup({
+  group,
+  onRequestWithdraw,
+}: {
+  group: WatchGroup;
+  onRequestWithdraw: (requestId: string, trigger: HTMLElement | null) => void;
+}) {
   const { listing: l, current, history } = group;
   const { label, note, tone } = offerLabel(current.status);
   // Identity prefers the live joined listing; when RLS denies it (a reserved
@@ -495,6 +498,24 @@ function WatchOfferGroup({ group }: { group: WatchGroup }) {
           <div className="mt-0.5 text-[10px] leading-snug text-[var(--ghost)]">{note}</div>
         )}
 
+        {/* v2.86 — Withdraw Offer: pending requests only. A deliberate text
+            action (never icon-only), secondary weight, real touch target. The
+            group renders inside a <Link>, so the handler must stop the
+            navigation before opening the section-level confirmation. */}
+        {current.status === "pending" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRequestWithdraw(current.id, e.currentTarget);
+            }}
+            className="mt-2.5 inline-flex min-h-[44px] items-center text-[10px] uppercase tracking-[2px] text-[var(--muted)] underline-offset-4 transition-colors hover:text-[var(--danger)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          >
+            Withdraw offer
+          </button>
+        )}
+
         {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
         {history.length > 0 && (
           <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
@@ -526,9 +547,79 @@ function WatchOfferGroup({ group }: { group: WatchGroup }) {
   );
 }
 
-function MyOffersSection({ state }: { state: MyOffersState }) {
+/* v2.86 — Withdraw Offer. The confirmation dialog lives at SECTION level so
+   it renders outside the group's <Link> wrapper (a dialog inside a link would
+   navigate on every interaction). The trigger's element is captured at open
+   so focus returns to it on cancel/Escape — the accessibility contract. */
+type WithdrawPrompt = {
+  requestId: string;
+  trigger: HTMLElement | null;
+};
+
+// already_resolved race outcomes → the order's exact UI vocabulary.
+function withdrawRaceMessage(detail: string): string {
+  if (detail.includes("accepted")) return "This offer has already been accepted.";
+  if (detail.includes("declined")) return "This offer has already been declined.";
+  if (detail.includes("cancelled")) return "This offer has already been withdrawn.";
+  return "This offer is no longer pending.";
+}
+
+function MyOffersSection({
+  state,
+  onWithdrawn,
+}: {
+  state: MyOffersState;
+  onWithdrawn: () => void;
+}) {
   const groups =
     state.phase === "loaded" ? groupOffersByWatch(state.offers) : [];
+
+  const [prompt, setPrompt] = useState<WithdrawPrompt | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawnNotice, setWithdrawnNotice] = useState(false);
+  const keepButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Focus lands on the safe action when the dialog opens.
+  useEffect(() => {
+    if (prompt) keepButtonRef.current?.focus();
+  }, [prompt]);
+
+  function closePrompt() {
+    const trigger = prompt?.trigger ?? null;
+    setPrompt(null);
+    setWithdrawError(null);
+    trigger?.focus();
+  }
+
+  async function confirmWithdraw() {
+    if (!prompt || withdrawing) return; // double-submit prevention
+    setWithdrawing(true);
+    setWithdrawError(null);
+    try {
+      const res = await fetch(`/api/purchase-requests/${prompt.requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "withdrawn" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setWithdrawError(
+          data?.error === "already_resolved"
+            ? withdrawRaceMessage(String(data?.detail ?? ""))
+            : "Could not withdraw this offer. Please try again."
+        );
+        return;
+      }
+      setPrompt(null);
+      setWithdrawnNotice(true); // announced state — see aria-live region below
+      onWithdrawn(); // refetch → the row now reads "Withdrawn", no refresh
+    } catch {
+      setWithdrawError("Could not withdraw this offer. Please try again.");
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   return (
     <div className="mt-8">
@@ -572,8 +663,87 @@ function MyOffersSection({ state }: { state: MyOffersState }) {
       ) : (
         <div className="border border-[var(--border-subtle)]">
           {groups.map((group) => (
-            <WatchOfferGroup key={group.key} group={group} />
+            <WatchOfferGroup
+              key={group.key}
+              group={group}
+              onRequestWithdraw={(requestId, trigger) => {
+                setWithdrawnNotice(false);
+                setPrompt({ requestId, trigger });
+              }}
+            />
           ))}
+        </div>
+      )}
+
+      {/* Success announcement — polite live region; also receives focus so
+          keyboard users land on the confirmed outcome. */}
+      <div aria-live="polite">
+        {withdrawnNotice && (
+          <p
+            tabIndex={-1}
+            ref={(el) => el?.focus()}
+            className="mt-3 text-[11px] tracking-[0.3px] text-[var(--muted)] outline-none"
+          >
+            Offer withdrawn.
+          </p>
+        )}
+      </div>
+
+      {/* Withdraw confirmation — lightweight, deliberate, keyboard-complete. */}
+      {prompt && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(7,8,12,0.72)] px-6"
+          onClick={closePrompt}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              closePrompt();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdraw-offer-title"
+            aria-describedby="withdraw-offer-body"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[380px] border border-[var(--border-mid)] bg-[var(--surface)] px-6 py-6"
+          >
+            <h2
+              id="withdraw-offer-title"
+              className="font-display text-[18px] font-light text-[var(--platinum)]"
+            >
+              Withdraw this offer?
+            </h2>
+            <p
+              id="withdraw-offer-body"
+              className="mt-2 text-[12px] leading-[1.6] text-[var(--muted)]"
+            >
+              The seller will no longer be able to accept this purchase request.
+            </p>
+            {withdrawError && (
+              <p className="mt-3 text-[11px] text-[var(--danger)]">{withdrawError}</p>
+            )}
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                ref={keepButtonRef}
+                type="button"
+                disabled={withdrawing}
+                onClick={closePrompt}
+                className="min-h-[44px] border border-[var(--border-subtle)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
+              >
+                Keep offer active
+              </button>
+              <button
+                type="button"
+                disabled={withdrawing}
+                onClick={confirmWithdraw}
+                className="min-h-[44px] border border-[var(--border-mid)] bg-[#0b0f15] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--muted)] transition-colors hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
+              >
+                {withdrawing ? "Withdrawing…" : "Withdraw offer"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -602,6 +772,9 @@ export default function CatalogueClient({
   // explicit `loading` phase so the empty state is never shown prematurely,
   // and lands in `error` (not empty) on query failure.
   const [myOffers, setMyOffers] = useState<MyOffersState>({ phase: "loading" });
+  // v2.86 — Withdraw Offer: bumping this refetches the offers list so the UI
+  // shows "Withdrawn" without a manual refresh.
+  const [offersVersion, setOffersVersion] = useState(0);
 
   // v2.6 — Correspondence. The buyer's table of contents: threads fetched
   // from /api/messages; each row links to the LISTING (the conversation's
@@ -697,7 +870,7 @@ export default function CatalogueClient({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [offersVersion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -861,7 +1034,10 @@ export default function CatalogueClient({
             with an honest empty state, independent of whether any offers
             exist. No new left-nav item (same precedent as Correspondence and
             Saved Watches). */}
-        <MyOffersSection state={myOffers} />
+        <MyOffersSection
+          state={myOffers}
+          onWithdrawn={() => setOffersVersion((v) => v + 1)}
+        />
 
         {/* Two-column below the hero — GRID, not flex (Jason's 2026-07-27
             narrow-width ruling). One SavedSearchesCard mount, placed by grid:

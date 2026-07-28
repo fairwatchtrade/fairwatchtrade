@@ -37,7 +37,7 @@ import { createClient } from "@/lib/supabase/server";
    ──────────────────────────────────────────────────────────────────────── */
 
 type PatchBody = {
-  status?: "accepted" | "declined";
+  status?: "accepted" | "declined" | "withdrawn";
 };
 
 export async function PATCH(
@@ -62,11 +62,67 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  if (body.status !== "accepted" && body.status !== "declined") {
+  if (
+    body.status !== "accepted" &&
+    body.status !== "declined" &&
+    body.status !== "withdrawn"
+  ) {
     return NextResponse.json(
-      { error: "invalid_status", detail: "status must be 'accepted' or 'declined'." },
+      {
+        error: "invalid_status",
+        detail: "status must be 'accepted', 'declined', or 'withdrawn'.",
+      },
       { status: 400 }
     );
+  }
+
+  /* ── WITHDRAW — v2.86: the buyer retracts their own still-pending request
+        through withdraw_purchase_request(), the only pending→cancelled path
+        (SECURITY DEFINER, buyer-only gate; non-owners receive not_found so
+        existence is never revealed). Public status renders "Withdrawn";
+        'cancelled' stays internal. No transaction, no listing change, no
+        sibling effect; one immutable buyer_withdrew event. ── */
+  if (body.status === "withdrawn") {
+    const { data, error } = await supabase.rpc("withdraw_purchase_request", {
+      p_request_id: id,
+    });
+
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("not_found")) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      if (msg.includes("already_resolved")) {
+        return NextResponse.json(
+          { error: "already_resolved", detail: msg },
+          { status: 409 }
+        );
+      }
+      console.error("[purchase-requests] withdraw_purchase_request failed:", msg);
+      return NextResponse.json({ error: "withdraw_failed" }, { status: 500 });
+    }
+
+    // Seller notification — the existing bell path (same shape as request
+    // creation), fails open: the withdrawal itself has already committed.
+    // The buyer's own RLS SELECT covers this read (their own request row).
+    const { data: reqRow } = await supabase
+      .from("purchase_requests")
+      .select("seller_id, listing_id, listing_brand, listing_model")
+      .eq("id", id)
+      .single();
+    if (reqRow?.seller_id) {
+      const watchLabel = reqRow.listing_model
+        ? `${reqRow.listing_brand} ${reqRow.listing_model}`
+        : reqRow.listing_brand ?? "your listing";
+      await supabase.from("notifications").insert({
+        user_id: reqRow.seller_id,
+        type: "purchase_request",
+        message: `A buyer withdrew their offer for ${watchLabel}`,
+        listing_id: reqRow.listing_id,
+      });
+    }
+
+    return NextResponse.json({ status: "withdrawn", result: data });
   }
 
   /* ── ACCEPT — single RPC call, all-or-nothing ───────────────────── */
