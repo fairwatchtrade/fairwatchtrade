@@ -102,25 +102,11 @@ export async function PATCH(
       return NextResponse.json({ error: "withdraw_failed" }, { status: 500 });
     }
 
-    // Seller notification — the existing bell path (same shape as request
-    // creation), fails open: the withdrawal itself has already committed.
-    // The buyer's own RLS SELECT covers this read (their own request row).
-    const { data: reqRow } = await supabase
-      .from("purchase_requests")
-      .select("seller_id, listing_id, listing_brand, listing_model")
-      .eq("id", id)
-      .single();
-    if (reqRow?.seller_id) {
-      const watchLabel = reqRow.listing_model
-        ? `${reqRow.listing_brand} ${reqRow.listing_model}`
-        : reqRow.listing_brand ?? "your listing";
-      await supabase.from("notifications").insert({
-        user_id: reqRow.seller_id,
-        type: "purchase_request",
-        message: `A buyer withdrew their offer for ${watchLabel}`,
-        listing_id: reqRow.listing_id,
-      });
-    }
+    // Seller notification — v2.89 (WS5): the bell now fires INSIDE
+    // withdraw_purchase_request() itself (SECURITY DEFINER, recipient fixed
+    // to the request's seller by data). The v2.86 client-session insert that
+    // lived here was RLS-denied on every call (notifications has no INSERT
+    // policy) and failed silently; it is removed, not relocated.
 
     return NextResponse.json({ status: "withdrawn", result: data });
   }

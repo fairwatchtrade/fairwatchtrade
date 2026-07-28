@@ -203,14 +203,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "insert_failed" }, { status: 500 });
   }
 
-  // Seller notification — existing bell system. Fails open.
-  const watchLabel = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
-  await supabase.from("notifications").insert({
-    user_id: listing.seller_id,
-    type: "purchase_request",
-    message: `New purchase request for your ${watchLabel}`,
-    listing_id: listing.id,
-  });
+  // Seller notification — v2.89 (WS5): owned by the DATABASE now. The old
+  // client-session insert here was RLS-denied on every call since birth
+  // (notifications has no INSERT policy) and failed silently. The
+  // purchase_requests_notify_seller trigger writes the bell RLS-exempt with
+  // the recipient fixed to the row's seller_id — the notify_on_listing_publish
+  // pattern. No route-side insert remains.
 
   return NextResponse.json({ id: inserted.id, proposedPurchasePrice: price });
 }
