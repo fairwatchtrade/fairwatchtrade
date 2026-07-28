@@ -193,6 +193,14 @@ const MOBILE_CURATED_VISIBLE_SLUGS: Set<string> = new Set([
   "richard-mille",
   "ulysse-nardin",
   "vacheron-constantin",
+  "atelier-de-chronom-trie",
+  "frederique-constant",
+  "zenith",
+  "chopard",
+  "girard-perregaux",
+  "jaquet-droz",
+  "heuer",
+  "andreas-strehler",
 ]);
 const TIER3_LABEL_ZOOM_IN = 2.0;
 const TIER3_LABEL_ZOOM_OUT = 1.85;
