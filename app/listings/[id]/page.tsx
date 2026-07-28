@@ -384,7 +384,21 @@ export default async function ListingDetailPage({
           renders narrower than the Gate ever approved (at 1280 the primary
           column still gets ~816px). iPad landscape (1024) reads as tablet;
           iPad Pro landscape (1366) reads as desktop. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 xl:max-w-[1438px] xl:px-[82px]">
+      {/* v2.90 — WS3 staged container growth (Design Duck ruling, 2026-07-28).
+          The old single jump (768 → 1438 at one pixel) forced the gallery,
+          title, and thumbnails through a binary reflow the instant the rail
+          mounted. The container now grows in deliberate single-column steps:
+            <1024   max-w-3xl        → 704px content
+            lg      max-w-[832px]    → 768px content
+            ≥1152   max-w-[880px]    → 816px content
+          816 is not arbitrary: at the xl threshold (1280 viewport, 82px
+          padding, 276px rail, 24px gap) the primary column computes to
+          EXACTLY 816px — so at the flip the gallery/title/thumbnails hold
+          still while the rail enters width the box jump itself created; the
+          primary then grows fluidly 816 → 974, reaching the approved
+          974+276 geometry at ≥1438. A scrollbar-width oscillation now moves
+          only the rail's presence, never the composition. */}
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[1152px]:max-w-[880px] xl:max-w-[1438px] xl:px-[82px]">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
             Desktop retired it at lg in v2.11/v2.17 in favour of the spine
