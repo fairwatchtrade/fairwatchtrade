@@ -151,6 +151,23 @@ function dialThumbUrl(photos?: ListingPhoto[]): string | null {
 
 // Left-panel modules — GLOBAL nav. No counts here. Labels use the prototype's
 // shorter forms so they fit the 152px panel without wrapping.
+/* WS2 (v2.88) — the strict deep-link allowlist: every REAL module, never the
+   "soon" placeholders (a ?module=market URL must not select an empty room).
+   Unknown/absent values fall to Inventory, the account's default task. */
+const NAVIGABLE_MODULE_IDS = [
+  "dashboard",
+  "inventory",
+  "accelerator",
+  "messages",
+  "requests",
+  "saved",
+] as const;
+function moduleFromParam(p: string | null): ModuleId {
+  return (NAVIGABLE_MODULE_IDS as readonly string[]).includes(p ?? "")
+    ? (p as ModuleId)
+    : "inventory";
+}
+
 const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
   { id: "dashboard", label: "Overview", soon: false },
   { id: "inventory", label: "Listings", soon: false },
@@ -1007,16 +1024,26 @@ export default function AccountDashboard({
 }: {
   listings: AccountListing[];
 }) {
-  // Default module = Inventory: the listings are the primary daily task.
-  /* v2.68 — ?module=saved is the one supported deep link (the Browse
-     "View saved searches" confirmation and the Drawer footer land here).
-     Read once as the initial module; module switching stays client state.
-     On mobile — deliberately Inventory-only since v2.7 — the deep link is
-     the ONLY route to Saved Searches; no mobile module nav is added. */
-  const initialModuleParam = useSearchParams().get("module");
-  const [activeModule, setActiveModule] = useState<ModuleId>(
-    initialModuleParam === "saved" ? "saved" : "inventory"
-  );
+  /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
+     ?module=saved deep link becomes the general convention: every real
+     (non-"soon") module id is a valid ?module= value, derived on every
+     render — so refresh, direct links, and new tabs all land on the right
+     section, and Back/Forward walk real history (selectModule pushes a
+     history entry; Next syncs useSearchParams on pushState/popstate).
+     Listings stays the default exactly when no valid module is named.
+     On mobile — deliberately Inventory-only since v2.7 — the URL still
+     changes but the single-view law governs what renders; no mobile module
+     nav is added (the 'saved' deep link remains mobile's one exception). */
+  const moduleParam = useSearchParams().get("module");
+  const activeModule = moduleFromParam(moduleParam);
+  function selectModule(id: ModuleId) {
+    if (id === activeModule) return;
+    window.history.pushState(
+      null,
+      "",
+      id === "inventory" ? "/account" : `/account?module=${id}`
+    );
+  }
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1239,7 +1266,7 @@ export default function AccountDashboard({
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setActiveModule(m.id)}
+                  onClick={() => selectModule(m.id)}
                   className={`relative flex w-full items-center justify-between px-5 py-[10px] text-left text-[10px] tracking-[1px] transition ${
                     isActive
                       ? "border-l-2 border-[var(--gold)] text-[var(--platinum)]"
@@ -1331,7 +1358,7 @@ export default function AccountDashboard({
                 <div className="px-4 pt-4">
                   <DealerAcceleratorEntry
                     hasImportedDrafts={hasImportedDrafts}
-                    onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                    onOpenImportedDrafts={() => selectModule("accelerator")}
                   />
                 </div>
                 <SellerListingsRoom
@@ -1339,7 +1366,7 @@ export default function AccountDashboard({
                   threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                   threadsLoaded={threadsLoaded}
                   onSubmitForReview={submitForReview}
-                  onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                  onOpenImportedDrafts={() => selectModule("accelerator")}
                   submittingId={submittingId}
                   submitErrorId={submitErrorId}
                   submitErrorMsg={submitErrorMsg}
@@ -1359,7 +1386,7 @@ export default function AccountDashboard({
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
                 hasImportedDrafts={hasImportedDrafts}
-                onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                onOpenImportedDrafts={() => selectModule("accelerator")}
               />
                 ) : activeModule === "messages" ? (
                   <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
@@ -1373,7 +1400,7 @@ export default function AccountDashboard({
                     threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                     threadsLoaded={threadsLoaded}
                     onSubmitForReview={submitForReview}
-                    onOpenImportedDrafts={() => setActiveModule("accelerator")}
+                    onOpenImportedDrafts={() => selectModule("accelerator")}
                     submittingId={submittingId}
                     submitErrorId={submitErrorId}
                     submitErrorMsg={submitErrorMsg}
