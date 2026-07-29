@@ -1090,7 +1090,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     // corners, no drop-shadow). The row is raised above its
                     // siblings ONLY while its snapshot is open, so the absolute
                     // overlay is never clipped by the row beneath it.
-                    className={`group relative flex gap-4 p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition ${
+                    className={`group relative grid grid-cols-[120px_minmax(0,1fr)] gap-4 p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition md:flex ${
                       isSnapshotOpen ? "z-30" : "z-0"
                     }`}
                   >
@@ -1102,7 +1102,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         revert to object-contain if any hero crops awkwardly. */}
                     <Link
                       href={listingHref(row.id)}
-                      className="flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
+                      className="row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -1173,7 +1173,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     </div>
 
                     {/* Right — price + workflow actions. */}
-                    <div className="flex w-[190px] shrink-0 flex-col items-end justify-between gap-4">
+                    <div className="col-start-2 flex w-full flex-col items-end justify-between gap-4 md:w-[190px] md:shrink-0">
                       <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
                         {formatPrice(row.asking_price)}
                       </div>
