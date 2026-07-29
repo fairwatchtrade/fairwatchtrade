@@ -134,24 +134,31 @@ type MyOffersState =
 // rejected — another request was accepted and the watch is no longer
 // available. Copy is non-judgmental across the board and never implies the
 // seller personally rejected the buyer.
+// Account Status Colorway Parity — tones are named for the LIFECYCLE FAMILY
+// they resolve to, not for a color word, and they resolve to the same --lc-*
+// tokens the seller sees in Requests. One underlying state, one color, both
+// sides of the transaction. (Before this, pending read gold to the buyer and
+// grey to the seller; declined read muted to the buyer and red to the seller.)
+type OfferTone = "pending" | "accepted" | "declined" | "withdrawn" | "ghost";
+
 const STATUS_LABELS: Record<
   OfferStatus,
-  { label: string; note: string; tone: "gold" | "success" | "muted" | "ghost" }
+  { label: string; note: string; tone: OfferTone }
 > = {
   pending: {
     label: "Pending",
     note: "Awaiting the seller's response.",
-    tone: "gold",
+    tone: "pending",
   },
   accepted: {
     label: "Accepted",
     note: "The seller accepted your request.",
-    tone: "success",
+    tone: "accepted",
   },
   declined: {
     label: "Declined",
     note: "The seller declined this request.",
-    tone: "muted",
+    tone: "declined",
   },
   superseded: {
     label: "No longer available",
@@ -168,7 +175,7 @@ const STATUS_LABELS: Record<
   cancelled: {
     label: "Withdrawn",
     note: "You withdrew this offer.",
-    tone: "ghost",
+    tone: "withdrawn",
   },
 };
 
@@ -178,7 +185,7 @@ const STATUS_LABELS: Record<
 function offerLabel(status: string): {
   label: string;
   note: string;
-  tone: "gold" | "success" | "muted" | "ghost";
+  tone: OfferTone;
 } {
   return (
     STATUS_LABELS[status as OfferStatus] ?? {
@@ -189,11 +196,18 @@ function offerLabel(status: string): {
   );
 }
 
-const TONE_CLASS: Record<"gold" | "success" | "muted" | "ghost", string> = {
-  gold: "text-[var(--gold-subtle)]",
-  success: "text-[var(--success)]",
-  muted: "text-[var(--muted)]",
-  ghost: "text-[var(--ghost)]",
+// CSS colors rather than utility classes: --lc-* are custom properties, so the
+// value is applied via style, matching how SellerListingsRoom consumes them.
+// Subdued tier matches RequestsView exactly: --lc-neutral-line is a BORDER
+// token and unreadable as text; --ghost is 3.4:1 and reserved for
+// disabled/placeholder. Withdrawn --slate (7.1:1), quieter terminal states
+// --muted (5.1:1). Both clear AA on --ink and --surface.
+const TONE_COLOR: Record<OfferTone, string> = {
+  pending: "var(--lc-pending_review-badge)",
+  accepted: "var(--lc-published-badge)",
+  declined: "var(--lc-rejected-badge)",
+  withdrawn: "var(--slate)",
+  ghost: "var(--muted)",
 };
 
 function greeting(): string {
@@ -472,7 +486,7 @@ function WatchOfferGroup({
           </div>
           {/* Current status — the dominant state */}
           <div className="shrink-0 text-right">
-            <div className={`text-[10px] uppercase tracking-[2px] ${TONE_CLASS[tone]}`}>
+            <div className="text-[10px] uppercase tracking-[2px]" style={{ color: TONE_COLOR[tone] }}>
               {label}
             </div>
           </div>

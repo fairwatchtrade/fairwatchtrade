@@ -310,19 +310,38 @@ export default function SavedSearchesModule() {
                       </div>
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {/* Account Status Colorway Parity — only the two states
+                          this data honestly supports: Watching (published /
+                          green family) and Paused (pending_review / cool
+                          blue-grey), both from the canonical --lc-* tokens
+                          rather than a near-miss literal rgba. */}
                       <span
-                        className={`border px-[7px] py-[4px] text-[9px] uppercase tracking-[1.5px] ${
+                        className="border px-[7px] py-[4px] text-[9px] uppercase tracking-[1.5px]"
+                        style={
                           status === "Watching"
-                            ? "border-[rgba(112,192,144,0.32)] text-[var(--success)]"
-                            : "border-[var(--border-subtle)] text-[var(--muted)]"
-                        }`}
+                            ? {
+                                borderColor: "var(--lc-published-line)",
+                                color: "var(--lc-published-badge)",
+                              }
+                            : {
+                                borderColor: "var(--lc-pending_review-line)",
+                                color: "var(--lc-pending_review-badge)",
+                              }
+                        }
                       >
                         {status}
                       </span>
+                      {/* Fresh matches are the restrained Draft gold; no
+                          matches yet stays subdued neutral. Both derive from
+                          real counts — no new state is introduced. */}
                       <span
-                        className={`text-[12px] ${
-                          counts.fresh > 0 ? "text-[var(--gold)]" : "text-[var(--muted)]"
-                        }`}
+                        className="text-[12px]"
+                        style={{
+                          color:
+                            counts.fresh > 0
+                              ? "var(--lc-draft-badge)"
+                              : "var(--muted)",
+                        }}
                       >
                         {matchCountLabel(counts)}
                       </span>

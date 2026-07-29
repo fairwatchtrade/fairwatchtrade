@@ -7,7 +7,7 @@ import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
-import { sellerLabel } from "@/lib/listingStatus";
+import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -275,19 +275,22 @@ function ListingRow({
 }) {
   const price = `$${Number(row.asking_price).toLocaleString("en-US")}`;
   const badgeLabel = sellerLabel(row.status);
-  const badgeClass =
-    row.status === "published"
-      ? "text-[var(--success)]"
-      : row.status === "rejected"
-        ? "text-[var(--danger)]"
-        : "text-[var(--muted)]";
+  // Order 2b — Overview now speaks the canonical Listings colorway instead of
+  // its own success/danger/muted trio. Same --lc-* tokens and statusTokenKey
+  // the Listings room uses, so one state means one color account-wide.
+  const badgeStyle: React.CSSProperties = {
+    color: `var(--lc-${statusTokenKey(row.status)}-badge, var(--muted))`,
+  };
 
   const inner = (
     <div
       onClick={() => onSelect(row.id)}
+      // Selection is Channel 4 and NEUTRAL (Hybrid C): the gold bar is gone so
+      // gold no longer competes with Draft's lifecycle gold.
+      style={selected ? { backgroundColor: "var(--lc-select-fill)" } : undefined}
       className={`relative cursor-pointer border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px] transition hover:bg-[rgba(255,255,255,0.02)] ${
         selected
-          ? "bg-[rgba(201,168,76,0.04)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
+          ? "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--lc-select-line)]"
           : ""
       }`}
     >
@@ -358,7 +361,7 @@ function ListingRow({
         <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {price}
         </div>
-        <div className={`mt-[3px] text-[8px] uppercase tracking-[1.5px] ${badgeClass}`}>
+        <div className="mt-[3px] text-[8px] uppercase tracking-[1.5px]" style={badgeStyle}>
           {badgeLabel}
         </div>
       </div>
@@ -796,10 +799,18 @@ function MessagesView({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-[9px] text-[var(--ghost)]">{timeAgo(t.updatedAt)}</span>
+                  {/* Account Status Colorway Parity — Correspondence carries
+                      only the two states the repository actually supports:
+                      unread (published/green family) and read (neutral, the
+                      --slate title above). The dot's presence, not its color,
+                      is the non-color carrier; gold is released here so it
+                      keeps meaning Draft account-wide. No archived, urgent, or
+                      awaiting-reply state is invented. */}
                   {unread && (
                     <span
                       aria-label={`${t.unreadCount} unread`}
-                      className="h-[6px] w-[6px] rounded-full bg-[var(--gold)]"
+                      className="h-[6px] w-[6px] rounded-full"
+                      style={{ backgroundColor: "var(--lc-published-badge)" }}
                     />
                   )}
                 </div>
@@ -833,13 +844,24 @@ function RequestsView({
     showResolved ? r.status !== "pending" : r.status === "pending"
   );
 
+  // Account Status Colorway Parity — request states now resolve to the same
+  // --lc-* families the Listings room uses, and to the SAME family the buyer
+  // sees in My Offers (CatalogueClient REQUEST_STATUS_COLOR). Previously
+  // pending read grey here and gold to the buyer for one identical state.
+  // Values are CSS colors (not classes) because --lc-* are custom properties.
   const STATUS_COLOR: Record<PurchaseRequestSummary["status"], string> = {
-    pending: "text-[var(--muted)]",
-    accepted: "text-[var(--success)]",
-    declined: "text-[var(--danger)]",
-    expired: "text-[var(--ghost)]",
-    cancelled: "text-[var(--ghost)]",
-    superseded: "text-[var(--ghost)]",
+    pending: "var(--lc-pending_review-badge)",
+    accepted: "var(--lc-published-badge)",
+    declined: "var(--lc-rejected-badge)",
+    // Subdued tier — quiet, never invisible. --lc-neutral-line is a BORDER
+    // token (rgba white 0.06 ≈ 1.1:1 as text) and must not be used for words.
+    // --ghost is 3.4:1 and globals.css reserves it for disabled/placeholder.
+    // So: Withdrawn --slate (7.1:1), and the quieter terminal states --muted
+    // (5.1:1) — both clear AA, and Superseded stays quieter than Withdrawn.
+    cancelled: "var(--slate)",
+    superseded: "var(--muted)",
+    // Real DB state, styled rather than left to fall through.
+    expired: "var(--muted)",
   };
   // Public vocabulary (v2.86): the seller sees "Withdrawn", never the
   // internal 'cancelled'. Other statuses render their own names.
@@ -945,7 +967,10 @@ function RequestsView({
                         {title}
                       </span>
                       <span
-                        className={`shrink-0 text-[9px] uppercase tracking-[1.5px] ${STATUS_COLOR[r.status] ?? "text-[var(--ghost)]"}`}
+                        className="shrink-0 text-[9px] uppercase tracking-[1.5px]"
+                        // Unmapped status: readable neutral, not placeholder
+                        // grey — a new DB state must never arrive invisible.
+                        style={{ color: STATUS_COLOR[r.status] ?? "var(--muted)" }}
                       >
                         {STATUS_LABEL[r.status] ?? r.status}
                       </span>
