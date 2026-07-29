@@ -83,7 +83,7 @@ export default function Home() {
       >
 
         {/* Gap between market bar and eyebrow — inline guaranteed */}
-        <div className="mb-8 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+        <div className="mb-8 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-dim)]">
           Independent &amp; Boutique Watchmakers Only
         </div>
 
@@ -197,7 +197,7 @@ export default function Home() {
 
       {/* ── FOOTER TAGLINE — guaranteed 48px below button row ── */}
       <p
-        className="relative z-[1] text-center text-[9px] uppercase tracking-[3px] text-[var(--ghost)]"
+        className="relative z-[1] text-center text-[9px] uppercase tracking-[3px] text-[var(--muted)]"
         style={{ marginTop: '48px', paddingBottom: '48px' }}
       >
         For independent &amp; boutique watchmakers
