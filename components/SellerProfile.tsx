@@ -248,7 +248,7 @@ export default function SellerProfile({
             <div className="font-display text-[18px] font-light text-[var(--platinum)]">
               Active Listings
             </div>
-            <div className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)]">
+            <div className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
               {listings.length} {listings.length === 1 ? "watch" : "watches"}
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function SellerProfile({
                       )}
                     </div>
 
-                    <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                    <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
                       {row.brand}
                     </div>
                     <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
@@ -317,11 +317,11 @@ export default function SellerProfile({
 
           {/* Transaction history — always shown below the grid; dormant. */}
           <div className="mt-7 border-t border-[var(--border-faint)] pt-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">
+            <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
               Transaction history
             </div>
             {completedSales === 0 ? (
-              <p className="font-display text-[13px] font-light italic leading-[1.7] text-[var(--ghost)]">
+              <p className="font-display text-[13px] font-light italic leading-[1.7] text-[var(--muted)]">
                 This seller joined recently. Their listing quality speaks before their
                 transaction history can.
               </p>
