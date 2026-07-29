@@ -145,9 +145,9 @@ export default function SellerProfile({
       </div>
 
       {/* Body — two columns */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 flex-col md:flex-row">
         {/* LEFT — the person */}
-        <div className="flex w-[232px] shrink-0 flex-col border-r border-[var(--border-faint)] px-6 py-7">
+        <div className="flex w-full shrink-0 flex-col border-b border-[var(--border-faint)] px-6 py-7 md:w-[232px] md:border-r md:border-b-0">
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)]">
             <span className="font-display text-[16px] font-light text-[var(--gold)]">
               {initials}
@@ -243,7 +243,7 @@ export default function SellerProfile({
         </div>
 
         {/* RIGHT — the inventory */}
-        <div className="flex-1 px-8 py-7">
+        <div className="min-w-0 flex-1 px-8 py-7">
           <div className="mb-5 flex items-baseline justify-between">
             <div className="font-display text-[18px] font-light text-[var(--platinum)]">
               Active Listings
