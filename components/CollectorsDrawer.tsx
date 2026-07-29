@@ -487,14 +487,14 @@ export default function CollectorsDrawer({
                   Saved Search Quick Links
                 </b>
                 <span
-                  className={`text-[8px] uppercase tracking-[0.11em] text-[var(--ghost)] ${glassText}`}
+                  className={`text-[8px] uppercase tracking-[0.11em] text-[var(--muted)] ${glassText}`}
                 >
                   Up to three
                 </span>
               </div>
               <SavedSearchQuickLinks />
               <p
-                className={`mt-[17px] text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--ghost)] ${glassText}`}
+                className={`mt-[17px] text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--muted)] ${glassText}`}
               >
                 Names reopen their saved browse query immediately.
               </p>

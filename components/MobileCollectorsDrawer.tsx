@@ -259,12 +259,12 @@ export default function MobileCollectorsDrawer({
               <b className="text-[11px] font-medium uppercase tracking-[0.17em] text-[var(--gold)] min-[470px]:text-[12px]">
                 Saved Search Quick Links
               </b>
-              <span className="hidden text-[8px] uppercase tracking-[0.11em] text-[var(--ghost)] min-[470px]:inline">
+              <span className="hidden text-[8px] uppercase tracking-[0.11em] text-[var(--muted)] min-[470px]:inline">
                 Up to three
               </span>
             </div>
             <SavedSearchQuickLinks />
-            <p className="mt-[17px] hidden text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--ghost)] min-[470px]:block">
+            <p className="mt-[17px] hidden text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--muted)] min-[470px]:block">
               Names reopen their saved browse query immediately.
             </p>
           </section>
