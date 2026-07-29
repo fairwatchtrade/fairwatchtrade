@@ -18,7 +18,7 @@ export default function SellPage() {
             Independent &amp; boutique makers only. Curated before listed.
           </p>
 
-          {/* v2.56 — the seller's answer, near the entry (Design Duck approved). */}
+          {/* v2.56 — the seller's approved answer, near the entry. */}
           <div className="mt-4 text-[14px] leading-[1.6]">
             <span className="font-display text-[16px] text-[var(--platinum)]">
               Pay a flat 5% only when your watch sells.
@@ -34,7 +34,7 @@ export default function SellPage() {
               right here. The wizard is a choice, not a funnel. */}
           <Link
             href="/sell/mobile"
-            className="mt-5 inline-flex items-center gap-2 border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)] md:hidden"
+            className="mt-5 inline-flex items-center gap-2 border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)] md:hidden"
           >
             List from Phone →
           </Link>
