@@ -386,14 +386,14 @@ export default function SignUpPage() {
                   >
                     <span
                       className={`mb-[3px] block text-[9px] uppercase tracking-[1.5px] ${
-                        selected ? "text-[var(--gold)]" : "text-[var(--ghost)]"
+                        selected ? "text-[var(--gold)]" : "text-[var(--muted)]"
                       }`}
                     >
                       {chip.label}
                     </span>
                     <span
                       className={`block font-display text-[11px] italic ${
-                        selected ? "text-[var(--slate)]" : "text-[var(--ghost)]"
+                        selected ? "text-[var(--slate)]" : "text-[var(--muted)]"
                       }`}
                     >
                       {chip.sub}
@@ -471,7 +471,7 @@ export default function SignUpPage() {
               </Link>
             </div>
 
-            <div className="mt-3 text-center text-[8px] leading-[1.6] text-[var(--ghost)]">
+            <div className="mt-3 text-center text-[8px] leading-[1.6] text-[var(--muted)]">
               By joining you agree to our{" "}
               <Link href="/terms" className="text-[var(--muted)]">
                 Terms of Service
