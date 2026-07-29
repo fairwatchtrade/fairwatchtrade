@@ -255,8 +255,16 @@ export default function NavBar({
                   role="menu"
                   className="absolute right-0 top-[calc(100%+10px)] w-48 border border-[var(--border-subtle)] bg-[var(--surface)] py-1"
                 >
+                  {/* My Account and My Listings both pointed at bare /account,
+                      which moduleFromParam resolves to Inventory — two menu
+                      items, one destination. My Account now uses the same
+                      Overview target the left-nav item produces
+                      (selectModule("dashboard") → /account?module=dashboard),
+                      so there is still exactly one way to reach Overview.
+                      Desktop only: mobile Account has no Overview module and
+                      stays Inventory-only under the single-view law. */}
                   <Link
-                    href="/account"
+                    href="/account?module=dashboard"
                     onClick={() => setAccountOpen(false)}
                     className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
                   >
