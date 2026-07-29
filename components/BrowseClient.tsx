@@ -889,7 +889,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       {/* Layout controls bar — grid width + view mode + page size.
           v1.57 — the Gallery/Collector toggle sits alongside grid width:
           both are orthogonal display controls, neither replaces the other. */}
-      <div className="mt-6 flex items-center justify-between border-b border-[var(--border-faint)] pb-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-4 sm:flex-nowrap">
         <div className="flex items-center gap-4">
           {/* v1.60 — absent from the DOM in Collector View, not grayed out:
               once Collector is always grid-cols-1, this toggle would
@@ -934,7 +934,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1">
           {([20, 40, "all"] as const).map((n) => (
             <button
               key={n}
