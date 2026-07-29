@@ -904,7 +904,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                   className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
                     gridCols === n
                       ? "border-[var(--border-gold)] text-[var(--gold)]"
-                      : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                      : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                   }`}
                 >
                   {n}-wide
@@ -925,7 +925,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                 className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
                   viewMode === key
                     ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                 }`}
               >
                 {label}
@@ -943,7 +943,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
               className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
                 pageSize === n
                   ? "border-[var(--border-gold)] text-[var(--gold)]"
-                  : "border-[var(--border-subtle)] text-[var(--ghost)] hover:text-[var(--slate)]"
+                  : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
               }`}
             >
               {n === "all" ? "All" : n}
