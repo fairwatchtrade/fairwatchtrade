@@ -104,9 +104,8 @@ type WatchChapter =
 
 /* ── WatchBlueprint wiring (v1.89) ───────────────────────────────────────
    Maps the two data sources (tagged photos, filled chapters) onto the plate's
-   named layers. Note: GPT flagged these tables for eventual extraction to
-   lib/watchBlueprintMappings.ts once a second surface needs them — logged as a
-   future refactor; for v1.89 they live here. */
+   named layers. These tables can move to lib/watchBlueprintMappings.ts once a
+   second surface needs them; for v1.89 they live here. */
 
 // PhotoCategory strings → WatchBlueprint Layer names. Verified against
 // PhotoCategory in lib/scoring.ts and CATEGORY_OPTIONS in PhotoUpload.tsx.
@@ -309,8 +308,8 @@ export default function SellFlow() {
   const [phoneActive, setPhoneActive] = useState(false);
   const [pollLive, setPollLive] = useState(false);
   // Closing the handoff panel returns focus to the control that opened it
-  // (Layout Duck ruling). Ref-not-state, consumed in an effect after the
-  // close commits — the proven SavedSearches focus-restoration pattern.
+  // after the close commits. Ref-not-state, following the proven
+  // SavedSearches focus-restoration pattern.
   const handoffOpenerRef = useRef<HTMLButtonElement | null>(null);
   const restoreOpenerFocusRef = useRef(false);
   useEffect(() => {
@@ -587,9 +586,9 @@ export default function SellFlow() {
       <ProgressBar step={step} />
 
       {/* List From Phone — quiet affordance (signed-in sellers, desktop).
-          Layout Duck: it belongs to the WORK, not the score panel — same left
-          edge as the step card, directly above it, content width. Stranded on
-          the right it read as a detached utility for Listing Strength. */}
+          It belongs to the work, not the score panel: same left edge as the
+          step card, directly above it, content width. On the right it read as
+          a detached utility for Listing Strength. */}
       {authed && !handoffOpen && (
         <div className="hidden md:flex">
           <button
@@ -784,10 +783,15 @@ function ProgressBar({ step }: { step: number }) {
     <div className="mb-8">
       <div className="flex items-center gap-0">
         {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center">
+          <div
+            key={label}
+            className={`flex min-w-0 items-center ${
+              i < STEPS.length - 1 ? "flex-1 sm:flex-none" : ""
+            }`}
+          >
             <div className="flex flex-col items-center">
               <div
-                className={`font-[Inter] text-[9px] uppercase tracking-[2px] ${
+                className={`font-[Inter] text-[9px] uppercase tracking-[1px] sm:tracking-[2px] ${
                   i === step
                     ? "text-[var(--gold)]"
                     : i < step
@@ -798,7 +802,7 @@ function ProgressBar({ step }: { step: number }) {
                 {ROMAN[i]}
               </div>
               <div
-                className={`mt-1 font-[Inter] text-[9px] uppercase tracking-[1.5px] ${
+                className={`mt-1 font-[Inter] text-[9px] uppercase tracking-[0.5px] sm:tracking-[1.5px] ${
                   i === step
                     ? "text-[var(--platinum)]"
                     : i < step
@@ -810,19 +814,19 @@ function ProgressBar({ step }: { step: number }) {
               </div>
             </div>
             {i < STEPS.length - 1 && (
-              <div className="mx-3 mb-3 flex items-center gap-1">
+              <div className="mb-3 flex min-w-0 flex-1 items-center sm:mx-3 sm:flex-none sm:gap-1">
                 <div
-                  className={`h-1 w-1 rounded-full ${
+                  className={`h-0.5 w-0.5 shrink-0 rounded-full sm:h-1 sm:w-1 ${
                     i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-subtle)]"
                   }`}
                 />
                 <div
-                  className={`h-px w-8 ${
+                  className={`h-px min-w-0 flex-1 sm:w-8 sm:flex-none ${
                     i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-faint)]"
                   }`}
                 />
                 <div
-                  className={`h-1 w-1 rounded-full ${
+                  className={`h-0.5 w-0.5 shrink-0 rounded-full sm:h-1 sm:w-1 ${
                     i < step ? "bg-[var(--gold-subtle)]" : "bg-[var(--border-subtle)]"
                   }`}
                 />
