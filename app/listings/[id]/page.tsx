@@ -417,7 +417,7 @@ export default async function ListingDetailPage({
           <Link
             href={browseHref}
             className={[
-              "mb-5 inline-flex items-center gap-1.5 lg:hidden",
+              "mb-5 inline-flex items-center gap-1.5 min-[56rem]:hidden",
               "font-display text-[16px] font-light tracking-[0.3px]",
               "text-[var(--gold)] transition hover:opacity-80",
             ].join(" ")}
@@ -454,18 +454,30 @@ export default async function ListingDetailPage({
             pure CSS, no measurement, no gallery coupling. gap-y is explicitly
             zero so the split renders pixel-identically to the old single
             column (identity keeps its own top margin). */}
-        {/* v2.17 — the grid now ACTIVATES at lg (1024) with a single column,
-            so the spine rail exists — and inherits the gallery row's height —
-            throughout the desktop range instead of popping into existence at
-            the xl edge (the reported 1mm-of-mouse defect: `hidden xl:block`
-            was a hard 1279↔1280 existence threshold). The approved TWO-COLUMN
-            form still waits for xl, untouched. At lg the spine sits in the
-            centered listing's side margin (≥128px available for its 65px
-            reach); the standalone link retires at lg so no viewport shows two
-            navigation mechanisms. Below lg: the locked mobile ruling, as
-            before. If the Gate wants iPad-landscape (1024) excluded,
-            min-[1152px] is a one-class change in the four lg: sites here. */}
-        <div className="relative lg:grid lg:grid-cols-[minmax(0,1fr)] lg:grid-rows-[auto_auto] lg:items-start lg:gap-y-0 xl:grid-cols-[minmax(0,974px)_276px] xl:gap-x-[var(--space-6)]">
+        {/* v2.17 moved the grid off `hidden xl:block` (a hard 1279↔1280
+            existence threshold) down to lg, so the spine rail exists — and
+            inherits the gallery row's height — across the desktop range. The
+            approved TWO-COLUMN form still waits for xl, untouched.
+
+            v2.93 lowers that handoff again, to min-[56rem] (896px), because lg
+            was still too early: the same 1mm-of-mouse flip was reported one
+            breakpoint down. Measured on production — the spine is
+            `left-[-65px] w-[48px]`, so with the below-lg container
+            (max-w-3xl = 768px) its left edge sits at
+            (clientWidth − 768) / 2 − 33. It is flush at 834 and clears the
+            viewport edge by ~23px at 896, matching the 17px it gets inside the
+            xl gutter. Below that it crowds the edge.
+
+            REM, not px: Tailwind v4 sorts px-unit arbitrary variants BEFORE the
+            rem breakpoints (see the min-[72rem] note above — the v2.90a
+            defect), so min-[896px] would land ahead of sm/md and lose the
+            cascade tie. 56rem is the same 896px in the right sort position.
+
+            All SEVEN sites move together — this grid, the rail, both cell
+            placements, the standalone back-link, and the two mobile-drawer
+            self-gates — or a band appears showing two navigation mechanisms at
+            once. Below the handoff: the locked mobile ruling, as before. */}
+        <div className="relative min-[56rem]:grid min-[56rem]:grid-cols-[minmax(0,1fr)] min-[56rem]:grid-rows-[auto_auto] min-[56rem]:items-start min-[56rem]:gap-y-0 xl:grid-cols-[minmax(0,974px)_276px] xl:gap-x-[var(--space-6)]">
           {/* ── SPINE RAIL (v2.14) — a zero-width grid item sharing the
                  gallery's cell (col 1, row 1) with self-stretch, so its height
                  IS the gallery's height by grid construction. The Drawer
@@ -474,7 +486,7 @@ export default async function ListingDetailPage({
                  width regardless of how the gallery column resizes. The spine
                  itself sits at −65px, centered in the page's 82px gutter.
                  ListingGallery still has ZERO knowledge of the Drawer. */}
-          <div className="relative hidden w-0 lg:col-start-1 lg:row-start-1 lg:block lg:justify-self-start lg:self-stretch">
+          <div className="relative hidden w-0 min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch">
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
@@ -487,7 +499,7 @@ export default async function ListingDetailPage({
               Collector's Drawer anchors here (inset-y-0) so its height IS the
               gallery's height — the same zero-knowledge law the desktop spine
               rail obeys; ListingGallery still knows nothing of any Drawer. */}
-          <div className="relative lg:col-start-1 lg:row-start-1">
+          <div className="relative min-[56rem]:col-start-1 min-[56rem]:row-start-1">
             {/* SECTION 1 — Media gallery */}
             {photoUrls.length > 0 && (
               <ListingGallery
@@ -529,7 +541,7 @@ export default async function ListingDetailPage({
 
           {/* CONTENT CELL — col 1, row 2: everything that followed the gallery
               in the old primary column, unchanged. */}
-          <div className="lg:col-start-1 lg:row-start-2">
+          <div className="min-[56rem]:col-start-1 min-[56rem]:row-start-2">
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").

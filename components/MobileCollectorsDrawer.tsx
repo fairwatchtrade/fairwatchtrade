@@ -73,17 +73,22 @@ export default function MobileCollectorsDrawer({
   const [saveError, setSaveError] = useState(false);
   // v2.25 · mode arbitration — the Drawer and Dial Reveal are mutually
   // exclusive on mobile/tablet ONLY (chain ruling; desktop keeps both).
-  // Whether this Drawer is EFFECTIVELY open is expanded AND below lg:
-  // above lg the component is CSS-hidden, and a hidden drawer must never
-  // hold Dial Reveal suspended. useSyncExternalStore reads the media query
-  // without effect-driven setState (SSR snapshot: false).
-  const belowLg = useSyncExternalStore(
+  // Whether this Drawer is EFFECTIVELY open is expanded AND below the handoff:
+  // above it the component is CSS-hidden, and a hidden drawer must never hold
+  // Dial Reveal suspended. useSyncExternalStore reads the media query without
+  // effect-driven setState (SSR snapshot: false).
+  //
+  // v2.93 — this threshold MUST track the min-[56rem] (896px) CSS gates on the
+  // two elements below. It is the same handoff expressed in JS, and if the two
+  // drift apart the 896–1024 band gets a CSS-hidden drawer that still suspends
+  // Dial Reveal. 895.98 is the max-width complement of a 896px min-width.
+  const belowHandoff = useSyncExternalStore(
     (onChange) => {
-      const mq = window.matchMedia("(max-width: 1023.98px)");
+      const mq = window.matchMedia("(max-width: 895.98px)");
       mq.addEventListener("change", onChange);
       return () => mq.removeEventListener("change", onChange);
     },
-    () => window.matchMedia("(max-width: 1023.98px)").matches,
+    () => window.matchMedia("(max-width: 895.98px)").matches,
     () => false
   );
   const router = useRouter();
@@ -93,9 +98,9 @@ export default function MobileCollectorsDrawer({
   // and focus belong to exactly one overlay at a time. Loose coupling only:
   // no imports in either direction; ListingGallery stays zero-knowledge.
   useEffect(() => {
-    const open = expanded && belowLg;
+    const open = expanded && belowHandoff;
     window.dispatchEvent(new CustomEvent("fwt:mobile-drawer", { detail: { open } }));
-  }, [expanded, belowLg]);
+  }, [expanded, belowHandoff]);
 
   useEffect(() => {
     return () => {
@@ -191,7 +196,7 @@ export default function MobileCollectorsDrawer({
         id="mobile-collectors-drawer"
         aria-hidden={!expanded}
         className={[
-          "absolute inset-y-0 left-0 z-[24] lg:hidden",
+          "absolute inset-y-0 left-0 z-[24] min-[56rem]:hidden",
           "w-[82vw] min-[470px]:w-[min(360px,84vw)] md:w-[390px]",
           "border border-l-0 border-[rgba(232,226,214,0.14)] border-r-[var(--border-gold)]",
           "bg-[linear-gradient(90deg,rgba(20,22,28,0.34),rgba(20,22,28,0.28))] backdrop-blur-[17px]",
@@ -281,7 +286,7 @@ export default function MobileCollectorsDrawer({
         aria-controls="mobile-collectors-drawer"
         aria-label={expanded ? "Close Collector's Drawer" : "Open Collector's Drawer"}
         className={[
-          "absolute z-[26] lg:hidden",
+          "absolute z-[26] min-[56rem]:hidden",
           "top-[calc(71%+40px)] -translate-y-1/2",
           "h-[90px] w-[42px] md:h-[96px] md:w-[46px]",
           "border-0 bg-transparent p-0 text-[var(--gold)]",
