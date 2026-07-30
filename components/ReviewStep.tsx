@@ -4,11 +4,22 @@ import { useState } from "react";
 import { type ListingDraft } from "@/lib/listing";
 import { toScoringState } from "@/lib/listing";
 import WatchSpinner from "@/components/WatchSpinner";
+import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
 
-function formatPrice(p: string): string {
-  const n = Number(String(p).replace(/[^0-9.]/g, ""));
-  if (!isFinite(n) || n <= 0) return p ? `$${p}` : "Price on request";
-  return `$${n.toLocaleString("en-US")}`;
+/* Money Truth Stage B (order §9.2 + approved Design Gate) — the Review step
+   restates the EXACT amount-and-currency pair the seller confirmed in the
+   curation step: governed parse (no [^0-9.] strip), formatMoney rendering
+   (no hardcoded $), and the explicit ISO code beside the amount. */
+function reviewMoney(d: ListingDraft): { text: string; code: string | null } {
+  const parsed = parsePrice(d.askingPrice, d.askingCurrency);
+  if (!parsed.ok) {
+    // An unparseable or currency-less draft price is stated as undisclosed,
+    // never dressed up as dollars. The curation step's confirmation gate makes
+    // this unreachable in the normal flow.
+    return { text: "Price on request", code: null };
+  }
+  return { text: formatMoney(parsed.amount, parsed.currency), code: parsed.currency };
 }
 
 function specRows(draft: ListingDraft): [string, string][] {
@@ -76,6 +87,7 @@ export default function ReviewStep({
           year: draft.year,
           condition: draft.condition,
           askingPrice: draft.askingPrice,
+          askingCurrency: draft.askingCurrency,
           provenanceNote: draft.provenanceNote,
           significanceScore: draft.significanceScore,
           photos: draft.photos,
@@ -164,6 +176,7 @@ export default function ReviewStep({
   const dial = photos.find((p) => p.category === "Dial");
   const hero = (dial ?? photos[0])?.photo.url;
   const rows = specRows(draft);
+  const money = reviewMoney(draft);
 
   return (
     <div>
@@ -211,9 +224,25 @@ export default function ReviewStep({
               Ref. {draft.reference}
             </div>
           )}
-          <div className="mt-1 font-display text-[16px] font-light text-[var(--gold)]">
-            {formatPrice(draft.askingPrice)}
+          {/* Approved Design Gate: the amount and the explicit currency code,
+              side by side — the exact values that will attach to the listing. */}
+          <div className="mt-2 flex items-end justify-between gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5">
+            <div>
+              <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                Asking price
+              </div>
+              <div className="mt-0.5 font-display text-[18px] font-light text-[var(--gold)]">
+                {money.text}
+              </div>
+            </div>
+            {money.code && (
+              <div className="pb-0.5 text-[10px] tracking-[1.8px] text-[var(--gold)]">{money.code}</div>
+            )}
           </div>
+          <p className="mt-1.5 text-[10px] leading-[1.5] text-[var(--muted)]">
+            The amount and currency shown here are the exact values attached to the listing.
+            FairWatchTrade does not convert the price into another currency.
+          </p>
 
           {draft.description && (
             <p className="mt-3 whitespace-pre-line text-[13px] leading-relaxed text-[var(--slate)]">

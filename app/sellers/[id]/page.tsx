@@ -68,7 +68,7 @@ if (!seller) notFound();
   const { data: listingRows } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, year, condition, asking_price, photos, details, combined_score"
+      "id, brand, model, reference, year, condition, asking_price, asking_currency, photos, details, combined_score"
     )
     .eq("seller_id", id)
     .eq("status", "published");
@@ -92,6 +92,7 @@ if (!seller) notFound();
     year: r.year,
     condition: r.condition,
     asking_price: r.asking_price,
+    asking_currency: r.asking_currency ?? null,
     photos: Array.isArray(r.photos) ? r.photos : [],
     details: r.details ?? null,
   }));

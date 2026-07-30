@@ -15,6 +15,9 @@ import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
 } from "@/lib/imageAuthenticity";
+import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
+import { isSupportedCurrency } from "@/lib/supportedCurrencies";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -104,6 +107,9 @@ type PublishBody = {
   year?: string;
   condition?: string;
   askingPrice?: string;
+  // Money Truth Stage B — the amount's currency travels WITH the amount from
+  // the seller flow's confirmed selector. Required whenever a price is given.
+  askingCurrency?: string;
   provenanceNote?: string;
   significanceScore?: number | null;
   photos?: unknown[];
@@ -130,10 +136,30 @@ type MediaMetaEntry = {
   privacy_review_requested: boolean;
 };
 
-function parsePrice(raw?: string): number | null {
-  if (!raw) return null;
-  const n = Number(String(raw).replace(/[^0-9.]/g, ""));
-  return isFinite(n) && n > 0 ? n : null;
+/* Money Truth Stage B — the local [^0-9.]-strip clone is retired. Amount and
+   currency are parsed together through the governed lib/parsePrice contract,
+   and they are written together or not at all (present-or-absent-together at
+   the application layer; Stage D adds the database constraint). */
+type MoneyTruth =
+  | { ok: true; amount: number | null; raw: string | null; currency: string | null }
+  | { ok: false; detail: string };
+
+function resolveAskingMoney(rawPrice?: string, rawCurrency?: string): MoneyTruth {
+  const priceText = typeof rawPrice === "string" ? rawPrice.trim() : "";
+  if (priceText === "") {
+    // No amount → no currency. An amount-less draft (e.g. price on request)
+    // carries no money fact to protect.
+    return { ok: true, amount: null, raw: null, currency: null };
+  }
+  if (!isSupportedCurrency(rawCurrency)) {
+    return {
+      ok: false,
+      detail: "Choose the currency for your asking price before publishing.",
+    };
+  }
+  const parsed = parsePrice(priceText, rawCurrency);
+  if (!parsed.ok) return { ok: false, detail: parsed.message };
+  return { ok: true, amount: parsed.amount, raw: parsed.raw, currency: rawCurrency };
 }
 
 /* ── v2.2 helpers ─────────────────────────────────────────────────────── */
@@ -282,7 +308,8 @@ async function regateHeldListing(params: {
     brand?: string;
     model?: string;
     reference?: string;
-    askingPrice: number | null;
+    /** Already-formatted, currency-aware price text (or the undisclosed state). */
+    priceText: string;
   };
 }): Promise<{ status: string }> {
   const { service, listing, mediaMeta, media, urlByPath, aubreyOn, email } = params;
@@ -326,7 +353,7 @@ async function regateHeldListing(params: {
       brand: email.brand ?? "",
       model: email.model,
       reference: email.reference ?? "",
-      askingPrice: email.askingPrice,
+      priceText: email.priceText,
       listingId: listing.id,
     });
     return { status: "published" };
@@ -351,10 +378,11 @@ async function sendListingLiveEmail(params: {
   brand?: string;
   model?: string | null;
   reference?: string;
-  askingPrice: number | null;
+  /** Money Truth Stage B: currency-aware text (US$…, CHF …), never a bare $. */
+  priceText: string;
   listingId: string;
 }): Promise<void> {
-  const { to, brand, model, reference, askingPrice, listingId } = params;
+  const { to, brand, model, reference, priceText, listingId } = params;
   if (!to) return;
   await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -382,7 +410,7 @@ async function sendListingLiveEmail(params: {
               Ref. ${reference ?? ""}
             </p>
             <p style="color: #E8E4DC; font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0;">
-              $${Number(askingPrice).toLocaleString()}
+              ${priceText}
             </p>
           </div>
           <a href="https://fairwatchtrade.com/listings/${listingId}"
@@ -560,6 +588,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* ── Money Truth Stage B — one governed resolution, used everywhere below.
+        Amount and currency are accepted together or not at all; ambiguous or
+        symbol-laden notation is refused with the parser's own reason. The
+        email renders through formatMoney (never a bare $), and a failed parse
+        on a RETRY only affects the email text, never the resume itself. ── */
+  const money = resolveAskingMoney(body.askingPrice, body.askingCurrency);
+  const emailPriceText = money.ok
+    ? formatMoney(money.amount, money.currency)
+    : formatMoney(null, null);
+
   const mediaMeta = sanitizeMediaMeta(body.media_meta);
   const hasCorrelatableMedia = mediaMeta.some((m) => m.capture_session_id && m.storage_path);
 
@@ -632,7 +670,7 @@ export async function POST(request: NextRequest) {
           brand: body.brand,
           model: body.model,
           reference: body.reference,
-          askingPrice: parsePrice(body.askingPrice),
+          priceText: emailPriceText,
         },
       });
       return NextResponse.json(
@@ -645,6 +683,16 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     }
+  }
+
+  /* ── Money Truth Stage B — fresh publishes only reach the insert with a
+        governed amount+currency pair (or neither). A retry above is exempt:
+        the listing already exists and must stay resumable. ── */
+  if (!money.ok) {
+    return NextResponse.json(
+      { error: "invalid_amount", detail: money.detail },
+      { status: 400 }
+    );
   }
 
   /* ── v2.2 · badge verification — server-authoritative, before insert ── */
@@ -723,8 +771,12 @@ export async function POST(request: NextRequest) {
     reference: body.reference,
     year: body.year ?? null,
     condition: body.condition || null,
-    asking_price: parsePrice(body.askingPrice),
-    asking_price_raw: body.askingPrice ?? null,
+    // The governed pair, written together — plus the exact raw text the parser
+    // accepted, so asking_price_raw can never drift from the canonical value
+    // (it is re-derived from the same parse on every create).
+    asking_price: money.amount,
+    asking_price_raw: money.raw,
+    asking_currency: money.currency,
     provenance_note: body.provenanceNote ?? null,
     significance_score: body.significanceScore ?? null,
     score_state: body.scoreState ?? {},
@@ -784,7 +836,7 @@ export async function POST(request: NextRequest) {
             brand: body.brand,
             model: body.model,
             reference: body.reference,
-            askingPrice: parsePrice(body.askingPrice),
+            priceText: emailPriceText,
           },
         });
         return NextResponse.json(
@@ -824,7 +876,7 @@ export async function POST(request: NextRequest) {
       brand: body.brand,
       model: body.model,
       reference: body.reference,
-      askingPrice: parsePrice(body.askingPrice),
+      priceText: emailPriceText,
       listingId: data.id,
     });
   }

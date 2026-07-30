@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
 import { offerPrice } from "@/lib/offerPresentation";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* Content-aware Catalogue sizing — static class maps so Tailwind sees every
    variant. Card cells target ~280px; the section width = cards + 220px rail
@@ -70,6 +71,8 @@ export type ListingRow = {
   year: string;
   condition: string;
   asking_price: number | null;
+  // Money Truth Stage B — renders as undisclosed until attested, never USD.
+  asking_currency: string | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -111,6 +114,8 @@ type MyOfferRow = {
   status: string; // raw DB value; narrowed via STATUS_LABELS at render time
   proposed_purchase_price: number | null;
   listing_price: number | null;
+  // Stage A snapshot — the offer's currency AT SUBMISSION (null pre-Stage-B).
+  proposed_currency: string | null;
   // v2.27 — identity snapshot captured at request time. Authoritative fallback
   // for watch identity when the joined listing is null because RLS now denies a
   // superseded/declined buyer the reserved listing row.
@@ -217,10 +222,12 @@ function greeting(): string {
   return "Good evening";
 }
 
-/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
-function formatPrice(value: number | null): string {
-  if (value == null) return "Price undisclosed";
-  return `$${Number(value).toLocaleString("en-US")}`;
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1).
+   Money Truth Stage B: the shared formatter extends the same honesty to a
+   missing CURRENCY — an amount whose currency is not yet on the record is a
+   number, not a price, and shows the same undisclosed state. */
+function formatPrice(value: number | null, currency: string | null): string {
+  return formatMoney(value, currency);
 }
 
 // Dial photo first, fallback to the first photo. Matches /browse.
@@ -323,7 +330,7 @@ function ListingCard({ row }: { row: ListingRow }) {
         </div>
       )}
       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-        {formatPrice(row.asking_price)}
+        {formatPrice(row.asking_price, row.asking_currency)}
       </div>
     </Link>
   );
@@ -421,7 +428,7 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
       <span className="min-w-0 truncate">
-        {price != null ? formatPrice(Number(price)) : "Offer"}
+        {price != null ? formatPrice(Number(price), offer.proposed_currency) : "Offer"}
         <span className="mx-1.5 opacity-40">•</span>
         <span className="uppercase tracking-[1.5px]">{label}</span>
       </span>
@@ -497,7 +504,7 @@ function WatchOfferGroup({
         <div className="mt-2 flex items-baseline justify-between gap-3">
           <div className="text-[12px] tracking-[0.3px] text-[var(--slate)]">
             {currentPrice != null ? (
-              <>Your offer: {formatPrice(Number(currentPrice))}</>
+              <>Your offer: {formatPrice(Number(currentPrice), current.proposed_currency)}</>
             ) : (
               <>&nbsp;</>
             )}
@@ -845,7 +852,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          "id, listing_id, status, proposed_purchase_price, listing_price, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
+          "id, listing_id, status, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
@@ -862,6 +869,7 @@ export default function CatalogueClient({
           status: string;
           proposed_purchase_price: number | null;
           listing_price: number | null;
+          proposed_currency: string | null;
           listing_brand: string | null;
           listing_model: string | null;
           listing_reference: string | null;
@@ -874,6 +882,7 @@ export default function CatalogueClient({
           status: row.status,
           proposed_purchase_price: row.proposed_purchase_price,
           listing_price: row.listing_price,
+          proposed_currency: row.proposed_currency,
           listing_brand: row.listing_brand,
           listing_model: row.listing_model,
           listing_reference: row.listing_reference,
@@ -903,7 +912,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("saved_watches")
         .select(
-          "listing_id, created_at, listings(id, brand, model, reference, condition, asking_price, photos, details, status, created_at, year)"
+          "listing_id, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });

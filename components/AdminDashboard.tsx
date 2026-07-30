@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    ADMIN DASHBOARD — components/AdminDashboard.tsx  (v1.95)
@@ -22,6 +23,9 @@ export type AdminListing = {
   reference: string;
   condition: string;
   asking_price: number;
+  // Money Truth Stage B — null until attested; the operator sees the same
+  // undisclosed truth buyers do, never a fabricated dollar figure.
+  asking_currency: string | null;
   status: string;
   created_at: string;
   seller_id: string;
@@ -67,8 +71,8 @@ const VALUE_COLOR: Record<string, string> = {
   muted: "text-[var(--muted)]",
 };
 
-function formatPrice(n: number): string {
-  return `$${Number(n).toLocaleString("en-US")}`;
+function formatPrice(n: number, currency: string | null): string {
+  return formatMoney(n, currency);
 }
 
 function formatRelativeDate(iso: string): string {
@@ -380,7 +384,7 @@ export default function AdminDashboard({
                           {custom ? "Flag" : "—"}
                         </td>
                         <td className="px-4 py-3 text-[12px] text-[var(--platinum-dim)]">
-                          {formatPrice(Number(l.asking_price))}
+                          {formatPrice(Number(l.asking_price), l.asking_currency)}
                         </td>
                         <td className="px-4 py-3 text-[11px] text-[var(--muted)]">
                           {formatRelativeDate(l.created_at)}

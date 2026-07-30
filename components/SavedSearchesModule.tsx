@@ -11,6 +11,7 @@ import {
   matchCounts,
   originalSearchText,
   presentMatch,
+  unwatchedConditionNote,
   statusLabel,
   type MatchPresentation,
   type SavedMatchRow,
@@ -177,7 +178,7 @@ export default function SavedSearchesModule() {
     const { data: listings } = ids.length
       ? await supabase
           .from("listings")
-          .select("id,brand,model,reference,asking_price,condition,status,photos")
+          .select("id,brand,model,reference,asking_price,asking_currency,condition,status,photos")
           .in("id", ids)
       : { data: [] };
     const byId = new Map((listings ?? []).map((l) => [l.id, l]));
@@ -291,6 +292,7 @@ export default function SavedSearchesModule() {
             const counts = matchCounts(entry.row, entry.matches);
             const status = statusLabel(entry.row);
             const meaning = interpretedMeaning(entry.row);
+            const unwatched = unwatchedConditionNote(entry.row);
             const matchesOpen = openMatchesId === entry.row.id;
             const confirming = confirmingId === entry.row.id;
             const newest = entry.matches[0]?.created_at ?? null;
@@ -349,6 +351,14 @@ export default function SavedSearchesModule() {
                     <div className="mt-2 text-[11px] text-[var(--ghost)]">
                       {contextLine(entry.row, counts, newest)}
                     </div>
+                    {/* §12 — a condition the watcher doesn't evaluate is said
+                        plainly, never left to look watched. Quiet gold, not
+                        alarm red: nothing is broken, something is deferred. */}
+                    {unwatched && (
+                      <div className="mt-2 text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+                        {unwatched}
+                      </div>
+                    )}
                     {errorById[entry.row.id] && (
                       <div className="mt-2 text-[11px] text-[var(--danger)]">
                         {errorById[entry.row.id]}

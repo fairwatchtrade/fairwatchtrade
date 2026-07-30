@@ -155,18 +155,38 @@ const live = presentMatch(matchRow, {
   model: "Seamaster",
   reference: "166.0209",
   asking_price: 4200,
+  asking_currency: "USD",
   condition: "Excellent",
   status: "published",
   photos: [{ category: "Dial", photo: { url: "https://x/img.jpg" } }],
 });
 check(
+  // Money Truth Stage B — the price renders currency-aware (US$…), never a
+  // bare $. This assertion changed WITH the ordered contract change.
   "available match: full truthful fields + real listing link",
   live.available &&
     live.title === "Omega Seamaster" &&
-    live.priceText === "$4,200" &&
+    live.priceText === "US$4,200" &&
     live.availabilityLabel === "Available" &&
     live.href === "/listings/l1" &&
     live.thumbUrl === "https://x/img.jpg"
+);
+// Money Truth Stage B — a legacy row whose currency is not yet attested shows
+// NO price rather than a fabricated dollar figure. Never assume USD.
+const legacyCurrency = presentMatch(matchRow, {
+  id: "l1",
+  brand: "Omega",
+  model: "Seamaster",
+  reference: "166.0209",
+  asking_price: 4200,
+  asking_currency: null,
+  condition: "Excellent",
+  status: "published",
+  photos: [],
+});
+check(
+  "currency-less match: available but price withheld, never assumed USD",
+  legacyCurrency.available && legacyCurrency.priceText === null
 );
 const gone = presentMatch(matchRow, {
   id: "l1",

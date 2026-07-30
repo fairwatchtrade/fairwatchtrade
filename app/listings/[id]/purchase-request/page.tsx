@@ -36,6 +36,9 @@ type ListingForRequest = {
   model: string | null;
   reference: string;
   asking_price: number;
+  // Money Truth Stage B: the amount's currency travels WITH the amount. Null
+  // is the expected legacy state until the Stage C attestation, not an error.
+  asking_currency: string | null;
   condition: string | null;
   has_bracelet: boolean | null;
   details: ListingDetails | null;
@@ -88,7 +91,7 @@ export default async function PurchaseRequestPage({
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, asking_price, condition, has_bracelet, details, photos, seller_id, status"
+      "id, brand, model, reference, asking_price, asking_currency, condition, has_bracelet, details, photos, seller_id, status"
     )
     .eq("id", id)
     .single();
@@ -126,6 +129,7 @@ export default async function PurchaseRequestPage({
         model: listing.model,
         reference: listing.reference,
         askingPrice: Number(listing.asking_price),
+        askingCurrency: listing.asking_currency ?? null,
         heroUrl,
         sellerName,
         condition: listing.condition ?? null,

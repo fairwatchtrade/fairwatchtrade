@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { SUPPORTED_CURRENCIES, isSupportedCurrency } from "@/lib/supportedCurrencies";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT SETTINGS — components/AccountSettings.tsx   (v2.6)
@@ -53,6 +54,34 @@ export default function AccountSettings({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
 
+  // Money Truth Stage B — Selling section. THIS is the only surface that
+  // persists a currency preference ("" = no preference, stored as NULL).
+  // The seller flow reads it as a prefill; it never rewrites existing
+  // listings. isDealer flips the label per the order ("Store currency" for
+  // dealers, "Preferred listing currency" for private sellers) — dealer
+  // identity is the repo's established signal: owning dealer_import media.
+  const [prefCurrency, setPrefCurrency] = useState("");
+  const [isDealer, setIsDealer] = useState(false);
+  const [currencyMsg, setCurrencyMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function savePreferredCurrency(next: string) {
+    setCurrencyMsg(null);
+    const value = isSupportedCurrency(next) ? next : null;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ preferred_listing_currency: value })
+      .eq("id", userId);
+    if (error) {
+      setCurrencyMsg({ ok: false, text: "Could not save — try again" });
+    } else {
+      setCurrencyMsg({
+        ok: true,
+        text: value === null ? "Preference cleared" : "Preference saved",
+      });
+      setTimeout(() => setCurrencyMsg(null), 2500);
+    }
+  }
+
   async function savePrefs(next: {
     notify_email?: boolean;
     notify_sms?: boolean;
@@ -77,7 +106,7 @@ export default function AccountSettings({
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, notify_email, notify_sms, phone_number")
+        .select("display_name, notify_email, notify_sms, phone_number, preferred_listing_currency")
         .eq("id", userId)
         .single();
       if (active && profile) {
@@ -85,7 +114,19 @@ export default function AccountSettings({
         setNotifyEmail(profile.notify_email !== false); // default true
         setNotifySms(profile.notify_sms === true);
         if (profile.phone_number) setPhoneNumber(profile.phone_number);
+        setPrefCurrency(
+          isSupportedCurrency(profile.preferred_listing_currency)
+            ? profile.preferred_listing_currency
+            : ""
+        );
       }
+      // Dealer identity — RLS scopes this read to the user's own listings.
+      const { data: dealerMedia } = await supabase
+        .from("listing_media")
+        .select("id")
+        .eq("capture_source", "dealer_import")
+        .limit(1);
+      if (active) setIsDealer((dealerMedia ?? []).length > 0);
     })();
     return () => {
       active = false;
@@ -350,6 +391,49 @@ export default function AccountSettings({
               />
             </button>
           </div>
+        </section>
+
+        <div className="fw-rule mb-10" />
+
+        {/* ── Section — Selling (Money Truth Stage B, order §6.2) ── */}
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+              Selling
+            </span>
+            {currencyMsg && (
+              <span
+                className={`text-[11px] italic ${
+                  currencyMsg.ok ? "text-[var(--success)]" : "text-[var(--danger)]"
+                }`}
+              >
+                {currencyMsg.text}
+              </span>
+            )}
+          </div>
+
+          <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            {isDealer ? "Store currency" : "Preferred listing currency"}
+          </div>
+          <select
+            value={prefCurrency}
+            onChange={(e) => {
+              setPrefCurrency(e.target.value);
+              savePreferredCurrency(e.target.value);
+            }}
+            className="fw-input [&>option]:bg-[#141821] [&>option]:text-[#E8E4DC]"
+          >
+            <option value="">No preference — USD suggested when you list</option>
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} — {c.displayName}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+            Pre-selects the currency when you create a new listing. You confirm it on every
+            listing, and changing it here never alters a watch you have already listed.
+          </p>
         </section>
 
         <div className="fw-rule mb-10" />

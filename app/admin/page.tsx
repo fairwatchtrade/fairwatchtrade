@@ -37,7 +37,7 @@ export default async function AdminPage() {
   const { data: listingsData } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, condition, asking_price, status, created_at, seller_id, completeness_score, significance_score, description_passed_ai, custom_brand_flag"
+      "id, brand, model, reference, condition, asking_price, asking_currency, status, created_at, seller_id, completeness_score, significance_score, description_passed_ai, custom_brand_flag"
     )
     .order("created_at", { ascending: false });
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import type { AccountListing } from "@/components/AccountDashboard";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
    SELLER LISTINGS ROOM — v2.23, Seller Listings Design Gate (LOCKED)
@@ -35,7 +36,7 @@ import type { AccountListing } from "@/components/AccountDashboard";
      yet"; a failed fetch renders an unavailable state, not 0.
    · View Listing: /listings/[id] — real for published listings only, so it
      renders only there.
-   · Edit: verified truth (VisionGPT correction, this flight) — the sell
+   · Edit: verified truth (reviewed correction, this flight) — the sell
      flow is create-only and never loads an existing row, so MANUAL drafts
      have no edit route; but IMPORTED drafts/rejected imports have a real
      editing room: the v2.21 Imported Drafts workspace. The rail therefore
@@ -212,9 +213,14 @@ export default function SellerListingsRoom({
     : 0;
 
   /* A null price is UNSET truth, never $0 — the gate forbids converting
-     unavailable data into zero. */
-  const price = (n: number | null | undefined) =>
-    n === null || n === undefined ? "—" : `$${Number(n).toLocaleString("en-US")}`;
+     unavailable data into zero. Money Truth Stage B: a present amount renders
+     through the shared currency-aware formatter (undisclosed until the row's
+     currency is attested — never assumed USD), so the row identity travels in,
+     not just the number. */
+  const price = (row: { asking_price: number | null; asking_currency: string | null }) =>
+    row.asking_price === null || row.asking_price === undefined
+      ? "—"
+      : formatMoney(row.asking_price, row.asking_currency);
 
   return (
     <div className="flex flex-col lg:flex-row">
@@ -299,7 +305,7 @@ export default function SellerListingsRoom({
 
                   {/* Price */}
                   <div className="hidden text-right font-display text-[16px] font-light text-[var(--platinum-dim)] md:block">
-                    {price(row.asking_price)}
+                    {price(row)}
                   </div>
 
                   {/* Status + restrained real actions */}
@@ -339,7 +345,7 @@ export default function SellerListingsRoom({
                   {/* Mobile: price + status compose with identity, never lost. */}
                   <div className="col-span-2 -mt-1 flex items-center justify-between md:hidden">
                     <span className="font-display text-[14px] font-light text-[var(--platinum-dim)]">
-                      {price(row.asking_price)}
+                      {price(row)}
                     </span>
                     <span
                       className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
@@ -415,7 +421,7 @@ export default function SellerListingsRoom({
                     Asking Price
                   </div>
                   <div className="mt-1 font-display text-[24px] font-light text-[var(--platinum)]">
-                    {price(selected.asking_price)}
+                    {price(selected)}
                   </div>
                 </div>
 
@@ -498,7 +504,7 @@ export default function SellerListingsRoom({
                   </div>
                 )}
 
-                {/* EDIT — truthful per real routes (VisionGPT correction):
+                {/* EDIT — truthful per real routes (reviewed correction):
                     imported drafts/rejected imports have a REAL editing room;
                     everything else has none, and says so readably. */}
                 {(selected.status === "draft" || selected.status === "rejected") &&

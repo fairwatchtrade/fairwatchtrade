@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    MARKETPLACE CLIENT — components/HomepageClient.tsx  (v1.94)
@@ -31,6 +32,8 @@ export type ListingRow = {
   year: string;
   condition: string;
   asking_price: number | null;
+  // Money Truth Stage B — undisclosed until attested, never assumed USD.
+  asking_currency: string | null;
   photos: { photo: { url: string }; category: string }[];
   status: string;
   created_at: string;
@@ -43,10 +46,11 @@ function heroUrl(listing: ListingRow): string | null {
   return (dial ?? photos[0])?.photo?.url ?? null;
 }
 
-/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
-function formatPrice(n: number | null): string {
-  if (n == null) return "Price undisclosed";
-  return `$${Number(n).toLocaleString("en-US")}`;
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1).
+   Money Truth Stage B: the shared formatter also refuses a currency-less
+   amount — no bare $, no assumed USD. */
+function formatPrice(n: number | null, currency: string | null): string {
+  return formatMoney(n, currency);
 }
 
 function ListingCard({ listing }: { listing: ListingRow }) {
@@ -81,7 +85,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
         </div>
       )}
       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-        {formatPrice(listing.asking_price)}
+        {formatPrice(listing.asking_price, listing.asking_currency)}
       </div>
     </Link>
   );

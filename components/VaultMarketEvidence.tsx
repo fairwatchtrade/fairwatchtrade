@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { MarketEvidenceRecord } from "@/app/api/vault/market-evidence/route";
+import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
    MARKET EVIDENCE — Vault reference-card section  (ME3 · v5 rights gate)
@@ -38,8 +39,14 @@ import type { MarketEvidenceRecord } from "@/app/api/vault/market-evidence/route
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
+/* Money Truth Stage B (order §8) — Auction Evidence adopts the marketplace
+   display convention, PRESENTATION ONLY: US$22,860 rather than a bare $.
+   Stored evidence values, constraints, and the correction chain are untouched.
+   A currency outside the curated launch set keeps the old code-suffix form —
+   a disclosed price is never hidden behind the undisclosed state just because
+   its currency isn't marketplace-supported. */
 function formatPrice(value: number, currency: string): string {
-  if (currency === "USD") return `$${value.toLocaleString("en-US")}`;
+  if (hasMoneyTruth(value, currency)) return formatMoney(value, currency);
   return `${value.toLocaleString("en-US")} ${currency}`;
 }
 

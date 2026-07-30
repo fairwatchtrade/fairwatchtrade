@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parsePrice } from "@/lib/parsePrice";
+import { isSupportedCurrency } from "@/lib/supportedCurrencies";
 
 /* ────────────────────────────────────────────────────────────────────────
    PURCHASE REQUESTS — POST /api/purchase-requests  (v2.28)
@@ -81,15 +82,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // Server-side amount sanitation + bounds. parsePrice strips $/commas/space and
-  // returns null for empty/garbage/zero/negative; we add the upper bound.
-  const price = parsePrice(proposedPurchasePrice ?? null);
-  if (price === null || price > MAX_OFFER) {
-    return NextResponse.json(
-      { error: "invalid_amount", detail: "Enter an offer greater than $0 using numbers only." },
-      { status: 400 }
-    );
-  }
+  // Money Truth Stage B: the offer is parsed against the LISTING's currency,
+  // which is read fresh below — so the parse is deferred until after that read.
+  // An offer must use the listing's currency (order §6.4), so there is no
+  // separate buyer-supplied currency to trust here.
 
   const message =
     typeof notes === "string" && notes.trim() !== ""
@@ -100,7 +96,7 @@ export async function POST(req: Request) {
   // source of truth, not anything the browser sent.
   const { data: listing, error: listingError } = await supabase
     .from("listings")
-    .select("id, brand, model, reference, seller_id, asking_price, status")
+    .select("id, brand, model, reference, seller_id, asking_price, asking_currency, status")
     .eq("id", listingId)
     .single();
 
@@ -130,7 +126,39 @@ export async function POST(req: Request) {
   // let them review current truth. The snapshot below still uses the fresh
   // server value regardless.
   const freshAsking = Number(listing.asking_price);
-  const shownAsking = parsePrice(displayedAskingPrice ?? null);
+  // Money Truth Stage B: offer currency IS listing currency (order §6.4). A
+  // listing with no currency yet (the legacy B→C window) cannot receive a
+  // governed offer — refuse rather than guess USD.
+  const listingCurrency = listing.asking_currency as string | null;
+  // The refusal gets its OWN reason rather than falling through to the parser's
+  // "unsupported_currency". The parser's message asks the reader to choose a
+  // currency, which is seller copy — a buyer has no currency to choose here.
+  if (!isSupportedCurrency(listingCurrency)) {
+    return NextResponse.json(
+      {
+        error: "listing_currency_unset",
+        detail:
+          "This listing's currency has not been recorded yet, so it can't receive an offer.",
+      },
+      { status: 409 }
+    );
+  }
+  const offerParse = parsePrice(proposedPurchasePrice ?? null, listingCurrency);
+  if (!offerParse.ok || offerParse.amount > MAX_OFFER) {
+    return NextResponse.json(
+      {
+        error: "invalid_amount",
+        detail: offerParse.ok
+          ? "That offer is too large."
+          : offerParse.message,
+      },
+      { status: 400 }
+    );
+  }
+  const price = offerParse.amount;
+
+  const shownParse = parsePrice(displayedAskingPrice ?? null, listingCurrency);
+  const shownAsking = shownParse.ok ? shownParse.amount : null;
   if (shownAsking !== null && shownAsking !== freshAsking) {
     return NextResponse.json(
       {
@@ -172,6 +200,10 @@ export async function POST(req: Request) {
       buyer_id: user.id,
       seller_id: listing.seller_id,
       listing_price: freshAsking,
+      // Stage A snapshot columns: the offer's currency and the listing's
+      // currency AT SUBMISSION, preserved alongside the amounts (order §6.4).
+      listing_currency: listingCurrency,
+      proposed_currency: listingCurrency,
       listing_brand: listing.brand,
       listing_model: listing.model ?? null,
       listing_reference: listing.reference ?? null,

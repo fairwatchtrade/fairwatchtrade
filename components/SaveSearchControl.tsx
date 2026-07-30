@@ -48,6 +48,16 @@ export default function SaveSearchControl({
   const [name, setName] = useState("");
   const [savedName, setSavedName] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  /* Money Truth Stage B (order §12) — a Search being saved WITH price intent
+     is told, at the moment of saving, that the price part won't be watched.
+     The save itself proceeds: every other condition is watched normally. */
+  const priceUnwatched = (() => {
+    const s = searchState as { meanings?: { kind?: string }[] } | null | undefined;
+    return Boolean(s?.meanings?.some((m) => m?.kind === "unsupportedPrice"));
+  })();
+  const unwatchedNote =
+    "Price search isn't available yet — the price part of this Search won't be watched.";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -138,6 +148,11 @@ export default function SaveSearchControl({
         >
           View saved searches
         </a>
+        {priceUnwatched && (
+          <span className="w-full text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+            {unwatchedNote}
+          </span>
+        )}
       </span>
     );
   }
@@ -179,6 +194,11 @@ export default function SaveSearchControl({
         </button>
         {error && (
           <span className="text-[11px] text-[var(--danger)]">{error}</span>
+        )}
+        {priceUnwatched && (
+          <span className="w-full text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+            {unwatchedNote}
+          </span>
         )}
       </span>
     );

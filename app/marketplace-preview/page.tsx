@@ -164,7 +164,7 @@ export default function MarketplaceHome() {
             PFC274 · Abyss Blue
           </div>
           <div className="flex items-end justify-between">
-            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">$11,111</div>
+            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">US$11,111</div>
             <div className="text-right">
               <span className="mb-[3px] block text-[8.5px] uppercase tracking-[1.5px] text-[var(--muted)]">
                 Excellent
@@ -200,7 +200,7 @@ export default function MarketplaceHome() {
             CBT · Tantalum
           </div>
           <div className="flex items-end justify-between">
-            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">$28,500</div>
+            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">US$28,500</div>
             <div className="text-right">
               <span className="mb-[3px] block text-[8.5px] uppercase tracking-[1.5px] text-[var(--muted)]">
                 Mint
@@ -236,7 +236,7 @@ export default function MarketplaceHome() {
             6200-0100 · Fumé
           </div>
           <div className="flex items-end justify-between">
-            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">$14,200</div>
+            <div className="font-display text-[20px] font-light text-[var(--platinum-dim)]">US$14,200</div>
             <div className="text-right">
               <span className="mb-[3px] block text-[8.5px] uppercase tracking-[1.5px] text-[var(--muted)]">
                 Excellent

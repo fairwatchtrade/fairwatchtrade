@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
+import { currencyMeta } from "@/lib/supportedCurrencies";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER PURCHASE REQUEST — approved Design Gate implementation (v2.28)
@@ -22,6 +24,18 @@ import { parsePrice } from "@/lib/parsePrice";
    States: default form · inline validation · session-expired (preserves the
    typed offer + message, no false success after 401) · listing-unavailable ·
    listing-changed (asking price moved mid-session) · success (View My Offers).
+
+   Money Truth Stage B: every amount on this surface renders through the shared
+   currency-aware formatter, and the offer is parsed against the LISTING's
+   currency — a buyer offers in the currency the seller listed in, so there is
+   no currency control here. The local bare-dollar helper and the gold "$" glyph
+   in the amount field both retired: showing a €12,000 listing's figures behind
+   a dollar sign is the precise misstatement this flight exists to end.
+
+   A listing with no recorded currency cannot receive an offer at all (the API
+   refuses it), so the offer panel says so plainly instead of inviting an amount
+   that could never be sent. That is the expected state for existing listings
+   until the Stage C attestation, not a fault.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingContext = {
@@ -30,6 +44,8 @@ type ListingContext = {
   model: string | null;
   reference: string;
   askingPrice: number;
+  /** Null until the founder attestation records it. Never assumed to be USD. */
+  askingCurrency: string | null;
   heroUrl: string | null;
   sellerName: string;
   condition: string | null;
@@ -41,10 +57,6 @@ type View = "form" | "success" | "expired" | "unavailable" | "changed";
 
 const BAD = "#d8a171"; // approved soft-amber validation colour (not alarm red)
 const BAD_BORDER = "rgba(216,161,113,0.65)";
-
-function money(n: number): string {
-  return `$${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-}
 
 export default function PurchaseRequestForm({ listing }: { listing: ListingContext }) {
   const [offer, setOffer] = useState("");
@@ -61,14 +73,31 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
   const backToListing = `/listings/${listing.id}`;
   const signInHref = `/login?callbackUrl=/listings/${listing.id}/purchase-request`;
   const title = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
-  const askingText = money(listing.askingPrice);
-  const parsed = parsePrice(offer);
-  // Field-associated validation: a non-empty amount that isn't a valid positive
-  // number surfaces the approved validation state immediately (the Send button
-  // also stays disabled). An empty field stays in the neutral helper state.
-  const invalidOffer = offer.trim() !== "" && parsed === null;
+
+  // The listing's currency governs this whole surface. Null means no governed
+  // offer is possible — the offer panel handles that case rather than the field.
+  const currency = currencyMeta(listing.askingCurrency);
+  /** Every amount here, in the listing's own currency or not at all. */
+  const fmt = (n: number) => formatMoney(n, listing.askingCurrency);
+  const askingText = fmt(listing.askingPrice);
+
+  const parsed = parsePrice(offer, listing.askingCurrency);
+  // Field-associated validation: a non-empty amount the shared parser rejects
+  // surfaces the approved validation state immediately (the Send button also
+  // stays disabled). An empty field stays in the neutral helper state.
+  //
+  // The message comes FROM the parser, so the buyer is told which notation
+  // failed — "12.000 is ambiguous" rather than a generic retry prompt. Only the
+  // empty case is re-voiced, because the parser's wording there addresses a
+  // seller entering an asking price.
+  const invalidOffer = offer.trim() !== "" && !parsed.ok;
   const showOfferError = fieldError !== null || invalidOffer;
-  const offerErrorText = fieldError ?? "Enter an offer greater than $0 using numbers only.";
+  const parserMessage = parsed.ok
+    ? null
+    : parsed.reason === "empty"
+      ? "Enter your offer."
+      : parsed.message;
+  const offerErrorText = fieldError ?? parserMessage ?? "Enter your offer.";
 
   // Restore a draft preserved across a sign-in round-trip (session-expired
   // flow). This is a one-time hydration from an external store (sessionStorage),
@@ -92,11 +121,11 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
 
   // Neutral difference-from-asking, shown without any persuasion language.
   let comparison: string | null = null;
-  if (parsed !== null && parsed !== listing.askingPrice && listing.askingPrice > 0) {
-    const diff = parsed - listing.askingPrice;
+  if (parsed.ok && parsed.amount !== listing.askingPrice && listing.askingPrice > 0) {
+    const diff = parsed.amount - listing.askingPrice;
     const pct = Math.abs(diff / listing.askingPrice) * 100;
     const dir = diff < 0 ? "below" : "above";
-    comparison = `${money(Math.abs(diff))} ${dir} asking · ${pct.toFixed(1)}% ${dir} asking`;
+    comparison = `${fmt(Math.abs(diff))} ${dir} asking · ${pct.toFixed(1)}% ${dir} asking`;
   }
 
   function persistDraft() {
@@ -110,9 +139,9 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
   async function submit() {
     setFieldError(null);
     setFormError(null);
-    const p = parsePrice(offer);
-    if (p === null) {
-      setFieldError("Enter an offer greater than $0 using numbers only.");
+    const p = parsePrice(offer, listing.askingCurrency);
+    if (!p.ok) {
+      setFieldError(p.reason === "empty" ? "Enter your offer." : p.message);
       offerRef.current?.focus();
       return;
     }
@@ -123,7 +152,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: listing.id,
-          proposedPurchasePrice: p,
+          proposedPurchasePrice: p.amount,
           notes: message.trim() || undefined,
           // Non-authoritative: lets the server detect a mid-session asking change.
           displayedAskingPrice: listing.askingPrice,
@@ -140,7 +169,9 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
       const data = await res.json().catch(() => null);
 
       if (res.ok) {
-        setSubmittedOffer(typeof data?.proposedPurchasePrice === "number" ? data.proposedPurchasePrice : p);
+        setSubmittedOffer(
+          typeof data?.proposedPurchasePrice === "number" ? data.proposedPurchasePrice : p.amount
+        );
         setView("success");
         return;
       }
@@ -168,8 +199,18 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
         setFormError(data?.detail ?? "You can't request your own listing.");
         return;
       }
+      // Currency absent at submission. The panel below already covers the load-
+      // time case; this is the mid-session race, and it is a form-level truth
+      // rather than a fault with the amount the buyer typed.
+      if (res.status === 409 && err === "listing_currency_unset") {
+        setFormError(
+          data?.detail ??
+            "This listing's currency has not been recorded yet, so it can't receive an offer."
+        );
+        return;
+      }
       if (res.status === 400 && err === "invalid_amount") {
-        setFieldError(data?.detail ?? "Enter an offer greater than $0 using numbers only.");
+        setFieldError(data?.detail ?? "Enter your offer using numbers only.");
         offerRef.current?.focus();
         return;
       }
@@ -284,7 +325,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
 
           {/* C · OFFER PANEL (form or active state) */}
           <section className="order-2 min-h-[560px] border border-[var(--border-subtle)] bg-[var(--surface-2)] px-6 py-7 sm:px-8 lg:order-none lg:col-start-2 lg:row-start-1 lg:row-span-2">
-            {view === "form" && (
+            {view === "form" && currency && (
               <>
                 <div className="flex items-start justify-between gap-5 border-b border-[var(--border-faint)] pb-5">
                   <div>
@@ -309,19 +350,28 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       Your offer
                     </label>
                     <div className="relative">
-                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-display text-[22px] text-[var(--gold)]">$</span>
+                      {/* The listing's currency, not a dollar sign. The field's
+                          left padding follows the prefix width so "CHF"/"US$"
+                          clear the digits the way the single "$" used to. */}
+                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-display text-[22px] text-[var(--gold)]">
+                        {currency.displayPrefix.trim()}
+                      </span>
                       <input
                         id="offer"
                         ref={offerRef}
                         inputMode="decimal"
                         autoComplete="off"
-                        placeholder="0.00"
+                        placeholder={currency.exponent > 0 ? "0.00" : "0"}
                         value={offer}
                         onChange={(e) => setOffer(e.target.value)}
                         aria-describedby="offerHelp offerError"
+                        aria-label={`Your offer in ${currency.displayName}`}
                         aria-invalid={showOfferError ? true : undefined}
-                        className="h-[54px] w-full border bg-[#10131a] pl-9 pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
-                        style={{ borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)" }}
+                        className="h-[54px] w-full border bg-[#10131a] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+                        style={{
+                          borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
+                          paddingLeft: `calc(0.875rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
+                        }}
                       />
                     </div>
                     {showOfferError ? (
@@ -330,7 +380,8 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       </div>
                     ) : (
                       <div id="offerHelp" className="mt-2 text-[9px] leading-[1.5] text-[var(--ghost)]">
-                        {comparison ?? "Enter a purchase price in U.S. dollars."}
+                        {comparison ??
+                          `Offers are made in the listing's currency — ${currency.displayName} (${currency.code}).`}
                       </div>
                     )}
                   </div>
@@ -368,7 +419,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     <button
                       type="button"
                       onClick={submit}
-                      disabled={busy || parsed === null}
+                      disabled={busy || !parsed.ok}
                       className="min-h-[43px] shrink-0 border border-[var(--gold)] bg-transparent px-[18px] text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {busy ? "Sending…" : "Send Purchase Request"}
@@ -384,6 +435,28 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
               </>
             )}
 
+            {/* The legacy window: an amount with no recorded currency is a
+                number, not a price, and cannot be offered against. Said plainly
+                up front rather than after the buyer types an amount. */}
+            {view === "form" && !currency && (
+              <StatePanel
+                mark="—"
+                markTone="platinum"
+                eyebrow="Currency not recorded"
+                heading="This listing can't take an offer yet."
+              >
+                <p className="mt-3 max-w-[600px] text-[11px] leading-[1.65] text-[var(--muted)]">
+                  The currency of this asking price hasn&apos;t been recorded yet. Rather than show you
+                  the figure as though it were dollars, FairWatchTrade holds the offer step closed until
+                  the currency is on the record. Nothing is wrong with the listing or the seller.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <Link href={backToListing} className={primaryBtn}>Return to listing</Link>
+                  <Link href="/browse" className={tertiaryBtn}>Browse other watches</Link>
+                </div>
+              </StatePanel>
+            )}
+
             {view === "changed" && changed && (
               <StatePanel
                 mark="!"
@@ -392,11 +465,11 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 heading="The seller updated the asking price."
               >
                 <p className="mt-3 max-w-[600px] text-[11px] leading-[1.65] text-[var(--muted)]">
-                  The asking price changed from {money(changed.old)} to {money(changed.current)} after this page was
+                  The asking price changed from {fmt(changed.old)} to {fmt(changed.current)} after this page was
                   opened. Your offer and message are kept below. Review the current listing before submitting your
                   offer — nothing has been sent to the seller.
                 </p>
-                <Preserved offer={offer} message={message} />
+                <Preserved offer={offer} message={message} currency={listing.askingCurrency} />
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <Link href={backToListing} className={primaryBtn}>Review the current listing</Link>
                   <button
@@ -442,7 +515,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   Your offer and message are preserved below. Sign in again, and FairWatchTrade will recheck your
                   identity before submission. Nothing has been sent to the seller.
                 </p>
-                <Preserved offer={offer} message={message} />
+                <Preserved offer={offer} message={message} currency={listing.askingCurrency} />
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <Link href={signInHref} className={primaryBtn}>Sign in to continue</Link>
                   <Link href={backToListing} className={tertiaryBtn}>Return to listing</Link>
@@ -471,7 +544,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   <div className="sm:text-right">
                     <small className="block font-sans text-[8px] uppercase tracking-[1.3px] text-[var(--ghost)]">Submitted offer</small>
                     <span className="mt-1 block font-display text-[18px] font-light text-[var(--platinum)]">
-                      {money(submittedOffer ?? 0)}
+                      {submittedOffer !== null ? fmt(submittedOffer) : "—"}
                     </span>
                   </div>
                 </div>
@@ -528,14 +601,22 @@ function StatePanel({
   );
 }
 
-function Preserved({ offer, message }: { offer: string; message: string }) {
-  const shown = parsePrice(offer);
+function Preserved({
+  offer,
+  message,
+  currency,
+}: {
+  offer: string;
+  message: string;
+  currency: string | null;
+}) {
+  const shown = parsePrice(offer, currency);
   return (
     <div className="mt-5 grid grid-cols-1 gap-4 border-y border-[var(--border-faint)] py-4 sm:grid-cols-2">
       <div>
         <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--ghost)]">Preserved offer</b>
         <span className="mt-1.5 block break-words font-display text-[16px] font-light text-[var(--platinum-dim)]">
-          {shown !== null ? money(shown) : "—"}
+          {shown.ok ? formatMoney(shown.amount, currency) : "—"}
         </span>
       </div>
       <div>

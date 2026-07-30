@@ -22,6 +22,13 @@ import WatchSpinner from "@/components/WatchSpinner";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
 import { randomUUID } from "@/lib/uuid";
+import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
+import {
+  SUPPORTED_CURRENCIES,
+  RECOMMENDED_CURRENCY,
+  isSupportedCurrency,
+} from "@/lib/supportedCurrencies";
 import ListFromPhoneHandoff from "@/components/ListFromPhoneHandoff";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -878,6 +885,53 @@ function CurationStep({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  /* ── Money Truth Stage B — seller currency selector (approved Design Gate,
+        sha f7de17d6…). The stored preference prefills the selector; when NO
+        preference exists, USD is visibly preselected as RECOMMENDED — shown,
+        never silently written to the profile. Only the account settings
+        surface persists a preference. ── */
+  const [hasStoredPref, setHasStoredPref] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let pref: string | null = null;
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("preferred_listing_currency")
+            .eq("id", user.id)
+            .maybeSingle();
+          pref = isSupportedCurrency(data?.preferred_listing_currency)
+            ? data!.preferred_listing_currency
+            : null;
+        }
+      } catch {
+        /* preference unavailable → the Recommended default carries */
+      }
+      if (cancelled) return;
+      setHasStoredPref(pref !== null);
+      // Prefill ONLY a draft that has no currency yet — a resumed draft's
+      // chosen (or confirmed) currency is never overwritten by the preference.
+      if (!isSupportedCurrency(draft.askingCurrency)) {
+        patch({ askingCurrency: pref ?? RECOMMENDED_CURRENCY });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only: the prefill must not re-fire as the seller edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const askingParse = parsePrice(draft.askingPrice, draft.askingCurrency);
+  const confirmDisabled = !askingParse.ok;
+
   // v2.4y — reference-check pipeline: local-first, then AI, one advisory.
   // Debounced on blur, cached by (brand|model|reference), stale responses
   // dropped by sequence. The API key never appears client-side — the
@@ -956,7 +1010,10 @@ function CurationStep({
     draft.reference.trim() &&
     draft.year.trim() &&
     draft.condition &&
-    draft.askingPrice.trim();
+    draft.askingPrice.trim() &&
+    // Design Gate: progression stays disabled until the seller explicitly
+    // confirms the amount-and-currency pair.
+    draft.askingConfirmed;
 
   async function check() {
     setBusy(true);
@@ -1046,9 +1103,73 @@ function CurationStep({
             ))}
           </select>
         </div>
-        <div>
-          <label className={label}>Asking price (USD)</label>
-          <input className={input} value={draft.askingPrice} onChange={(e) => patch({ askingPrice: e.target.value })} placeholder="e.g. 7250" inputMode="numeric" />
+        <div className="sm:col-span-2">
+          <label className={label}>Asking price</label>
+          {/* Amount and currency adjacent — one money fact, entered together.
+              Editing EITHER value clears the confirmation below. */}
+          <div className="grid grid-cols-[minmax(0,1fr)_128px] gap-3">
+            <input
+              className={input}
+              value={draft.askingPrice}
+              onChange={(e) => patch({ askingPrice: e.target.value, askingConfirmed: false })}
+              placeholder="e.g. 7250"
+              inputMode="decimal"
+            />
+            <select
+              aria-label="Asking price currency"
+              className={input}
+              value={isSupportedCurrency(draft.askingCurrency) ? draft.askingCurrency : RECOMMENDED_CURRENCY}
+              onChange={(e) => patch({ askingCurrency: e.target.value, askingConfirmed: false })}
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code} style={OPTION_STYLE}>{c.code}</option>
+              ))}
+            </select>
+          </div>
+
+          {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--gold-subtle)]">
+              <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] uppercase tracking-[1.2px]">
+                Recommended
+              </span>
+              <span>No preference is set. USD is suggested, not silently saved.</span>
+            </div>
+          )}
+
+          {draft.askingPrice.trim() !== "" && (
+            <div className="mt-3 flex flex-col gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              {askingParse.ok ? (
+                <div className="text-[12px] leading-[1.5] text-[var(--platinum-dim)]">
+                  List this watch for{" "}
+                  <strong className="font-medium text-[var(--platinum)]">
+                    {formatMoney(askingParse.amount, askingParse.currency)} {askingParse.currency}
+                  </strong>
+                  . Offers will use the same currency.
+                </div>
+              ) : (
+                <div className="text-[12px] leading-[1.5] italic text-[var(--gold-subtle)]">
+                  {askingParse.message}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={confirmDisabled}
+                onClick={() => patch({ askingConfirmed: true })}
+                className={`shrink-0 border px-3.5 py-2 text-[9px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  draft.askingConfirmed
+                    ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
+                    : "border-[var(--gold)] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+                }`}
+              >
+                {draft.askingConfirmed
+                  ? `${draft.askingCurrency} confirmed`
+                  : `Use ${isSupportedCurrency(draft.askingCurrency) ? draft.askingCurrency : RECOMMENDED_CURRENCY}`}
+              </button>
+            </div>
+          )}
+          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--muted)]">
+            No conversion is performed. Choose the currency in which this watch is actually being offered.
+          </p>
         </div>
       </div>
 

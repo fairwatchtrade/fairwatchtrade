@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadPhoto } from "@/lib/storage";
 import { isAttestationCurrent, type CommercialTruth } from "@/lib/attestation";
+import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
+import { currencyMeta } from "@/lib/supportedCurrencies";
 
 /* ════════════════════════════════════════════════════════════════════════
    IMPORTED DRAFTS — Dealer Accelerator Review Workspace  (v2.21, Flight 2B)
@@ -52,6 +55,9 @@ type ImportedListing = {
   condition: string | null;
   asking_price: number | null;
   asking_price_raw: string | null;
+  // Money Truth Stage B. Null is the expected state until the founder
+  // attestation session; it is never treated as USD.
+  asking_currency: string | null;
   provenance_note: string | null;
   description: string | null;
   has_bracelet: boolean;
@@ -172,6 +178,9 @@ function truthOf(l: ImportedListing): CommercialTruth {
     year: l.year,
     condition: l.condition,
     asking_price: l.asking_price,
+    // Protected field 14 — decides whether this row is compared under the v1
+    // or v2 frame. A null-currency legacy row keeps its v1 attestation.
+    asking_currency: l.asking_currency,
     provenance_note: l.provenance_note,
     description: l.description,
     has_bracelet: l.has_bracelet,
@@ -237,7 +246,7 @@ export default function ImportedDraftsWorkspace() {
       const { data: listings, error: listErr } = await supabase
         .from("listings")
         .select(
-          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
+          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, asking_currency, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
         )
         .in("id", ids);
       if (listErr) throw new Error(listErr.message);
@@ -331,11 +340,29 @@ export default function ImportedDraftsWorkspace() {
     setSaveError(null);
     try {
       const supabase = createClient();
-      const priceText = buffer.askingPrice.replace(/[^0-9.]/g, "");
-      const price = priceText === "" ? null : Number(priceText);
-      if (price !== null && (!isFinite(price) || price <= 0)) {
-        setSaveError("Asking price must be a positive number, or left blank.");
-        return false;
+
+      /* Money Truth Stage B — the amount is parsed by the governed parser
+         against THIS listing's currency, never by stripping characters. The
+         old [^0-9.] strip read "1.200,50" as 1.2005 and reported success.
+
+         When the currency is not yet on the record the amount is left out of
+         the update entirely rather than guessed: the field is read-only in
+         that state (see the Asking Price control), and omitting the column
+         keeps every OTHER edit on this draft saveable. */
+      const currencyKnown = currencyMeta(selected.asking_currency) !== null;
+      let price: number | null = null;
+      if (currencyKnown) {
+        const trimmed = buffer.askingPrice.trim();
+        if (trimmed === "") {
+          price = null;
+        } else {
+          const parsed = parsePrice(trimmed, selected.asking_currency);
+          if (!parsed.ok) {
+            setSaveError(parsed.message);
+            return false;
+          }
+          price = parsed.amount;
+        }
       }
 
       // Merge room-owned keys into the EXISTING details object — other keys
@@ -350,7 +377,8 @@ export default function ImportedDraftsWorkspace() {
       const { data, error } = await supabase
         .from("listings")
         .update({
-          asking_price: price,
+          // asking_price only joins the update when a currency governs it.
+          ...(currencyKnown ? { asking_price: price } : {}),
           condition: buffer.condition || null,
           reference: buffer.reference.trim() || selected.reference,
           description: buffer.description || null,
@@ -359,7 +387,7 @@ export default function ImportedDraftsWorkspace() {
         })
         .eq("id", selected.id)
         .select(
-          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
+          "id, brand, model, reference, year, condition, asking_price, asking_price_raw, asking_currency, provenance_note, description, has_bracelet, details, photos, status, rejection_reason, seller_clarification_note, dealer_attested_at, dealer_attested_fingerprint, created_at"
         )
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -489,6 +517,8 @@ export default function ImportedDraftsWorkspace() {
 
   const meta = selected ? STATUS_META[roomStatus(selected)] : null;
   const missing = selected ? missingFacts(selected) : [];
+  // Governs both the amount control and its foot label.
+  const priceCurrency = currencyMeta(selected?.asking_currency);
   const photoUrls = (buffer?.photos ?? []).map((p) => p?.photo?.url).filter(Boolean) as string[];
 
   /* Once submitted, the ceremony has been CONSUMED into the durable
@@ -551,7 +581,7 @@ export default function ImportedDraftsWorkspace() {
                 <div className="shrink-0 text-right">
                   <div className="font-display text-[12px] font-light text-[var(--platinum-dim)]">
                     {l.asking_price !== null
-                      ? `$${Number(l.asking_price).toLocaleString("en-US")}`
+                      ? formatMoney(l.asking_price, l.asking_currency)
                       : "—"}
                   </div>
                   <div className={`mt-[3px] text-[8px] uppercase tracking-[1.2px] ${m.cls}`}>
@@ -767,15 +797,22 @@ export default function ImportedDraftsWorkspace() {
                   confirmed={shownCeremony(ceremony.price)}
                   onConfirm={(v) => setCeremony({ ...ceremony, price: v })}
                   editable={editable}
+                  /* The old foot printed a flat "USD" under every amount —
+                     a currency claim the data did not support. It now states
+                     the recorded currency, or says plainly that there isn't
+                     one. The imported raw text still shows when the amount
+                     itself failed to import. */
                   foot={
                     selected.asking_price === null && selected.asking_price_raw
                       ? `Imported as: ${selected.asking_price_raw}`
-                      : "USD"
+                      : priceCurrency
+                        ? `${priceCurrency.displayName} (${priceCurrency.code})`
+                        : "Currency not recorded — amount is read-only"
                   }
                 >
                   <input
                     value={buffer.askingPrice}
-                    disabled={!editable}
+                    disabled={!editable || !priceCurrency}
                     onChange={(e) => {
                       edit({ askingPrice: e.target.value });
                       setCeremony((c) => ({ ...c, price: false }));

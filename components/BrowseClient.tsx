@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
+import { formatMoney } from "@/lib/formatMoney";
 import BrowseSearch, { type SearchChip } from "@/components/BrowseSearch";
 import SearchEmptyState from "@/components/SearchEmptyState";
 import {
@@ -129,6 +130,8 @@ type ListingRow = {
   year: string;
   condition: string;
   asking_price: number | null;
+  // Money Truth Stage B — undisclosed until attested, never assumed USD.
+  asking_currency: string | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -167,10 +170,11 @@ type ListingRow = {
 };
 
 /* Null asking price is a truth, not a zero — render the evidence layer's
-   honest words, never $0/$NaN (Buyer Price Truth order, Bug 1). */
-function formatPrice(value: number | null): string {
-  if (value == null) return "Price undisclosed";
-  return `$${Number(value).toLocaleString("en-US")}`;
+   honest words, never $0/$NaN (Buyer Price Truth order, Bug 1). Money Truth
+   Stage B extends the same honesty to a missing currency via the shared
+   formatter: no bare $, no assumed USD. */
+function formatPrice(value: number | null, currency: string | null): string {
+  return formatMoney(value, currency);
 }
 
 function heroUrl(photos: ListingPhoto[]): string | null {
@@ -1059,7 +1063,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
 
                       {/* Price */}
                       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                        {formatPrice(row.asking_price)}
+                        {formatPrice(row.asking_price, row.asking_currency)}
                       </div>
 
                       {/* HOVER ENRICHMENT — Phase 2: slot ready, data pending */}
@@ -1175,7 +1179,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     {/* Right — price + workflow actions. */}
                     <div className="col-start-2 flex w-full flex-col items-end justify-between gap-4 md:w-[190px] md:shrink-0">
                       <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
-                        {formatPrice(row.asking_price)}
+                        {formatPrice(row.asking_price, row.asking_currency)}
                       </div>
 
                       <div className="w-full">

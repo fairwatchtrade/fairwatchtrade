@@ -10,6 +10,13 @@ import {
   type ListingDraft,
 } from "@/lib/listing";
 import { type PhotoCategory, type SaleState } from "@/lib/scoring";
+import { parsePrice } from "@/lib/parsePrice";
+import { formatMoney } from "@/lib/formatMoney";
+import {
+  SUPPORTED_CURRENCIES,
+  RECOMMENDED_CURRENCY,
+  isSupportedCurrency,
+} from "@/lib/supportedCurrencies";
 import CameraCapture, { type ConfirmedCapture } from "@/components/CameraCapture";
 import { type OverlayVariant } from "@/components/AlignmentOverlay";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -99,7 +106,7 @@ function buildCaptureSteps(saleState: SaleState): CaptureStep[] {
       instruction: "Turn to the crown side",
       subInstruction: "Crown and pushers visible.",
       overlay: "crown-side",
-      privacyReview: false, // GPT ruling: no serial exposure risk on the crown side
+      privacyReview: false, // ruled: no serial exposure risk on the crown side
     },
     {
       category: "Non-Crown Side",
@@ -126,7 +133,7 @@ function buildCaptureSteps(saleState: SaleState): CaptureStep[] {
     },
     {
       category: "Full watch, strap/bracelet extended",
-      included: true, // mandatory for all four sale states — GPT ruling
+      included: true, // mandatory for all four sale states — locked ruling
       skippable: false,
       instruction: "Full length shot",
       subInstruction:
@@ -234,7 +241,7 @@ async function runCuration(d: ListingDraft): Promise<{
   return { pass, score, reasoning };
 }
 
-/* ── Device token — localStorage per the GPT ruling ── */
+/* ── Device token — localStorage per the locked ruling ── */
 const DEVICE_TOKEN_KEY = "fw_device_token";
 const RESUME_KEY = "fw_mobile_wizard_v2_2";
 
@@ -691,12 +698,59 @@ export default function MobileWizard({
     return modelOptions.filter((m) => m.toLowerCase().includes(q)).slice(0, 6);
   }, [modelQuery, modelOptions]);
 
+  /* ── Money Truth Stage B — the same approved selector as desktop (one
+        Design Gate, two doors into the same room). The stored preference
+        prefills; no preference → USD visibly RECOMMENDED, never persisted.
+        The prefill guards on the CURRENT draft value inside the updater so a
+        resumed draft's chosen currency is never clobbered. ── */
+  const [hasStoredPref, setHasStoredPref] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let pref: string | null = null;
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("preferred_listing_currency")
+            .eq("id", user.id)
+            .maybeSingle();
+          pref = isSupportedCurrency(data?.preferred_listing_currency)
+            ? data!.preferred_listing_currency
+            : null;
+        }
+      } catch {
+        /* preference unavailable → the Recommended default carries */
+      }
+      if (cancelled) return;
+      setHasStoredPref(pref !== null);
+      setDraft((d) =>
+        isSupportedCurrency(d.askingCurrency)
+          ? d
+          : { ...d, askingCurrency: pref ?? RECOMMENDED_CURRENCY }
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only prefill — must not re-fire as the seller edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const askingParse = parsePrice(draft.askingPrice, draft.askingCurrency);
+
   /* ── Identity completion + curation preflight (advisory, never a wall) ── */
   const identityComplete =
     draft.brand.trim() !== "" &&
     draft.model.trim() !== "" &&
     draft.condition !== "" &&
-    draft.askingPrice.trim() !== "";
+    draft.askingPrice.trim() !== "" &&
+    // Design Gate: the same deliberate confirmation state as desktop —
+    // progression stays disabled until the pair is explicitly confirmed.
+    draft.askingConfirmed;
 
   const startCapture = useCallback(() => {
     setStage("capture");
@@ -941,6 +995,7 @@ export default function MobileWizard({
           year: finalDraft.year,
           condition: finalDraft.condition,
           askingPrice: finalDraft.askingPrice,
+          askingCurrency: finalDraft.askingCurrency,
           provenanceNote: finalDraft.provenanceNote,
           significanceScore: finalDraft.significanceScore,
           photos: finalDraft.photos,
@@ -1039,7 +1094,7 @@ export default function MobileWizard({
   /* ════════════════════ RENDER ════════════════════ */
 
   // ── List From Phone panels — before any stage renders. ──
-  // Hand-back is a DEVICE-TRANSFER action, not global chrome (Layout Duck
+  // Hand-back is a DEVICE-TRANSFER action, not global chrome (locked layout
   // ruling): it lives in a quiet handoff status row at the TOP of every
   // wizard screen — semantically tied to the handoff, always findable, never
   // fighting the step's real CTA or the Android bottom-control zone.
@@ -1299,16 +1354,77 @@ export default function MobileWizard({
           </div>
         </Field>
 
-        {/* Asking price */}
-        <Field label="Asking Price (USD)">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={draft.askingPrice}
-            onChange={(e) => setDraft((d) => ({ ...d, askingPrice: e.target.value }))}
-            placeholder="8500"
-            className="fw-input placeholder:text-[var(--slate)]"
-          />
+        {/* Asking price — amount and currency adjacent (approved Design Gate).
+            Editing either value clears the deliberate confirmation below. */}
+        <Field label="Asking Price">
+          <div className="grid grid-cols-[minmax(0,1fr)_104px] gap-2.5">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={draft.askingPrice}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, askingPrice: e.target.value, askingConfirmed: false }))
+              }
+              placeholder="8500"
+              className="fw-input placeholder:text-[var(--slate)]"
+            />
+            <select
+              aria-label="Asking price currency"
+              value={isSupportedCurrency(draft.askingCurrency) ? draft.askingCurrency : RECOMMENDED_CURRENCY}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, askingCurrency: e.target.value, askingConfirmed: false }))
+              }
+              className="fw-input [&>option]:bg-[#141821] [&>option]:text-[#E8E4DC]"
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.code}</option>
+              ))}
+            </select>
+          </div>
+
+          {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--gold-subtle)]">
+              <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] uppercase tracking-[1.2px]">
+                Recommended
+              </span>
+              <span>USD is suggested because no preference is set.</span>
+            </div>
+          )}
+
+          {draft.askingPrice.trim() !== "" && (
+            <div className="mt-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+              {askingParse.ok ? (
+                <div className="text-[12px] leading-[1.5] text-[var(--platinum-dim)]">
+                  <strong className="font-medium text-[var(--platinum)]">
+                    {formatMoney(askingParse.amount, askingParse.currency)} {askingParse.currency}
+                  </strong>
+                  <br />
+                  Offers for this listing will use {askingParse.currency}.
+                </div>
+              ) : (
+                <div className="text-[12px] leading-[1.5] italic text-[var(--gold-subtle)]">
+                  {askingParse.message}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!askingParse.ok}
+                onClick={() => setDraft((d) => ({ ...d, askingConfirmed: true }))}
+                className={`mt-3 w-full border px-3.5 py-2.5 text-[10px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  draft.askingConfirmed
+                    ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
+                    : "border-[var(--gold)] text-[var(--gold)]"
+                }`}
+              >
+                {draft.askingConfirmed
+                  ? `${draft.askingCurrency} confirmed`
+                  : `Use ${isSupportedCurrency(draft.askingCurrency) ? draft.askingCurrency : RECOMMENDED_CURRENCY}`}
+              </button>
+            </div>
+          )}
+          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--slate)]">
+            No conversion is performed. Choose the currency in which this watch is actually being offered.
+          </p>
         </Field>
 
         {/* Curation preflight — advisory, gentle, before the camera */}
@@ -1556,7 +1672,12 @@ export default function MobileWizard({
 
         <dl className="mb-8 space-y-2">
           <SummaryRow k="Condition" v={draft.condition || "—"} />
-          <SummaryRow k="Asking" v={draft.askingPrice ? `$${draft.askingPrice}` : "—"} />
+          {/* Review restatement (order §9.2): the exact formatted amount plus
+              its explicit currency code — never a bare $ around raw text. */}
+          <SummaryRow
+            k="Asking"
+            v={askingParse.ok ? `${formatMoney(askingParse.amount, askingParse.currency)} ${askingParse.currency}` : "—"}
+          />
           <SummaryRow k="Reference" v={referenceInput || "Not provided"} />
           <SummaryRow
             k="Sold as"
@@ -1655,7 +1776,7 @@ function Shell({
   return (
     <main className="min-h-[100dvh] bg-[var(--ink)]">
       {/* The handoff status row renders ABOVE the screen content — a transfer
-          action tied to the handoff, never floating chrome (Layout Duck). */}
+          action tied to the handoff, never floating chrome (layout ruling). */}
       <div className="mx-auto w-full max-w-[420px] px-6 py-8">
         {handBack}
         {children}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    SELLER PROFILE — components/SellerProfile.tsx   (v1.66)
@@ -34,6 +35,8 @@ export type SellerCardListing = {
   year: string;
   condition: string;
   asking_price: number | null;
+  // Money Truth Stage B — undisclosed until attested, never assumed USD.
+  asking_currency: string | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
@@ -49,10 +52,11 @@ export type SellerView = {
   createdAt: string;
 };
 
-/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1). */
-function formatPrice(value: number | null): string {
-  if (value == null) return "Price undisclosed";
-  return `$${Number(value).toLocaleString("en-US")}`;
+/* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1).
+   Money Truth Stage B: the shared formatter also refuses a currency-less
+   amount — no bare $, no assumed USD. */
+function formatPrice(value: number | null, currency: string | null): string {
+  return formatMoney(value, currency);
 }
 
 function heroUrl(photos: ListingPhoto[]): string | null {
@@ -307,7 +311,7 @@ export default function SellerProfile({
                       </div>
                     )}
                     <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                      {formatPrice(row.asking_price)}
+                      {formatPrice(row.asking_price, row.asking_currency)}
                     </div>
                   </Link>
                 );

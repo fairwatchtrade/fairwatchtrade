@@ -1,6 +1,7 @@
 // Relative import (not the @ alias) so the node test harness can execute this
 // module directly with type stripping; identical resolution for Next.
 import { parseSearch, type SearchState } from "./search/parse.ts";
+import { formatMoney, hasMoneyTruth } from "./formatMoney.ts";
 
 /* ────────────────────────────────────────────────────────────────────────
    SAVED SEARCH PRESENTATION — lib/savedSearchPresentation.ts
@@ -79,6 +80,25 @@ export function interpretedMeaning(
   }
 
   return parts.join(" · ");
+}
+
+/**
+ * Money Truth Stage B (order §12) — the conditions in a saved Search that the
+ * watcher does NOT evaluate. Today that is exactly unsupported price intent:
+ * the watcher's SQL ignores unknown meaning kinds non-restrictively, so a
+ * Search containing one still fires on its OTHER conditions — this warning is
+ * how the collector learns the price part isn't being watched. Falls back to
+ * a fresh parse for pre-Stage-B rows saved without a stored state.
+ */
+export function unwatchedConditionNote(
+  row: Pick<SavedSearchFullRow, "query_string" | "search_state">
+): string | null {
+  const params = new URLSearchParams(row.query_string.replace(/^\?/, ""));
+  const state: SearchState | null =
+    row.search_state ?? (params.get("q") ? parseSearch(params.get("q") ?? "") : null);
+  const priceIntent = (state?.meanings ?? []).filter((m) => m.kind === "unsupportedPrice");
+  if (priceIntent.length === 0) return null;
+  return "Price search isn't available yet, so the price part of this Search isn't being watched. Everything else is.";
 }
 
 /** Watching / Paused — the only two customer-facing states. */
@@ -165,6 +185,9 @@ type MatchListing = {
   model: string | null;
   reference: string | null;
   asking_price: number | null;
+  // Money Truth Stage B — a match row's price renders with its currency or
+  // not at all; a currency-less amount shows no price rather than fake USD.
+  asking_currency?: string | null;
   condition: string | null;
   status: string;
   photos?: { photo?: { url?: string }; category?: string }[] | null;
@@ -183,8 +206,8 @@ export function presentMatch(
     title: listing ? `${listing.brand}${listing.model ? ` ${listing.model}` : ""}` : "Previously matched watch",
     reference: listing?.reference ?? null,
     priceText:
-      available && listing?.asking_price != null
-        ? `$${Number(listing.asking_price).toLocaleString("en-US")}`
+      available && listing?.asking_price != null && hasMoneyTruth(listing.asking_price, listing.asking_currency ?? null)
+        ? formatMoney(listing.asking_price, listing.asking_currency ?? null)
         : null,
     condition: available ? (listing?.condition ?? null) : null,
     foundText: `Found ${relativeDay(match.created_at)}`,

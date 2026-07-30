@@ -8,6 +8,7 @@ import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
+import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -100,6 +101,9 @@ export type AccountListing = {
   reference: string;
   condition: string;
   asking_price: number;
+  // Money Truth Stage B — null until the founder attestation; renders as the
+  // locked undisclosed state, never assumed USD.
+  asking_currency: string | null;
   status: string;
   created_at: string;
   photos?: ListingPhoto[];
@@ -242,6 +246,9 @@ type PurchaseRequestSummary = {
   listing_id: string;
   proposed_purchase_price: number;
   listing_price: number;
+  // Stage A snapshot columns — null on requests made before Stage B deployed.
+  proposed_currency: string | null;
+  listing_currency: string | null;
   shipping_terms: string | null;
   included_items: string | null;
   notes: string | null;
@@ -273,7 +280,7 @@ function ListingRow({
   submitting?: boolean;
   submitError?: string | null;
 }) {
-  const price = `$${Number(row.asking_price).toLocaleString("en-US")}`;
+  const price = formatMoney(row.asking_price, row.asking_currency);
   const badgeLabel = sellerLabel(row.status);
   // Order 2b — Overview now speaks the canonical Listings colorway instead of
   // its own success/danger/muted trio. Same --lc-* tokens and statusTokenKey
@@ -939,15 +946,24 @@ function RequestsView({
               ? `${listing.brand}${listing.model ? " " + listing.model : ""}`
               : "Listing";
             const thumb = listing ? dialThumbUrl(listing.photos) : null;
-            const proposed = Number(r.proposed_purchase_price).toLocaleString("en-US");
-            const asking = Number(r.listing_price).toLocaleString("en-US");
+            /* Money Truth Stage B — both snapshot amounts render through the
+               shared formatter with their SNAPSHOT currencies. Requests made
+               before Stage B carry no currency and show the locked undisclosed
+               state rather than a fabricated dollar figure; the delta line only
+               speaks when both halves share a known currency. */
+            const proposed = formatMoney(r.proposed_purchase_price, r.proposed_currency);
+            const asking = formatMoney(r.listing_price, r.listing_currency);
             const delta = Number(r.proposed_purchase_price) - Number(r.listing_price);
-            const deltaLabel =
-              delta === 0
+            const deltaKnown =
+              hasMoneyTruth(r.proposed_purchase_price, r.proposed_currency) &&
+              r.proposed_currency === r.listing_currency;
+            const deltaLabel = !deltaKnown
+              ? null
+              : delta === 0
                 ? "at asking"
                 : delta > 0
-                  ? `$${delta.toLocaleString("en-US")} over asking`
-                  : `$${Math.abs(delta).toLocaleString("en-US")} under asking`;
+                  ? `${formatMoney(delta, r.proposed_currency)} over asking`
+                  : `${formatMoney(Math.abs(delta), r.proposed_currency)} under asking`;
 
             return (
               <div key={r.id} className="border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px]">
@@ -983,10 +999,10 @@ function RequestsView({
 
                     <div className="mt-2 flex items-baseline gap-2">
                       <span className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
-                        ${proposed}
+                        {proposed}
                       </span>
                       <span className="text-[10px] text-[var(--ghost)]">
-                        vs. ${asking} asking · {deltaLabel}
+                        vs. {asking} asking{deltaLabel ? ` · ${deltaLabel}` : ""}
                       </span>
                     </div>
 
@@ -1148,7 +1164,7 @@ export default function AccountDashboard({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          `id, listing_id, proposed_purchase_price, listing_price, shipping_terms, included_items, notes, status, created_at,
+          `id, listing_id, proposed_purchase_price, listing_price, proposed_currency, listing_currency, shipping_terms, included_items, notes, status, created_at,
            listings ( brand, model, reference, photos )`
         )
         .eq("seller_id", user.id)

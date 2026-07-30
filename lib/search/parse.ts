@@ -34,6 +34,16 @@ export type MeaningKind =
   | "powerReserveMinDays"
   | "powerReservePresent"
   | "caseSizeMaxMm"
+  /* Money Truth Stage B (order §12) — recognized-but-unsupported price
+     intent. A DISTINCT meaning, not text: matching a price fragment as
+     ordinary words would silently return a false zero-result (no listing
+     contains "$12,000" as text), and dropping it would silently pretend the
+     collector never asked. It renders as a visible "Price search isn't
+     available yet" criterion and is EXCLUDED from matching on both
+     evaluators — here explicitly; in saved_search_matches_listing by its
+     if/elsif chain having no else branch, so unknown kinds pass through
+     non-restrictively. Full price grammar stays deferred. */
+  | "unsupportedPrice"
   | "text";
 
 export type Meaning = {
@@ -103,7 +113,49 @@ type PhraseRule = {
   build: (m: RegExpMatchArray) => Meaning;
 };
 
+/* ── Unsupported price intent (§12) ────────────────────────────────────────
+   Allowlisted signals only — a currency symbol, an amount beside a currency
+   word, or the word "price" with an operator. A bare number stays ordinary
+   text (deciding "5000" is money would be guessing). All three build the same
+   honest criterion; the label is the §12-required copy verbatim. */
+const PRICE_QUALIFIER = "(?:under|over|below|above|between|around|about|less than|more than)";
+const PRICE_AMOUNT = "[$€£¥]\\s?\\d[\\d,.]*k?";
+const PRICE_WORDS =
+  "(?:usd|cad|eur|gbp|chf|jpy|aud|sgd|hkd|dollars?|euros?|pounds?|francs?|yen)";
+
+function unsupportedPrice(m: RegExpMatchArray): Meaning {
+  return {
+    kind: "unsupportedPrice",
+    value: m[0].trim(),
+    label: "Price search isn't available yet",
+    source: [m[0]],
+  };
+}
+
 const PHRASE_RULES: PhraseRule[] = [
+  /* Price intent is consumed FIRST so an amount can never be re-read as
+     loose words or a stray "-" range read as an exclusion. */
+  {
+    // "$12,000" · "under $5k" · "between $5,000 and $8,000" · "€10.000"
+    pattern: new RegExp(
+      `(?:\\b${PRICE_QUALIFIER}\\s+)?${PRICE_AMOUNT}(?:\\s*(?:-|to|and)\\s*${PRICE_AMOUNT})?`
+    ),
+    build: unsupportedPrice,
+  },
+  {
+    // "12000 usd" · "under 8k eur" · "5,000 dollars"
+    pattern: new RegExp(
+      `\\b(?:${PRICE_QUALIFIER}\\s+)?\\d[\\d,.]*\\s?k?\\s?${PRICE_WORDS}\\b`
+    ),
+    build: unsupportedPrice,
+  },
+  {
+    // "price under 5000" · "priced around 8k" · "price: 5000" · "price > 5000"
+    pattern: new RegExp(
+      `\\bprice[ds]?\\s*(?::|${PRICE_QUALIFIER}|<=?|>=?)\\s*[$€£¥]?\\s?\\d[\\d,.]*k?\\b(?:\\s*(?:-|to|and)\\s*[$€£¥]?\\s?\\d[\\d,.]*k?\\b)?`
+    ),
+    build: unsupportedPrice,
+  },
   /* Known multiword materials resolve by deterministic longest-known-phrase
      matching, BEFORE single-word rules can split them. Gold Filled is not
      Gold: a positive `gold` must never silently include filled, plated,
@@ -453,6 +505,12 @@ export function matchesMeaning(listing: SearchableListing, meaning: Meaning): bo
       const n = numeric(d.caseSizeMm);
       return n !== null && n < Number(v);
     }
+    /* §12 — visible but NON-RESTRICTIVE: price intent never filters, so it
+       can never manufacture a silent zero-result. The chip tells the truth;
+       the match does not lie. Mirrors the SQL watcher's unknown-kind
+       fall-through. */
+    case "unsupportedPrice":
+      return true;
     case "text": {
       const hay = haystack(listing);
       return v

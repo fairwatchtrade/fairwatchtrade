@@ -55,6 +55,13 @@ export type ListingDraft = {
   year: string;
   condition: Condition | "";
   askingPrice: string;
+  /* Money Truth Stage B — the amount's currency, chosen and explicitly
+     confirmed beside it in the curation step (approved Design Gate). Empty
+     string until the seller confirms the pair; never silently defaulted. */
+  askingCurrency: string;
+  /* True only while the seller's confirmed amount+currency pair is intact —
+     editing either value clears it (Design Gate: deliberate confirmation). */
+  askingConfirmed: boolean;
   provenanceNote: string;
   significanceScore: number | null; // Part 1, fixed once curation passes
   curationDecision: CurationDecision;
@@ -82,6 +89,8 @@ export function emptyDraft(): ListingDraft {
     year: "",
     condition: "",
     askingPrice: "",
+    askingCurrency: "",
+    askingConfirmed: false,
     provenanceNote: "",
     significanceScore: null,
     curationDecision: "pending",

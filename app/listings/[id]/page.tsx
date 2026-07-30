@@ -10,6 +10,7 @@ import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
@@ -122,6 +123,8 @@ type Listing = {
   year: string;
   condition: string;
   asking_price: number;
+  // Money Truth Stage B — flows through select("*"); null until attested.
+  asking_currency: string | null;
   photos: ListingPhoto[];
   details: ListingDetails;
   description: string;
@@ -339,12 +342,10 @@ export default async function ListingDetailPage({
   const includesBoxAndPapers = details.documentation === "Full Set";
 
   /* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth,
-     Bug 1) — the evidence layer's words, and en-US pinned so the server's
-     locale can't reshape the number. */
-  const priceText =
-    listing.asking_price == null
-      ? "Price undisclosed"
-      : `$${Number(listing.asking_price).toLocaleString("en-US")}`;
+     Bug 1). Money Truth Stage B: the shared formatter extends the same
+     honesty to a missing CURRENCY — an amount without one is undisclosed,
+     never dressed as dollars. en-US stays pinned inside formatMoney. */
+  const priceText = formatMoney(listing.asking_price, listing.asking_currency);
 
   /* §2 — Collector Fingerprint (Design Gate v2). Built from the same live
      values the rest of the page uses, never a stored copy. Two conceptual

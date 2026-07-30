@@ -52,7 +52,7 @@ export default async function CataloguePage() {
   const { data: listings } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, year, condition, asking_price, photos, details, status, created_at"
+      "id, brand, model, reference, year, condition, asking_price, asking_currency, photos, details, status, created_at"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false })

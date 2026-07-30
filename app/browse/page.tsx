@@ -45,6 +45,8 @@ type ListingRow = {
   year: string;
   condition: string;
   asking_price: number;
+  // Money Truth Stage B — already flowing through select("*"); typed now.
+  asking_currency: string | null;
   photos: ListingPhoto[];
   details?: {
     dialColorType?: string;
