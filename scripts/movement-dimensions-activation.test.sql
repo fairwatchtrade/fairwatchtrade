@@ -35,6 +35,7 @@ declare
   P constant jsonb := '{"movement_diameter_mm":30.0,"evidence":{"source_type":"manufacturer","verified":true}}'::jsonb;
   v_ref uuid; v_brand text; v_reference text; v_meta jsonb;
   b_events bigint; b_enriched bigint; r jsonb; n int := 0;
+  v_constraint text;
 begin
   select count(*) into b_events   from public.vault_enrichment_events;
   select count(*) into b_enriched from public.vault_references where metadata ? 'enrichment';
@@ -56,8 +57,15 @@ begin
   -- 2..4 · invalid payload contract
   r := public.enrich_vault_reference(v_ref,v_brand,v_reference,'movement_dimensions','{"movement_diameter_mm":"30"}'::jsonb,H,H,E,'t',true);
   if r->>'state' <> 'FAILED' then raise exception 'FAIL 2 string diameter: %', r; end if; n:=n+1;
+  -- Zero and negative are both refused by the sign guard, and both assert the
+  -- DETAIL so a value rejected for some later reason cannot masquerade as a
+  -- correct sign rejection. Negative is tested explicitly rather than assumed
+  -- from the zero case: `<= 0` covers both today, but a future change to that
+  -- predicate could pass zero and admit negatives without either test noticing.
   r := public.enrich_vault_reference(v_ref,v_brand,v_reference,'movement_dimensions','{"movement_diameter_mm":0}'::jsonb,H,H,E,'t',true);
-  if r->>'state' <> 'FAILED' then raise exception 'FAIL 3 zero: %', r; end if; n:=n+1;
+  if r->>'state' <> 'FAILED' or r->>'detail' not like '%positive number%' then raise exception 'FAIL 3 zero: %', r; end if; n:=n+1;
+  r := public.enrich_vault_reference(v_ref,v_brand,v_reference,'movement_dimensions','{"movement_diameter_mm":-30.0,"evidence":{"source_type":"manufacturer"}}'::jsonb,H,H,E,'t',true);
+  if r->>'state' <> 'FAILED' or r->>'detail' not like '%positive number%' then raise exception 'FAIL 3b negative: %', r; end if; n:=n+1;
   r := public.enrich_vault_reference(v_ref,v_brand,v_reference,'movement_dimensions','{"movement_diameter_mm":30.0,"movement_height_mm":4.2}'::jsonb,H,H,E,'t',true);
   if r->>'state' <> 'FAILED' or r->>'detail' not like '%height/thickness%' then raise exception 'FAIL 4 height: %', r; end if; n:=n+1;
 
@@ -167,12 +175,21 @@ begin
   -- 11b · the table CHECK itself refuses an unlisted fact type. ONLY
   --       check_violation is caught — a schema drift, a NOT NULL slip or an FK
   --       failure now fails the suite loudly instead of masquerading as a pass.
+  --       Catching check_violation alone still leaves a gap: ANY check on this
+  --       table would satisfy it. CONSTRAINT_NAME is read from the diagnostics
+  --       and asserted, so the test proves the rejection came from
+  --       vee_fact_type_check specifically, not from a neighbouring constraint
+  --       that happens to fire on the same row.
   begin
     insert into public.vault_enrichment_events
       (reference_id, fact_type, plan_hash, metadata_before, metadata_after)
     values (v_ref, 'case_diameter', H, '{}'::jsonb, '{}'::jsonb);
     raise exception 'FAIL 11b CHECK accepted unlisted fact_type';
-  exception when check_violation then null;
+  exception when check_violation then
+    get stacked diagnostics v_constraint = CONSTRAINT_NAME;
+    if v_constraint is distinct from 'vee_fact_type_check' then
+      raise exception 'FAIL 11b rejected by the WRONG constraint: % (expected vee_fact_type_check)', v_constraint;
+    end if;
   end; n:=n+1;
 
   -- ── revert the applied fact + its event before the rollback-preflight tests ──
