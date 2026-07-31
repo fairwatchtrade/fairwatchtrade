@@ -767,11 +767,18 @@ function Toggle({
         onChange={(e) => onChange(e.target.checked)}
         className="sr-only"
       />
+      {/* Unchecked state legibility: the border was --border-subtle
+          (rgba(255,255,255,0.06) — ~1.12:1 against the surface), which reads as
+          an empty gap rather than a control you can tick. Same trap the
+          lifecycle colorway flight found in --lc-neutral-line. The box now
+          carries a visible gold-at-rest edge and a faint inner fill so the
+          target is unmistakable before it is checked. Geometry and the
+          checked-state treatment are unchanged. */}
       <div
         className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
           checked
             ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
-            : "border-[var(--border-subtle)]"
+            : "border-[rgba(201,168,76,0.40)] bg-[rgba(255,255,255,0.04)]"
         }`}
       >
         {checked && <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />}

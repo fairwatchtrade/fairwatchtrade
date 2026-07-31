@@ -1672,11 +1672,12 @@ export default function MobileWizard({
 
         <dl className="mb-8 space-y-2">
           <SummaryRow k="Condition" v={draft.condition || "—"} />
-          {/* Review restatement (order §9.2): the exact formatted amount plus
-              its explicit currency code — never a bare $ around raw text. */}
+          {/* ONE coherent price expression — the formatter already carries the
+              currency in the amount (US$8,500), so appending the ISO code said
+              the same fact twice. Matches the desktop Review correction. */}
           <SummaryRow
             k="Asking"
-            v={askingParse.ok ? `${formatMoney(askingParse.amount, askingParse.currency)} ${askingParse.currency}` : "—"}
+            v={askingParse.ok ? formatMoney(askingParse.amount, askingParse.currency) : "—"}
           />
           <SummaryRow k="Reference" v={referenceInput || "Not provided"} />
           <SummaryRow

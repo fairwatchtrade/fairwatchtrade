@@ -86,7 +86,7 @@ export const COMPLETENESS_MAX =
   COMPLETENESS.documentationPhotos +
   COMPLETENESS.genuineDescription; // = 22
 
-export const MIN_WORDS = 75;
+export const MIN_WORDS = 65;
 
 /** Documentation is scaled, not all-or-nothing — vintage often can't be full set. */
 const DOC_POINTS: Record<DocumentationStatus, number> = {

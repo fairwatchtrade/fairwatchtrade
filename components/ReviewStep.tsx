@@ -224,30 +224,57 @@ export default function ReviewStep({
               Ref. {draft.reference}
             </div>
           )}
-          {/* Approved Design Gate: the amount and the explicit currency code,
-              side by side — the exact values that will attach to the listing. */}
-          <div className="mt-2 flex items-end justify-between gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5">
-            <div>
-              <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
-                Asking price
-              </div>
-              <div className="mt-0.5 font-display text-[18px] font-light text-[var(--gold)]">
-                {money.text}
-              </div>
+          {/* ONE coherent price expression. The shared formatter already carries
+              the currency in the amount itself (US$8,250 · CHF 8,250 · €8,250),
+              so the separate ISO label that used to sit beside it was the same
+              fact said twice — "US$8,250 USD". The label is gone; the Money
+              Truth formatting and currency semantics are untouched. */}
+          <div className="mt-2 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5">
+            <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+              Asking price
             </div>
-            {money.code && (
-              <div className="pb-0.5 text-[10px] tracking-[1.8px] text-[var(--gold)]">{money.code}</div>
-            )}
+            <div className="mt-0.5 font-display text-[18px] font-light text-[var(--gold)]">
+              {money.text}
+            </div>
           </div>
-          <p className="mt-1.5 text-[10px] leading-[1.5] text-[var(--muted)]">
-            The amount and currency shown here are the exact values attached to the listing.
-            FairWatchTrade does not convert the price into another currency.
-          </p>
+
+          {/* What to Know — contextual disclosure tied to the price area. The
+              currency explanation used to hold permanent page space directly
+              above the seller's story, so the two ran together. It lives here
+              now: the Review page stays quiet, and the explanation appears only
+              when asked for. */}
+          <details className="group mt-2 border-b border-[var(--border-faint)] pb-2">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)] [&::-webkit-details-marker]:hidden">
+              <svg
+                width="9"
+                height="9"
+                viewBox="0 0 14 14"
+                fill="none"
+                aria-hidden="true"
+                className="shrink-0 transition-transform duration-200 group-open:rotate-90"
+              >
+                <path d="M5 3l5 4-5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              What to Know
+            </summary>
+            <p className="mt-1.5 max-w-[560px] text-[11px] leading-[1.6] text-[var(--muted)]">
+              The amount and currency shown here are the exact values attached to the listing.
+              FairWatchTrade does not convert the price into another currency, and buyers make
+              offers in the same currency you chose.
+            </p>
+          </details>
 
           {draft.description && (
-            <p className="mt-3 whitespace-pre-line text-[13px] leading-relaxed text-[var(--slate)]">
-              {draft.description}
-            </p>
+            <div className="mt-5">
+              {/* Section boundary: the seller's story is its own region, never a
+                  continuation of the price explanation above it. */}
+              <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold)]">
+                Your Description
+              </div>
+              <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-[var(--slate)]">
+                {draft.description}
+              </p>
+            </div>
           )}
 
           {rows.length > 0 && (
