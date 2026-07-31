@@ -23,6 +23,7 @@ import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
 import { randomUUID } from "@/lib/uuid";
 import { parsePrice } from "@/lib/parsePrice";
+import { buildCurationSubmission } from "@/lib/curationSubmission";
 import { formatMoney } from "@/lib/formatMoney";
 import {
   SUPPORTED_CURRENCIES,
@@ -70,14 +71,12 @@ async function runCuration(d: ListingDraft): Promise<{
   const res = await fetch("/api/evaluate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      brand: d.brand,
-      reference: d.reference,
-      year: d.year,
-      condition: d.condition,
-      askingPrice: d.askingPrice,
-      provenanceNote: d.provenanceNote,
-    }),
+    /* The payload is built by the shared mapper, NOT hand-assembled here.
+       This call previously sent askingPrice/provenanceNote in camelCase while
+       the route reads asking_price/provenance, so both arrived undefined and
+       the prompt rendered "Not provided" for them on every evaluation. See
+       lib/curationSubmission.ts. */
+    body: JSON.stringify(buildCurationSubmission(d)),
   });
   if (!res.ok) throw new Error(`evaluate ${res.status}`);
   const json = await res.json();

@@ -11,6 +11,7 @@ import {
 } from "@/lib/listing";
 import { type PhotoCategory, type SaleState } from "@/lib/scoring";
 import { parsePrice } from "@/lib/parsePrice";
+import { buildCurationSubmission } from "@/lib/curationSubmission";
 import { formatMoney } from "@/lib/formatMoney";
 import {
   SUPPORTED_CURRENCIES,
@@ -221,14 +222,10 @@ async function runCuration(d: ListingDraft): Promise<{
   const res = await fetch("/api/evaluate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      brand: d.brand,
-      reference: d.reference,
-      year: d.year,
-      condition: d.condition,
-      askingPrice: d.askingPrice,
-      provenanceNote: d.provenanceNote,
-    }),
+    /* Shared mapper — see lib/curationSubmission.ts. Hand-assembling this
+       payload is what drifted from the route's contract in the first place,
+       and mobile carried the identical defect. */
+    body: JSON.stringify(buildCurationSubmission(d)),
   });
   if (!res.ok) throw new Error(`evaluate ${res.status}`);
   const json = await res.json();
