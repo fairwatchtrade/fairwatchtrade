@@ -745,6 +745,23 @@ export default async function ListingDetailPage({
           heroUrl={heroUrl}
           authed={!!user}
           isOwner={isOwner}
+          /* The offer action for the fixed bar. Composed here, from the same
+             ListingActionRail that owns the desktop rail and the mobile
+             in-flow block, so all three presentations share one state
+             machine and cannot drift. ListingCorrespondence never learns
+             what a purchase request is. */
+          offerAction={
+            <ListingActionRail
+              variant="bar"
+              listingId={listing.id}
+              sellerId={listing.seller_id}
+              sellerName={sellerName}
+              priceText={priceText}
+              isOwner={isOwner}
+              requestStatus={myLatestRequest?.status ?? null}
+              listingStatus={listing.status}
+            />
+          }
         />
 
         {/* v2.11 — MOBILE/TABLET price + purchase. Today's in-flow layout,

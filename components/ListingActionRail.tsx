@@ -49,7 +49,9 @@ export default function ListingActionRail({
   requestStatus,
   listingStatus,
 }: {
-  variant: "rail" | "inline";
+  /* "bar" is the compact dressing used inside the mobile Listing Detail fixed
+     action bar. It renders ONLY the offer action — no price, no dealer card. */
+  variant: "rail" | "inline" | "bar";
   listingId: string;
   sellerId: string;
   sellerName: string;
@@ -65,10 +67,71 @@ export default function ListingActionRail({
 }) {
   const isReserved = listingStatus === "reserved";
 
-  /* The purchase state machine — identical branches to the shipped version,
-     with a v2.27 reserved short-circuit above them: on a reserved listing the
-     CTA is always suppressed and a truthful sale-pending state is shown. */
-  const purchaseBlock = isOwner ? null : isReserved ? (
+  /* ── ONE STATE DECISION, THREE DRESSINGS ─────────────────────────────────
+     The `bar` variant made this extraction necessary. The branch conditions
+     used to be written inline in the JSX below; a third presentation would
+     have had to restate them, which is exactly the drift this component's
+     header warns against. The decision is now taken once and each variant
+     only chooses how to show it. Order and meaning are unchanged from the
+     shipped version — this is a lift, not a behaviour change:
+       owner      → nothing at all
+       reserved   → sale pending, CTA suppressed (the v2.27 short-circuit)
+       superseded → sold to another buyer, CTA suppressed
+       pending    → CTA suppressed (a second request would just 409)
+       accepted   → CTA suppressed (already past this step)
+       declined   → note shown, CTA STILL OFFERED (declined does not trip
+                    the exclusivity rule)
+       otherwise  → CTA offered
+     ────────────────────────────────────────────────────────────────────── */
+  const ctaState: "owner" | "reserved" | "superseded" | "pending" | "accepted" | "open" =
+    isOwner
+      ? "owner"
+      : isReserved
+        ? "reserved"
+        : requestStatus === "superseded"
+          ? "superseded"
+          : requestStatus === "pending"
+            ? "pending"
+            : requestStatus === "accepted"
+              ? "accepted"
+              : "open";
+
+  /* ── FIXED BOTTOM BAR — compact dressing of the same decision.
+     The mobile Listing Detail action bar previously carried two messaging
+     affordances and no offer action, so the offer path existed only in the
+     in-flow block and scrolled out of reach. This renders the offer action
+     into that bar. It deliberately reuses the state machine above rather
+     than linking unconditionally: a bare link would have offered a second
+     request while one was already pending, contradicting the rail. ── */
+  if (variant === "bar") {
+    if (ctaState === "owner") return null;
+    if (ctaState === "open") {
+      return (
+        <Link
+          href={`/listings/${listingId}/purchase-request`}
+          className="shrink-0 bg-[var(--gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90"
+        >
+          Make Offer
+        </Link>
+      );
+    }
+    /* Suppressed states still speak — a bar that simply emptied would read as
+       a broken control rather than an honest state. Wording is compressed to
+       the bar's width; the full sentence remains in the in-flow block. */
+    return (
+      <span className="shrink-0 border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
+        {ctaState === "reserved"
+          ? "Reserved"
+          : ctaState === "superseded"
+            ? "Unavailable"
+            : ctaState === "pending"
+              ? "Request pending"
+              : "Request accepted"}
+      </span>
+    );
+  }
+
+  const purchaseBlock = ctaState === "owner" ? null : ctaState === "reserved" ? (
     <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
       <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 text-[11px] tracking-[0.5px]">
         <div className="uppercase tracking-[2px] text-[var(--gold-dim)]">
@@ -87,7 +150,7 @@ export default function ListingActionRail({
         </div>
       )}
 
-      {requestStatus === "superseded" ? (
+      {ctaState === "superseded" ? (
         /* superseded — the watch sold to ANOTHER buyer via an accepted
            request; this buyer was not individually declined. Explain the
            state honestly and suppress the CTA. */
@@ -97,11 +160,11 @@ export default function ListingActionRail({
           </div>
           <div className="mt-1 text-[var(--muted)]">This watch is no longer available.</div>
         </div>
-      ) : requestStatus === "pending" ? (
+      ) : ctaState === "pending" ? (
         <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           Your request is pending
         </div>
-      ) : requestStatus === "accepted" ? (
+      ) : ctaState === "accepted" ? (
         <div className="inline-block border border-[var(--success)] bg-[rgba(120,200,140,0.05)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--success)]">
           Your request was accepted
         </div>

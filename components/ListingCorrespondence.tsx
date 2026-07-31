@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -88,6 +88,7 @@ export default function ListingCorrespondence({
   heroUrl,
   authed,
   isOwner,
+  offerAction,
 }: {
   listingId: string;
   brand: string;
@@ -97,6 +98,13 @@ export default function ListingCorrespondence({
   heroUrl: string | null;
   authed: boolean;
   isOwner: boolean;
+  /* The buyer's offer action, rendered into the fixed bar beside the message
+     field. Passed in as a slot rather than built here on purpose: the offer
+     path owns a state machine (pending / accepted / superseded / reserved)
+     that lives in ListingActionRail, and rebuilding any part of it here would
+     create exactly the second implementation that drifts. This component
+     stays responsible for messaging only, and renders whatever it is handed. */
+  offerAction?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -369,13 +377,16 @@ export default function ListingCorrespondence({
                 placeholder={threadId ? "Continue the conversation…" : "Message seller…"}
                 className="min-w-0 flex-1 border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
               />
-              <button
-                type="button"
-                onClick={() => openHome()}
-                className="shrink-0 border border-[var(--border-gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)]"
-              >
-                {threadId ? "Open" : "Message Seller"}
-              </button>
+              {/* The offer action. This slot previously held a second
+                  messaging control labelled "Message Seller" — the same
+                  meaning as the field beside it, which left the bar with two
+                  ways to message and no way to make an offer. The field is
+                  the messaging affordance (focusing it opens the thread), so
+                  this slot now carries the distinct offer path. Note the
+                  button was NOT merely relabelled: its handler opened the
+                  message composer, so renaming it alone would have sent
+                  buyers to messaging under an offer label. */}
+              {offerAction}
             </div>
           </div>
         </div>
