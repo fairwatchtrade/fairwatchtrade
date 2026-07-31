@@ -28,7 +28,18 @@ export default function VaultEnrichmentFacts({ metadata }: { metadata: unknown }
           key={line.key}
           className="text-[10.5px] leading-[1.35] text-[var(--muted)] [overflow-wrap:anywhere]"
         >
-          {line.text}
+          {/* A fact whose visible form uses a symbol that does not read aloud
+              (the ⌀ diameter sign) shows the symbol to the eye and gives the
+              screen reader the spoken equivalent instead. Facts without a
+              spoken form render exactly as before. */}
+          {line.meaning ? (
+            <>
+              <span aria-hidden="true">{line.text}</span>
+              <span className="sr-only">{line.meaning}</span>
+            </>
+          ) : (
+            line.text
+          )}
         </div>
       ))}
     </div>
