@@ -1,0 +1,49 @@
+{
+  "artifact": "Flight A — rows selected for deletion, captured from PRODUCTION before application",
+  "captured_from": "aqgjcezhdoianqmoknnu",
+  "captured_for_migration": "supabase/migrations/20260731010000_vault_identity_constraints.sql",
+  "migration_sha256": "0158f509d538dba8a42b06794fcf093855958447bc8edea7f190002738d604d1",
+  "commit": "6eb52dde0d436c06e3411079da97be443548de5d",
+  "brand": "Lang & Heyne",
+  "brand_id": "1a32286c-ceef-4ef3-bc61-c0bc9aa75bf0",
+  "selection_rule": "lowest id::text per (brand_id, name) survives; all other copies are doomed",
+  "ordering": "id::text ascending within each level — deterministic and reproducible",
+  "equivalence_proof": {
+    "method": "md5 over name|description|notes|search_aliases of every family and variant beneath each copy, ordered by family name then variant name",
+    "Complications": {
+      "keep_id": "2693354c-6840-4798-a884-d47448b3b525",
+      "drop_id": "bc67dfdf-069c-4595-9c8a-c713728daa0d",
+      "fingerprint_both_copies": "6f305706bc965c2c3606961741dac972"
+    },
+    "Time-Only": {
+      "keep_id": "2efb50ad-e1ac-4e7f-a0ca-2c654a2d13df",
+      "drop_id": "6c9ecfe3-91d1-4dad-a929-5cba87f0eb63",
+      "fingerprint_both_copies": "d893225dd1ce2152ee11df6fcecade60"
+    }
+  },
+  "dependency_proof": {
+    "references_beneath_doomed_rows": 0,
+    "identity_resolution_candidate_links_to_doomed_variants": 0,
+    "reference_knowledge_rows_total": 0,
+    "vault_enrichment_events_on_doomed_rows": 0
+  },
+  "row_counts": { "collections": 2, "families": 5, "variants": 5 },
+  "collections": [
+    { "id": "6c9ecfe3-91d1-4dad-a929-5cba87f0eb63", "brand_id": "1a32286c-ceef-4ef3-bc61-c0bc9aa75bf0", "name": "Time-Only", "description": null, "sort_order": 0 },
+    { "id": "bc67dfdf-069c-4595-9c8a-c713728daa0d", "brand_id": "1a32286c-ceef-4ef3-bc61-c0bc9aa75bf0", "name": "Complications", "description": null, "sort_order": 1 }
+  ],
+  "families": [
+    { "id": "517d30ba-9ef5-4ffc-a445-4027057c86fc", "collection_id": "6c9ecfe3-91d1-4dad-a929-5cba87f0eb63", "name": "Friedrich August I", "description": null, "sort_order": 1 },
+    { "id": "67c1638d-d958-48ae-9d3b-fe0a6ded0557", "collection_id": "bc67dfdf-069c-4595-9c8a-c713728daa0d", "name": "Anton", "description": null, "sort_order": 0 },
+    { "id": "972e00d8-4847-45d6-8ea4-d5acd0d8e2c8", "collection_id": "bc67dfdf-069c-4595-9c8a-c713728daa0d", "name": "Georg", "description": null, "sort_order": 1 },
+    { "id": "aae3bfea-7aff-4834-9190-58a97856ecfe", "collection_id": "6c9ecfe3-91d1-4dad-a929-5cba87f0eb63", "name": "Albert von Sachsen", "description": null, "sort_order": 0 },
+    { "id": "d800d6d6-0ef7-4667-8f93-dad07e14bf70", "collection_id": "bc67dfdf-069c-4595-9c8a-c713728daa0d", "name": "Hektor", "description": null, "sort_order": 2 }
+  ],
+  "variants": [
+    { "id": "33ecd730-4f63-4bc6-9caa-76f3f7be7925", "family_id": "972e00d8-4847-45d6-8ea4-d5acd0d8e2c8", "name": "Georg", "notes": "Manual wind, rectangular case, proprietary caliber", "sort_order": 0, "search_aliases": [], "description": "A sophisticated rectangular timepiece that draws inspiration from historical marine chronometers. It features a large, elegant movement architecture designed specifically to fit the rectangular case geometry, maintaining high-end finishing standards throughout." },
+    { "id": "4ec2618f-d73c-4806-b407-9dbebe9f919c", "family_id": "d800d6d6-0ef7-4667-8f93-dad07e14bf70", "name": "Hektor", "notes": "Manual wind, chronograph complication, proprietary caliber", "sort_order": 0, "search_aliases": [], "description": "A grand chronograph model that showcases the brand's ability to execute complex mechanical functions. Its movement architecture is designed for visual impact, with deeply angled bridges and traditional decoration that distinguish it as a high-horology chronograph." },
+    { "id": "aa66ddc6-9a22-4df7-a784-169e97f9bcb1", "family_id": "aae3bfea-7aff-4834-9190-58a97856ecfe", "name": "Albert von Sachsen", "notes": "Manual wind, time-only, proprietary caliber", "sort_order": 0, "search_aliases": [], "description": "A refined, time-only timepiece that showcases the brand's signature movement architecture featuring grand, curved bridges. It emphasizes elegance and legibility, often paired with traditional enamel or metal dials that highlight the Saxon aesthetic." },
+    { "id": "ab5bae3f-9b93-4b07-911d-572074140978", "family_id": "517d30ba-9ef5-4ffc-a445-4027057c86fc", "name": "Friedrich August I", "notes": "Manual wind, sub-seconds, proprietary caliber", "sort_order": 0, "search_aliases": [], "description": "An elegant model featuring a sub-seconds display at 6 o'clock. It is renowned for its harmonious dial proportions and meticulous movement finishing, reflecting the brand’s dedication to classical 19th-century Saxon design principles." },
+    { "id": "c95c0b1a-1ef8-417c-b593-87511618f164", "family_id": "67c1638d-d958-48ae-9d3b-fe0a6ded0557", "name": "Anton", "notes": "Manual wind, jump hour complication, proprietary caliber", "sort_order": 0, "search_aliases": [], "description": "A unique jump-hour complication that integrates a rotating disc for hour indications, providing a clean yet dynamic dial presence. The movement is finished to an exceptional level, highlighting the interplay between modern technical solutions and traditional craftsmanship." }
+  ]
+}
