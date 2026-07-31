@@ -97,6 +97,60 @@ async function ingestBrand(brandData, filename) {
     return;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     QUARANTINE — EXISTING BRANDS ARE REFUSED
+     ══════════════════════════════════════════════════════════════════════
+     This script upserts vault_brands by slug but uses plain INSERT for
+     collections, families, variants and references. Re-running it on a
+     brand that already exists therefore APPENDS a second, parallel subtree
+     instead of matching the first. That is not a hypothetical: Lang & Heyne
+     was ingested twice and carried two identical "Complications" and two
+     identical "Time-Only" collections in production until Flight A
+     (v3.4) removed them.
+
+     The v3.4 uniqueness indexes now make exact duplication fail — but they
+     do NOT make this script safe, and the difference matters:
+
+       · it is NOT atomic. A failure partway leaves whatever it already
+         inserted behind, so a refused run can still dirty the database;
+       · the indexes match exact stored text, so "Complications " or
+         "complications" would still slip past them;
+       · it cannot express a genuinely additive update — its only verb is
+         "insert everything again";
+       · it bypasses manifests, reconciliation, plan approval and audit
+         entirely. Nothing it does is reviewable after the fact.
+
+     A loud failure halfway through an unreviewable non-atomic script is
+     not a safety property. So the refusal happens HERE, before any write.
+
+     First ingestion of a genuinely new brand is still permitted — that is
+     the one case this script handles correctly.
+
+     Removing this guard requires the reconciliation engine described in
+     the Discovery → Certification → Deterministic Writer architecture, not
+     a judgement call at the console.
+     ══════════════════════════════════════════════════════════════════════ */
+  const { data: existing, error: existingError } = await supabase
+    .from('vault_brands')
+    .select('id, name')
+    .eq('slug', brand.slug)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(`  ❌ Could not check for an existing brand: ${existingError.message}`);
+    console.error(`     Refusing to proceed — an unverified insert could duplicate a subtree.`);
+    return;
+  }
+
+  if (existing) {
+    console.error(`\n  ⛔ REFUSED: "${brand.name}" already exists in the Vault (slug: ${brand.slug}).`);
+    console.error(`     This script can only create a brand from nothing. Re-running it on an`);
+    console.error(`     existing brand appends a duplicate subtree rather than updating it —`);
+    console.error(`     exactly how Lang & Heyne ended up doubled.`);
+    console.error(`     Use the reconciliation engine for additive or corrective work.`);
+    return;
+  }
+
   console.log(`\n📍 Ingesting: ${brand.name}`);
 
   const { data: brandRow, error: brandError } = await supabase
