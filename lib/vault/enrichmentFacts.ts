@@ -12,7 +12,10 @@
    Power reserve → "55 hours". Order is fixed and fact-driven, not per-reference.
    ════════════════════════════════════════════════════════════════════════ */
 
-export type EnrichmentLine = { key: string; text: string };
+/** `text` is what the eye reads. `meaning` is the spoken equivalent for a
+    screen reader, supplied only when the visible form uses a symbol that does
+    not read aloud correctly (e.g. the ⌀ diameter sign). */
+export type EnrichmentLine = { key: string; text: string; meaning?: string };
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -46,10 +49,52 @@ export function formatPowerReserve(fact: unknown): string | null {
   return null;
 }
 
-/** Registry: fixed display order; each entry formats one canonical fact. */
-const FACT_FORMATTERS: Array<{ key: string; format: (fact: unknown) => string | null }> = [
+/** Millimetre value with at least one decimal, so a stored 30 reads "30.0",
+    while a genuinely finer value keeps its precision (30.25 → "30.25"). */
+function mmValue(n: number): string {
+  const decimals = (String(n).split(".")[1] ?? "").length;
+  return n.toFixed(Math.min(2, Math.max(1, decimals)));
+}
+
+/**
+ * Movement dimensions → "⌀ 30.0 mm".
+ *
+ * The symbol is U+2300 DIAMETER SIGN — deliberately NOT Ø (U+00D8, a Danish
+ * letter) and not ∅ (U+2205, the empty set). Screen readers do not announce it
+ * usefully, so this fact also supplies a spoken `meaning`.
+ *
+ * Only movement_diameter_mm is certified; height and thickness are refused at
+ * the database contract and ignored here. The fact type is plural so those may
+ * join later without a second fact type.
+ */
+export function formatMovementDimensions(fact: unknown): string | null {
+  if (!isObj(fact)) return null;
+  const mm = posNum(fact.movement_diameter_mm);
+  return mm === null ? null : `⌀ ${mmValue(mm)} mm`;
+}
+
+/** Spoken equivalent of the above — "Movement diameter, 30.0 millimetres". */
+export function describeMovementDimensions(fact: unknown): string | null {
+  if (!isObj(fact)) return null;
+  const mm = posNum(fact.movement_diameter_mm);
+  return mm === null ? null : `Movement diameter, ${mmValue(mm)} millimetres`;
+}
+
+/** Registry: fixed display order; each entry formats one canonical fact.
+    `describe` is optional — present only where the visible form needs a spoken
+    equivalent. */
+const FACT_FORMATTERS: Array<{
+  key: string;
+  format: (fact: unknown) => string | null;
+  describe?: (fact: unknown) => string | null;
+}> = [
   { key: "beat_rate", format: formatBeatRate },
   { key: "power_reserve", format: formatPowerReserve },
+  {
+    key: "movement_dimensions",
+    format: formatMovementDimensions,
+    describe: describeMovementDimensions,
+  },
 ];
 
 /**
@@ -61,9 +106,11 @@ export function deriveEnrichmentLines(metadata: unknown): EnrichmentLine[] {
   const enrichment = metadata.enrichment;
   if (!isObj(enrichment)) return [];
   const out: EnrichmentLine[] = [];
-  for (const { key, format } of FACT_FORMATTERS) {
+  for (const { key, format, describe } of FACT_FORMATTERS) {
     const text = format(enrichment[key]);
-    if (text) out.push({ key, text });
+    if (!text) continue;
+    const meaning = describe?.(enrichment[key]) ?? null;
+    out.push(meaning ? { key, text, meaning } : { key, text });
   }
   return out;
 }
