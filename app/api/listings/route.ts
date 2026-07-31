@@ -18,6 +18,10 @@ import {
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { isSupportedCurrency } from "@/lib/supportedCurrencies";
+import {
+  isDefaultPresentation,
+  sanitizePhotoPresentation,
+} from "@/lib/photoPresentation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -113,6 +117,7 @@ type PublishBody = {
   provenanceNote?: string;
   significanceScore?: number | null;
   photos?: unknown[];
+  photoPresentation?: unknown;
   hasBracelet?: boolean;
   details?: Record<string, unknown>;
   description?: string;
@@ -786,6 +791,17 @@ export async function POST(request: NextRequest) {
     description: body.description ?? null,
     description_passed_ai: body.descriptionPassedAI ?? null,
   };
+
+  /* ── Hero framing ── re-sanitized here rather than trusted: the client value
+        has crossed the network and the DB CHECK will refuse anything out of
+        bounds, so a bad payload must become automatic framing, not a 500 on an
+        otherwise valid publish. Default framing writes NULL instead of a
+        centred object — "the seller chose nothing" and "the seller chose the
+        centre" are the same picture, and NULL keeps that honest in the data. */
+  const presentation = sanitizePhotoPresentation(body.photoPresentation);
+  if (!isDefaultPresentation(presentation)) {
+    row.photo_presentation = presentation;
+  }
 
   // v2.2 columns join the row ONLY when the wizard fields are present.
   if (publishRequestId) {

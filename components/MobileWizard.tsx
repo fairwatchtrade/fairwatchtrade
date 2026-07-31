@@ -22,6 +22,14 @@ import CameraCapture, { type ConfirmedCapture } from "@/components/CameraCapture
 import { type OverlayVariant } from "@/components/AlignmentOverlay";
 import WatchSpinner from "@/components/WatchSpinner";
 import { randomUUID } from "@/lib/uuid";
+import PhotoPresentationEditor, {
+  PhotoPresentationEntry,
+} from "@/components/PhotoPresentationEditor";
+import {
+  presentationForPhoto,
+  resolveHeroIndex,
+  sanitizePhotoPresentation,
+} from "@/lib/photoPresentation";
 import {
   createDraft,
   saveContent,
@@ -290,6 +298,8 @@ export default function MobileWizard({
   const [saleState, setSaleState] = useState<SaleState | null>(null);
   const [draft, setDraft] = useState<ListingDraft>(() => emptyDraft());
   const [mediaMeta, setMediaMeta] = useState<MediaMeta[]>([]);
+  const [presentationOpen, setPresentationOpen] = useState(false);
+  const presentationEntryRef = useRef<HTMLButtonElement | null>(null);
 
   // ── Draft-attempt identity ── one token per listing attempt. Minted on a
   // fresh start and re-minted on "Start a new listing"; every photo is stamped
@@ -996,6 +1006,9 @@ export default function MobileWizard({
           provenanceNote: finalDraft.provenanceNote,
           significanceScore: finalDraft.significanceScore,
           photos: finalDraft.photos,
+          // Same shared contract as desktop Review — one metadata object, one
+          // sanitizer, so the two surfaces cannot disagree about framing.
+          photoPresentation: sanitizePhotoPresentation(finalDraft.photoPresentation),
           hasBracelet: finalDraft.hasBracelet,
           details: finalDraft.details,
           description: finalDraft.description,
@@ -1648,6 +1661,16 @@ export default function MobileWizard({
 
   /* ── Screen 9 — review & publish ── */
   if (stage === "review") {
+    /* Automatic hero, mirroring desktop Review and the buyer-facing detail
+       page: first Dial photo, else the first photo. */
+    const dialIdx = draft.photos.findIndex((p) => p.category === "Dial");
+    const mobileAutomaticHeroIndex = dialIdx >= 0 ? dialIdx : 0;
+    const mobilePresentation = sanitizePhotoPresentation(draft.photoPresentation);
+    const mobileHeroIndex = resolveHeroIndex(
+      draft.photos.map((p) => p.photo.pathname),
+      mobilePresentation,
+      mobileAutomaticHeroIndex
+    );
     return (
       <Shell handBack={handBackChip}>
         <StepCrumb label="Review" />
@@ -1662,10 +1685,45 @@ export default function MobileWizard({
               className="flex h-[90px] items-center justify-center overflow-hidden bg-[var(--ink-deep)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.photo.url} alt={p.category} className="h-full w-full object-cover" />
+              <img
+                src={p.photo.url}
+                alt={p.category}
+                /* Only the hero carries the seller's framing; the others stay
+                   automatic, because a focal point chosen on the dial means
+                   nothing on a clasp shot. */
+                style={presentationForPhoto(
+                  p.photo.pathname,
+                  mobilePresentation,
+                  i === mobileHeroIndex
+                )}
+                className="h-full w-full"
+              />
             </div>
           ))}
         </div>
+
+        {/* Same quiet utility, same component, same placement rule: directly
+            beneath the thumbnails and before the listing facts. */}
+        {draft.photos.length > 0 && (
+          <PhotoPresentationEntry
+            buttonRef={presentationEntryRef}
+            onOpen={() => setPresentationOpen(true)}
+            className="mb-6"
+          />
+        )}
+
+        {presentationOpen && (
+          <PhotoPresentationEditor
+            photos={draft.photos}
+            value={sanitizePhotoPresentation(draft.photoPresentation)}
+            automaticHeroIndex={mobileAutomaticHeroIndex}
+            onSave={(photoPresentation) => setDraft((d) => ({ ...d, photoPresentation }))}
+            onClose={() => {
+              setPresentationOpen(false);
+              presentationEntryRef.current?.focus();
+            }}
+          />
+        )}
 
         <dl className="mb-8 space-y-2">
           <SummaryRow k="Condition" v={draft.condition || "—"} />

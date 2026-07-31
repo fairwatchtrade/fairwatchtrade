@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { type ListingDraft } from "@/lib/listing";
+import PhotoPresentationEditor, {
+  PhotoPresentationEntry,
+} from "@/components/PhotoPresentationEditor";
+import {
+  type PhotoPresentation,
+  presentationStyle,
+  resolveHeroIndex,
+  sanitizePhotoPresentation,
+} from "@/lib/photoPresentation";
 import { toScoringState } from "@/lib/listing";
 import WatchSpinner from "@/components/WatchSpinner";
 import { parsePrice } from "@/lib/parsePrice";
@@ -55,11 +64,15 @@ function specRows(draft: ListingDraft): [string, string][] {
 
 export default function ReviewStep({
   draft,
+  onPresentationChange,
   captureSessionId,
   publishRequestId,
   onPublished,
 }: {
   draft: ListingDraft;
+  // Lifts the seller's hero framing back into the draft. Optional so the
+  // component still renders read-only if mounted without an owner.
+  onPresentationChange?: (p: PhotoPresentation) => void;
   // v2.24 · The Aubrey Check desktop correlation — supplied by SellFlow.
   // Optional so the component still renders (and publishes, pre-correlation
   // style) if mounted without them.
@@ -75,6 +88,11 @@ export default function ReviewStep({
   // locked held-state copy, never a false "live".
   const [held, setHeld] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  // Focus returns to the utility when the editor closes — the proven
+  // SavedSearches restoration pattern, not a new one.
+  const entryRef = useRef<HTMLButtonElement | null>(null);
+  const presentation = sanitizePhotoPresentation(draft.photoPresentation);
 
   async function publish() {
     setPublishing(true);
@@ -96,6 +114,9 @@ export default function ReviewStep({
           provenanceNote: draft.provenanceNote,
           significanceScore: draft.significanceScore,
           photos: draft.photos,
+          // Presentation metadata travels beside the photos it frames — never
+          // inside them, so the evidence array keeps exactly its old shape.
+          photoPresentation: sanitizePhotoPresentation(draft.photoPresentation),
           hasBracelet: draft.hasBracelet,
           details: draft.details,
           description: draft.description,
@@ -178,8 +199,17 @@ export default function ReviewStep({
   }
 
   const photos = draft.photos;
-  const dial = photos.find((p) => p.category === "Dial");
-  const hero = (dial ?? photos[0])?.photo.url;
+  /* The automatic hero is unchanged: first Dial photo, else the first photo.
+     The seller's choice only OVERRIDES it — it never replaces the rule, so a
+     draft with no presentation frames exactly as it always did. */
+  const dialIdx = photos.findIndex((p) => p.category === "Dial");
+  const automaticHeroIndex = dialIdx >= 0 ? dialIdx : 0;
+  const heroIndex = resolveHeroIndex(
+    photos.map((p) => p.photo.pathname),
+    presentation,
+    automaticHeroIndex
+  );
+  const hero = photos[heroIndex]?.photo.url;
   const rows = specRows(draft);
   const money = reviewMoney(draft);
 
@@ -195,8 +225,13 @@ export default function ReviewStep({
       {/* Buyer's-eye preview */}
       <div className="mt-4 overflow-hidden border border-[var(--border-subtle)] bg-[var(--ink)]">
         {hero ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt="" className="aspect-[4/3] w-full object-cover" />
+          /* overflow-hidden is load-bearing: it is what makes governed zoom a
+             crop inside the frame rather than an image that spills over the
+             card edge. */
+          <div className="aspect-[4/3] w-full overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={hero} alt="" style={presentationStyle(presentation)} className="h-full w-full" />
+          </div>
         ) : (
           <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[var(--muted)]">
             No photos added
@@ -215,6 +250,18 @@ export default function ReviewStep({
               />
             ))}
           </div>
+        )}
+
+        {/* Approved placement: directly beneath the thumbnail strip and BEFORE
+            the listing identity. It renders for a single photo too — framing a
+            lone hero is the case that needs it most, since there is no second
+            photograph to carry the watch. */}
+        {photos.length > 0 && onPresentationChange && (
+          <PhotoPresentationEntry
+            buttonRef={entryRef}
+            onOpen={() => setEditorOpen(true)}
+            className="px-3 pt-3"
+          />
         )}
 
         <div className="p-4">
@@ -297,6 +344,19 @@ export default function ReviewStep({
           )}
         </div>
       </div>
+
+      {editorOpen && onPresentationChange && (
+        <PhotoPresentationEditor
+          photos={photos}
+          value={presentation}
+          automaticHeroIndex={automaticHeroIndex}
+          onSave={onPresentationChange}
+          onClose={() => {
+            setEditorOpen(false);
+            entryRef.current?.focus();
+          }}
+        />
+      )}
 
       {error && (
         <p className="mt-4 border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-center text-[13px] text-[var(--danger)]">

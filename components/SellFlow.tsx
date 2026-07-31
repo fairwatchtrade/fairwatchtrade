@@ -740,6 +740,12 @@ export default function SellFlow() {
               )}
               <ReviewStep
                 draft={draft}
+                /* Presentation is draft state like any other field, so it
+                   rides the existing server-draft autosave and survives a
+                   refresh or a phone handoff without new plumbing. */
+                onPresentationChange={(photoPresentation) =>
+                  patch({ photoPresentation })
+                }
                 captureSessionId={desktopIds.captureSessionId}
                 publishRequestId={desktopIds.publishRequestId}
                 onPublished={(listingId) => {

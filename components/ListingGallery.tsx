@@ -50,6 +50,20 @@ export default function ListingGallery({
   modelLabel: string | null;
   dialUrl?: string | null;
 }) {
+  /* ── WHY NO FOCAL FRAMING HERE (v3.7) ──────────────────────────────────
+     The seller's hero CHOICE reaches this component, as initialIndex. Their
+     focal point and zoom deliberately do NOT.
+
+     This hero is `object-contain` inside max-h-[60vh]: the whole photograph is
+     visible and nothing is cropped. There is no framing decision to honour,
+     because there is no frame cutting anything off. Applying object-cover here
+     to make the focal point "work" would introduce a crop that does not exist
+     today and hide parts of the photograph from the buyer — subtracting
+     evidence to improve presentation, which is precisely the trade the
+     evidence law forbids.
+
+     Framing applies where a crop is already happening and the seller is
+     choosing WHICH part survives it: the Review card and the browse card. ── */
   const safeInitial =
     initialIndex >= 0 && initialIndex < photos.length ? initialIndex : 0;
   const [active, setActive] = useState(safeInitial);

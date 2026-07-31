@@ -4,6 +4,7 @@ import {
   type ListingState,
 } from "@/lib/scoring";
 import { type UploadedPhoto } from "@/lib/storage";
+import { type PhotoPresentation, defaultPresentation } from "@/lib/photoPresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
    LISTING DRAFT — the single state object that travels through all 5 steps
@@ -70,6 +71,10 @@ export type ListingDraft = {
   // Step 2 — photos
   photos: ListingPhoto[];
   hasBracelet: boolean;
+  /* Hero framing chosen on the Review step. Presentation only — the uploaded
+     photographs in `photos` are never modified by it. Optional so drafts
+     written before this existed resume without migration. */
+  photoPresentation?: PhotoPresentation;
 
   // Step 3 — structured details
   details: ListingDetails;
@@ -97,6 +102,7 @@ export function emptyDraft(): ListingDraft {
     curationReasoning: "",
     photos: [],
     hasBracelet: false,
+    photoPresentation: defaultPresentation(),
     details: { documentation: "Watch Only" },
     description: "",
     descriptionPassedAI: null,

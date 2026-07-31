@@ -10,6 +10,7 @@ import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
+import { resolveHeroIndex, sanitizePhotoPresentation } from "@/lib/photoPresentation";
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -92,7 +93,8 @@ import { formatMoney } from "@/lib/formatMoney";
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
-  photo: { url: string };
+  // See BrowseClient: pathname is the stable identity a hero choice points at.
+  photo: { url: string; pathname?: string };
   category: string;
   isWristShot?: boolean;
 };
@@ -126,6 +128,9 @@ type Listing = {
   // Money Truth Stage B — flows through select("*"); null until attested.
   asking_currency: string | null;
   photos: ListingPhoto[];
+  // Seller hero framing (v3.7) — flows through select("*"); null on every row
+  // written before it existed, which sanitizes to automatic framing.
+  photo_presentation?: unknown;
   details: ListingDetails;
   description: string;
   created_at: string;
@@ -306,7 +311,18 @@ export default async function ListingDetailPage({
   const sorted = [...withUrls].sort((a, b) => photoRank(a?.category) - photoRank(b?.category));
   const photoUrls = sorted.map((p) => p.photo.url);
   const dialIdx = sorted.findIndex((p) => p?.category === "Dial");
-  const heroIndex = dialIdx >= 0 ? dialIdx : 0;
+  /* ── Seller hero framing ── the sort above is UNTOUCHED: photo roles still
+     govern gallery order, exactly as the evidence law requires. The seller's
+     choice moves only which photo opens first, and carries the focal framing
+     for that one photo. A hero whose file is gone falls back to the automatic
+     dial-first rule rather than showing nothing. */
+  const presentation = sanitizePhotoPresentation(listing.photo_presentation);
+  const automaticHeroIndex = dialIdx >= 0 ? dialIdx : 0;
+  const heroIndex = resolveHeroIndex(
+    sorted.map((p) => p?.photo?.pathname ?? null),
+    presentation,
+    automaticHeroIndex
+  );
   const heroUrl = photoUrls[heroIndex] ?? photoUrls[0] ?? null;
 
   // Dial Reveal needs the dial photo specifically, independent of whichever
@@ -506,6 +522,8 @@ export default async function ListingDetailPage({
               <ListingGallery
                 photos={photoUrls}
                 initialIndex={heroIndex}
+                /* Hero CHOICE only — see ListingGallery for why focal framing
+                   is deliberately not applied to an uncropped hero. */
                 brandLabel={listing.brand}
                 modelLabel={listing.model}
                 dialUrl={dialPhotoUrl} /* v2.19 — Dial Reveal RECONNECTED as

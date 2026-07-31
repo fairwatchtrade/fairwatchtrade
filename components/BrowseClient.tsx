@@ -6,6 +6,13 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
 import { formatMoney } from "@/lib/formatMoney";
+import {
+  defaultPresentation,
+  presentationForPhoto,
+  presentationStyle,
+  resolveHeroIndex,
+  sanitizePhotoPresentation,
+} from "@/lib/photoPresentation";
 import BrowseSearch, { type SearchChip } from "@/components/BrowseSearch";
 import SearchEmptyState from "@/components/SearchEmptyState";
 import {
@@ -115,7 +122,10 @@ import {
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
-  photo: { url: string };
+  // pathname is the stable storage identity — it is what a stored hero choice
+  // points at, since a URL can be re-signed and a pathname cannot. Optional
+  // because rows written before hero choice existed carry no dependency on it.
+  photo: { url: string; pathname?: string };
   category: string;
   isWristShot?: boolean;
 };
@@ -133,6 +143,9 @@ type ListingRow = {
   // Money Truth Stage B — undisclosed until attested, never assumed USD.
   asking_currency: string | null;
   photos: ListingPhoto[];
+  // Seller hero framing (v3.7) — already flowing through select("*"); typed
+  // now, following the v1.57 type-only precedent. Absent on older rows.
+  photo_presentation?: unknown;
   details?: {
     dialColorType?: string;
     caseMaterial?: string;
@@ -177,10 +190,33 @@ function formatPrice(value: number | null, currency: string | null): string {
   return formatMoney(value, currency);
 }
 
-function heroUrl(photos: ListingPhoto[]): string | null {
-  if (!Array.isArray(photos) || photos.length === 0) return null;
-  const dial = photos.find((p) => p?.category === "Dial");
-  return (dial ?? photos[0])?.photo?.url ?? null;
+/* Hero + its framing. The browse card is a REAL crop — a 120×150 / 150×190
+   portrait window with object-cover over photographs of every shape — so this
+   is the surface where a seller's centring actually earns its keep, and the
+   one where an off-centre watch was most visibly being clipped.
+
+   The automatic rule (first Dial, else first photo) is unchanged and still
+   governs every listing that has no stored presentation. */
+function heroFrame(row: {
+  photos: ListingPhoto[];
+  photo_presentation?: unknown;
+}): { url: string | null; style: React.CSSProperties } {
+  const photos = Array.isArray(row.photos) ? row.photos : [];
+  const presentation = sanitizePhotoPresentation(row.photo_presentation);
+  if (photos.length === 0) {
+    return { url: null, style: presentationStyle(defaultPresentation()) };
+  }
+  const dialIdx = photos.findIndex((p) => p?.category === "Dial");
+  const index = resolveHeroIndex(
+    photos.map((p) => p?.photo?.pathname ?? null),
+    presentation,
+    dialIdx >= 0 ? dialIdx : 0
+  );
+  const chosen = photos[index] ?? photos[0];
+  return {
+    url: chosen?.photo?.url ?? null,
+    style: presentationForPhoto(chosen?.photo?.pathname, presentation, true),
+  };
 }
 
 function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [string, number][] {
@@ -996,7 +1032,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
               }
             >
               {paginated.map((row) => {
-                const hero = heroUrl(row.photos);
+                const { url: hero, style: heroStyle } = heroFrame(row);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
                 const meta = [row.condition, row.year].filter(Boolean).join(" · ");
                 const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
@@ -1110,7 +1146,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={hero} alt="" className="h-full w-full object-cover" />
+                        <img src={hero} alt="" style={heroStyle} className="h-full w-full" />
                       ) : (
                         <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--ghost)]">
                           No photo
