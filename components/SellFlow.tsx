@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -285,7 +285,75 @@ function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
 
 export default function SellFlow() {
   const [draft, setDraft] = useState<ListingDraft>(emptyDraft);
-  const [step, setStep] = useState(0);
+  const [step, setStepRaw] = useState(0);
+  /* Furthest step the seller has actually reached. Clickability is keyed off
+     THIS, not off `step` — otherwise jumping back to IV would immediately make
+     V unreachable, stranding the seller in the middle of a flow they had
+     already completed. A high-water mark never retreats. */
+  const [maxStep, setMaxStep] = useState(0);
+  /* Wrapping setStep rather than editing every call site keeps the existing
+     five callers (curation pass, photo proceed, back, continue) untouched and
+     makes it impossible to advance without the mark following. */
+  const setStep = useCallback((next: number) => {
+    setStepRaw(next);
+    setMaxStep((m) => Math.max(m, next));
+  }, []);
+
+  /* ── Browser Back follows the wizard, not the page ──────────────────────
+     The in-page Back button was always correct — it calls setStep(step - 1)
+     and never leaves /sell. The defect was the BROWSER Back button: step
+     changes pushed no history, so the flow occupied a single entry and one
+     Back ejected the seller out of /sell entirely from any step.
+
+     Each step now owns a history entry, so Back walks II ← III ← IV the way
+     the seller expects, and reaching the exit takes as many deliberate presses
+     as there are steps behind them. Nothing is unmounted or cleared — only
+     `step` moves, exactly as the Back button does, so photos, description,
+     score and presentation metadata are untouched.
+
+     poppingRef stops the feedback loop: a popstate sets the step, which would
+     otherwise re-push the entry we just came from and make Back inert. */
+  const poppingRef = useRef(false);
+
+  useEffect(() => {
+    window.history.replaceState({ sellStep: 0 }, "");
+    function onPop(e: PopStateEvent) {
+      const s = (e.state as { sellStep?: number } | null)?.sellStep;
+      if (typeof s === "number") {
+        poppingRef.current = true;
+        setStepRaw(s);
+      }
+      /* No sellStep means the seller has backed out past step I and is
+         genuinely leaving. That is now a deliberate act — it costs one press
+         per completed step — so it is allowed through rather than trapped
+         behind a dialog the browser cannot reliably cancel here. */
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    if (poppingRef.current) {
+      poppingRef.current = false;
+      return;
+    }
+    if (step === 0) return;
+    window.history.pushState({ sellStep: step }, "");
+  }, [step]);
+
+  /* Reload, tab close, or navigating away by URL still bypass step history
+     entirely, so those keep an explicit confirmation once there is work worth
+     losing. The browser supplies its own wording; the draft itself is saved
+     server-side, so this guards the seller's place in the flow, not the data. */
+  useEffect(() => {
+    if (step === 0) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [step]);
   // v2.4y — reference advisory lives at flow level so an unresolved
   // advisory can repeat at Review without touching ReviewStep itself.
   const [refAdvisory, setRefAdvisory] = useState<RefAdvisory | null>(null);
@@ -564,7 +632,7 @@ export default function SellFlow() {
   if (phoneActive) {
     return (
       <div className="space-y-6">
-        <ProgressBar step={step} />
+        <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
         <div className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-14 text-center">
           <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             List from phone
@@ -590,7 +658,7 @@ export default function SellFlow() {
 
   return (
     <div className="space-y-6">
-      <ProgressBar step={step} />
+      <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
 
       {/* List From Phone — quiet affordance (signed-in sellers, desktop).
           It belongs to the work, not the score panel: same left edge as the
@@ -785,18 +853,33 @@ export default function SellFlow() {
   );
 }
 
-function ProgressBar({ step }: { step: number }) {
+/* The progress row always LOOKED like navigation; now it behaves like it.
+   A completed step is a real button covering the full numeral-and-label area,
+   so returning to IV Description is one click instead of four Backs. Nothing
+   visual changes: the existing tone rules are untouched and only a
+   focus-visible outline is added, because a control reachable by keyboard has
+   to show where the keyboard is. Future steps stay inert — they are not yet
+   earned — and the current step is marked aria-current="step" rather than
+   being a button that navigates nowhere.
+   Jumping cannot publish, submit, or clear anything: it only calls setStep,
+   the same function the Back and Continue buttons already call. */
+function ProgressBar({
+  step,
+  maxStep,
+  onJump,
+}: {
+  step: number;
+  maxStep: number;
+  onJump: (i: number) => void;
+}) {
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-0">
-        {STEPS.map((label, i) => (
-          <div
-            key={label}
-            className={`flex min-w-0 items-center ${
-              i < STEPS.length - 1 ? "flex-1 sm:flex-none" : ""
-            }`}
-          >
-            <div className="flex flex-col items-center">
+      <nav aria-label="Listing progress" className="flex items-center gap-0">
+        {STEPS.map((label, i) => {
+          const isCurrent = i === step;
+          const reachable = i <= maxStep && !isCurrent;
+          const inner = (
+            <>
               <div
                 className={`font-[Inter] text-[9px] uppercase tracking-[1px] sm:tracking-[2px] ${
                   i === step
@@ -819,7 +902,31 @@ function ProgressBar({ step }: { step: number }) {
               >
                 {label}
               </div>
-            </div>
+            </>
+          );
+          return (
+            <div
+              key={label}
+              className={`flex min-w-0 items-center ${
+                i < STEPS.length - 1 ? "flex-1 sm:flex-none" : ""
+              }`}
+            >
+              {reachable ? (
+                <button
+                  type="button"
+                  onClick={() => onJump(i)}
+                  className="flex cursor-pointer flex-col items-center bg-transparent transition hover:opacity-80 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[var(--gold)]"
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div
+                  className="flex flex-col items-center"
+                  aria-current={isCurrent ? "step" : undefined}
+                >
+                  {inner}
+                </div>
+              )}
             {i < STEPS.length - 1 && (
               <div className="mb-3 flex min-w-0 flex-1 items-center sm:mx-3 sm:flex-none sm:gap-1">
                 <div
@@ -839,9 +946,10 @@ function ProgressBar({ step }: { step: number }) {
                 />
               </div>
             )}
-          </div>
-        ))}
-      </div>
+            </div>
+          );
+        })}
+      </nav>
     </div>
   );
 }

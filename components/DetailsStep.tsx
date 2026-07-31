@@ -108,6 +108,37 @@ const SERVICE_EXCLUSIONS: Record<string, string[]> = {
   "Unpolished / Original": ["Polished"],
 };
 
+/* ── CROSS-GROUP contradictions (Section VI) ─────────────────────────────
+   SERVICE_EXCLUSIONS above governs contradictions WITHIN the service list and
+   resolves them by CLEARING. That is right there: the options are alternative
+   answers to one question, so choosing one plainly retracts the other.
+
+   Across the two Section VI groups it is not right. "Included with watch" and
+   "Service, repair & case history" are two separate factual claims the seller
+   made deliberately in two places. Silently dropping one would decide on their
+   behalf which is true, and they would never know it happened. These are named
+   and surfaced instead, and the seller resolves them.
+
+   Bounded audit of the four categories called for, against the real option
+   lists: `Never Serviced` vs serviced-status, provider-without-service, and
+   Polished vs Unpolished are ALL already governed intra-group by
+   SERVICE_EXCLUSIONS. Documentary evidence contradicting declared history was
+   the only category unguarded, and `Service Receipt` is the only entry in
+   INCLUDED that asserts a service occurred — Warranty Card, Papers, Manual and
+   the rest carry no service claim. Hence exactly one rule. Adding more would
+   mean inventing contradictions the option lists do not actually contain. */
+const CROSS_GROUP_CONTRADICTIONS: {
+  included: string;
+  service: string;
+  why: string;
+}[] = [
+  {
+    included: "Service Receipt",
+    service: "Never Serviced",
+    why: "a service receipt is documentary evidence that a service happened, which cannot be true of a watch that has never been serviced",
+  },
+];
+
 const inputCls =
   "w-full border-b border-[rgba(201,168,76,0.40)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
 const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
@@ -597,6 +628,44 @@ export default function DetailsStep({
         <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => patch({ details: { ...d, includedWithWatch: v, documentation: deriveDocumentation(v) } })} />
         <MultiSelect label="Service, repair & case history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
 
+        {/* Cross-group contradiction notice. Both selections are LEFT ALONE —
+            the seller keeps whatever they ticked, and is told exactly which two
+            answers disagree so they can decide which one is true. role="alert"
+            so a screen reader hears it when it appears. */}
+        {(() => {
+          const included = d.includedWithWatch ?? [];
+          const service = d.serviceHistory ?? [];
+          const conflicts = CROSS_GROUP_CONTRADICTIONS.filter(
+            (c) => included.includes(c.included) && service.includes(c.service),
+          );
+          if (conflicts.length === 0) return null;
+          return (
+            <div
+              role="alert"
+              className="mt-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 text-[12px] leading-relaxed text-[var(--muted)]"
+            >
+              <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                These two answers disagree
+              </div>
+              <ul className="mt-2 space-y-1">
+                {conflicts.map((c) => (
+                  <li key={`${c.included}|${c.service}`}>
+                    <span className="text-[var(--platinum)]">{c.included}</span>
+                    {" is selected under Included with watch, and "}
+                    <span className="text-[var(--platinum)]">{c.service}</span>
+                    {" under Service, repair & case history — "}
+                    {c.why}.
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2">
+                Nothing has been changed for you. Please clear whichever one does not
+                describe this watch.
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="mt-4">
           {/* draft.provenanceNote has TWO entry points by design: the curation
               gate (CurationStep) and here in Chapter VI. Whatever the seller
@@ -760,12 +829,19 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[var(--platinum)]">
+    /* Keyboard focus visibility: the real <input> is sr-only, so focus landed
+       on an element with no visible presence and the box beside it never
+       reacted — a keyboard seller had no way to tell which control they were
+       on. `peer` lets the box answer the input's focus, and `has-` lifts the
+       label with it, so the whole group acknowledges focus as one target.
+       Deliberately an outline, not a glow or a fill: a fill would make an
+       unchecked box read as checked. Space still toggles (native). */
+    <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[var(--platinum)] transition has-[:focus-visible]:text-[var(--gold)]">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="sr-only"
+        className="peer sr-only"
       />
       {/* Unchecked state legibility: the border was --border-subtle
           (rgba(255,255,255,0.06) — ~1.12:1 against the surface), which reads as
@@ -775,7 +851,7 @@ function Toggle({
           target is unmistakable before it is checked. Geometry and the
           checked-state treatment are unchanged. */}
       <div
-        className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
+        className={`flex h-3 w-3 shrink-0 items-center justify-center border transition peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--gold)] ${
           checked
             ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
             : "border-[rgba(201,168,76,0.40)] bg-[rgba(255,255,255,0.04)]"
