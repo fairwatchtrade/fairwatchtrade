@@ -118,4 +118,43 @@ const mdLine = deriveEnrichmentLines(md)[0];
 ok("no evidence leaked (visible)", !/verified|source|manufacturer/i.test(mdLine.text));
 ok("no evidence leaked (spoken)", !/verified|source|manufacturer/i.test(mdLine.meaning));
 
+// ── Precision/range alignment with the database contract (Vision review) ────
+// The RPC admits only 1–100 mm with at most two decimals, and it does so
+// BECAUSE this renderer uses toFixed(1..2). These assertions hold the two
+// halves in agreement: every value the database accepts must survive rendering
+// without loss, and the boundary values must read sensibly.
+const rendered = (mm) => formatMovementDimensions({ movement_diameter_mm: mm });
+
+eq("min bound renders", rendered(1), "⌀ 1.0 mm");
+eq("max bound renders", rendered(100), "⌀ 100.0 mm");
+eq("integer gains one decimal", rendered(30), "⌀ 30.0 mm");
+eq("one decimal preserved", rendered(30.1), "⌀ 30.1 mm");
+eq("two decimals preserved", rendered(30.25), "⌀ 30.25 mm");
+
+// Round-trip: nothing the database accepts loses information on the way to the
+// card. If this fails, the stored fact and the displayed fact have diverged.
+for (const mm of [1, 1.5, 9.75, 30, 30.1, 30.25, 42.42, 99.99, 100]) {
+  const text = rendered(mm);
+  const back = Number.parseFloat(text.replace(/[^0-9.]/g, ""));
+  ok(`round-trip ${mm} → ${text}`, back === mm);
+  const spoken = describeMovementDimensions({ movement_diameter_mm: mm });
+  ok(`spoken agrees ${mm}`, spoken.includes(text.replace("⌀ ", "").replace(" mm", "")));
+}
+
+// The inverse, and the two bounds are NOT the same kind of rule — asserting it
+// so nobody re-conflates them (an earlier draft of this file did, and this
+// assertion is what caught it).
+//
+// PRECISION protects rendering: past two decimals the renderer silently drops
+// information, and below 0.005 it would display zero for a non-zero fact.
+eq("excess precision truncates", rendered(30.12345), "⌀ 30.12 mm");
+eq("sub-precision value displays as zero", rendered(0.001), "⌀ 0.00 mm");
+
+// RANGE protects certification, not rendering: a small value renders perfectly
+// well: 0.01 mm is shown faithfully. It is refused because it is not a credible
+// movement diameter, which is a different failure entirely.
+eq("small value still renders faithfully", rendered(0.01), "⌀ 0.01 mm");
+ok("range bound is about plausibility, not display",
+   rendered(0.01) === "⌀ 0.01 mm" && rendered(900) === "⌀ 900.0 mm");
+
 console.log(`vault-enrichment-facts: ${pass} assertions PASS`);

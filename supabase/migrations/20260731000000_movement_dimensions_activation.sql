@@ -80,6 +80,7 @@ declare
   v_before        jsonb;
   v_after         jsonb;
   v_event_id      uuid;
+  v_mm            numeric;
   v_dry           boolean := coalesce(p_dry_run, false);
 begin
   -- Environment binding: the caller declares which project it intends; refuse
@@ -115,9 +116,60 @@ begin
       return jsonb_build_object('state','FAILED','dry_run',v_dry,
         'detail','movement_diameter_mm must be a positive number');
     end if;
+
+    -- The two bounds below exist for DIFFERENT reasons; conflating them was an
+    -- error caught by the formatter's own round-trip test.
+    --
+    -- RANGE is about plausibility, not rendering. lib/vault/enrichmentFacts.ts
+    -- renders any two-decimal value faithfully at any magnitude (0.01 → "0.01"),
+    -- so nothing here protects the display. It protects the CERTIFICATION: a
+    -- movement diameter of 0.01 mm or 900 mm is not a fact, it is a data error,
+    -- and a store whose whole premise is certified truth should refuse it rather
+    -- than attest to it. 1–100 mm spans every real movement, from the smallest
+    -- ladies' calibre to the largest pocket-watch ébauche.
+    --
+    -- PRECISION is about rendering, and is the bound that actually protects it.
+    -- The renderer uses toFixed(1..2), so a third decimal is silently discarded
+    -- (30.12345 → "30.12") and a value below 0.005 would display as "0.00" —
+    -- zero for a non-zero fact. Refusing >2 decimals at the door means the
+    -- stored value and the shown value can never disagree.
+    v_mm := (p_payload ->> 'movement_diameter_mm')::numeric;
+    if v_mm < 1 or v_mm > 100 then
+      return jsonb_build_object('state','FAILED','dry_run',v_dry,
+        'detail','movement_diameter_mm must be between 1 and 100 mm');
+    end if;
+    if scale(trim_scale(v_mm)) > 2 then
+      return jsonb_build_object('state','FAILED','dry_run',v_dry,
+        'detail','movement_diameter_mm supports at most 2 decimal places');
+    end if;
+
+    -- Named refusals keep their specific message: these are the dimensions a
+    -- later flight is expected to certify, and the caller deserves to know the
+    -- difference between "not yet" and "not a field".
     if p_payload ?| array['movement_height_mm','movement_thickness_mm','height_mm','thickness_mm'] then
       return jsonb_build_object('state','FAILED','dry_run',v_dry,
         'detail','height/thickness are not certified in this flight');
+    end if;
+
+    -- Strict allowlist. Anything not named here is refused rather than merged
+    -- into the stored fact, where it would sit uncertified and invisible — the
+    -- renderer ignores unknown keys, so an unrecognised field would persist
+    -- forever without ever being shown or validated.
+    if exists (
+      select 1 from jsonb_object_keys(p_payload) as k
+       where k not in ('movement_diameter_mm','evidence')
+    ) then
+      return jsonb_build_object('state','FAILED','dry_run',v_dry,
+        'detail','unknown payload field for movement_dimensions');
+    end if;
+
+    -- Evidence is the entire basis of a certified fact. It is written to the
+    -- append-only audit row as p_payload -> 'evidence'; absent or malformed, the
+    -- event records NULL and the fact becomes unfalsifiable after the fact.
+    if jsonb_typeof(p_payload -> 'evidence') is distinct from 'object'
+       or p_payload -> 'evidence' = '{}'::jsonb then
+      return jsonb_build_object('state','FAILED','dry_run',v_dry,
+        'detail','evidence must be a non-empty object');
     end if;
   end if;
 
