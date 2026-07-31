@@ -569,7 +569,15 @@ export default function DetailsStep({
           </Field>
 
           <div className="flex items-end pb-1">
-            <Toggle label="Crown present" checked={!!d.crownPresent} onChange={(v) => set("crownPresent", v)} />
+            {/* Required ANSWER, not a required crown. "No" is fully valid —
+                a missing crown is truthful — but silence is not, because it
+                cannot be told apart from a deliberate No. */}
+            <BinaryChoice
+              label="Crown present"
+              name="crown-present"
+              value={d.crownPresent}
+              onChange={(v) => set("crownPresent", v)}
+            />
           </div>
         </div>
       </Chapter>
@@ -755,11 +763,20 @@ export default function DetailsStep({
             while Final Review is open, since the review's own actions advance. */}
         {!review && (
           <div className="mt-8">
+            {/* The Crown present answer is required to leave this step. The
+                reason is stated where the seller is blocked, not only up at
+                the control, so a disabled Continue is never a mystery. */}
+            {d.crownPresent === undefined && (
+              <p className="mb-3 text-[12px] text-[var(--muted)]">
+                Please answer <span className="text-[var(--platinum)]">Crown present</span> above
+                — <span className="text-[var(--platinum)]">No</span> is a perfectly good answer.
+              </p>
+            )}
             <button
               type="button"
               onClick={handleContinue}
-              disabled={reviewing}
-              className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:opacity-60 ${
+              disabled={reviewing || d.crownPresent === undefined}
+              className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
                 reviewing ? "cursor-wait" : ""
               }`}
             >
@@ -861,6 +878,67 @@ function Toggle({
       </div>
       {label}
     </label>
+  );
+}
+
+/* ── Required binary answer ──────────────────────────────────────────────
+   A checkbox cannot tell "No, the crown is absent" apart from "I skipped
+   this" — both read as unchecked. Where the ANSWER is required but either
+   answer is truthful, the control has to carry three states, so this is a
+   radio pair over `boolean | undefined`: undefined is genuinely unanswered
+   and neither option is preselected.
+
+   Radios rather than two buttons on purpose — the browser gives arrow-key
+   movement, roving focus and group semantics for free, and a fieldset/legend
+   names the question to assistive technology. Styling reuses the exact tokens
+   the checkbox already uses, so nothing new enters the design system. */
+function BinaryChoice({
+  label,
+  value,
+  onChange,
+  name,
+}: {
+  label: string;
+  value: boolean | undefined;
+  onChange: (v: boolean) => void;
+  name: string;
+}) {
+  const answered = value !== undefined;
+  return (
+    <fieldset className="min-w-0">
+      <legend className={labelCls}>
+        {label}
+        {!answered && (
+          <span className="ml-2 normal-case tracking-normal text-[var(--gold-dim)]">
+            required
+          </span>
+        )}
+      </legend>
+      <div className="flex gap-2">
+        {[
+          { v: true, t: "Yes" },
+          { v: false, t: "No" },
+        ].map(({ v, t }) => (
+          <label
+            key={t}
+            className={`cursor-pointer border px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] transition has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--gold)] ${
+              value === v
+                ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--gold)]"
+                : "border-[rgba(201,168,76,0.40)] bg-[rgba(255,255,255,0.04)] text-[var(--muted)] hover:text-[var(--platinum)]"
+            }`}
+          >
+            <input
+              type="radio"
+              name={name}
+              checked={value === v}
+              onChange={() => onChange(v)}
+              className="sr-only"
+            />
+            {t}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

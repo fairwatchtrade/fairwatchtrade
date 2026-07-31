@@ -38,7 +38,12 @@ function specRows(draft: ListingDraft): [string, string][] {
   push("Crystal", d.crystalMaterial);
   push("Caseback", d.casebackType);
   push("Closure", d.closureType);
-  push("Crown present", d.crownPresent ? "Yes" : "");
+  /* A required binary answer, so "No" must SHOW. The old form emitted "" for
+     false, which made a deliberate No indistinguishable from an unanswered
+     field on Review — the very ambiguity the control was changed to remove.
+     undefined still emits "" (push drops empties), but Details now blocks
+     Continue until it is answered, so that state should not reach Review. */
+  push("Crown present", d.crownPresent === undefined ? "" : d.crownPresent ? "Yes" : "No");
   push("Documentation", d.documentation);
   push("Complications", (d.complications ?? []).join(", "));
   push("Service history", (d.serviceHistory ?? []).join(", "));

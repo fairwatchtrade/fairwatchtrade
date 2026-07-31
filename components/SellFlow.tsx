@@ -342,18 +342,29 @@ export default function SellFlow() {
   }, [step]);
 
   /* Reload, tab close, or navigating away by URL still bypass step history
-     entirely, so those keep an explicit confirmation once there is work worth
+     entirely, so those keep an explicit confirmation while there is work worth
      losing. The browser supplies its own wording; the draft itself is saved
-     server-side, so this guards the seller's place in the flow, not the data. */
+     server-side, so this guards the seller's place in the flow, not the data.
+
+     Scope is deliberately narrow, and BOTH conditions matter:
+       · step 0 is excluded — nothing has been entered yet, so warning there is
+         just noise on the way in;
+       · `published` disarms it — once the listing exists the work is finished
+         and cannot be abandoned, and a browser warning after a successful
+         publish would read as though something had gone wrong. Leaving the
+         flow entirely unmounts the component, and the cleanup below removes
+         the listener, so a deliberate exit never leaves it armed either. */
+  const [published, setPublished] = useState(false);
+
   useEffect(() => {
-    if (step === 0) return;
+    if (step === 0 || published) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [step]);
+  }, [step, published]);
   // v2.4y — reference advisory lives at flow level so an unresolved
   // advisory can repeat at Review without touching ReviewStep itself.
   const [refAdvisory, setRefAdvisory] = useState<RefAdvisory | null>(null);
@@ -733,6 +744,9 @@ export default function SellFlow() {
                 captureSessionId={desktopIds.captureSessionId}
                 publishRequestId={desktopIds.publishRequestId}
                 onPublished={(listingId) => {
+                  // Disarms the abandon-warning: the work now exists as a
+                  // listing and there is nothing left to lose.
+                  setPublished(true);
                   // Close the server draft idempotently — the real listing now
                   // owns the work; the draft can never publish twice.
                   if (serverDraftId) void markPublished(serverDraftId, listingId);
