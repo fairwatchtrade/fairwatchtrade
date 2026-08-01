@@ -26,10 +26,14 @@ import PhotoPresentationEditor, {
   PhotoPresentationEntry,
 } from "@/components/PhotoPresentationEditor";
 import {
-  presentationForPhoto,
+  presentationStyleFor,
   resolveHeroIndex,
   sanitizePhotoPresentation,
 } from "@/lib/photoPresentation";
+import {
+  automaticHeroIndex as roleAutomaticHero,
+  sortByPhotoRole,
+} from "@/lib/photoRoles";
 import {
   createDraft,
   saveContent,
@@ -1663,11 +1667,13 @@ export default function MobileWizard({
   if (stage === "review") {
     /* Automatic hero, mirroring desktop Review and the buyer-facing detail
        page: first Dial photo, else the first photo. */
-    const dialIdx = draft.photos.findIndex((p) => p.category === "Dial");
-    const mobileAutomaticHeroIndex = dialIdx >= 0 ? dialIdx : 0;
+    /* Role order, not upload order — same shared resolver as desktop Review,
+       the editor, and the published gallery. */
+    const orderedPhotos = sortByPhotoRole(draft.photos, (p) => p.category);
+    const mobileAutomaticHeroIndex = roleAutomaticHero(orderedPhotos, (p) => p.category);
     const mobilePresentation = sanitizePhotoPresentation(draft.photoPresentation);
     const mobileHeroIndex = resolveHeroIndex(
-      draft.photos.map((p) => p.photo.pathname),
+      orderedPhotos.map((p) => p.photo.pathname),
       mobilePresentation,
       mobileAutomaticHeroIndex
     );
@@ -1679,7 +1685,7 @@ export default function MobileWizard({
         </h1>
 
         <div className="mb-6 grid grid-cols-3 gap-2">
-          {draft.photos.map((p, i) => (
+          {orderedPhotos.map((p, i) => (
             <div
               key={`${p.photo.pathname}-${i}`}
               className="flex h-[90px] items-center justify-center overflow-hidden bg-[var(--ink-deep)]"
@@ -1691,11 +1697,9 @@ export default function MobileWizard({
                 /* Only the hero carries the seller's framing; the others stay
                    automatic, because a focal point chosen on the dial means
                    nothing on a clasp shot. */
-                style={presentationForPhoto(
-                  p.photo.pathname,
-                  mobilePresentation,
-                  i === mobileHeroIndex
-                )}
+                /* Every photo now carries its OWN framing — the seller may
+                   centre the clasp without touching the dial. */
+                style={presentationStyleFor(mobilePresentation, p.photo.pathname)}
                 className="h-full w-full"
               />
             </div>
@@ -1715,8 +1719,10 @@ export default function MobileWizard({
         {presentationOpen && (
           <PhotoPresentationEditor
             photos={draft.photos}
-            value={sanitizePhotoPresentation(draft.photoPresentation)}
-            automaticHeroIndex={mobileAutomaticHeroIndex}
+            value={mobilePresentation}
+            automaticHeroPathname={
+              orderedPhotos[mobileAutomaticHeroIndex]?.photo.pathname ?? null
+            }
             onSave={(photoPresentation) => setDraft((d) => ({ ...d, photoPresentation }))}
             onClose={() => {
               setPresentationOpen(false);

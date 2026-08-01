@@ -7,12 +7,13 @@ import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
 import { formatMoney } from "@/lib/formatMoney";
 import {
-  defaultPresentation,
-  presentationForPhoto,
-  presentationStyle,
+  defaultFrame,
+  frameStyle,
+  presentationStyleFor,
   resolveHeroIndex,
   sanitizePhotoPresentation,
 } from "@/lib/photoPresentation";
+import { automaticHeroIndex as roleAutomaticHero, sortByPhotoRole } from "@/lib/photoRoles";
 import BrowseSearch, { type SearchChip } from "@/components/BrowseSearch";
 import SearchEmptyState from "@/components/SearchEmptyState";
 import {
@@ -201,21 +202,22 @@ function heroFrame(row: {
   photos: ListingPhoto[];
   photo_presentation?: unknown;
 }): { url: string | null; style: React.CSSProperties } {
-  const photos = Array.isArray(row.photos) ? row.photos : [];
+  const raw = Array.isArray(row.photos) ? row.photos : [];
   const presentation = sanitizePhotoPresentation(row.photo_presentation);
-  if (photos.length === 0) {
-    return { url: null, style: presentationStyle(defaultPresentation()) };
+  if (raw.length === 0) {
+    return { url: null, style: frameStyle(defaultFrame()) };
   }
-  const dialIdx = photos.findIndex((p) => p?.category === "Dial");
+  // Role order governs which photo leads, exactly as on the listing page.
+  const photos = sortByPhotoRole(raw, (p) => p?.category);
   const index = resolveHeroIndex(
     photos.map((p) => p?.photo?.pathname ?? null),
     presentation,
-    dialIdx >= 0 ? dialIdx : 0
+    roleAutomaticHero(photos, (p) => p?.category)
   );
   const chosen = photos[index] ?? photos[0];
   return {
     url: chosen?.photo?.url ?? null,
-    style: presentationForPhoto(chosen?.photo?.pathname, presentation, true),
+    style: presentationStyleFor(presentation, chosen?.photo?.pathname),
   };
 }
 

@@ -5,9 +5,10 @@ import { type ListingDraft } from "@/lib/listing";
 import PhotoPresentationEditor, {
   PhotoPresentationEntry,
 } from "@/components/PhotoPresentationEditor";
+import { automaticHeroIndex as roleAutomaticHero, sortByPhotoRole } from "@/lib/photoRoles";
 import {
   type PhotoPresentation,
-  presentationStyle,
+  presentationStyleFor,
   resolveHeroIndex,
   sanitizePhotoPresentation,
 } from "@/lib/photoPresentation";
@@ -198,12 +199,14 @@ export default function ReviewStep({
     );
   }
 
-  const photos = draft.photos;
+  /* Role order, not upload order — the seller tagged each photo precisely so
+     the sequence could be deliberate. One shared resolver governs this card,
+     the editor, and the published gallery. */
+  const photos = sortByPhotoRole(draft.photos, (p) => p.category);
   /* The automatic hero is unchanged: first Dial photo, else the first photo.
      The seller's choice only OVERRIDES it — it never replaces the rule, so a
      draft with no presentation frames exactly as it always did. */
-  const dialIdx = photos.findIndex((p) => p.category === "Dial");
-  const automaticHeroIndex = dialIdx >= 0 ? dialIdx : 0;
+  const automaticHeroIndex = roleAutomaticHero(photos, (p) => p.category);
   const heroIndex = resolveHeroIndex(
     photos.map((p) => p.photo.pathname),
     presentation,
@@ -230,7 +233,7 @@ export default function ReviewStep({
              card edge. */
           <div className="aspect-[4/3] w-full overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hero} alt="" style={presentationStyle(presentation)} className="h-full w-full" />
+            <img src={hero} alt="" style={presentationStyleFor(presentation, photos[heroIndex]?.photo.pathname)} className="h-full w-full" />
           </div>
         ) : (
           <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[var(--muted)]">
@@ -349,7 +352,7 @@ export default function ReviewStep({
         <PhotoPresentationEditor
           photos={photos}
           value={presentation}
-          automaticHeroIndex={automaticHeroIndex}
+          automaticHeroPathname={photos[automaticHeroIndex]?.photo.pathname ?? null}
           onSave={onPresentationChange}
           onClose={() => {
             setEditorOpen(false);

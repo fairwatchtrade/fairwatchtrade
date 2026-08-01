@@ -1,57 +1,58 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { type ListingPhoto } from "@/lib/listing";
+import { sortByPhotoRole } from "@/lib/photoRoles";
 import {
+  type PhotoFrame,
   type PhotoPresentation,
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
-  defaultPresentation,
-  presentationStyle,
-  resolveHeroIndex,
+  defaultFrame,
+  frameFor,
+  frameStyle,
+  movableAxes,
+  withFrame,
+  withHero,
 } from "@/lib/photoPresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
-   PHOTO PRESENTATION EDITOR — "Center the watch for buyers"
+   PHOTO PRESENTATION EDITOR — "Center the watch for buyers"   (v2)
 
-   Approved Design Gate v4. The seller chooses which uploaded photograph is
-   the hero, drags it to set a focal point, and applies governed zoom. Both
-   crop previews are rendered by the SAME presentationStyle() the buyer-facing
-   surfaces use, so the preview is the real thing and not a mock-up.
+   A multi-photo workspace, not a hero editor. The seller adjusts the dial,
+   moves to the clasp, comes back to the dial and finds their work intact,
+   then saves the whole set once.
 
-   ── WHAT THIS DELIBERATELY CANNOT DO ──────────────────────────────────
-   No delete, no replace, no reorder, no blur, no destructive crop. There is
-   no code path here that writes an image, uploads a file, or mutates
-   draft.photos. It returns a small metadata object and nothing else. That is
-   the evidence law expressed as an API surface: presentation may improve,
-   evidence may not be subtracted.
+   ── THREE STATES THAT MUST NEVER MERGE ─────────────────────────────────
+     ACTIVE   the photo currently being adjusted
+     HERO     the listing's lead image
+     ORDER    the sequence, governed by photo role
 
-   ── EDITING IS PROVISIONAL UNTIL SAVE ─────────────────────────────────
-   All interaction runs on local state seeded from the committed value.
-   Cancel and Escape discard; only Save lifts it to the caller. A seller who
-   drags the watch somewhere unfortunate and closes the panel has changed
+   Selecting a thumbnail changes ACTIVE only. Editing the clasp must never
+   quietly promote it to hero — that conflation is what made the previous
+   build feel possessed. Hero moves only through SET AS HERO.
+
+   ── EDITS ARE STAGED UNTIL SAVE ────────────────────────────────────────
+   All work happens on a local copy seeded from the committed presentation.
+   Switching photos keeps staged edits; Cancel and Escape discard everything
+   since the editor opened; only SAVE lifts the whole set to the caller. A
+   seller who drags four photos somewhere unfortunate and closes has changed
    nothing.
+
+   ── WHAT THIS DELIBERATELY CANNOT DO ───────────────────────────────────
+   No delete, no replace, no reorder, no blur, no destructive crop. There is
+   no code path that writes an image, uploads a file, or mutates draft.photos.
+   It returns a small metadata object. That is the evidence law expressed as
+   an API surface.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* Drag sensitivity. A pointer travelling the full width of the stage moves
-   the focal point across the whole photograph, which at ~1.0 zoom is far more
-   travel than the image can actually use — so the practical feel is a slow,
-   controlled nudge rather than a throw. Clamped to 0..1 by the setter. */
-function focalDelta(px: number, extent: number): number {
-  if (extent <= 0) return 0;
-  return px / extent;
-}
+/* The editing stage is 4:3, matching the Review card's hero frame. */
+const STAGE_ASPECT = 4 / 3;
 
 /* ── THE ENTRY CONTROL ─────────────────────────────────────────────────
-   A quiet utility, not a CTA. Hairline · small crop glyph · restrained gold
-   text · hairline. Exported here rather than written twice so the desktop and
-   mobile Review pages cannot drift apart — the order treats them as one
-   treatment, and one component is the only way to keep that true.
-
-   It is a real <button>: tabbable, Enter/Space activated, with a visible
-   focus ring that is NOT the browser default (which disappears on this dark
-   panel). */
+   A quiet utility, not a CTA. Exported here rather than written twice so
+   desktop and mobile Review cannot drift apart. */
 export function PhotoPresentationEntry({
   onOpen,
   className = "",
@@ -70,7 +71,6 @@ export function PhotoPresentationEntry({
         onClick={onOpen}
         className="inline-flex items-center gap-[7px] whitespace-nowrap bg-transparent py-[3px] text-[9px] font-semibold uppercase leading-none tracking-[0.12em] text-[#d8c273] transition hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[#ead37e]"
       >
-        {/* Crop/framing glyph — four corner brackets, 10px. */}
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className="shrink-0 opacity-[0.92]">
           <path
             d="M0 0h5M0 0v5M10 0H5M10 0v5M0 10h5M0 10V5M10 10H5M10 10V5"
@@ -88,38 +88,56 @@ export function PhotoPresentationEntry({
 export default function PhotoPresentationEditor({
   photos,
   value,
-  automaticHeroIndex,
+  automaticHeroPathname,
   onSave,
   onClose,
 }: {
   photos: ListingPhoto[];
   value: PhotoPresentation;
-  /** The hero the system would choose on its own (role-governed). */
-  automaticHeroIndex: number;
+  /** The hero the role rule would choose on its own. */
+  automaticHeroPathname: string | null;
   onSave: (next: PhotoPresentation) => void;
   onClose: () => void;
 }) {
   const titleId = useId();
-  const [draft, setDraft] = useState<PhotoPresentation>(value);
+
+  /* Thumbnails and EDIT NEXT PHOTO both follow canonical role order, never
+     upload order. One resolver, shared with Review and the published gallery. */
+  const ordered = useMemo(() => sortByPhotoRole(photos, (p) => p.category), [photos]);
+
+  /* Staged working copy. Seeded once from the committed value — deliberately
+     NOT resynced from props, or a parent re-render would wipe the seller's
+     in-progress work mid-session. */
+  const [staged, setStaged] = useState<PhotoPresentation>(value);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [preview, setPreview] = useState<"desktop" | "mobile">("desktop");
+  /* Measured aspect per photograph, keyed by pathname. Keyed rather than
+     reset-on-change so switching photos needs no effect: the value for the
+     newly active photo is simply looked up, and is already there if it has
+     been seen before. */
+  const [aspects, setAspects] = useState<Record<string, number>>({});
+
   const stageRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
 
-  const pathnames = photos.map((p) => p.photo.pathname);
-  const heroIndex = resolveHeroIndex(pathnames, draft, automaticHeroIndex);
-  const heroPhoto = photos[heroIndex];
+  const active = ordered[activeIndex];
+  const activePath = active?.photo.pathname ?? null;
+  const frame = frameFor(staged, activePath);
+  const heroPath = staged.heroPathname ?? automaticHeroPathname;
+  const isActiveHero = activePath !== null && activePath === heroPath;
 
-  const setFocal = useCallback((fx: number, fy: number) => {
-    setDraft((d) => ({
-      ...d,
-      focalX: Math.min(1, Math.max(0, fx)),
-      focalY: Math.min(1, Math.max(0, fy)),
-    }));
-  }, []);
+  const axes = movableAxes(activePath ? (aspects[activePath] ?? null) : null, STAGE_ASPECT, frame.zoom);
 
-  // Escape closes, and focus is trapped to the panel while it is open — the
-  // Review page behind is inert, so tabbing into it would strand the seller.
+  const setFrame = useCallback(
+    (next: PhotoFrame) => {
+      if (!activePath) return;
+      setStaged((s) => withFrame(s, activePath, next));
+    },
+    [activePath]
+  );
+
+  // Escape discards, matching Cancel.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -132,16 +150,13 @@ export default function PhotoPresentationEditor({
   }, [onClose]);
 
   useEffect(() => {
-    // Move focus into the panel on open so keyboard users land inside it.
     panelRef.current?.focus();
   }, []);
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!heroPhoto) return;
-    const el = stageRef.current;
-    if (!el) return;
-    el.setPointerCapture(e.pointerId);
-    dragRef.current = { x: e.clientX, y: e.clientY, fx: draft.focalX, fy: draft.focalY };
+    if (!active) return;
+    stageRef.current?.setPointerCapture(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, fx: frame.focalX, fy: frame.focalY };
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -149,14 +164,21 @@ export default function PhotoPresentationEditor({
     const el = stageRef.current;
     if (!start || !el) return;
     const rect = el.getBoundingClientRect();
-    /* Dragging the photograph RIGHT should reveal what is off its left edge,
-       which means the focal point moves LEFT. Hence the negated delta — this
-       is the difference between "grab the photo" and "move a crop window",
-       and grabbing the photo is what the Design Gate approved. */
-    setFocal(
-      start.fx - focalDelta(e.clientX - start.x, rect.width),
-      start.fy - focalDelta(e.clientY - start.y, rect.height)
-    );
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    /* BOTH axes are always written. focalX is stored even when this 4:3 stage
+       cannot show its effect, because other surfaces crop differently — the
+       browse card is portrait, where a landscape photo overflows sideways.
+       Locking the axis here would silently discard a real setting.
+
+       Dragging the photograph RIGHT reveals what is off its left edge, so the
+       focal point moves LEFT. Hence the negated delta: this is "grab the
+       photo", not "move a crop window". */
+    setFrame({
+      ...frame,
+      focalX: Math.min(1, Math.max(0, start.fx - (e.clientX - start.x) / rect.width)),
+      focalY: Math.min(1, Math.max(0, start.fy - (e.clientY - start.y) / rect.height)),
+    });
   }
 
   function endDrag(e: React.PointerEvent<HTMLDivElement>) {
@@ -166,9 +188,6 @@ export default function PhotoPresentationEditor({
     }
   }
 
-  /* Arrow keys move the focal point without a pointer. The stage is a real
-     focusable control with a role and a label, so this is the keyboard
-     equivalent of the drag, not a bolted-on shortcut. */
   function onStageKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     const step = e.shiftKey ? 0.05 : 0.01;
     const moves: Record<string, [number, number]> = {
@@ -180,15 +199,20 @@ export default function PhotoPresentationEditor({
     const m = moves[e.key];
     if (!m) return;
     e.preventDefault();
-    setFocal(draft.focalX + m[0], draft.focalY + m[1]);
+    setFrame({
+      ...frame,
+      focalX: Math.min(1, Math.max(0, frame.focalX + m[0])),
+      focalY: Math.min(1, Math.max(0, frame.focalY + m[1])),
+    });
   }
 
-  const heroStyle = presentationStyle(draft);
-  const hairline = "h-px flex-1 bg-[rgba(201,168,76,0.32)]";
+  const style = frameStyle(frame);
+  const btn =
+    "border px-2 py-2.5 text-[8px] uppercase tracking-[0.1em] transition disabled:opacity-40";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(3,4,6,0.72)] p-4 sm:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(3,4,6,0.72)] p-3 sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -199,18 +223,14 @@ export default function PhotoPresentationEditor({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-[860px] border border-[#39352a] bg-[#0d0f14] shadow-[0_28px_72px_rgba(0,0,0,0.72)] outline-none"
+        className="w-full max-w-[900px] border border-[#39352a] bg-[#0d0f14] shadow-[0_28px_72px_rgba(0,0,0,0.72)] outline-none"
       >
-        {/* Head */}
         <div className="flex items-start justify-between gap-5 border-b border-[var(--border-subtle)] bg-[#101217] px-4 py-3.5">
           <div>
             <div className="text-[8px] uppercase tracking-[0.16em] text-[var(--gold)]">
               Photo presentation
             </div>
-            <h3
-              id={titleId}
-              className="mt-1 font-display text-[19px] font-light text-[var(--platinum)]"
-            >
+            <h3 id={titleId} className="mt-1 font-display text-[19px] font-light text-[var(--platinum)]">
               Center the watch for buyers
             </h3>
           </div>
@@ -221,37 +241,40 @@ export default function PhotoPresentationEditor({
           </div>
         </div>
 
-        <div className="grid gap-3.5 p-4 md:grid-cols-[minmax(0,1.42fr)_minmax(245px,0.58fr)]">
-          {/* ── Stage column ─────────────────────────────────────────── */}
+        <div className="grid gap-3.5 p-4 md:grid-cols-[minmax(0,1.42fr)_minmax(250px,0.58fr)]">
+          {/* ── Stage ──────────────────────────────────────────────── */}
           <div className="min-w-0">
-            {photos.length > 1 && (
-              <div className="mb-2.5 flex gap-1.5 overflow-x-auto" aria-label="Choose hero photo">
-                {photos.map((p, i) => {
-                  const active = i === heroIndex;
+            {ordered.length > 1 && (
+              <div className="mb-2.5 flex gap-1.5 overflow-x-auto pb-1" aria-label="Photos in gallery order">
+                {ordered.map((p, i) => {
+                  const isActive = i === activeIndex;
+                  const isHero = p.photo.pathname === heroPath;
+                  const framed = staged.frames[p.photo.pathname] !== undefined;
                   return (
                     <button
                       key={`${p.photo.pathname}-${i}`}
                       type="button"
-                      aria-pressed={active}
-                      aria-label={`Use ${p.category} photo as hero`}
-                      onClick={() =>
-                        /* Choosing a different hero resets framing: a focal
-                           point found on one photograph means nothing on
-                           another. Better to start centred than to inherit a
-                           crop that was never chosen for this image. */
-                        setDraft({
-                          ...defaultPresentation(),
-                          heroPathname: p.photo.pathname,
-                        })
-                      }
-                      className={`h-[42px] w-[52px] shrink-0 overflow-hidden border transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e] ${
-                        active
+                      aria-pressed={isActive}
+                      aria-label={`Adjust ${p.category} photo${isHero ? " (hero)" : ""}`}
+                      onClick={() => setActiveIndex(i)}
+                      className={`relative h-[42px] w-[52px] shrink-0 overflow-hidden border transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e] ${
+                        isActive
                           ? "border-[var(--gold)] shadow-[0_0_0_1px_rgba(197,170,85,0.34)]"
                           : "border-[#343740] hover:border-[var(--gold-dim)]"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.photo.url} alt="" className="h-full w-full object-cover" />
+                      {isHero && (
+                        <span className="absolute left-0 top-0 bg-[var(--gold)] px-[3px] text-[7px] font-semibold leading-[1.4] text-[var(--ink)]">
+                          HERO
+                        </span>
+                      )}
+                      {framed && !isHero && (
+                        <span className="absolute right-0 top-0 bg-[rgba(197,170,85,0.85)] px-[3px] text-[7px] leading-[1.4] text-[var(--ink)]">
+                          ✓
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -270,13 +293,21 @@ export default function PhotoPresentationEditor({
               onKeyDown={onStageKeyDown}
               className="relative aspect-[4/3] w-full cursor-grab touch-none overflow-hidden border border-[#353840] bg-[#090a0d] active:cursor-grabbing focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e]"
             >
-              {heroPhoto ? (
+              {active ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={heroPhoto.photo.url}
+                  key={activePath ?? ""}
+                  src={active.photo.url}
                   alt=""
                   draggable={false}
-                  style={heroStyle}
+                  style={style}
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    if (activePath && img.naturalWidth && img.naturalHeight) {
+                      const a = img.naturalWidth / img.naturalHeight;
+                      setAspects((m) => (m[activePath] === a ? m : { ...m, [activePath]: a }));
+                    }
+                  }}
                   className="pointer-events-none h-full w-full select-none"
                 />
               ) : (
@@ -284,19 +315,31 @@ export default function PhotoPresentationEditor({
                   No photos to adjust
                 </div>
               )}
-              {/* Safe frame + centre mark — guides, never controls. */}
               <div className="pointer-events-none absolute inset-[6%] border border-dashed border-[rgba(213,188,101,0.55)]" />
               <div className="pointer-events-none absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2">
                 <div className="absolute left-1/2 top-0 h-7 w-px bg-[rgba(213,188,101,0.58)]" />
                 <div className="absolute left-0 top-1/2 h-px w-7 bg-[rgba(213,188,101,0.58)]" />
               </div>
             </div>
+
+            {/* The honest axis note. A portrait photo in this 4:3 frame has no
+                hidden left or right — telling the seller beats letting them
+                drag against nothing and conclude the tool is broken. */}
+            {active && (!axes.horizontal || !axes.vertical) && (
+              <p className="mt-1.5 text-[10px] leading-[1.5] text-[var(--muted)]">
+                {axes.vertical && !axes.horizontal
+                  ? "This photograph fills the frame exactly side to side, so only up-and-down movement changes this crop. Add a little zoom to move it sideways."
+                  : axes.horizontal && !axes.vertical
+                    ? "This photograph fills the frame exactly top to bottom, so only side-to-side movement changes this crop. Add a little zoom to move it vertically."
+                    : "This photograph already fits the frame. Add a little zoom to reposition it."}
+              </p>
+            )}
           </div>
 
-          {/* ── Controls column ──────────────────────────────────────── */}
+          {/* ── Controls ───────────────────────────────────────────── */}
           <div className="md:border-l md:border-[var(--border-subtle)] md:pl-3.5">
             <h4 className="font-display text-[16px] font-light text-[var(--platinum)]">
-              Hero presentation
+              {active?.category ?? "Hero presentation"}
             </h4>
             <p className="mt-1.5 text-[11px] leading-[1.45] text-[var(--muted)]">
               Drag the photograph to recover a clipped dial. Zoom stays within safe
@@ -310,7 +353,7 @@ export default function PhotoPresentationEditor({
                 className="mb-1.5 flex justify-between text-[8px] uppercase tracking-[0.12em] text-[#bbb5a8]"
               >
                 <span>Zoom</span>
-                <span>{draft.zoom.toFixed(2)}×</span>
+                <span>{frame.zoom.toFixed(2)}×</span>
               </label>
               <input
                 id="fw-zoom"
@@ -318,13 +361,12 @@ export default function PhotoPresentationEditor({
                 min={ZOOM_MIN}
                 max={ZOOM_MAX}
                 step={ZOOM_STEP}
-                value={draft.zoom}
-                onChange={(e) => setDraft((d) => ({ ...d, zoom: Number(e.target.value) }))}
+                value={frame.zoom}
+                onChange={(e) => setFrame({ ...frame, zoom: Number(e.target.value) })}
                 className="w-full accent-[var(--gold)]"
               />
             </div>
 
-            {/* Both previews are the real crop — same style, different box. */}
             <div className="mt-4 flex gap-1.5">
               {(["desktop", "mobile"] as const).map((k) => (
                 <button
@@ -343,49 +385,77 @@ export default function PhotoPresentationEditor({
               ))}
             </div>
 
-            {heroPhoto && (
+            {active && (
               <div
-                className={`relative mt-2 aspect-[4/3] overflow-hidden border border-[#353840] bg-[#090a0d] ${
-                  preview === "mobile" ? "mx-auto w-[132px]" : "w-full"
+                className={`relative mt-2 overflow-hidden border border-[#353840] bg-[#090a0d] ${
+                  preview === "mobile" ? "mx-auto aspect-[4/5] w-[120px]" : "aspect-[4/3] w-full"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={heroPhoto.photo.url}
+                  src={active.photo.url}
                   alt={`${preview === "desktop" ? "Desktop" : "Mobile"} crop preview`}
-                  style={heroStyle}
+                  style={style}
                   className="h-full w-full"
                 />
               </div>
             )}
 
             <div className="mt-2.5 border-t border-[#292c33] pt-2 text-[9px] leading-[1.45] text-[#89919f]">
-              hero={heroPhoto?.category ?? "—"} · focal_x={draft.focalX.toFixed(3)} · focal_y=
-              {draft.focalY.toFixed(3)} · zoom={draft.zoom.toFixed(2)}
+              {active?.category ?? "—"} · focal_x={frame.focalX.toFixed(3)} · focal_y=
+              {frame.focalY.toFixed(3)} · zoom={frame.zoom.toFixed(2)}
+              <br />
+              {Object.keys(staged.frames).length} of {ordered.length} photographs adjusted
             </div>
 
-            <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-1.5">
+            {/* Hero is its own explicit act. */}
+            <button
+              type="button"
+              disabled={!activePath || isActiveHero}
+              onClick={() => activePath && setStaged((s) => withHero(s, activePath))}
+              className={`${btn} mt-3 w-full ${
+                isActiveHero
+                  ? "border-[#5d5233] bg-[#17140e] text-[#dec66f]"
+                  : "border-[#5d5233] bg-[#101217] text-[#cfb866] hover:bg-[#17140e]"
+              }`}
+            >
+              {isActiveHero ? "✦ This is the hero photo" : "Set as hero"}
+            </button>
+
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={ordered.length < 2}
+                onClick={() => setActiveIndex((i) => (i + 1) % ordered.length)}
+                className={`${btn} border-[#363940] bg-[#101217] text-[#c8c4b9]`}
+              >
+                Edit next photo
+              </button>
+              <button
+                type="button"
+                disabled={!activePath}
+                onClick={() => setFrame(defaultFrame())}
+                className={`${btn} border-[#363940] bg-[#101217] text-[#c8c4b9]`}
+              >
+                Reset this photo
+              </button>
+            </div>
+
+            <div className="mt-1.5 grid grid-cols-[1fr_1.6fr] gap-1.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="border border-[#363940] bg-[#101217] px-2 py-2.5 text-[8px] uppercase tracking-[0.1em] text-[#c8c4b9]"
+                className={`${btn} border-[#363940] bg-[#101217] text-[#c8c4b9]`}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => setDraft(defaultPresentation())}
-                className="border border-[#5d5233] bg-[#101217] px-2 py-2.5 text-[8px] uppercase tracking-[0.1em] text-[#cfb866]"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
                 onClick={() => {
-                  onSave(draft);
+                  onSave(staged);
                   onClose();
                 }}
-                className="border border-[#d1b862] bg-[#c3a951] px-2 py-2.5 text-[8px] uppercase tracking-[0.1em] text-[#17140d]"
+                className={`${btn} border-[#d1b862] bg-[#c3a951] text-[#17140d]`}
               >
                 Save presentation
               </button>
@@ -395,11 +465,11 @@ export default function PhotoPresentationEditor({
 
         <div className="border-t border-[var(--border-subtle)] px-4 py-2.5">
           <div className="flex items-center gap-2.5">
-            <span className={hairline} aria-hidden="true" />
-            <span className="text-[9px] leading-[1.4] text-[var(--muted)]">
-              Photo roles still govern gallery order. Your source photographs are unchanged.
+            <span className="h-px flex-1 bg-[rgba(201,168,76,0.32)]" aria-hidden="true" />
+            <span className="text-center text-[9px] leading-[1.4] text-[var(--muted)]">
+              Photo roles govern gallery order. Your source photographs are unchanged.
             </span>
-            <span className={hairline} aria-hidden="true" />
+            <span className="h-px flex-1 bg-[rgba(201,168,76,0.32)]" aria-hidden="true" />
           </div>
         </div>
       </div>

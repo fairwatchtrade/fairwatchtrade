@@ -1,8 +1,18 @@
 "use client";
 
+import {
+  type CaptureMetadata,
+  emptyCaptureMetadata,
+  readCaptureMetadata,
+} from "@/lib/photoForensics";
+
 export type UploadedPhoto = {
   url: string;
   pathname: string;
+  /* Read from the seller's ORIGINAL file before compression — see the note on
+     compressImage below. Optional so photos uploaded before this existed
+     still typecheck and still render. */
+  capture?: CaptureMetadata;
 };
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -16,6 +26,20 @@ export type UploadedPhoto = {
             here (and the /api/upload route). Nothing else changes.
    ──────────────────────────────────────────────────────────────────────── */
 
+/* ⚠ THIS FUNCTION DESTROYS EVIDENCE — BY DESIGN, AND IRREVERSIBLY.
+
+   canvas.toBlob() re-encodes from raw pixels, so EVERY piece of metadata the
+   seller's camera wrote — make, model, capture time, lens — is gone the
+   moment this runs. For a long time that meant every FairWatch photograph
+   arrived looking exactly like a photograph pulled off a website, and the
+   absence of EXIF told us nothing because it was absent for everybody.
+
+   Anything forensic must therefore be read from the ORIGINAL File BEFORE
+   this is called. See uploadPhoto() below, and lib/photoForensics.ts.
+
+   The compression itself stays: it keeps uploads under Vercel's 4.5MB server
+   limit and normalizes listing images. It is the metadata loss that was the
+   accident, not the resize. */
 async function compressImage(
   file: File,
   maxDim = 2400,
@@ -46,6 +70,17 @@ async function compressImage(
 }
 
 export async function uploadPhoto(file: File): Promise<UploadedPhoto> {
+  /* ORDER IS LOAD-BEARING. Read the forensics from the seller's original
+     file FIRST — compressImage() below permanently erases it. A failure here
+     must never block a seller from listing, so it degrades to empty metadata
+     rather than throwing. */
+  let capture: CaptureMetadata;
+  try {
+    capture = await readCaptureMetadata(file);
+  } catch {
+    capture = emptyCaptureMetadata();
+  }
+
   const prepared = await compressImage(file);
   const form = new FormData();
   form.append("file", prepared);
@@ -56,7 +91,7 @@ export async function uploadPhoto(file: File): Promise<UploadedPhoto> {
     throw new Error(`upload failed (${res.status}) ${msg}`);
   }
   const data = (await res.json()) as UploadedPhoto;
-  return { url: data.url, pathname: data.pathname };
+  return { url: data.url, pathname: data.pathname, capture };
 }
 
 export function getPhotoUrl(photo: UploadedPhoto): string {

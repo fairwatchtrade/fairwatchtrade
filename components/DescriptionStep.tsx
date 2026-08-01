@@ -104,7 +104,18 @@ export default function DescriptionStep({
         value={draft.description}
         onChange={(e) => onEdit(e.target.value)}
         placeholder="I bought this from the original owner in Geneva in 2019. The Abyss Blue dial shifts from near-black to deep ocean in daylight — photos never quite catch it. Wears smaller than its 40mm because of the short lugs…"
-        className="mt-4 min-h-[160px] w-full resize-none border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] leading-relaxed text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none"
+        /* Rule 2 correction. 160px asked for a seller's story and gave them a
+           message box: an ordinary 146-word description scrolled internally
+           within a couple of lines, while desktop space sat empty below.
+
+           340px desktop fits ~200 words at this size and leading without an
+           internal scrollbar. Mobile stays at 220px — tall enough to feel like
+           a page rather than a field, short enough that the keyboard doesn't
+           bury the word counter and Continue on an XCover 7 Pro.
+
+           resize-none is kept deliberately: a seller dragging the corner would
+           break the Listing Strength rail's alignment beside it. */
+        className="mt-4 min-h-[220px] w-full resize-none border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] leading-relaxed text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none sm:min-h-[340px]"
         spellCheck={false}
       />
       <div className={`mt-1 text-[12px] ${enough ? "text-[var(--muted)]" : "text-[var(--gold)]"}`}>
