@@ -4,6 +4,34 @@ import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "r
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
+import { formatMovementFrequency, vphInputDigits } from "@/lib/movementFrequency";
+
+/* Digits while editing, presentation at rest. The stored draft value is
+   always bare digits (or a legacy string being progressively cleaned as the
+   seller edits it) — commas, "vph", and the Hz note exist only on screen. */
+function MovementFrequencyInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      className={className}
+      value={focused ? value : formatMovementFrequency(value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => onChange(vphInputDigits(e.target.value))}
+      placeholder="28,800 vph (4 Hz)"
+      inputMode="numeric"
+      spellCheck={false}
+    />
+  );
+}
 
 const MOVEMENT_TYPES = ["Automatic", "Manual Wind", "Quartz"];
 const CLOSURE_TYPES = [
@@ -280,6 +308,18 @@ function TypeaheadField({
       // Core fix: Enter selects the highlighted option and NEVER submits the step.
       e.preventDefault();
       commitRow(activeIdx, true);
+    } else if (e.key === "Tab") {
+      /* Tab commits the highlighted suggestion before leaving. The trap this
+         closes (production, 2026-08-01): type "s" expecting Stainless Steel,
+         hit Tab instead of Enter, and the field keeps a bare "s" — a typo
+         stored as Case Material. Commit only when the seller actually typed
+         a query and the highlight is a real suggestion (never the pinned
+         Other row), and do NOT preventDefault — Tab's own focus move is the
+         point, so no advanceFocus either. An untouched field tabbed past
+         stays honestly empty. */
+      if (value.trim() !== "" && filtered[activeIdx] !== undefined) {
+        commitRow(activeIdx, false);
+      }
     } else if (e.key === "Escape") {
       setFocused(false);
     }
@@ -461,7 +501,15 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Movement frequency (optional)">
-            <input className={inputCls} value={d.movementFrequency ?? ""} onChange={(e) => set("movementFrequency", e.target.value)} placeholder="28,800 vph (4 Hz)" spellCheck={false} />
+            {/* Digits in, presentation out (Layout order 2026-08-01): the
+                seller types 28000; at rest the field shows "28,000 vph" —
+                comma, unit, and the exact-only Hz are formatting, never
+                stored. On focus the raw digits return for editing. */}
+            <MovementFrequencyInput
+              className={inputCls}
+              value={d.movementFrequency ?? ""}
+              onChange={(v) => set("movementFrequency", v)}
+            />
           </Field>
 
           <Field label="Calibre / movement reference (optional)">

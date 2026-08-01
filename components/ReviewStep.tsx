@@ -16,6 +16,7 @@ import { toScoringState } from "@/lib/listing";
 import WatchSpinner from "@/components/WatchSpinner";
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
+import { formatMovementFrequency } from "@/lib/movementFrequency";
 
 /* Money Truth Stage B (order §9.2 + approved Design Gate) — the Review step
    restates the EXACT amount-and-currency pair the seller confirmed in the
@@ -39,7 +40,8 @@ function specRows(draft: ListingDraft): [string, string][] {
     if (value != null && String(value).trim() !== "") rows.push([label, String(value)]);
   };
   push("Movement", d.movementType);
-  push("Frequency", d.movementFrequency);
+  // Digits are stored; presentation adds the comma, unit, and exact-only Hz.
+  push("Frequency", formatMovementFrequency(d.movementFrequency));
   push("Case size", d.caseSizeMm ? `${d.caseSizeMm} mm` : "");
   push("Thickness", d.caseThicknessMm ? `${d.caseThicknessMm} mm` : "");
   push("Case material", d.caseMaterial);
