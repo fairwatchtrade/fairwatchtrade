@@ -35,6 +35,13 @@ export type MeaningKind =
   | "powerReservePresent"
   | "caseSizeMaxMm"
   | "dialColor"
+  | "excludeDialColor"
+  /* A leading minus excludes a recognized criterion; it must never become
+     required literal listing text. When the minus names something the
+     allowlist does NOT recognize, the exclusion renders as a visible,
+     removable, NON-RESTRICTIVE criterion (the unsupportedPrice pattern) —
+     the chip tells the truth and the match does not lie. */
+  | "unsupportedExclusion"
   /* Money Truth Stage B (order §12) — recognized-but-unsupported price
      intent. A DISTINCT meaning, not text: matching a price fragment as
      ordinary words would silently return a false zero-result (no listing
@@ -150,6 +157,7 @@ const DIAL_COLOR_FAMILIES = [
   "gray",
   "champagne",
   "salmon",
+  "pink",
   "brown",
   "red",
   "purple",
@@ -302,6 +310,21 @@ const PHRASE_RULES: PhraseRule[] = [
     build: (m) => ({ kind: "complication", value: "Date", label: "Complication: Date", source: [m[0]] }),
   },
   {
+    // "-<color> dial" — a minus before a recognized dial phrase excludes the
+    // complete family (the -gold filled precedent): without this, the
+    // positive phrase rule would consume the words and strand a bare "-".
+    pattern: new RegExp(`(?<=^|\\s)-(${DIAL_PHRASE_COLORS.join("|")}) dial\\b`),
+    build: (m) => {
+      const family = dialFamilyValue(m[1]);
+      return {
+        kind: "excludeDialColor",
+        value: family,
+        label: `Exclude Dial Color: ${family}`,
+        source: [m[0]],
+      };
+    },
+  },
+  {
     // "<color> dial" — allowlisted color word beside the word "dial". The
     // phrase form also covers gold and silver, whose bare words keep their
     // material identities. Consumed before single-word rules run.
@@ -449,12 +472,33 @@ export function parseSearch(
 
     if (word.startsWith("-")) {
       const bare = word.slice(1);
+      // A lone "-" is stray punctuation, not an operator or text (the
+      // stray-quote precedent): requiring a literal "-" of a listing would
+      // silently poison honest queries.
+      if (!bare) continue;
       const negated = NEGATED_MATERIALS[bare];
       if (negated) {
         pushUnique(meanings, { ...negated, source: [word] });
         continue;
       }
-      leftover.push(word);
+      if ((DIAL_COLOR_FAMILIES as readonly string[]).includes(bare)) {
+        const family = dialFamilyValue(bare);
+        pushUnique(meanings, {
+          kind: "excludeDialColor",
+          value: family,
+          label: `Exclude Dial Color: ${family}`,
+          source: [word],
+        });
+        continue;
+      }
+      // Unrecognized exclusion — visible, removable, NON-restrictive. A
+      // leading minus must never become required literal listing text.
+      pushUnique(meanings, {
+        kind: "unsupportedExclusion",
+        value: bare,
+        label: `Exclusion not recognized: ${word}`,
+        source: [word],
+      });
       continue;
     }
 
@@ -599,6 +643,14 @@ export function matchesMeaning(listing: SearchableListing, meaning: Meaning): bo
       // Whole-word family identity: Blue matches Blue and Abyss Blue,
       // never Champagne. Mirrors saved_search_matches_listing.
       return matchesDialColorFamily(v, d.dialColorType);
+    case "excludeDialColor":
+      return !matchesDialColorFamily(v, d.dialColorType);
+    /* Visible but NON-RESTRICTIVE, like unsupportedPrice: an exclusion the
+       allowlist does not recognize never filters, so it can never
+       manufacture a silent zero-result. Mirrors the SQL watcher's
+       unknown-kind fall-through. */
+    case "unsupportedExclusion":
+      return true;
     /* §12 — visible but NON-RESTRICTIVE: price intent never filters, so it
        can never manufacture a silent zero-result. The chip tells the truth;
        the match does not lie. Mirrors the SQL watcher's unknown-kind
