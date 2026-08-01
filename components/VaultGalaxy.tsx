@@ -130,6 +130,30 @@ function mobileGlowScale() {
   return isMobileViewport() ? 0.52 : 1;
 }
 
+/* ── Deep-field bodies + rare sky events (restored July-7 POC) ───────────
+   Additive atmosphere only. These bodies are decorative: no hit targets,
+   labels, data identity, or orbital meaning. They sit on a far depth shelf
+   so the Galaxy reads more like looking deeper through an observatory than
+   piloting a spaceship.
+
+   Rare-event law:
+     • ordinary comet: 24% of sessions at most, zero or one
+     • meteor shower: 0.1% of sessions, mutually exclusive with comet
+     • no badge, toast, sound, interaction, or announcement
+     • many sessions see nothing
+   Dev preview only (query string; no UI):
+     ?galaxy-event=comet
+     ?galaxy-event=shower
+   Production probabilities remain untouched by preview mode. */
+const DEEP_FIELD_PLANET_COUNT = 14;
+const COMET_SESSION_CHANCE = 0.24;
+const METEOR_SHOWER_SESSION_CHANCE = 0.001;
+const COMET_DELAY_MIN_MS = 45_000;
+const COMET_DELAY_MAX_MS = 180_000;
+const SHOWER_DELAY_MIN_MS = 90_000;
+const SHOWER_DELAY_MAX_MS = 300_000;
+const SKY_EVENT_PREVIEW_DELAY_MS = 3_500;
+
 /* ── Selected-moon horological indicator (v2.4t) ─────────────────────────
    One full sweep of the stopwatch hand takes this long. THE single tuning
    knob for the selector's motion character — restrained, alive, unhurried.
@@ -864,6 +888,279 @@ export default function VaultGalaxy({
       objectsRef.current = objs;
     }
 
+    /* ── Deep-field planets (restored July-7 POC) ───────────────────────
+       Decorative, non-interactive bodies on a deterministic far shelf.
+       Main brand depth spans roughly 0.4→1.4; these live at 0.24→0.34,
+       visually about 70–80% toward the back of the room. They are never
+       added to objectsRef, so hit-testing, labels, drill state, and the
+       selected-moon clock remain untouched. */
+    const deepFieldPalette = [
+      [201, 184, 145], // parchment
+      [176, 151, 101], // old brass
+      [151, 116, 73],  // tobacco
+      [184, 154, 104], // muted ochre
+      [139, 126, 105], // warm stone
+      [168, 139, 87],  // oxidized gold-brown
+    ] as const;
+
+    const deepFieldPlanets = Array.from(
+      { length: DEEP_FIELD_PLANET_COUNT },
+      (_, i) => {
+        const h = hashSlug(`deep-field-planet-${i + 1}`);
+        const u1 = ((h & 0xffff) + 0.5) / 65536;
+        const u2 = (((h >>> 8) & 0xffff) + 0.5) / 65536;
+        const u3 = (((h >>> 16) & 0xffff) + 0.5) / 65536;
+        const angle = i * 2.399963229728653 + (u1 - 0.5) * 0.7;
+        const radial = 0.2 + u2 * 0.68;
+        return {
+          x: Math.cos(angle) * galaxyPanBounds.x * radial,
+          y: Math.sin(angle) * galaxyPanBounds.y * radial,
+          z: 0.24 + u3 * 0.1,
+          r: 4.2 + u1 * 3.2,
+          tone: deepFieldPalette[h % deepFieldPalette.length],
+          phase: u2 * Math.PI * 2,
+        };
+      },
+    );
+
+    function drawDeepFieldPlanets(now: number) {
+      for (const body of deepFieldPlanets) {
+        const p = screen(body);
+        if (
+          p.x < -24 ||
+          p.x > window.innerWidth + 24 ||
+          p.y < -24 ||
+          p.y > window.innerHeight + 24
+        ) {
+          continue;
+        }
+
+        // Keep them tiny even when the camera drills closer. Their depth is
+        // the point; they should never become a second foreground tier.
+        const r = Math.max(1.45, Math.min(5.4, p.r));
+        const [rr, gg, bb] = body.tone;
+        const breathe = 0.94 + Math.sin(now * 0.00011 + body.phase) * 0.035;
+
+        ctx.save();
+        ctx.globalAlpha = 0.48 * breathe;
+
+        // Body only — deliberately no broad halo. A slight off-axis light
+        // source gives spherical read at a few pixels without creating fog.
+        const grad = ctx.createRadialGradient(
+          p.x - r * 0.34,
+          p.y - r * 0.38,
+          r * 0.08,
+          p.x,
+          p.y,
+          r,
+        );
+        grad.addColorStop(0, `rgba(${rr + 20},${gg + 18},${bb + 14},0.92)`);
+        grad.addColorStop(0.42, `rgba(${rr},${gg},${bb},0.74)`);
+        grad.addColorStop(
+          0.78,
+          `rgba(${Math.max(0, rr - 36)},${Math.max(0, gg - 32)},${Math.max(0, bb - 28)},0.52)`,
+        );
+        grad.addColorStop(1, "rgba(18,19,24,0.08)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // One restrained crescent highlight — enough identity to read as a
+        // distant body, never enough to look like a star.
+        ctx.strokeStyle = `rgba(232,228,220,${0.16 * breathe})`;
+        ctx.lineWidth = Math.max(0.45, r * 0.13);
+        ctx.beginPath();
+        ctx.arc(
+          p.x - r * 0.12,
+          p.y - r * 0.06,
+          r * 0.7,
+          Math.PI * 1.08,
+          Math.PI * 1.78,
+        );
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    /* ── Rare comet / meteor shower (restored July-7 POC) ───────────────
+       The comet is not an animation. It is an event.
+       Rare things must be allowed to remain rare.
+
+       The draw path is pure atmosphere: no React state, no objectsRef,
+       no hit target, no label, no sound, no telemetry. The event decision
+       happens once when this canvas effect binds. */
+    type MeteorStreak = {
+      startAt: number;
+      duration: number;
+      sx: number;
+      sy: number;
+      dx: number;
+      dy: number;
+      tail: number;
+      width: number;
+      alpha: number;
+    };
+
+    let skyEventKind: "comet" | "shower" | null = null;
+    let skyEventDelay = Infinity;
+    let skyEventTriggered = false;
+    let meteorStreaks: MeteorStreak[] = [];
+
+    const skyEventMountAt = performance.now();
+    const previewKind = new URLSearchParams(window.location.search).get(
+      "galaxy-event",
+    );
+
+    if (previewKind === "comet" || previewKind === "shower") {
+      skyEventKind = previewKind;
+      skyEventDelay = SKY_EVENT_PREVIEW_DELAY_MS;
+    } else {
+      const roll = Math.random();
+      if (roll < METEOR_SHOWER_SESSION_CHANCE) {
+        skyEventKind = "shower";
+        skyEventDelay =
+          SHOWER_DELAY_MIN_MS +
+          Math.random() * (SHOWER_DELAY_MAX_MS - SHOWER_DELAY_MIN_MS);
+      } else if (
+        roll <
+        METEOR_SHOWER_SESSION_CHANCE + COMET_SESSION_CHANCE
+      ) {
+        skyEventKind = "comet";
+        skyEventDelay =
+          COMET_DELAY_MIN_MS +
+          Math.random() * (COMET_DELAY_MAX_MS - COMET_DELAY_MIN_MS);
+      }
+    }
+
+    function makeComet(now: number): MeteorStreak[] {
+      const direction = Math.random() < 0.5 ? 1 : -1;
+      const sx =
+        direction > 0
+          ? window.innerWidth * (0.06 + Math.random() * 0.26)
+          : window.innerWidth * (0.68 + Math.random() * 0.24);
+      const sy = window.innerHeight * (0.12 + Math.random() * 0.46);
+      const travel = Math.min(window.innerWidth, 760) * (0.36 + Math.random() * 0.2);
+      const angle =
+        direction > 0
+          ? 0.28 + Math.random() * 0.22
+          : Math.PI + 0.28 + Math.random() * 0.22;
+
+      return [
+        {
+          startAt: now,
+          duration: 820 + Math.random() * 480,
+          sx,
+          sy,
+          dx: Math.cos(angle) * travel,
+          dy: Math.sin(angle) * travel,
+          tail: 86 + Math.random() * 95,
+          width: 0.72 + Math.random() * 0.42,
+          alpha: 0.62 + Math.random() * 0.2,
+        },
+      ];
+    }
+
+    function makeMeteorShower(now: number): MeteorStreak[] {
+      // Same approximate radiant/direction, deliberately varied lengths and
+      // brightness. First one arrives alone; the rest unfold over ~10s.
+      const baseAngle = 0.42 + Math.random() * 0.18;
+      const offsets = [0, 1850, 3300, 4700, 6450, 8350, 9800];
+      return offsets.map((offset, i) => {
+        const angle = baseAngle + (Math.random() - 0.5) * 0.08;
+        const travel =
+          Math.min(window.innerWidth, 820) *
+          (i === 5 ? 0.58 : 0.24 + Math.random() * 0.28);
+        const sx =
+          window.innerWidth * (0.04 + Math.random() * 0.34) +
+          offset * 0.002;
+        const sy =
+          window.innerHeight * (0.08 + Math.random() * 0.42) -
+          offset * 0.001;
+
+        return {
+          startAt: now + offset,
+          duration: 620 + Math.random() * 650,
+          sx,
+          sy,
+          dx: Math.cos(angle) * travel,
+          dy: Math.sin(angle) * travel,
+          tail: 54 + Math.random() * 115,
+          width: i === 5 ? 1.05 : 0.48 + Math.random() * 0.52,
+          alpha: i === 5 ? 0.82 : 0.3 + Math.random() * 0.42,
+        };
+      });
+    }
+
+    function drawMeteorStreaks(now: number) {
+      if (
+        !skyEventTriggered &&
+        skyEventKind &&
+        now - skyEventMountAt >= skyEventDelay
+      ) {
+        skyEventTriggered = true;
+        meteorStreaks =
+          skyEventKind === "shower"
+            ? makeMeteorShower(now)
+            : makeComet(now);
+      }
+
+      if (!meteorStreaks.length) return;
+
+      let anyAlive = false;
+      for (const s of meteorStreaks) {
+        const raw = (now - s.startAt) / s.duration;
+        if (raw < 0 || raw > 1) continue;
+        anyAlive = true;
+
+        // Fast head, gentle disappearance. No looping.
+        const p = 1 - Math.pow(1 - raw, 2.35);
+        const fadeIn = Math.min(1, raw / 0.1);
+        const fadeOut = Math.min(1, (1 - raw) / 0.22);
+        const alpha = s.alpha * fadeIn * fadeOut;
+        const headX = s.sx + s.dx * p;
+        const headY = s.sy + s.dy * p;
+        const mag = Math.max(1, Math.hypot(s.dx, s.dy));
+        const ux = s.dx / mag;
+        const uy = s.dy / mag;
+        const tailX = headX - ux * s.tail;
+        const tailY = headY - uy * s.tail;
+
+        ctx.save();
+        ctx.lineCap = "round";
+
+        const trail = ctx.createLinearGradient(tailX, tailY, headX, headY);
+        trail.addColorStop(0, "rgba(225,235,246,0)");
+        trail.addColorStop(0.72, `rgba(232,240,250,${alpha * 0.42})`);
+        trail.addColorStop(1, `rgba(249,252,255,${alpha})`);
+        ctx.strokeStyle = trail;
+        ctx.lineWidth = s.width;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headX, headY);
+        ctx.stroke();
+
+        // Tiny icy head. No lens flare, no broad glow.
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.92, alpha * 1.05)})`;
+        ctx.beginPath();
+        ctx.arc(headX, headY, Math.max(0.65, s.width * 0.72), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      // Once every streak has completed, release the array. The session event
+      // remains triggered and can never repeat.
+      if (
+        skyEventTriggered &&
+        !anyAlive &&
+        meteorStreaks.every((s) => now > s.startAt + s.duration)
+      ) {
+        meteorStreaks = [];
+      }
+    }
+
     function draw() {
       // v2.4x — labels are decided in a dedicated pass after the object
       // loop; candidates collect here. Bodies/selector render untouched.
@@ -885,6 +1182,9 @@ export default function VaultGalaxy({
 
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       starfield();
+      // Far-room atmosphere only; neither path enters objectsRef.
+      drawMeteorStreaks(tRef.current);
+      drawDeepFieldPlanets(tRef.current);
       build();
 
       const v = viewRef.current;
