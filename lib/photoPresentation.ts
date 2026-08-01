@@ -238,12 +238,36 @@ export function frameStyle(frame: PhotoFrame, containerAspect = 4 / 3): CSSPrope
   const zoom = Math.round(frame.zoom * 10000) / 10000;
   const focal = `${round3(frame.focalX * 100)}% ${round3(frame.focalY * 100)}%`;
 
+  /* -- THE ZOOM PAN ------------------------------------------------------
+     object-position can only slide the image within its LAYOUT overflow --
+     the excess object-fit:cover creates from an aspect mismatch. A
+     transform scale() enlarges the picture but adds NO layout overflow, so
+     on the zoomed axis the focal point silently did nothing: proven in
+     production when a rotated photo (which fits its swapped box exactly,
+     zero layout overflow) would not move at all at any zoom.
+
+     The zoom excess is (z - 1) of the element per axis, so a translate of
+     (0.5 - focal) * (z - 1) in ELEMENT units pans exactly across it. The
+     two mechanisms compose without gaps: object-position spans the aspect
+     overflow, the pan spans the zoom overflow, and their sum is precisely
+     the total travel available -- the picture reaches its true edge and
+     stops, on both axes, at any orientation.
+
+     The pan sits between rotate and scale in the chain, so it acts in the
+     element's own (image-space) axes -- the same space the stored focal and
+     screenToImageDelta already use. At zoom <= 1 there is no excess and the
+     pan is zero. */
+  const panX = zoom > 1 ? Math.round((0.5 - frame.focalX) * (zoom - 1) * 1000) / 10 : 0;
+  const panY = zoom > 1 ? Math.round((0.5 - frame.focalY) * (zoom - 1) * 1000) / 10 : 0;
+  const pan = panX !== 0 || panY !== 0 ? `translate(${panX}%, ${panY}%)` : null;
+
   if (rot === 90 || rot === 270) {
     const a =
       Number.isFinite(containerAspect) && containerAspect > 0 ? containerAspect : 4 / 3;
     const w = Math.round((100 / a) * 1000) / 1000; // % of container WIDTH  = its height
     const h = Math.round(100 * a * 1000) / 1000; //   % of container HEIGHT = its width
     const parts = [`translate(-50%, -50%)`, `rotate(${rot}deg)`];
+    if (pan) parts.push(pan);
     if (zoom !== 1) parts.push(`scale(${zoom})`);
     return {
       objectFit: "cover",
@@ -261,6 +285,7 @@ export function frameStyle(frame: PhotoFrame, containerAspect = 4 / 3): CSSPrope
 
   const parts: string[] = [];
   if (rot !== 0) parts.push(`rotate(${rot}deg)`);
+  if (pan) parts.push(pan);
   if (zoom !== 1) parts.push(`scale(${zoom})`);
   return {
     objectFit: "cover",

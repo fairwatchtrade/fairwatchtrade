@@ -132,7 +132,8 @@ ok("unknown frame keys (crop, blur) are stripped and empty pathnames rejected");
 const style = frameStyle({ focalX: 0.25, focalY: 0.8, zoom: 1.1, rotationDeg: 0 });
 assert.equal(style.objectFit, "cover");
 assert.equal(style.objectPosition, "25% 80%");
-assert.equal(style.transform, "scale(1.1)");
+/* zoom excess 0.1: panX = (0.5-0.25)*0.1 = +2.5%, panY = (0.5-0.8)*0.1 = -3% */
+assert.equal(style.transform, "translate(2.5%, -3%) scale(1.1)");
 assert.equal(JSON.stringify(style).includes("px"), false, "style must be resolution-independent");
 assert.equal(frameStyle(defaultFrame()).transform, undefined);
 assert.equal(presentationStyleFor(defaultPresentation(), "x.jpg").objectPosition, "50% 50%");
@@ -294,5 +295,28 @@ assert.equal(sanitizeFrame({ zoom: 0.8, rotationDeg: 90 }).zoom, 0.85, "below th
 assert.equal(sanitizeFrame({ zoom: 0.9, rotationDeg: 0 }).zoom, 1, "upright keeps the 1.00 floor");
 assert.equal(sanitizeFrame({ zoom: 0.9, rotationDeg: 180 }).zoom, 1, "half-turn is upright-floored");
 ok("zoom-out is a rotated-frame privilege - 0.85 floor, upright stays at 1.00");
+
+/* ── 23 · THE ZOOM PAN — focal movement is real on the zoomed axis ───
+   object-position only spans layout overflow; scale() adds none. The pan
+   translate spans the zoom excess exactly, so a rotated photo that fits
+   its box perfectly can still be repositioned once zoomed — the production
+   "rotation kills all movement" finding. */
+const centred = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1.1, rotationDeg: 0 });
+assert.equal(centred.transform, "scale(1.1)", "centred focal needs no pan");
+const panned = frameStyle({ focalX: 0, focalY: 1, zoom: 1.14, rotationDeg: 0 });
+assert.equal(
+  panned.transform,
+  "translate(7%, -7%) scale(1.14)",
+  "full-corner focal pans exactly half the zoom excess each way"
+);
+const rotPan = frameStyle({ focalX: 0.25, focalY: 0.5, zoom: 1.1, rotationDeg: 90 }, 4 / 3);
+assert.ok(
+  String(rotPan.transform).includes("rotate(90deg) translate(2.5%, 0%) scale(1.1)"),
+  `pan sits between rotate and scale, in image-space axes (got ${rotPan.transform})`
+);
+const noPanOut = frameStyle({ focalX: 0.2, focalY: 0.2, zoom: 0.9, rotationDeg: 90 }, 4 / 3);
+assert.equal(String(noPanOut.transform).includes("translate(") && String(noPanOut.transform).split("translate").length > 2, false,
+  "zoomed OUT there is no excess - no pan, only the centering translate");
+ok("zoom pan spans the scale overflow - movement is real on every zoomed axis");
 
 console.log(`\n  ${n}/${n} passed — presentation may improve, evidence may not be subtracted.\n`);
