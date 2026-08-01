@@ -65,34 +65,56 @@ export default function AboutPage() {
             font-display: swap in Google Fonts URL. text-rendering: optimizeLegibility
             in globals.css. Paragraph spacing via .fw-body p. This is the approved
             Studio spec. Done. */}
+        {/* v3.14 — the founder story, Jason's own words (about.md, 2026-08-01),
+            verbatim. This text has been lost twice outside the repo; it lives
+            here now. The one standalone line takes the approved pull-quote
+            treatment — placement only, no wording change. */}
         <div className="fw-body font-display px-1 text-left text-[14px] font-light text-[var(--platinum-dim)] sm:text-[16.5px]">
           <p>
-            Long before I devoted my free time to collecting watches, I worked
-            in IT infrastructure consulting in Northern Virginia. FairWatchTrade
-            wasn&apos;t born from a business plan — it grew out of a personal
-            search.
+            Welcome. Long before I found myself collecting watches, I worked in
+            IT infrastructure consulting in Northern Virginia. FairWatchTrade
+            was not born from a business plan. It grew out of a personal search.
           </p>
 
           <p>
-            I was looking for the perfect Mother&apos;s Day gift for my wife — a
-            moon phase, a particular mother-of-pearl dial, a design where every
-            detail felt intentional. But the industry&apos;s search engines
-            forced me to shop by manufacturer first, rather than by the design
-            itself. It got to the point where I was writing custom batch files
-            just to search the market — scripts to scrape the web for a single
-            reference number or a specific dial color.
+            It was almost Mother’s Day, and I had started looking for a gift for
+            my wife. I knew it needed a distinctive mother-of-pearl design and a
+            sense that every detail had been chosen intentionally. Beyond that, I
+            had no manufacturer, collection, or reference in mind.
+          </p>
+
+          <p>
+            I quickly learned that shopping without those predetermined criteria
+            could become a wall. Even after discovering a promising reference,
+            finding one for sale could be nearly impossible—or it would be
+            buried beneath listings that described the same watch inconsistently.
+          </p>
+
+          <p>
+            Eventually, I was writing custom batch files just to search the
+            market for a particular reference, dial, or combination of details.
           </p>
 
           <div className="fw-pull">
-            When a collector has to resort to writing custom scripts just to
-            search the market efficiently, you know the system is broken.
+            Collectors do not search for watches the way marketplaces organize
+            them.
           </div>
 
           <p>
-            So I sat down one night — not to create another marketplace, but to
-            solve a problem collectors had quietly lived with for years. I built
-            FairWatchTrade to be the platform I wished had existed, designed by a
-            collector, for collectors.
+            I did eventually find the perfect watch. But along the way, I found
+            myself sitting down one night—not to create another marketplace, but
+            to solve a problem collectors had quietly lived with for years.
+          </p>
+
+          <p>
+            It was not only the search. It was also the financial penalty for
+            wanting to move from one reference to another, compare related
+            watches, or continue following the details that had drawn you in.
+          </p>
+
+          <p>
+            I built FairWatchTrade to be the platform I wished had existed:
+            designed by a collector, for collectors.
           </p>
         </div>
 
