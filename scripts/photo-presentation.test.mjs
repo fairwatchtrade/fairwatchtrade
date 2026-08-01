@@ -21,6 +21,8 @@ import {
   resolveHeroIndex,
   sanitizeFrame,
   sanitizePhotoPresentation,
+  sanitizeRotation,
+  screenToImageDelta,
   withFrame,
   withHero,
 } from "../lib/photoPresentation.ts";
@@ -35,7 +37,7 @@ let n = 0;
 const ok = (name) => console.log(`  PASS ${++n}  ${name}`);
 
 /* ── 1 · Defaults ───────────────────────────────────────────────────── */
-assert.deepEqual(defaultFrame(), { focalX: 0.5, focalY: 0.5, zoom: 1 });
+assert.deepEqual(defaultFrame(), { focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 0 });
 assert.deepEqual(defaultPresentation(), { heroPathname: null, frames: {} });
 assert.equal(isDefaultPresentation(defaultPresentation()), true);
 ok("defaults are centred, unzoomed, role-chosen hero, no frames");
@@ -69,7 +71,7 @@ ok("each photograph keeps its OWN framing — editing one never disturbs another
 /* ── 5 · THE DEFECT: framing survives a save/reload round trip ───────
    Production reopened a centred dial at 0.500/0.500/1.00. */
 const reloaded = sanitizePhotoPresentation(JSON.parse(JSON.stringify(p)));
-assert.deepEqual(frameFor(reloaded, "dial.jpg"), { focalX: 0.42, focalY: 0.68, zoom: 1.1 });
+assert.deepEqual(frameFor(reloaded, "dial.jpg"), { focalX: 0.42, focalY: 0.68, zoom: 1.1, rotationDeg: 0 });
 assert.deepEqual(reloaded, sanitizePhotoPresentation(reloaded), "sanitize must be idempotent");
 ok("saved framing survives serialize → sanitize → reopen, and is idempotent");
 
@@ -105,7 +107,7 @@ const v1 = sanitizePhotoPresentation({
   zoom: 1.14,
 });
 assert.equal(v1.heroPathname, "listings/dial.jpg", "a v1 hero choice must never be lost");
-assert.deepEqual(frameFor(v1, "listings/dial.jpg"), { focalX: 0.25, focalY: 0.8, zoom: 1.14 });
+assert.deepEqual(frameFor(v1, "listings/dial.jpg"), { focalX: 0.25, focalY: 0.8, zoom: 1.14, rotationDeg: 0 });
 /* A v1 record with no hero referred to an unknowable automatic hero. Its
    framing is dropped rather than applied to the wrong photograph. */
 const v1NoHero = sanitizePhotoPresentation({ focalX: 0.25, focalY: 0.8, zoom: 1.1 });
@@ -120,12 +122,12 @@ const dirty = sanitizePhotoPresentation({
     "": {},
   },
 });
-assert.deepEqual(Object.keys(dirty.frames["a.jpg"]).sort(), ["focalX", "focalY", "zoom"]);
+assert.deepEqual(Object.keys(dirty.frames["a.jpg"]).sort(), ["focalX", "focalY", "rotationDeg", "zoom"]);
 assert.equal(dirty.frames[""], undefined, "an empty pathname is not a photo");
 ok("unknown frame keys (crop, blur) are stripped and empty pathnames rejected");
 
 /* ── 10 · One aspect-independent style governs desktop AND mobile ──── */
-const style = frameStyle({ focalX: 0.25, focalY: 0.8, zoom: 1.1 });
+const style = frameStyle({ focalX: 0.25, focalY: 0.8, zoom: 1.1, rotationDeg: 0 });
 assert.equal(style.objectFit, "cover");
 assert.equal(style.objectPosition, "25% 80%");
 assert.equal(style.transform, "scale(1.1)");
@@ -202,8 +204,63 @@ ok("unrecognised or missing roles sort last but are never dropped");
 
 /* ── 16 · The contract carries presentation only ────────────────────── */
 assert.deepEqual(Object.keys(defaultPresentation()).sort(), ["frames", "heroPathname"]);
-assert.deepEqual(Object.keys(defaultFrame()).sort(), ["focalX", "focalY", "zoom"]);
+assert.deepEqual(Object.keys(defaultFrame()).sort(), ["focalX", "focalY", "rotationDeg", "zoom"]);
 assert.equal(isDefaultFrame(defaultFrame()), true);
 ok("no crop, delete, blur, or order key exists in the contract");
+
+/* ── 17 · ROTATION is strictly quarter-turns ─────────────────────────
+   A 45 would tilt evidence; a "90" string is a type error. Both refuse to
+   upright, mirroring the production CHECK constraint exactly. */
+for (const bad of [45, -90, 360, 89.9, "90", null, undefined, NaN]) {
+  assert.equal(sanitizeRotation(bad), 0, `rotation ${JSON.stringify(bad)} must refuse to 0`);
+}
+for (const good of [0, 90, 180, 270]) assert.equal(sanitizeRotation(good), good);
+assert.equal(sanitizeFrame({ rotationDeg: 90 }).rotationDeg, 90);
+assert.equal(sanitizeFrame({ rotationDeg: 45 }).rotationDeg, 0);
+ok("rotation accepts exactly 0/90/180/270 - anything else reads as upright");
+
+/* ── 18 · Rotation is presentation state like any other ─────────────── */
+let rp = withFrame(defaultPresentation(), "side.jpg", {
+  focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 90,
+});
+assert.equal(isDefaultFrame(frameFor(rp, "side.jpg")), false, "a rotated frame is not default");
+const rpReload = sanitizePhotoPresentation(JSON.parse(JSON.stringify(rp)));
+assert.equal(frameFor(rpReload, "side.jpg").rotationDeg, 90, "rotation survives save/reload");
+assert.equal(rp.heroPathname, null, "rotating must not touch hero");
+rp = withFrame(rp, "side.jpg", defaultFrame());
+assert.equal(rp.frames["side.jpg"], undefined, "reset restores upright and drops the frame");
+const v39frame = sanitizePhotoPresentation({
+  heroPathname: "a.jpg", frames: { "a.jpg": { focalX: 0.4, focalY: 0.4, zoom: 1.1 } },
+});
+assert.equal(frameFor(v39frame, "a.jpg").rotationDeg, 0, "rotation-less v3.9 rows read as upright");
+ok("rotation persists, resets with the photo, never moves hero, and old rows read upright");
+
+/* ── 19 · Rotated style covers its container — the geometry law ──────
+   cover fits the box FIRST; a quarter-turn then swaps the footprint, so a
+   further scale of max(a, 1/a) is exactly enough to cover again. */
+const rot = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 90 }, 4 / 3);
+assert.ok(String(rot.transform).startsWith("rotate(90deg)"), "quarter-turn present");
+assert.ok(String(rot.transform).includes("scale(1.3333)"), `cover-scale for 4:3 (got ${rot.transform})`);
+const rot180 = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 180 }, 4 / 3);
+assert.equal(rot180.transform, "rotate(180deg)", "a half-turn swaps no footprint - no extra scale");
+const rotSquare = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 90 }, 1);
+assert.equal(rotSquare.transform, "rotate(90deg)", "square container needs no cover-scale");
+ok("rotated frames scale exactly enough to cover - never a gap, never extra crop");
+
+/* ── 20 · Drag follows the pointer ON SCREEN under any rotation ─────── */
+assert.deepEqual(screenToImageDelta(0, 5, 3), { dx: 5, dy: 3 });
+assert.deepEqual(screenToImageDelta(90, 5, 3), { dx: 3, dy: -5 });
+assert.deepEqual(screenToImageDelta(180, 5, 3), { dx: -5, dy: -3 });
+assert.deepEqual(screenToImageDelta(270, 5, 3), { dx: -3, dy: 5 });
+assert.deepEqual(screenToImageDelta(45, 5, 3), { dx: 5, dy: 3 }, "junk rotation maps as upright");
+ok("screen deltas invert through the rotation - the photo always follows the pointer");
+
+/* ── 21 · A quarter-turn unlocks movement — the honest axis story ────
+   The portrait-in-4:3 case that started all of this: vertical only at rest,
+   but rotated 90 the cover-scale overflows BOTH axes. */
+assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 0), { horizontal: false, vertical: true });
+assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 90), { horizontal: true, vertical: true });
+assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 180), { horizontal: false, vertical: true });
+ok("a quarter-turn makes sideways movement real - the editor can now offer it honestly");
 
 console.log(`\n  ${n}/${n} passed — presentation may improve, evidence may not be subtracted.\n`);

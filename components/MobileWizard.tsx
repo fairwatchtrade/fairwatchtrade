@@ -1688,7 +1688,11 @@ export default function MobileWizard({
           {orderedPhotos.map((p, i) => (
             <div
               key={`${p.photo.pathname}-${i}`}
-              className="flex h-[90px] items-center justify-center overflow-hidden bg-[var(--ink-deep)]"
+              /* aspect-[4/3] (was h-[90px]) so the cell's shape is KNOWN and
+                 a saved quarter-turn can compute its exact cover-scale — a
+                 fixed height with fluid width made rotation coverage a guess
+                 per device. ~Same rendered height at typical widths. */
+              className="aspect-[4/3] w-full overflow-hidden bg-[var(--ink-deep)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -1699,7 +1703,7 @@ export default function MobileWizard({
                    nothing on a clasp shot. */
                 /* Every photo now carries its OWN framing — the seller may
                    centre the clasp without touching the dial. */
-                style={presentationStyleFor(mobilePresentation, p.photo.pathname)}
+                style={presentationStyleFor(mobilePresentation, p.photo.pathname, 4 / 3)}
                 className="h-full w-full"
               />
             </div>

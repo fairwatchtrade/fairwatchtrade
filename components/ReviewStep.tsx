@@ -233,7 +233,7 @@ export default function ReviewStep({
              card edge. */
           <div className="aspect-[4/3] w-full overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hero} alt="" style={presentationStyleFor(presentation, photos[heroIndex]?.photo.pathname)} className="h-full w-full" />
+            <img src={hero} alt="" style={presentationStyleFor(presentation, photos[heroIndex]?.photo.pathname, 4 / 3)} className="h-full w-full" />
           </div>
         ) : (
           <div className="flex aspect-[4/3] w-full items-center justify-center text-[13px] text-[var(--muted)]">
@@ -244,13 +244,21 @@ export default function ReviewStep({
         {photos.length > 1 && (
           <div className="flex gap-2 overflow-x-auto px-3 pt-3">
             {photos.slice(0, 8).map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              /* Wrapped so rotation/zoom crop INSIDE the square — a transform
+                 on a bare <img> paints outside its own border box. Square
+                 container: aspect 1, so a quarter-turn needs no cover-scale. */
+              <div
                 key={i}
-                src={p.photo.url}
-                alt=""
-                className="h-14 w-14 shrink-0 border border-[var(--border-subtle)] object-cover"
-              />
+                className="h-14 w-14 shrink-0 overflow-hidden border border-[var(--border-subtle)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.photo.url}
+                  alt=""
+                  style={presentationStyleFor(presentation, p.photo.pathname, 1)}
+                  className="h-full w-full"
+                />
+              </div>
             ))}
           </div>
         )}

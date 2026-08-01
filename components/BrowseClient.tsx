@@ -217,7 +217,10 @@ function heroFrame(row: {
   const chosen = photos[index] ?? photos[0];
   return {
     url: chosen?.photo?.url ?? null,
-    style: presentationStyleFor(presentation, chosen?.photo?.pathname),
+    /* The steeper of the card's two breakpoint shapes (150x190) — its
+       cover-scale also covers the shallower 120x150, so a rotated photo can
+       never show a gap at either size. */
+    style: presentationStyleFor(presentation, chosen?.photo?.pathname, 150 / 190),
   };
 }
 
