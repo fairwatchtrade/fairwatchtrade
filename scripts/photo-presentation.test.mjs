@@ -23,6 +23,8 @@ import {
   sanitizePhotoPresentation,
   sanitizeRotation,
   screenToImageDelta,
+  ZOOM_OUT_MIN_ROTATED,
+  zoomMinFor,
   withFrame,
   withHero,
 } from "../lib/photoPresentation.ts";
@@ -235,17 +237,30 @@ const v39frame = sanitizePhotoPresentation({
 assert.equal(frameFor(v39frame, "a.jpg").rotationDeg, 0, "rotation-less v3.9 rows read as upright");
 ok("rotation persists, resets with the photo, never moves hero, and old rows read upright");
 
-/* ── 19 · Rotated style covers its container — the geometry law ──────
-   cover fits the box FIRST; a quarter-turn then swaps the footprint, so a
-   further scale of max(a, 1/a) is exactly enough to cover again. */
+/* ── 19 · Rotated style is the SWAPPED BOX — and never a silent zoom ──
+   Production finding: the old cover-scale magnified a rotated photo by a
+   third while the control still read 1.00x. The fix sizes the element as
+   the container with its dimensions swapped (pure percentages of the
+   container aspect), centres it, and rotates — so 1.00x is the true fitted
+   baseline for the current orientation and nothing is pre-cropped away. */
 const rot = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 90 }, 4 / 3);
-assert.ok(String(rot.transform).startsWith("rotate(90deg)"), "quarter-turn present");
-assert.ok(String(rot.transform).includes("scale(1.3333)"), `cover-scale for 4:3 (got ${rot.transform})`);
+assert.equal(rot.position, "absolute");
+assert.equal(rot.width, "75%", "width = container height (100 / aspect)");
+assert.equal(rot.height, "133.333%", "height = container width (100 * aspect)");
+assert.ok(String(rot.transform).includes("rotate(90deg)"));
+assert.equal(
+  String(rot.transform).includes("scale"),
+  false,
+  "1.00x rotated must carry NO scale — the silent magnification defect"
+);
+const rotZoomOut = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 0.9, rotationDeg: 90 }, 4 / 3);
+assert.ok(String(rotZoomOut.transform).includes("scale(0.9)"), "governed zoom-out reaches the style");
 const rot180 = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 180 }, 4 / 3);
-assert.equal(rot180.transform, "rotate(180deg)", "a half-turn swaps no footprint - no extra scale");
+assert.equal(rot180.transform, "rotate(180deg)", "a half-turn swaps nothing - no box change");
+assert.equal(rot180.position, undefined);
 const rotSquare = frameStyle({ focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 90 }, 1);
-assert.equal(rotSquare.transform, "rotate(90deg)", "square container needs no cover-scale");
-ok("rotated frames scale exactly enough to cover - never a gap, never extra crop");
+assert.equal(rotSquare.width, "100%", "square container: the swapped box is itself");
+ok("rotation renders in a swapped box - 1.00x is the fitted baseline, never magnified");
 
 /* ── 20 · Drag follows the pointer ON SCREEN under any rotation ─────── */
 assert.deepEqual(screenToImageDelta(0, 5, 3), { dx: 5, dy: 3 });
@@ -255,12 +270,29 @@ assert.deepEqual(screenToImageDelta(270, 5, 3), { dx: -3, dy: 5 });
 assert.deepEqual(screenToImageDelta(45, 5, 3), { dx: 5, dy: 3 }, "junk rotation maps as upright");
 ok("screen deltas invert through the rotation - the photo always follows the pointer");
 
-/* ── 21 · A quarter-turn unlocks movement — the honest axis story ────
-   The portrait-in-4:3 case that started all of this: vertical only at rest,
-   but rotated 90 the cover-scale overflows BOTH axes. */
+/* ── 21 · Axes under rotation tell the fitted-baseline truth ─────────
+   A 3:4 portrait rotated a quarter-turn becomes 4:3 — it FITS the 4:3 stage
+   exactly, so at 1.00x nothing overflows and nothing moves; zoom unlocks
+   both axes. Zoomed OUT onto the matte, nothing overflows either. */
 assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 0), { horizontal: false, vertical: true });
-assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 90), { horizontal: true, vertical: true });
+assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 90), { horizontal: false, vertical: false });
+assert.deepEqual(movableAxes(0.75, 4 / 3, 1.1, 90), { horizontal: true, vertical: true });
+assert.deepEqual(movableAxes(0.75, 4 / 3, 0.9, 90), { horizontal: false, vertical: false });
 assert.deepEqual(movableAxes(0.75, 4 / 3, 1, 180), { horizontal: false, vertical: true });
-ok("a quarter-turn makes sideways movement real - the editor can now offer it honestly");
+ok("a rotated portrait FITS the 4:3 stage at 1.00x - movement comes from zoom, honestly");
+
+/* ── 22 · The zoom floor follows orientation ─────────────────────────
+   Rotated frames may rest on the matte down to 0.85; upright frames keep
+   the 1.00 floor. Returning upright re-clamps — the DB CHECK agrees. */
+assert.equal(zoomMinFor(0), 1);
+assert.equal(zoomMinFor(180), 1);
+assert.equal(zoomMinFor(90), ZOOM_OUT_MIN_ROTATED);
+assert.equal(zoomMinFor(270), ZOOM_OUT_MIN_ROTATED);
+assert.equal(ZOOM_OUT_MIN_ROTATED, 0.85, "floor must match the production constraint");
+assert.equal(sanitizeFrame({ zoom: 0.9, rotationDeg: 90 }).zoom, 0.9, "rotated zoom-out survives");
+assert.equal(sanitizeFrame({ zoom: 0.8, rotationDeg: 90 }).zoom, 0.85, "below the floor clamps up");
+assert.equal(sanitizeFrame({ zoom: 0.9, rotationDeg: 0 }).zoom, 1, "upright keeps the 1.00 floor");
+assert.equal(sanitizeFrame({ zoom: 0.9, rotationDeg: 180 }).zoom, 1, "half-turn is upright-floored");
+ok("zoom-out is a rotated-frame privilege - 0.85 floor, upright stays at 1.00");
 
 console.log(`\n  ${n}/${n} passed — presentation may improve, evidence may not be subtracted.\n`);

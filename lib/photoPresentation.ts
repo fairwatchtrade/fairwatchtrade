@@ -70,6 +70,20 @@ export const ZOOM_STEP = 0.01;
 
 export const ROTATION_VALUES = [0, 90, 180, 270] as const;
 
+/* Rotated photographs may zoom OUT below the fitted baseline, down to a
+   governed floor. A vertically-captured side profile often cannot show both
+   lugs at the fitted crop; the gap is filled by the surface's own dark matte
+   -- background space, never a stretched or distorted photograph. Upright
+   photos keep the 1.00 floor: below it they would expose borders with no
+   compositional reason to. */
+export const ZOOM_OUT_MIN_ROTATED = 0.85;
+
+/** The governed zoom floor for a given orientation. */
+export function zoomMinFor(rotationDeg: number): number {
+  const r = sanitizeRotation(rotationDeg);
+  return r === 90 || r === 270 ? ZOOM_OUT_MIN_ROTATED : ZOOM_MIN;
+}
+
 /** Automatic framing for one photograph: centred, unzoomed, unrotated. */
 export function defaultFrame(): PhotoFrame {
   return { focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 0 };
@@ -108,11 +122,13 @@ export function sanitizeFrame(input: unknown): PhotoFrame {
   const d = defaultFrame();
   if (!input || typeof input !== "object" || Array.isArray(input)) return d;
   const raw = input as Record<string, unknown>;
+  const rotationDeg = sanitizeRotation(raw.rotationDeg);
   return {
     focalX: round3(clamp(num(raw.focalX, d.focalX), 0, 1)),
     focalY: round3(clamp(num(raw.focalY, d.focalY), 0, 1)),
-    zoom: round3(clamp(num(raw.zoom, d.zoom), ZOOM_MIN, ZOOM_MAX)),
-    rotationDeg: sanitizeRotation(raw.rotationDeg),
+    // The floor depends on orientation: rotated frames may sit on the matte.
+    zoom: round3(clamp(num(raw.zoom, d.zoom), zoomMinFor(rotationDeg), ZOOM_MAX)),
+    rotationDeg,
   };
 }
 
@@ -197,32 +213,58 @@ export function withHero(
   return { ...presentation, heroPathname: pathname };
 }
 
-/* ── ROTATION GEOMETRY ─────────────────────────────────────────────────
-   object-fit:cover fills the container FIRST; the rotate transform then
-   turns that already-fitted box. After a quarter-turn its footprint is the
-   container's dimensions swapped, so in a non-square container the corners
-   would show background. The correction is a further scale of
-   max(aspect, 1/aspect) — exactly enough to cover again, never more, so the
-   extra crop stays minimal. This is the ONE place presentation needs the
-   container's aspect, which is why cropped surfaces pass theirs. */
-export function rotationCoverScale(rotationDeg: number, containerAspect: number): number {
-  if (rotationDeg !== 90 && rotationDeg !== 270) return 1;
-  if (!Number.isFinite(containerAspect) || containerAspect <= 0) return 1;
-  return Math.round(Math.max(containerAspect, 1 / containerAspect) * 10000) / 10000;
-}
+/* -- ROTATION GEOMETRY -- the swapped box -------------------------------
+   The naive approach -- cover-fit, rotate, scale back up to cover -- has two
+   defects proven in production: object-fit crops BEFORE the transform, so
+   the discarded part of the photo can never be revealed again, and the
+   compensating scale silently magnifies (a third, in the 4:3 stage) while
+   the zoom control still reads 1.00x.
 
-/* The framing itself. Applied to the <img>; the parent MUST be
-   `overflow-hidden` so zoom and rotation crop inside the frame rather than
-   spilling over siblings. */
+   The correct construction sizes the element as the container with its
+   dimensions SWAPPED -- width equal to the container's height, height equal
+   to its width, both pure percentages derived from the container's own
+   aspect -- centres it, and rotates it a quarter-turn. The rotated element
+   then occupies exactly the container, and object-fit:cover inside the
+   swapped box IS cover of the rotated photograph:
+
+     - 1.00x is the true fitted baseline for the current orientation;
+     - no pre-crop is baked in, so zoom-out genuinely reveals more;
+     - below 1.00 the surface's own dark matte shows -- nothing stretches.
+
+   No image measurement, no pixel values: the same static style works on
+   every surface. The parent MUST be `relative` and `overflow-hidden`. */
 export function frameStyle(frame: PhotoFrame, containerAspect = 4 / 3): CSSProperties {
   const rot = sanitizeRotation(frame.rotationDeg);
-  const scale = Math.round(frame.zoom * rotationCoverScale(rot, containerAspect) * 10000) / 10000;
+  const zoom = Math.round(frame.zoom * 10000) / 10000;
+  const focal = `${round3(frame.focalX * 100)}% ${round3(frame.focalY * 100)}%`;
+
+  if (rot === 90 || rot === 270) {
+    const a =
+      Number.isFinite(containerAspect) && containerAspect > 0 ? containerAspect : 4 / 3;
+    const w = Math.round((100 / a) * 1000) / 1000; // % of container WIDTH  = its height
+    const h = Math.round(100 * a * 1000) / 1000; //   % of container HEIGHT = its width
+    const parts = [`translate(-50%, -50%)`, `rotate(${rot}deg)`];
+    if (zoom !== 1) parts.push(`scale(${zoom})`);
+    return {
+      objectFit: "cover",
+      objectPosition: focal,
+      position: "absolute",
+      left: "50%",
+      top: "50%",
+      width: `${w}%`,
+      height: `${h}%`,
+      maxWidth: "none",
+      transform: parts.join(" "),
+      transformOrigin: "center",
+    };
+  }
+
   const parts: string[] = [];
   if (rot !== 0) parts.push(`rotate(${rot}deg)`);
-  if (scale !== 1) parts.push(`scale(${scale})`);
+  if (zoom !== 1) parts.push(`scale(${zoom})`);
   return {
     objectFit: "cover",
-    objectPosition: `${round3(frame.focalX * 100)}% ${round3(frame.focalY * 100)}%`,
+    objectPosition: focal,
     transform: parts.length ? parts.join(" ") : undefined,
     transformOrigin: "center",
   };
@@ -288,17 +330,17 @@ export function movableAxes(
 ): { horizontal: boolean; vertical: boolean } {
   const rot = sanitizeRotation(rotationDeg);
   const quarter = rot === 90 || rot === 270;
-  if (quarter && Math.abs(containerAspect - 1) > 0.01) {
-    // The rotation cover-scale overflows both axes in any non-square frame.
-    return { horizontal: true, vertical: true };
-  }
   const eff = quarter && imageAspect ? 1 / imageAspect : imageAspect;
   if (!eff || !Number.isFinite(eff) || eff <= 0) {
     return { horizontal: zoom > 1, vertical: zoom > 1 };
   }
-  const EPS = 0.01;
-  return {
-    horizontal: eff > containerAspect + EPS || zoom > 1,
-    vertical: eff < containerAspect - EPS || zoom > 1,
-  };
+  /* cover fits the tighter axis exactly and overflows the other by the
+     aspect mismatch; zoom multiplies both. An axis is movable when its net
+     overflow factor exceeds 1 -- which also answers zoomed-OUT rotated
+     frames honestly: sitting on the matte, nothing overflows, nothing
+     moves, and the note says so. */
+  const LIMIT = 1.01;
+  const h = (eff >= containerAspect ? eff / containerAspect : 1) * zoom;
+  const v = (eff < containerAspect ? containerAspect / eff : 1) * zoom;
+  return { horizontal: h > LIMIT, vertical: v > LIMIT };
 }

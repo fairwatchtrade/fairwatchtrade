@@ -1692,7 +1692,7 @@ export default function MobileWizard({
                  a saved quarter-turn can compute its exact cover-scale — a
                  fixed height with fluid width made rotation coverage a guess
                  per device. ~Same rendered height at typical widths. */
-              className="aspect-[4/3] w-full overflow-hidden bg-[var(--ink-deep)]"
+              className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--ink-deep)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

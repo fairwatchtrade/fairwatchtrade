@@ -231,7 +231,7 @@ export default function ReviewStep({
           /* overflow-hidden is load-bearing: it is what makes governed zoom a
              crop inside the frame rather than an image that spills over the
              card edge. */
-          <div className="aspect-[4/3] w-full overflow-hidden">
+          <div className="relative aspect-[4/3] w-full overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={hero} alt="" style={presentationStyleFor(presentation, photos[heroIndex]?.photo.pathname, 4 / 3)} className="h-full w-full" />
           </div>
@@ -249,7 +249,7 @@ export default function ReviewStep({
                  container: aspect 1, so a quarter-turn needs no cover-scale. */
               <div
                 key={i}
-                className="h-14 w-14 shrink-0 overflow-hidden border border-[var(--border-subtle)]"
+                className="relative h-14 w-14 shrink-0 overflow-hidden border border-[var(--border-subtle)]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

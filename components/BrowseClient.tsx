@@ -1147,7 +1147,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         revert to object-contain if any hero crops awkwardly. */}
                     <Link
                       href={listingHref(row.id)}
-                      className="row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
+                      className="relative row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element

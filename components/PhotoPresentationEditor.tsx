@@ -7,8 +7,8 @@ import {
   type PhotoFrame,
   type PhotoPresentation,
   ZOOM_MAX,
-  ZOOM_MIN,
   ZOOM_STEP,
+  zoomMinFor,
   defaultFrame,
   frameFor,
   frameStyle,
@@ -162,9 +162,13 @@ export default function PhotoPresentationEditor({
 
   const rotate = useCallback(
     (deltaDeg: 90 | 270) => {
+      const rotationDeg = sanitizeRotation((frame.rotationDeg + deltaDeg) % 360);
+      /* Returning to upright raises the floor back to 1.00 — a matte-resting
+         zoom must not survive into an orientation whose floor forbids it. */
       setFrame({
         ...frame,
-        rotationDeg: sanitizeRotation((frame.rotationDeg + deltaDeg) % 360),
+        rotationDeg,
+        zoom: Math.max(frame.zoom, zoomMinFor(rotationDeg)),
       });
     },
     [frame, setFrame]
@@ -449,7 +453,9 @@ export default function PhotoPresentationEditor({
               <input
                 id="fw-zoom"
                 type="range"
-                min={ZOOM_MIN}
+                /* The floor is orientation-aware: rotated photographs may
+                   zoom out onto the matte to recover a full side profile. */
+                min={zoomMinFor(frame.rotationDeg)}
                 max={ZOOM_MAX}
                 step={ZOOM_STEP}
                 value={frame.zoom}
