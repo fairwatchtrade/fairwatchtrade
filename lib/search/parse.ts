@@ -34,6 +34,7 @@ export type MeaningKind =
   | "powerReserveMinDays"
   | "powerReservePresent"
   | "caseSizeMaxMm"
+  | "dialColor"
   /* Money Truth Stage B (order §12) — recognized-but-unsupported price
      intent. A DISTINCT meaning, not text: matching a price fragment as
      ordinary words would silently return a false zero-result (no listing
@@ -130,6 +131,59 @@ function unsupportedPrice(m: RegExpMatchArray): Meaning {
     label: "Price search isn't available yet",
     source: [m[0]],
   };
+}
+
+/* ── Dial colors ───────────────────────────────────────────────────────────
+   Allowlisted dial-color FAMILIES. "blue" names the Blue family; family
+   matching is a whole-word test against the listing's stored dialColorType,
+   so Blue matches "Blue" and "Abyss Blue" and never "Champagne" — explicit
+   and deterministic, not substring luck. Bare "gold" keeps its established
+   Case Material identity (Gold Filled law); gold or silver as a DIAL reading
+   requires the explicit "... dial" phrase, which is consumed before the
+   single-word rules can claim the color word. */
+const DIAL_COLOR_FAMILIES = [
+  "blue",
+  "black",
+  "white",
+  "green",
+  "grey",
+  "gray",
+  "champagne",
+  "salmon",
+  "brown",
+  "red",
+  "purple",
+  "orange",
+  "yellow",
+  "cream",
+  "ivory",
+] as const;
+
+const DIAL_PHRASE_COLORS = [...DIAL_COLOR_FAMILIES, "gold", "silver"];
+
+function dialFamilyValue(word: string): string {
+  const w = word.toLowerCase();
+  const canon = w === "gray" ? "grey" : w;
+  return canon.charAt(0).toUpperCase() + canon.slice(1);
+}
+
+function dialColorMeaning(word: string): MeaningTemplate {
+  const family = dialFamilyValue(word);
+  return { kind: "dialColor", value: family, label: `Dial Color: ${family}` };
+}
+
+/** Whole-word family test — shared by live matching and the Refine rail so
+    the tile, the rail, and the result set can never disagree about which
+    stored dial values a family covers. Grey and Gray are one family. */
+export function matchesDialColorFamily(
+  family: string,
+  dialColorType: string | null | undefined
+): boolean {
+  const dial = (dialColorType ?? "").toLowerCase();
+  if (!dial) return false;
+  const fam = family.toLowerCase();
+  const words = fam === "grey" ? ["grey", "gray"] : [fam];
+  return words.some((w) => new RegExp(`\\b${w}\\b`).test(dial));
 }
 
 const PHRASE_RULES: PhraseRule[] = [
@@ -248,6 +302,13 @@ const PHRASE_RULES: PhraseRule[] = [
     build: (m) => ({ kind: "complication", value: "Date", label: "Complication: Date", source: [m[0]] }),
   },
   {
+    // "<color> dial" — allowlisted color word beside the word "dial". The
+    // phrase form also covers gold and silver, whose bare words keep their
+    // material identities. Consumed before single-word rules run.
+    pattern: new RegExp(`\\b(${DIAL_PHRASE_COLORS.join("|")}) dial\\b`),
+    build: (m) => ({ ...dialColorMeaning(m[1]), source: [m[0]] }),
+  },
+  {
     // Plain "power reserve" — only reachable once the measured forms above
     // have already consumed their words.
     pattern: /\bpower reserve\b/,
@@ -279,6 +340,13 @@ const WORD_RULES: Record<string, MeaningTemplate> = {
   },
   date: { kind: "complication", value: "Date", label: "Complication: Date" },
 };
+
+// Bare color words resolve as dial-color families ("blue" and "blue dial"
+// carry the same meaning). Registered after the literal so gold stays a
+// material and gray/grey converge on one Grey family.
+for (const color of DIAL_COLOR_FAMILIES) {
+  WORD_RULES[color] = dialColorMeaning(color);
+}
 
 const NEGATED_MATERIALS: Record<string, MeaningTemplate> = {
   gold: {
@@ -401,9 +469,31 @@ export function parseSearch(
   // 4 — ordinary fallback. Unrecognized words stay text, shown plainly.
   // Bare connectors left behind by a consumed phrase ("manual wind WITH more
   // than 5 days...") are dropped — requiring the word "with" to appear in a
-  // listing would silently fail honest queries. Connectors are removed only
-  // here, never from inside an unrecognized phrase the collector typed.
-  const CONNECTORS = new Set(["with", "of", "and", "a", "an", "the"]);
+  // listing would silently fail honest queries. The same law covers
+  // conversational filler: "i want a blue dial" must carry the same meaning
+  // as "blue dial", so the asking words are dropped rather than demanded of
+  // the listing text (a browser should never have to speak like a database).
+  // Both sets are removed only here, never from inside a quoted phrase the
+  // collector typed.
+  const CONNECTORS = new Set([
+    "with",
+    "of",
+    "and",
+    "a",
+    "an",
+    "the",
+    "i",
+    "want",
+    "me",
+    "show",
+    "find",
+    "looking",
+    "for",
+    "please",
+    "some",
+    "watch",
+    "watches",
+  ]);
   const kept = leftover.filter((w) => !CONNECTORS.has(w));
   if (kept.length) {
     const phrase = kept.join(" ");
@@ -505,6 +595,10 @@ export function matchesMeaning(listing: SearchableListing, meaning: Meaning): bo
       const n = numeric(d.caseSizeMm);
       return n !== null && n < Number(v);
     }
+    case "dialColor":
+      // Whole-word family identity: Blue matches Blue and Abyss Blue,
+      // never Champagne. Mirrors saved_search_matches_listing.
+      return matchesDialColorFamily(v, d.dialColorType);
     /* §12 — visible but NON-RESTRICTIVE: price intent never filters, so it
        can never manufacture a silent zero-result. The chip tells the truth;
        the match does not lie. Mirrors the SQL watcher's unknown-kind

@@ -19,6 +19,7 @@ import SearchEmptyState from "@/components/SearchEmptyState";
 import {
   parseSearch,
   matchesSearch,
+  matchesDialColorFamily,
   removeMeaningFromQuery,
   type Meaning,
 } from "@/lib/search/parse";
@@ -288,11 +289,20 @@ function FacetGroup({
   facets,
   selected,
   onToggle,
+  implied,
+  onImpliedToggle,
 }: {
   title: string;
   facets: [string, number][];
   selected: Set<string>;
   onToggle: (value: string) => void;
+  /** Values active because a Search interpretation covers them (one canonical
+      state, a different origin). Rendered with the identical active treatment
+      — origin stays internal, no visual clutter. Unchecking one removes the
+      interpretation itself, so the rail can genuinely change or remove what
+      Search understood. */
+  implied?: Set<string>;
+  onImpliedToggle?: (value: string) => void;
 }) {
   if (facets.length === 0) return null;
   return (
@@ -303,6 +313,8 @@ function FacetGroup({
       <div>
         {facets.map(([value, count]) => {
           const isSelected = selected.has(value);
+          const isImplied = !isSelected && (implied?.has(value) ?? false);
+          const isActive = isSelected || isImplied;
           return (
             <label
               key={value}
@@ -310,24 +322,26 @@ function FacetGroup({
             >
               <input
                 type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggle(value)}
+                checked={isActive}
+                onChange={() =>
+                  isImplied ? onImpliedToggle?.(value) : onToggle(value)
+                }
                 className="sr-only"
               />
               <div
                 className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border-[1.5px] ${
-                  isSelected
+                  isActive
                     ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
                     : "border-[var(--slate)] bg-[rgba(255,255,255,0.07)]"
                 }`}
               >
-                {isSelected && (
+                {isActive && (
                   <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />
                 )}
               </div>
               <span
                 className={`min-w-0 flex-1 truncate text-[11px] tracking-[0.3px] ${
-                  isSelected ? "text-[var(--slate)]" : "text-[var(--muted)]"
+                  isActive ? "text-[var(--slate)]" : "text-[var(--muted)]"
                 }`}
               >
                 {value}
@@ -680,6 +694,31 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     () => countBy(listings, (l) => l.details?.dialColorType ?? ""),
     [listings]
   );
+
+  // Rail representation of Search-interpreted dial families: the stored dial
+  // values a family covers render active in Refine, so the tile, the rail,
+  // and the result set share one truth. Same family test as matching.
+  const impliedDials = useMemo(() => {
+    const families = activeSearch.meanings.filter((m) => m.kind === "dialColor");
+    const out = new Set<string>();
+    if (!families.length) return out;
+    for (const [value] of dialFacets) {
+      if (value && families.some((f) => matchesDialColorFamily(f.value, value))) {
+        out.add(value);
+      }
+    }
+    return out;
+  }, [activeSearch, dialFacets]);
+
+  // Unchecking an implied dial value removes the interpretation that covers
+  // it — the query text loses exactly the words Search understood, so the
+  // removed criterion cannot silently reapply itself from the raw text.
+  const removeImpliedDial = (value: string) => {
+    const covering = activeSearch.meanings.find(
+      (m) => m.kind === "dialColor" && matchesDialColorFamily(m.value, value)
+    );
+    if (covering) removeMeaning(covering);
+  };
   const docFacets = useMemo(
     () => countBy(listings, (l) => l.details?.documentation ?? ""),
     [listings]
@@ -843,6 +882,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         facets={dialFacets}
         selected={selectedDials}
         onToggle={toggleDial}
+        implied={impliedDials}
+        onImpliedToggle={removeImpliedDial}
       />
       <FacetGroup
         title="Box & Papers"
