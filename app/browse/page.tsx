@@ -77,18 +77,9 @@ export default async function BrowsePage() {
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       <div className="flex flex-col">
-        {/* Browse header */}
-        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
-          <div>
-            <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
-              Discover
-            </h1>
-            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--ghost)]">
-              {rows.length} watches · curated and verified
-            </p>
-          </div>
-        </div>
-
+        {/* Browse header renders inside BrowseClient so the Discover count
+            reads the one canonical filtered result set — a page-level total
+            beside filtered listings would contradict what actually renders. */}
         <div className="px-6 py-5">
           {rows.length === 0 ? (
             <p className="text-[14px] text-[var(--slate)]">

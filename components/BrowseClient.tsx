@@ -936,9 +936,22 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
 
   return (
     <div>
-      {/* SEARCH — DD10. Sits above the existing Refine controls; the real
-          production header and hamburger above it are untouched. */}
+      {/* Browse header — the count is the canonical filtered result set, so
+          the number always describes exactly the listings rendered below. */}
       <div className="-mx-6 -mt-5">
+        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
+          <div>
+            <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
+              Discover
+            </h1>
+            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--ghost)]">
+              {filtered.length} watches · curated and verified
+            </p>
+          </div>
+        </div>
+
+        {/* SEARCH — DD10. Sits above the existing Refine controls; the real
+            production header and hamburger above it are untouched. */}
         <BrowseSearch
           query={queryText}
           onCommit={setQuery}
