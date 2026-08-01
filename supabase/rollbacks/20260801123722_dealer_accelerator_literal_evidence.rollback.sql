@@ -151,18 +151,14 @@ end
 $$;
 
 -- --------------------------------------------------------------------------
--- 6. Flight 1 amendment reversal — delegated execute grant
+-- 6. Flight 1 amendment reversal — extensions schema usage
 -- --------------------------------------------------------------------------
 
 do $$
 begin
-  if to_regprocedure(
-       'public.dealer_accelerator_record_observation(uuid,timestamptz,text,text,text,text,text,text,uuid)'
-     ) is not null
-     and exists (select 1 from pg_roles where rolname = 'dealer_accelerator_writer') then
-    revoke execute on function public.dealer_accelerator_record_observation(
-      uuid,timestamptz,text,text,text,text,text,text,uuid
-    ) from dealer_accelerator_writer;
+  if exists (select 1 from pg_roles where rolname = 'dealer_accelerator_writer')
+     and exists (select 1 from pg_namespace where nspname = 'extensions') then
+    revoke usage on schema extensions from dealer_accelerator_writer;
   end if;
 end
 $$;

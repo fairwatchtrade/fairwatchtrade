@@ -31,9 +31,14 @@
 --      the composite foreign key.
 --   2. dealer_accelerator_lifecycle_events_type_check re-created as the
 --      original twenty event types plus the five evidence types.
---   3. execute on dealer_accelerator_record_observation granted to
---      dealer_accelerator_writer, so the composite evidence recorder can
---      delegate observation identity to the proven Flight 1 authority.
+--   3. usage on schema extensions granted to dealer_accelerator_writer —
+--      runtime-proven dependency: the SECURITY DEFINER evidence functions
+--      call extensions.digest() as the writer, and without schema usage the
+--      call fails 42501. (An explicit execute grant on
+--      dealer_accelerator_record_observation was runtime-proven REDUNDANT:
+--      the Flight 1 revoke loop instantiates the function ACL, which
+--      preserves the owner's own execute entry, so writer-owned delegation
+--      already carries.)
 --
 -- PFC274 = 62 — app/api/evaluate/route.ts is untouched.
 -- ============================================================================
@@ -109,11 +114,16 @@ alter table public.dealer_accelerator_lifecycle_events
     )
   );
 
--- 1c. The composite evidence recorder delegates observation identity to the
--- proven Flight 1 authority instead of reimplementing it.
-grant execute on function public.dealer_accelerator_record_observation(
-  uuid,timestamptz,text,text,text,text,text,text,uuid
-) to dealer_accelerator_writer;
+-- 1c. The writer must reach extensions.digest() from inside SECURITY DEFINER
+-- functions. Runtime-proven on 2026-08-01: without schema usage the composite
+-- recorder fails 42501 at its first digest; the migration-time precondition
+-- probe runs as a superuser and cannot catch this. No execute grant on
+-- extensions functions is needed — pgcrypto grants execute to PUBLIC.
+-- (No execute grant on dealer_accelerator_record_observation is needed
+-- either: the Flight 1 revoke loop instantiated that function's ACL with the
+-- owner's execute entry intact, so writer-owned delegation already carries —
+-- runtime-proven the same day.)
+grant usage on schema extensions to dealer_accelerator_writer;
 
 -- --------------------------------------------------------------------------
 -- 2. Observation payloads — the byte evidence, one-to-one with observations
