@@ -31,6 +31,9 @@ function normalize(pathname: string): string {
  * Search affordance just because it shares the global shell.
  *
  *   · /catalogue                      — public catalogue
+ *   · /watch-dna                      — Watch DNA (v3.21a: live Catalogue-family
+ *                                       discovery surface; same header stack as
+ *                                       its sibling so the rail never jumps)
  *   · /account                        — account overview + collector modules
  *                                       (deep links keep pathname === /account)
  *   · /listings/<id>                  — listing detail (object-dominant; the
@@ -53,6 +56,13 @@ function normalize(pathname: string): string {
 export function headerSearchVisible(pathname: string | null | undefined): boolean {
   const p = normalize(pathname ?? "/");
   if (p === "/catalogue") return true;
+  /* v3.21a — Watch DNA joined the Catalogue family as a live rail
+     destination. It qualifies under this law's own principle (a collector
+     discovering what to move toward), and rail continuity requires the
+     SAME header stack across sibling family pages: without this row the
+     rail jumped ~50px when crossing /catalogue ↔ /watch-dna (Jason's
+     unmoved-mouse observation, 2026-08-02). */
+  if (p === "/watch-dna") return true;
   if (p === "/account") return true;
   if (/^\/listings\/[^/]+$/.test(p)) return true; // detail only — not sub-routes
   if (/^\/sellers\/[^/]+$/.test(p)) return true;

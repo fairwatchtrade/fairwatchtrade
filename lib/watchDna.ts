@@ -38,23 +38,27 @@ export type Archetype = {
 export const QUESTIONS: Question[] = [
   {
     id: "q1",
+    /* v3.21a — Jason's live-pass correction (2026-08-02): the anchor asks
+       what THEIR question would be about, not what you want them to say.
+       Options turned to match the new point of view; buckets, ids, and
+       scoring untouched. */
     prompt:
-      "Someone notices your watch and asks about it. What do you actually want them to say next?",
+      "Someone notices your watch and asks about it. What would their question be?",
     subtext: "The anchor question.",
     options: [
       {
         id: "q1-craft",
-        label: "“Ask me about the movement, that's the real story.”",
+        label: "“About the movement, that's the real story.”",
         points: { craft: 2 },
       },
       {
         id: "q1-presence",
-        label: "“Just tell me it looks good, that's enough.”",
+        label: "“What is that? It looks incredible.”",
         points: { presence: 2 },
       },
       {
         id: "q1-heritage",
-        label: "“Ask me where it's from, there's a real story behind it.”",
+        label: "“Where is it from, there's a real story behind it.”",
         points: { heritage: 2 },
       },
     ],

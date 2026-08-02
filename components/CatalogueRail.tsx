@@ -46,8 +46,12 @@ const ICONS = {
     </svg>
   ),
   watchDna: (
+    // v3.21a — the double helix (Jason's call during the live pass): two
+    // crossing strands + four rungs, tuned to stay legible at 20px/1.5.
     <svg viewBox="0 0 24 24">
-      <path d="M5 5c4 0 4 4.5 0 4.5S1 14 5 14M12 5c4 0 4 4.5 0 4.5S8 14 12 14" transform="translate(3.5 2.5)" />
+      <path d="M8 3c0 4.5 8 4.5 8 9s-8 4.5-8 9" />
+      <path d="M16 3c0 4.5-8 4.5-8 9s8 4.5 8 9" />
+      <path d="M9 5.5h6M10 8h4M10 16h4M9 18.5h6" />
     </svg>
   ),
   sellerWorkspace: (
