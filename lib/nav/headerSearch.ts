@@ -30,12 +30,6 @@ function normalize(pathname: string): string {
  * Allowlist only — never a denylist — so an operational route can never leak a
  * Search affordance just because it shares the global shell.
  *
- *   · /catalogue                      — public catalogue
- *   · /watch-dna                      — Watch DNA (v3.21a: live Catalogue-family
- *                                       discovery surface; same header stack as
- *                                       its sibling so the rail never jumps)
- *   · /account                        — account overview + collector modules
- *                                       (deep links keep pathname === /account)
  *   · /listings/<id>                  — listing detail (object-dominant; the
  *                                       compact field is subordinate free-text
  *                                       reach, distinct from the Drawer's
@@ -44,26 +38,32 @@ function normalize(pathname: string): string {
  *
  * Deliberately EXCLUDED (discovery not the purpose, or a canonical Search
  * already owns the surface):
+ *   · /account, /account/settings, /catalogue, /watch-dna — the Painted Line
+ *     rail pages (v3.21b permanent law: the rail begins immediately beneath
+ *     the metals strip; no full-width utility band above a persistent rail —
+ *     see headerSearchVisible below)
  *   · /browse (full inline Search is canonical — never a second field)
  *   · /vault, /vault/galaxy (no Search inside the Galaxy; reference detail is
  *     client state within VaultGalaxy, not a distinct route)
- *   · /account/settings (operational), /listings/<id>/purchase-request
- *     (transaction), /tracking/<id>, /dashboard
+ *   · /listings/<id>/purchase-request (transaction), /tracking/<id>, /dashboard
  *   · /sell, /sell/mobile (creation) · /login, /signup, /forgot-password,
  *     /reset-password (auth) · /terms, /privacy (legal) · /admin/** (admin)
  *   · / (home landing — its own discovery entry; not redesigned here)
  */
 export function headerSearchVisible(pathname: string | null | undefined): boolean {
   const p = normalize(pathname ?? "/");
-  if (p === "/catalogue") return true;
-  /* v3.21a — Watch DNA joined the Catalogue family as a live rail
-     destination. It qualifies under this law's own principle (a collector
-     discovering what to move toward), and rail continuity requires the
-     SAME header stack across sibling family pages: without this row the
-     rail jumped ~50px when crossing /catalogue ↔ /watch-dna (Jason's
-     unmoved-mouse observation, 2026-08-02). */
-  if (p === "/watch-dna") return true;
-  if (p === "/account") return true;
+  /* v3.21b — PERMANENT STRUCTURAL LAW (bench ruling, 2026-08-02, arbitrated
+     by Jason): on Painted Line rail pages the rail begins IMMEDIATELY
+     beneath the metals strip. A full-width utility band above a persistent
+     rail recreates the dead rectangle the first redesign existed to kill —
+     the stack is `metals strip → rail │ content`, never
+     `metals strip → band → rail │ content`. Therefore /account,
+     /account/settings, /catalogue, and /watch-dna carry NO compact
+     search row, and no replacement search is added to their content
+     columns "for universality" — a truly universal search may return
+     later only as global chrome through its own Design Gate, and
+     page-specific search only from a real product need. Browse remains
+     the canonical search destination (one rail click away). */
   if (/^\/listings\/[^/]+$/.test(p)) return true; // detail only — not sub-routes
   if (/^\/sellers\/[^/]+$/.test(p)) return true;
   return false;

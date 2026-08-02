@@ -71,6 +71,13 @@ const RAIL_CSS = `
   border-right:1px solid var(--rl-line);
   padding:22px 12px 18px;
   background:linear-gradient(90deg,rgba(20,22,28,.62),rgba(13,15,20,.98));
+  /* v3.21b — the rail carries its OWN sans stack (the gate study's --sans)
+     instead of inheriting the host page's font: on pages with wider body
+     metrics, "Seller Workspace" at the locked 13px overflowed the 130px
+     label column and truncated to "Seller Worksp…" (Layout's carried
+     correction). Same 13px, same rail width — the metrics, not the law,
+     were the defect. The serif title below overrides explicitly. */
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
 @media (max-width:767px){.fwt-rail{display:none}}
 .fwt-rail-anim{transition:width .25s ease}
