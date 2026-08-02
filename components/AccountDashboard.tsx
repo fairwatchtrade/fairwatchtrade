@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import AccountRail from "@/components/AccountRail";
 import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
@@ -172,19 +173,10 @@ function moduleFromParam(p: string | null): ModuleId {
     : "inventory";
 }
 
-const MODULES: Array<{ id: ModuleId; label: string; soon: boolean }> = [
-  { id: "dashboard", label: "Overview", soon: false },
-  { id: "inventory", label: "Listings", soon: false },
-  // v2.21 — Dealer Accelerator Review Workspace. Desktop is governing scope.
-  { id: "accelerator", label: "Imported Drafts", soon: false },
-  { id: "market", label: "Market Intel", soon: true },
-  { id: "messages", label: "Messages", soon: false },
-  { id: "requests", label: "Requests", soon: false },
-  // v2.68 — Saved Searches Account Surface (DD1). The buyer's watched
-  // searches live in Account beside everything else the collector owns.
-  { id: "saved", label: "Saved Searches", soon: false },
-  { id: "analytics", label: "Analytics", soon: true },
-];
+/* v3.21 — the module list, labels, and Soon rows now live in
+   AccountRail.tsx (the Painted Line rail, Requests-before-Messages per the
+   locked order). The old inline MODULES table is retired with the old
+   aside; ModuleId and the deep-link allowlist above remain the law. */
 
 /* ── v2.6 · Correspondence types — mirror /api/messages responses. ── */
 
@@ -1262,90 +1254,20 @@ export default function AccountDashboard({
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
-      <div className="flex">
-        {/* LEFT CONTROL PANEL — desktop only. Global nav: changes WHERE you are. */}
-        <aside className="hidden min-h-screen w-[176px] shrink-0 flex-col border-r border-[var(--border-faint)] bg-[var(--ink)] pt-7 pb-6 md:flex">
-          {/* Header zone */}
-          <div className="mb-5 px-5">
-            <div className="text-[8px] uppercase tracking-[3px] text-[var(--ghost)]">
-              Seller Panel
-            </div>
-            <div className="mt-[3px] text-[9px] uppercase tracking-[2px] text-[var(--gold)]">
-              Your Workspace
-            </div>
-          </div>
-
-          {/* Search — filters own listings client-side, no new query */}
-          <div className="mb-4 px-5">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search your listings…"
-              className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
-            />
-          </div>
-
-          {/* Module nav — no counts, except unread/pending badges */}
-          <nav>
-            {MODULES.map((m) => {
-              if (m.soon) {
-                return (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between px-5 py-[9px] text-[11px] text-[var(--ghost)]"
-                  >
-                    <span>{m.label}</span>
-                    <span className="text-[8px] tracking-[1px] text-[var(--ghost)]">
-                      Soon
-                    </span>
-                  </div>
-                );
-              }
-              const isActive = activeModule === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => selectModule(m.id)}
-                  className={`relative flex w-full items-center justify-between px-5 py-[10px] text-left text-[10px] tracking-[1px] transition ${
-                    isActive
-                      ? "border-l-2 border-[var(--gold)] text-[var(--platinum)]"
-                      : "border-l-2 border-transparent text-[var(--muted)] hover:text-[var(--slate)]"
-                  }`}
-                >
-                  {isActive && (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0"
-                      style={{ background: "rgba(201,168,76,0.04)" }}
-                    />
-                  )}
-                  <span className="relative">{m.label}</span>
-                  {/* v2.6 — unread-thread badge on Messages. */}
-                  {m.id === "messages" && unreadThreadCount > 0 && (
-                    <span className="relative ml-2 border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] tracking-[1px] text-[var(--gold)]">
-                      {unreadThreadCount}
-                    </span>
-                  )}
-                  {/* v2.7 — pending-request badge on Requests. Same quiet
-                      pattern as Messages' unread badge. Only when > 0. */}
-                  {m.id === "requests" && pendingRequestCount > 0 && (
-                    <span className="relative ml-2 border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] tracking-[1px] text-[var(--gold)]">
-                      {pendingRequestCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Bottom identity zone */}
-          <div className="mt-auto border-t border-[var(--border-faint)] px-5 pt-5">
-            <div className="text-[10px] text-[var(--muted)]">Seller</div>
-            <div className="mt-[2px] text-[9px] text-[var(--ghost)]">Active workspace</div>
-          </div>
-        </aside>
+      <div className="flex min-h-screen">
+        {/* LEFT CONTROL PANEL — the Painted Line AccountRail (v3.21 order,
+            Design Gate Concept A). REPLACES the old inline aside per
+            Layout's law — never layered beside it. Desktop-only inside the
+            rail's own CSS; the mobile single-view law is untouched. Module
+            switching stays the WS2 pushState convention via selectModule;
+            badges are the dashboard's existing state — no second fetch. */}
+        <AccountRail
+          surface="account"
+          activeModule={activeModule}
+          onSelectModule={selectModule}
+          unreadThreads={unreadThreadCount}
+          pendingRequests={pendingRequestCount}
+        />
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}
         {/* WS1 (2026-07-28) — bounded workspace width. Ultrawide screens were
@@ -1366,6 +1288,21 @@ export default function AccountDashboard({
                 </span>
                 <span className="hidden md:inline">{moduleTitle}</span>
               </h2>
+              {/* v3.21 — own-listings search, relocated from the retired
+                  inline rail per the v3 order §4 (Jason-authorized).
+                  DESKTOP-ONLY protection: the old rail was desktop-only, so
+                  mobile never had this control — `hidden md:block` keeps it
+                  that way (no duplicate leaks into the mobile branch, no
+                  control lost). Identical filter logic and state. */}
+              <div className="mx-6 hidden max-w-[260px] flex-1 md:block">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search your listings…"
+                  className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+                />
+              </div>
               <Link
                 href="/sell"
                 className="bg-[var(--gold)] px-4 py-[7px] font-[Inter] text-[9px] font-normal uppercase tracking-[2px] text-[var(--ink)]"

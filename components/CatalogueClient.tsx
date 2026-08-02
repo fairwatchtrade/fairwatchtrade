@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import CatalogueRail from "@/components/CatalogueRail";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
@@ -237,53 +238,11 @@ function heroUrl(photos: ListingPhoto[]): string | null {
   return (dial ?? photos[0])?.photo?.url ?? null;
 }
 
-/* ── Left nav ─────────────────────────────────────────────────────────── */
-
-function NavSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-        {title}
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function NavItem({
-  href,
-  active,
-  soon,
-  children,
-}: {
-  href?: string;
-  active?: boolean;
-  soon?: boolean;
-  children: ReactNode;
-}) {
-  const base = "block text-[12px] tracking-[0.3px] transition";
-  if (soon || !href) {
-    // Phase 2 — present but not yet navigable. Quiet, not loud.
-    return (
-      <div className={`${base} cursor-default text-[var(--ghost)] opacity-60`}>
-        {children}
-        <span className="ml-1.5 text-[8px] uppercase tracking-[1.5px]">soon</span>
-      </div>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className={`${base} ${
-        active
-          ? "text-[var(--gold)]"
-          : "text-[var(--muted)] hover:text-[var(--platinum)]"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
+/* ── Left nav ─────────────────────────────────────────────────────────
+   v3.21 — the inline NavSection/NavItem rail is RETIRED, replaced by the
+   Painted Line <CatalogueRail /> (Design Gate Concept A, v3 order §5/§6).
+   Replacement, never layered — the old markup is ancestry, not a second
+   navigation system. */
 
 /* ── Discovery card — reuses the /browse visual treatment ─────────────── */
 
@@ -951,38 +910,16 @@ export default function CatalogueClient({
   ) as 1 | 2 | 3;
 
   return (
-    <div className="flex gap-5 py-8">
-      {/* Left nav — sticky, desktop only */}
-      {/* v2.12 — Left Cliff fix (Issue A). The chain below this point is
-          deliberately unpadded text; horizontal air is owned HERE, at the one
-          point every section and item inherits. px-5 (20px) is the Left Cliff
-          Law's proven floor (AccountDashboard's own sidebar blocks), applied
-          as Catalogue's own padding rather than an assumption about a layout
-          wrapper that does not exist. Width stays 200px; the text column
-          becomes 160px, which the longest item ("Purchase Requests", 12px)
-          fits comfortably. */}
-      <nav className="hidden w-[200px] shrink-0 md:block">
-        <div className="sticky top-6 space-y-6 px-5">
-          <NavSection title="Discover">
-            <NavItem href="/browse">Browse</NavItem>
-            <NavItem href="/browse">New Arrivals</NavItem>
-          </NavSection>
-          <NavSection title="Intelligence">
-            <NavItem soon>My Catalogue</NavItem>
-            <NavItem soon>Watch DNA</NavItem>
-          </NavSection>
-          <NavSection title="Trade">
-            <NavItem href="/catalogue" active>
-              Catalogue
-            </NavItem>
-            <NavItem href="/account">Seller Workspace</NavItem>
-            <NavItem href="/sell">Sell</NavItem>
-          </NavSection>
-        </div>
-      </nav>
+    <div className="flex min-h-screen gap-5">
+      {/* Left nav — v3.21: the Painted Line CatalogueRail (Design Gate
+          Concept A, v3 order §5). Discover = Browse → Catalogue → Watch DNA
+          (New Arrivals removed, Jason-approved); Seller exits separated;
+          My Catalogue the only Soon. The rail owns its own full-height
+          fused composition and hides itself below md. */}
+      <CatalogueRail />
 
       {/* Right content */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 py-8">
         {/* Greeting */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
           {greeting()}, {displayName ?? "Collector"}.
@@ -1153,9 +1090,14 @@ export default function CatalogueClient({
                     <Link href="/vault" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
                       Explore the Vault →
                     </Link>
-                    <div className="cursor-default text-[9px] uppercase tracking-[2px] text-[var(--ghost)] opacity-60">
-                      Watch DNA Quiz <span className="text-[8px] tracking-[1.5px]">soon</span>
-                    </div>
+                    {/* v3.21 — LIVE link (v3 order §6.3): Watch DNA is a
+                        working module; no surface may claim it is Soon. */}
+                    <Link
+                      href="/watch-dna"
+                      className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                    >
+                      Watch DNA Quiz →
+                    </Link>
                   </div>
                 </div>
               )}
@@ -1185,8 +1127,13 @@ export default function CatalogueClient({
               </button>
             </div>
 
-            {/* Watch DNA — shell, Coming Soon. No numbers, no fake metrics. */}
-            <div className="mt-4 border border-[var(--border-subtle)] px-4 py-5">
+            {/* Watch DNA — LIVE (v3.21, v3 order §6.3). The module works and
+                has a real door; this card stops claiming Soon and links it.
+                Existing card treatment kept — text-and-link change only. */}
+            <Link
+              href="/watch-dna"
+              className="mt-4 block border border-[var(--border-subtle)] px-4 py-5 transition hover:bg-[rgba(255,255,255,0.02)]"
+            >
               <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
                 Watch DNA
               </div>
@@ -1196,13 +1143,13 @@ export default function CatalogueClient({
                     <div className="mb-1 text-[10px] text-[var(--slate)]">
                       {bucket}
                     </div>
-                    <div className="font-display text-[10px] italic text-[var(--ghost)]">
-                      Coming soon
-                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+              <div className="mt-2 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                Discover your Watch DNA →
+              </div>
+            </Link>
 
             {/* Recent activity — shell */}
             <div className="mt-4">
