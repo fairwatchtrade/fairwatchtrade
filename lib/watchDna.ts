@@ -13,6 +13,11 @@
 
 export type ArchetypeKey = "craft" | "presence" | "heritage";
 
+/** Narrow an untrusted value (a URL param) to an archetype key. */
+export function isArchetypeKey(value: unknown): value is ArchetypeKey {
+  return value === "craft" || value === "presence" || value === "heritage";
+}
+
 export type QuizOption = {
   id: string;
   label: string;

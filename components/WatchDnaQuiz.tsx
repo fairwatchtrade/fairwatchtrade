@@ -1,17 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
+  ARCHETYPES,
   QUESTIONS,
   scoreQuiz,
+  type Archetype,
+  type ArchetypeKey,
   type QuizOption,
-  type QuizResult,
 } from "@/lib/watchDna";
+import { buildBrowseBrandHref } from "@/lib/nav/browseCriteria";
 
-export default function WatchDnaQuiz() {
+type Props = {
+  /**
+   * Stored `listings.brand` values that currently have published inventory.
+   * A pill becomes a link only for a brand in this set — see the availability
+   * note on app/watch-dna/page.tsx. Empty set = every pill stays plain text.
+   */
+  availableBrands: string[];
+  /** Result to restore on arrival, read from ?dna= by the page. */
+  initialArchetype: ArchetypeKey | null;
+};
+
+/**
+ * Replace ?dna= without a route transition. `replaceState` is router-
+ * integrated in Next 16, so the URL, the history entry, and the Next router
+ * stay in agreement — and `replace` (not `push`) keeps the Back button
+ * pointing at wherever the collector came FROM, never at their own answers.
+ */
+function stampResultInUrl(key: ArchetypeKey | null) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  if (key) params.set("dna", key);
+  else params.delete("dna");
+  const qs = params.toString();
+  window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+}
+
+export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Props) {
   const [step, setStep] = useState(0);
   const [chosen, setChosen] = useState<QuizOption[]>([]);
-  const [result, setResult] = useState<QuizResult | null>(null);
+  const [archetype, setArchetype] = useState<Archetype | null>(
+    initialArchetype ? ARCHETYPES[initialArchetype] : null
+  );
+
+  /**
+   * Pill label → stored brand value. Matching is case/whitespace-insensitive
+   * so a curated pill spelling still finds its listings, but the href always
+   * carries the STORED value, because Browse's Brand criterion is an exact
+   * string match against `listings.brand`.
+   */
+  const brandLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const brand of availableBrands) {
+      map.set(brand.trim().toLowerCase(), brand);
+    }
+    return map;
+  }, [availableBrands]);
 
   function pick(option: QuizOption) {
     const next = [...chosen.slice(0, step), option];
@@ -19,7 +65,9 @@ export default function WatchDnaQuiz() {
     if (step + 1 < QUESTIONS.length) {
       setStep(step + 1);
     } else {
-      setResult(scoreQuiz(next));
+      const scored = scoreQuiz(next);
+      setArchetype(scored.archetype);
+      stampResultInUrl(scored.archetype.key);
     }
   }
 
@@ -30,7 +78,8 @@ export default function WatchDnaQuiz() {
   function restart() {
     setStep(0);
     setChosen([]);
-    setResult(null);
+    setArchetype(null);
+    stampResultInUrl(null);
   }
 
   async function share() {
@@ -51,8 +100,8 @@ export default function WatchDnaQuiz() {
   }
 
   /* ── Result screen ─────────────────────────────────────────────────── */
-  if (result) {
-    const a = result.archetype;
+  if (archetype) {
+    const a = archetype;
     return (
       <div className="rounded-xl border border-white/10 bg-[#13151C] p-7 text-center">
         <div className="text-[11px] uppercase tracking-[0.2em] text-[#8A8F9E]">
@@ -71,14 +120,34 @@ export default function WatchDnaQuiz() {
             In your orbit
           </div>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
-            {a.exampleBrands.map((b) => (
-              <span
-                key={b}
-                className="rounded-full border border-white/10 px-3 py-1 text-[12px] text-[#E8E4DC]"
-              >
-                {b}
-              </span>
-            ))}
+            {a.exampleBrands.map((b) => {
+              /* A pill is a door only where the door leads somewhere. Brands
+                 with no published inventory keep the exact pill that shipped
+                 before — unavailable is not rendered as negative, so there is
+                 no count, no dimming, and no "soon". */
+              const stored = brandLookup.get(b.trim().toLowerCase());
+              const pill =
+                "rounded-full border border-white/10 px-3 py-1 text-[12px] text-[#E8E4DC]";
+
+              if (!stored) {
+                return (
+                  <span key={b} className={pill}>
+                    {b}
+                  </span>
+                );
+              }
+
+              return (
+                <Link
+                  key={b}
+                  href={buildBrowseBrandHref(stored)}
+                  aria-label={`Browse ${b} watches`}
+                  className={`${pill} cursor-pointer transition-colors hover:border-[#C9A84C]/60 hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C9A84C]`}
+                >
+                  {b}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
