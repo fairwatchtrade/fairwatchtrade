@@ -22,14 +22,15 @@ import { headerSearchVisible } from "@/lib/nav/headerSearch";
    creation, auth, legal, admin, home show nothing.
 
    The desktop and mobile fields remain EXACT breakpoint complements
-   (hidden xl:flex vs xl:hidden), so exactly one is laid out — and therefore
+   (hidden lg:flex vs lg:hidden), so exactly one is laid out — and therefore
    in the accessibility tree — at any viewport. Relocating the mount does not
    change that proof; it only changes where the pair lives in the stack.
 
-   v3.23 — the pair moved md → xl to stay locked to <NavBar>. The header is
-   one composition: below 1280 the masthead is wordmark + hamburger, so the
-   search must be the mobile row. Left at md it would have desynced — a
-   hamburger masthead above a desktop right-aligned field, 768 to 1279.
+   v3.23 moved the pair md → xl to stay locked to <NavBar>; v3.25 corrected
+   both to lg. The header is one composition: below the breakpoint the
+   masthead is wordmark + hamburger, so the search must be the mobile row.
+   Left behind it would desync — a desktop right-aligned field sitting under
+   a hamburger masthead. This pair must always match <NavBar>.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function HeaderSearchSlot() {
@@ -39,13 +40,13 @@ export default function HeaderSearchSlot() {
   return (
     <div className="w-full border-b border-[var(--border-subtle)] bg-[var(--ink)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* Desktop — compact field, right-aligned. hidden below xl. */}
-        <div className="hidden justify-end py-2 xl:flex">
+        {/* Desktop — compact field, right-aligned. hidden below lg. */}
+        <div className="hidden justify-end py-2 lg:flex">
           <HeaderSearch variant="inline" />
         </div>
-        {/* Mobile — full-width row. Hidden at xl and up. Exact complement of
+        {/* Mobile — full-width row. Hidden at lg and up. Exact complement of
             the desktop field above, so never both at one width. */}
-        <div className="py-2 xl:hidden">
+        <div className="py-2 lg:hidden">
           <HeaderSearch variant="row" />
         </div>
       </div>

@@ -10,17 +10,27 @@ import NotificationsBell from "@/components/NotificationsBell";
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop (xl:flex, ≥1280px): wordmark left, then the primary words right.
+   Desktop (lg:flex, ≥1024px): wordmark left, then the primary words right.
    Signed out: Browse · Sell · Catalogue · Vault · Account · About.
    Signed in:  Browse · Sell · Catalogue · Vault · About — the avatar/name
    cluster is the Account entrance, so the word would be a second door.
-   Below 1280 (xl:hidden): wordmark + hamburger; tapping opens <MobileNav />,
+   Below 1024 (lg:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
 
-   v3.23 — the breakpoint was md (768px), but the signed-in row needs ~1280:
-   at 1216 the wordmark still collided with BROWSE and the display name had
-   already wrapped to two lines. md was never wide enough for the signed-in
-   composition; it only ever passed because guests are ~190px narrower.
+   v3.23 raised this from md (768px), which was never wide enough for the
+   signed-in row — it only ever passed because the guest header is ~190px
+   narrower, so every signed-out check cleared while signed-in collided.
+
+   v3.25 corrects the replacement. v3.23 chose xl (1280) from a reported
+   collision "at 1216px", but those screenshots were captured at ~1.375
+   effective scale (browser zoom on top of display scaling), so the true
+   collision width was ~884 CSS — and that was BEFORE Account left the
+   signed-in row and before the name was bounded. Measured from the live
+   DOM, the signed-in row now needs ~850: wordmark 134 + padding 48 +
+   Browse 59 · Sell 34 · Catalogue 83 · Vault 43 · About 47 + bell ~26 +
+   identity cluster ~206 (icon 26 + name ≤150 + chevron) + six 24px gaps.
+   lg (1024) keeps ~145px of margin. NEVER size this from a screenshot:
+   pixels in an image are not CSS pixels unless the zoom is known.
 
    Active link is rendered in gold via usePathname().
 
@@ -152,7 +162,7 @@ export default function NavBar({
         <Wordmark />
 
         {/* Desktop links */}
-        <div className="hidden items-center gap-6 xl:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           {/* v3.23 — Design Duck ruling: "Account" is a GUEST-ONLY word.
               Signed in, the avatar/name cluster is the single Account
               entrance (My Account → Overview), so the primary word is just a
@@ -344,7 +354,7 @@ export default function NavBar({
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="text-[var(--slate)] xl:hidden"
+          className="text-[var(--slate)] lg:hidden"
         >
           <svg
             width="22"

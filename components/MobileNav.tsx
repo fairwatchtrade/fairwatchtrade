@@ -19,8 +19,9 @@ import { createClient } from "@/lib/supabase/client";
    The wider peek makes the live page behind unmistakably visible — the drawer
    reads AS a drawer before the user interacts. Tapping the peek — or the close
    hint, the watch-hand pull, or a nav item — closes it. Below the desktop
-   masthead breakpoint only (xl:hidden — v3.23, raised from md); desktop
-   never renders this.
+   masthead breakpoint only (lg:hidden — v3.23 raised it from md, v3.25
+   corrected it to lg); desktop never renders this. Must always match
+   <NavBar> and <HeaderSearchSlot> exactly.
 
    Visually alive, not interactively alive: the page behind keeps ticking and
    animating (nothing is unmounted), shows through the 0.72 peek backdrop, but
@@ -222,7 +223,7 @@ export default function MobileNav({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex xl:hidden transition-opacity duration-300 ${
+      className={`fixed inset-0 z-50 flex lg:hidden transition-opacity duration-300 ${
         open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
