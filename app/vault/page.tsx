@@ -21,7 +21,15 @@ export default async function VaultPage() {
   const supabase = await createClient();
 
   const { data: brands, error } = await supabase
-    .from("vault_brands")
+    // Galaxy publication surface, not a truth filter. A brand may be fully
+    // and truthfully ingested before the renderer can draw it honestly;
+    // this withholds only the debut. An empty brand stays visible — a
+    // mapped star awaiting enrichment is intentional, not a defect.
+    //
+    // The view, never the table: publication at this level is one boolean,
+    // but at every level below it is "self live AND every ancestor live",
+    // and that closure lives in the view so no caller can forget it.
+    .from("vault_galaxy_brands")
     .select(
       "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
     )

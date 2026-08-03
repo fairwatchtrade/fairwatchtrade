@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 app/api/watch-ship/
+
+# local agent workspace and dev server logs — never staged, never shipped
+.claude/
+dev*.log

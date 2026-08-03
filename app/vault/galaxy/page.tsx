@@ -17,7 +17,10 @@ export default async function VaultGalaxyPage() {
   const supabase = await createClient();
 
   const { data: brands, error } = await supabase
-    .from("vault_brands")
+    // Galaxy publication surface — see app/vault/page.tsx. Reading the
+    // view rather than filtering vault_brands here is what stops the two
+    // brand-listing surfaces from drifting apart.
+    .from("vault_galaxy_brands")
     .select(
       "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
     )

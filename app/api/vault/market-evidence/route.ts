@@ -75,6 +75,21 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
+
+  /* Galaxy publication gate (v3.26). This is a Galaxy-owned route — the
+     card it feeds is rendered inside the Vault detail surface — so the
+     direct-route law applies: knowing a reference UUID must not surface
+     Galaxy content for a reference that is unpublished or sits beneath a
+     hidden ancestor. The ancestor-closed view answers both in one read.
+     Checked BEFORE the evidence RPC, so nothing is assembled for a
+     reference the Galaxy does not acknowledge. */
+  const { data: live, error: gateError } = await supabase
+    .from("vault_galaxy_references")
+    .select("id")
+    .eq("id", referenceId)
+    .maybeSingle();
+  if (gateError || !live) return NextResponse.json({ evidence: null });
+
   const { data, error } = await supabase.rpc("market_evidence_for_reference", {
     p_reference_id: referenceId,
   });
