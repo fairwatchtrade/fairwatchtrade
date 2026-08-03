@@ -10,9 +10,17 @@ import NotificationsBell from "@/components/NotificationsBell";
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop: wordmark left, Browse · Sell · Catalogue · Vault · Account · About right.
-   Mobile (md:hidden): wordmark + hamburger; tapping opens <MobileNav />,
+   Desktop (xl:flex, ≥1280px): wordmark left, then the primary words right.
+   Signed out: Browse · Sell · Catalogue · Vault · Account · About.
+   Signed in:  Browse · Sell · Catalogue · Vault · About — the avatar/name
+   cluster is the Account entrance, so the word would be a second door.
+   Below 1280 (xl:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
+
+   v3.23 — the breakpoint was md (768px), but the signed-in row needs ~1280:
+   at 1216 the wordmark still collided with BROWSE and the display name had
+   already wrapped to two lines. md was never wide enough for the signed-in
+   composition; it only ever passed because guests are ~190px narrower.
 
    Active link is rendered in gold via usePathname().
 
@@ -144,8 +152,15 @@ export default function NavBar({
         <Wordmark />
 
         {/* Desktop links */}
-        <div className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map((item) => {
+        <div className="hidden items-center gap-6 xl:flex">
+          {/* v3.23 — Design Duck ruling: "Account" is a GUEST-ONLY word.
+              Signed in, the avatar/name cluster is the single Account
+              entrance (My Account → Overview), so the primary word is just a
+              second door into the same workspace landing in a different room.
+              Signed out there is no avatar and no workspace control, so the
+              word stays and still opens the join panel below — the guest
+              never gets ambushed by authentication. */}
+          {NAV_LINKS.filter((item) => item.label !== "Account" || !authed).map((item) => {
             // v2.55 — the "Account" word must never one-click-bounce a
             // signed-out browser into /sell. Signed in: an ordinary link to
             // /account. Signed out: it opens a small join prompt in place —
@@ -244,7 +259,15 @@ export default function NavBar({
                 <span className={accountOpen ? "text-[var(--gold)]" : "text-[var(--slate)]"}>
                   <AccountIcon />
                 </span>
-                <span className={accountOpen ? "text-[var(--platinum)]" : "text-[var(--slate)]"}>
+                {/* v3.23 — the display name is unbounded user data. Left
+                    free it wrapped to two lines and pushed the row past the
+                    viewport (Jason's signed-in overflow). Single line,
+                    bounded, ellipsis — so no name can widen the masthead. */}
+                <span
+                  className={`max-w-[150px] truncate ${
+                    accountOpen ? "text-[var(--platinum)]" : "text-[var(--slate)]"
+                  }`}
+                >
                   {displayName ?? "Account"}
                 </span>
                 <Chevron open={accountOpen} />
@@ -321,7 +344,7 @@ export default function NavBar({
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="text-[var(--slate)] md:hidden"
+          className="text-[var(--slate)] xl:hidden"
         >
           <svg
             width="22"
