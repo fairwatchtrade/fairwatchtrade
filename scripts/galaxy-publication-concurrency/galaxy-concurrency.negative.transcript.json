@@ -1,0 +1,46 @@
+{
+  "harness": "scripts/galaxy-publication-concurrency/run.mjs",
+  "mode": "negative-control",
+  "target_branch": "laogcpjushbxrpoqeegr",
+  "run_at": "2026-08-03T22:05:34.337Z",
+  "locks_under_test": {
+    "operator": "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
+    "retreat": "same advisory key + ACCESS EXCLUSIVE on vault_brands→vault_collections→vault_families→vault_variants→vault_references, guard-through-commit"
+  },
+  "scenarios": [
+    {
+      "id": "S1",
+      "title": "same-row activation ∥ activation — NEGATIVE CONTROL (lock removed)",
+      "sessions": [
+        {
+          "session": "A",
+          "role": "activate NEW-COLL, holding the advisory lock",
+          "t_lock": "2026-08-03T22:05:33.147737+00:00",
+          "t_end": "2026-08-03T22:05:38.16166+00:00",
+          "outcome": "changed=0"
+        },
+        {
+          "session": "B",
+          "role": "same-row activate, launched +2000ms",
+          "t_start": "2026-08-03T22:05:35.586725+00:00",
+          "t_end": "2026-08-03T22:05:35.598673+00:00",
+          "elapsed_ms": 3161,
+          "outcome": "changed=1 noop=false"
+        }
+      ],
+      "expected": "MISSING_SERIALIZATION_DETECTED: serialization order inverts (later session B publishes, A finds nothing)",
+      "actual": "MISSING_SERIALIZATION_DETECTED (A changed=0, B changed=1)",
+      "pass": true,
+      "evidence": {
+        "a_changed": 0,
+        "b_changed": 1,
+        "detection": true
+      }
+    }
+  ],
+  "production_untouched": true,
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "cleanup": "delete the disposable branch after this run (management console or MCP); the harness itself writes nothing outside the branch"
+}
