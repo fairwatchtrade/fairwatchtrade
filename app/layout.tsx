@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
 import HeaderSearchSlot from "@/components/HeaderSearchSlot";
@@ -14,6 +14,18 @@ const ADMIN_EMAIL = "jmynatt74@gmail.com";
 export const metadata: Metadata = {
   title: "FairWatchTrade — Coming Soon",
   description: "A marketplace for independent and boutique watchmakers. One flat 5% fee. No games.",
+};
+
+/* v3.24 — the Android browser strip wears house ink.
+   app/manifest.ts already declares theme_color, but that value only reaches
+   an INSTALLED surface, and the manifest is display:"browser" — no WebAPK is
+   ever generated, so Chrome never reads it. Ordinary tab presentation comes
+   from <meta name="theme-color">, which was absent entirely: the browser UI
+   and the Android app-switcher card rendered in Chrome's default, leaving the
+   top edge of the product visibly not ours. This is the boundary of the
+   product on Android, not ornament. Manifest and install behaviour untouched. */
+export const viewport: Viewport = {
+  themeColor: "#0D0F14",
 };
 
 export default async function RootLayout({
