@@ -15,6 +15,34 @@
 --   restore.
 -- ════════════════════════════════════════════════════════════════════════
 
+
+-- ── NON-CIRCULAR TARGET GUARD (same law as helpers.sql) ─────────────────
+-- Never creates the marker; requires the fixture's marker, the operator's
+-- session-declared identity, their agreement, and the fixture shape.
+do $guard$
+declare v_ref text; v_marker text; v_brands int;
+begin
+  begin
+    v_ref := current_setting('galaxy_proof.declared_branch_ref');
+  exception when others then v_ref := null; end;
+  if v_ref is null or btrim(v_ref) = '' then
+    raise exception 'REFUSED: declare the branch first: set galaxy_proof.declared_branch_ref = ''<ref>'';';
+  end if;
+  if to_regproc('public.test_branch_marker') is null then
+    raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; the negative control never creates the marker.';
+  end if;
+  select public.test_branch_marker() into v_marker;
+  if v_marker <> v_ref then
+    raise exception 'REFUSED: marker identity % does not match declared identity %', v_marker, v_ref;
+  end if;
+  select count(*) into v_brands from public.vault_brands;
+  if v_brands < 192 then
+    raise exception 'REFUSED: fixture shape unexpected (% brands)', v_brands;
+  end if;
+  raise notice 'Target guard passed for declared branch % — installing NEGATIVE CONTROL', v_ref;
+end
+$guard$;
+
 create or replace function public.galaxy_activate(
   p_manifest jsonb, p_actor text, p_note text default null
 ) returns jsonb language plpgsql security invoker set search_path = '' as $$

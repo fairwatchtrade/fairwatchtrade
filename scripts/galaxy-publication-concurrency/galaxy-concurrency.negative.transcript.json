@@ -1,30 +1,38 @@
 {
   "harness": "scripts/galaxy-publication-concurrency/run.mjs",
   "mode": "negative-control",
-  "target_branch": "laogcpjushbxrpoqeegr",
-  "run_at": "2026-08-03T22:05:34.337Z",
+  "declared_branch_ref": "qtelfhvtautjeteyrzym",
+  "run_at": "2026-08-03T23:02:02.027Z",
+  "test_groups": "6 concurrent interleavings (I1-I6) + 2 postcondition suites (P1-P2)",
   "locks_under_test": {
     "operator": "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
     "retreat": "same advisory key + ACCESS EXCLUSIVE on vault_brands→vault_collections→vault_families→vault_variants→vault_references, guard-through-commit"
   },
-  "scenarios": [
+  "target_guard": {
+    "declared_identity_supplied": true,
+    "declared_identity_not_production": true,
+    "url_project_ref_equals_declared": true,
+    "marker_present_and_equals_declared": true,
+    "statement": "the disposable-target guard passed; the connected target matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
+  },
+  "groups": [
     {
-      "id": "S1",
+      "id": "I1",
+      "kind": "concurrent-interleaving",
       "title": "same-row activation ∥ activation — NEGATIVE CONTROL (lock removed)",
       "sessions": [
         {
           "session": "A",
           "role": "activate NEW-COLL, holding the advisory lock",
-          "t_lock": "2026-08-03T22:05:33.147737+00:00",
-          "t_end": "2026-08-03T22:05:38.16166+00:00",
+          "t_lock": "2026-08-03T23:02:01.195699+00:00",
+          "t_end": "2026-08-03T23:02:06.214287+00:00",
           "outcome": "changed=0"
         },
         {
           "session": "B",
-          "role": "same-row activate, launched +2000ms",
-          "t_start": "2026-08-03T22:05:35.586725+00:00",
-          "t_end": "2026-08-03T22:05:35.598673+00:00",
-          "elapsed_ms": 3161,
+          "role": "same-row activate, +2000ms",
+          "t_start": "2026-08-03T23:02:03.431548+00:00",
+          "t_end": "2026-08-03T23:02:03.447922+00:00",
           "outcome": "changed=1 noop=false"
         }
       ],
@@ -33,14 +41,20 @@
       "pass": true,
       "evidence": {
         "a_changed": 0,
-        "b_changed": 1,
-        "detection": true
+        "b_changed": 1
       }
     }
   ],
-  "production_untouched": true,
-  "total": 1,
-  "passed": 1,
-  "failed": 0,
-  "cleanup": "delete the disposable branch after this run (management console or MCP); the harness itself writes nothing outside the branch"
+  "summary": {
+    "concurrent_interleavings": {
+      "total": 1,
+      "passed": 1
+    },
+    "postcondition_suites": {
+      "total": 0,
+      "passed": 0
+    },
+    "failed_groups": 0
+  },
+  "cleanup": "operator action: delete the disposable branch after this run; the harness performed no operation outside the verified target"
 }

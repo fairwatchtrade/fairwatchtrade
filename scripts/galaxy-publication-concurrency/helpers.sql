@@ -6,7 +6,6 @@
 -- DISPOSABLE branch only. Nothing here is ever a production object.
 --
 -- What it installs:
---   · test_branch_marker()      — the harness refuses any target lacking it
 --   · timed lock-holding wrappers around the operator functions, so one
 --     HTTP session can HOLD the serialization advisory lock while another
 --     attempts an operation (the lock is transaction-scoped and re-entrant,
@@ -22,9 +21,36 @@
 --   · anon statement_timeout raise (default 3s would cancel lock-holders)
 -- ════════════════════════════════════════════════════════════════════════
 
-create or replace function public.test_branch_marker() returns text
-language sql as $$ select 'galaxy-concurrency-proof-branch' $$;
-grant execute on function public.test_branch_marker() to anon;
+-- ── NON-CIRCULAR TARGET GUARD (required before ANY DDL below) ───────────
+-- This file NEVER creates the marker. It requires: the marker minted by
+-- guarded fixture.sql, the operator's declared identity in THIS session,
+-- agreement between the two, and the expected fixture shape.
+do $guard$
+declare v_ref text; v_marker text; v_brands int;
+begin
+  begin
+    v_ref := current_setting('galaxy_proof.declared_branch_ref');
+  exception when others then v_ref := null; end;
+  if v_ref is null or btrim(v_ref) = '' then
+    raise exception 'REFUSED: declare the branch first: set galaxy_proof.declared_branch_ref = ''<ref>'';';
+  end if;
+  if to_regproc('public.test_branch_marker') is null then
+    raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; helpers never create the marker.';
+  end if;
+  select public.test_branch_marker() into v_marker;
+  if v_marker <> v_ref then
+    raise exception 'REFUSED: marker identity % does not match declared identity %', v_marker, v_ref;
+  end if;
+  select count(*) into v_brands from public.vault_brands;
+  if v_brands < 192 then
+    raise exception 'REFUSED: fixture shape unexpected (% brands) — not the guarded disposable fixture', v_brands;
+  end if;
+  if to_regproc('public.galaxy_activate') is null then
+    raise exception 'REFUSED: galaxy publication migration not applied yet';
+  end if;
+  raise notice 'Target guard passed for declared branch %', v_ref;
+end
+$guard$;
 
 alter role anon set statement_timeout = '60s';
 notify pgrst, 'reload config';
@@ -184,11 +210,68 @@ begin
   return jsonb_build_object('t_start', t0, 't_end', clock_timestamp(), 'ok', true);
 end $$;
 
+
+-- ── five-level exact state inspector (S7 pre-cleanup assertions) ────────
+create or replace function public.test_inspect_state()
+returns jsonb language sql security definer set search_path='' as $$
+  select jsonb_build_object(
+    'base_counts', jsonb_build_array(
+      (select count(*) from public.vault_brands),
+      (select count(*) from public.vault_collections),
+      (select count(*) from public.vault_families),
+      (select count(*) from public.vault_variants),
+      (select count(*) from public.vault_references)),
+    'view_counts', jsonb_build_array(
+      (select count(*) from public.vault_galaxy_brands),
+      (select count(*) from public.vault_galaxy_collections),
+      (select count(*) from public.vault_galaxy_families),
+      (select count(*) from public.vault_galaxy_variants),
+      (select count(*) from public.vault_galaxy_references)),
+    -- visible-under-hidden-ancestor violations per child level (must be 0:
+    -- the ancestor-closed views make this structurally unreachable)
+    'closure_violations', jsonb_build_array(
+      (select count(*) from public.vault_collections c join public.vault_brands b on b.id=c.brand_id
+        where c.galaxy_visible and not b.galaxy_visible),
+      (select count(*) from public.vault_families f join public.vault_collections c on c.id=f.collection_id
+        where f.galaxy_visible and not c.galaxy_visible),
+      (select count(*) from public.vault_variants v join public.vault_families f on f.id=v.family_id
+        where v.galaxy_visible and not f.galaxy_visible),
+      (select count(*) from public.vault_references r join public.vault_variants v on v.id=r.variant_id
+        where r.galaxy_visible and not v.galaxy_visible)),
+    -- exact scenario-row identities + visibility (id, base flag, in-view)
+    'scenario_rows', jsonb_build_object(
+      'tb001', (select jsonb_build_object('id', b.id, 'visible', b.galaxy_visible,
+                 'in_view', exists (select 1 from public.vault_galaxy_brands g where g.id=b.id),
+                 'copies', (select count(*) from public.vault_brands x where x.name='TB-001'))
+                 from public.vault_brands b where b.name='TB-001'),
+      'zz_hidden', (select jsonb_build_object('id', b.id, 'visible', b.galaxy_visible,
+                 'in_view', exists (select 1 from public.vault_galaxy_brands g where g.id=b.id),
+                 'copies', (select count(*) from public.vault_brands x where x.name='ZZ-HIDDEN'))
+                 from public.vault_brands b where b.name='ZZ-HIDDEN'),
+      'new_coll', (select jsonb_build_object('id', c.id, 'visible', c.galaxy_visible,
+                 'in_view', exists (select 1 from public.vault_galaxy_collections g where g.id=c.id),
+                 'copies', (select count(*) from public.vault_collections x where x.name='NEW-COLL'))
+                 from public.vault_collections c where c.name='NEW-COLL'),
+      'newcoll_fam', (select jsonb_build_object('id', f.id, 'visible', f.galaxy_visible,
+                 'in_view', exists (select 1 from public.vault_galaxy_families g where g.id=f.id),
+                 'copies', (select count(*) from public.vault_families x where x.name='NEWCOLL-FAM'))
+                 from public.vault_families f where f.name='NEWCOLL-FAM')),
+    -- duplicate detection at every level (same-parent duplicates)
+    'duplicates', jsonb_build_array(
+      (select count(*) from (select name from public.vault_brands group by name having count(*)>1) d),
+      (select count(*) from (select brand_id, name from public.vault_collections group by 1,2 having count(*)>1) d),
+      (select count(*) from (select collection_id, name from public.vault_families group by 1,2 having count(*)>1) d),
+      (select count(*) from (select family_id, name from public.vault_variants group by 1,2 having count(*)>1) d),
+      (select count(*) from (select variant_id, reference from public.vault_references where reference is not null group by 1,2 having count(*)>1) d))
+  )
+$$;
+
 grant execute on function public.test_timed_activate(jsonb, text, float) to anon;
 grant execute on function public.test_timed_rollback(uuid, text, float) to anon;
 grant execute on function public.test_timed_retreat(float) to anon;
 grant execute on function public.test_read_audit() to anon;
 grant execute on function public.test_stage(text) to anon;
 grant execute on function public.test_insert_brand(text, text) to anon;
+grant execute on function public.test_inspect_state() to anon;
 
 select 'helpers installed - run the node harness' as next_step;
