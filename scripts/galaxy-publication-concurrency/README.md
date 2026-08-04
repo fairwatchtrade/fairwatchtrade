@@ -12,12 +12,18 @@ run as genuinely independent PostgREST HTTP sessions (each request is its
 own transaction on its own pooled backend); the postcondition suites are
 exact database assertions and are never described as races.
 
+P2 reconciles each of the five publication views against its ancestor-closed
+expected id set as a **set**: omissions (entitled but absent), extras (served
+without entitlement) and the symmetric difference, all required to be zero at
+all five levels. Per-row flags speak only for named scenario rows and
+closure checks read only base tables — neither can see a row a view omits.
+
 ## Files
 
 | File | Role |
 |---|---|
-| `fixture.sql` | **The target-guard root**: verifies the operator's session-declared branch identity (`set galaxy_proof.declared_branch_ref = '<ref>';`), refuses production or any pre-existing state, then mints the marker storing that identity. Also builds the production-shaped fixture (192/396/579/710/388). |
-| `helpers.sql` | Branch-local test helpers (timed lock-holding wrappers, audit reader, five-level state inspector, anon grants, `statement_timeout` raise). **Never creates the marker**; refuses unless the fixture's marker equals the session-declared identity and the fixture shape is present. |
+| `fixture.sql` | **The target-guard root**: verifies the operator's session-declared branch identity (`set galaxy_proof.declared_branch_ref = '<ref>';`), refuses production or any pre-existing state, then mints the marker storing that identity. Also builds the production-shaped fixture (192/396/579/710/388). Contamination is swept through `pg_class` across **every relkind** — ordinary, partitioned, view, **materialized view**, sequence, foreign table, composite, index — because `information_schema.tables`/`.views` between them omit several of those entirely. The identity re-validates **at mint time**, and the target artifact is created with a **single-row primary key**, `NOT NULL` and a ref-shape CHECK. |
+| `helpers.sql` | Branch-local test helpers (timed lock-holding wrappers, audit reader, five-level state inspector, anon grants, `statement_timeout` raise). **Never creates the marker.** Refuses unless: the target artifact is an ordinary table holding **exactly one row**; marker, artifact and declared identity agree **null-safely** (`is distinct from` — a NULL identity makes `<>` NULL, and `if NULL then raise` does not raise); the three operator functions exist at their **exact signatures** (`to_regprocedure`, not `to_regproc`, which cannot prove an argument list and returns NULL on any overload); the five publication views are **relkind `v`**; the audit table is an ordinary table with the exact column set and types and an **owned sequence** behind `seq`; and `galaxy_visible` is `boolean NOT NULL` with `uuid` parent keys — types, not merely names. |
 | `negative-control.sql` | **Disposable, NOT the implementation.** Same non-circular guard as helpers, then redefines `galaxy_activate` *without* the advisory lock so the harness can prove it detects a missing lock. |
 | `run.mjs` | The executable harness. Node ≥ 22, no dependencies. Emits a JSON transcript, exits non-zero on any scenario failure. |
 
@@ -42,12 +48,23 @@ exact database assertions and are never described as races.
    SUPABASE_URL=https://<branch-ref>.supabase.co \
    SUPABASE_ANON_KEY=<branch anon key> \
    GALAXY_PROOF_BRANCH_REF=<branch-ref> \
+   GALAXY_PROOF_COMMIT=$(git rev-parse HEAD) \
    node scripts/galaxy-publication-concurrency/run.mjs \
      --out galaxy-concurrency.transcript.json
    ```
 
-   Secrets come only from the environment; nothing is read from or written
-   to the repository beyond the `--out` transcript.
+   `SUPABASE_URL` must be **byte-identical** to
+   `https://<branch-ref>.supabase.co`. It is judged exactly as supplied and
+   is never normalised first — a trailing slash, an uppercase host, a port,
+   userinfo, a path, a query or an extra label is a refusal, not something
+   the harness quietly repairs. `GALAXY_PROOF_COMMIT` is recorded in the
+   transcript so a reviewer can bind the run to a commit.
+
+   Secrets come only from the environment. The harness additionally reads
+   its **own directory** — `fixture.sql`, `helpers.sql`,
+   `negative-control.sql`, `run.mjs`, `README.md` — read-only, to record
+   each input's sha256 in the transcript under `source_hashes_sha256`;
+   nothing else is read, and nothing is written beyond `--out`.
 4. **Negative control — use a FRESH SECOND disposable branch.**
 
    The positive suite's final interleaving (I6) is a schema retreat: it

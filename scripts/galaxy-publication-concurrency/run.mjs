@@ -33,21 +33,30 @@
    serialization-order inversion) and skips the remaining groups.
    ════════════════════════════════════════════════════════════════════════ */
 
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const PRODUCTION_REF = "aqgjcezhdoianqmoknnu";
 
-const URL_BASE = process.env.SUPABASE_URL?.replace(/\/$/, "");
+/* The URL is captured EXACTLY as supplied and is never rewritten before it
+   is judged. The previous revision stripped a trailing slash off the raw
+   value first, so a non-canonical input was silently repaired into a
+   canonical one and then "validated" — the check could only ever see input
+   it had already corrected. Refusal, never transformation. */
+const RAW_URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_ANON_KEY;
 const DECLARED_REF = process.env.GALAXY_PROOF_BRANCH_REF;
+const DECLARED_COMMIT = process.env.GALAXY_PROOF_COMMIT;
 const NEGATIVE = process.argv.includes("--negative-control");
 const OUT = (() => {
   const i = process.argv.indexOf("--out");
   return i >= 0 ? process.argv[i + 1] : null;
 })();
 
-if (!URL_BASE || !KEY || !DECLARED_REF) {
-  console.error("SUPABASE_URL, SUPABASE_ANON_KEY and GALAXY_PROOF_BRANCH_REF are required (environment only).");
+if (!RAW_URL || !KEY || !DECLARED_REF || !DECLARED_COMMIT) {
+  console.error("SUPABASE_URL, SUPABASE_ANON_KEY, GALAXY_PROOF_BRANCH_REF and GALAXY_PROOF_COMMIT are required (environment only).");
   process.exit(2);
 }
 
@@ -68,27 +77,71 @@ if (!/^[a-z]{20}$/.test(DECLARED_REF)) {
 if (DECLARED_REF === PRODUCTION_REF) {
   refuseTarget("the declared branch identity is the production project ref");
 }
+/* UNTOUCHED-INPUT CHECK, FIRST. The raw environment value must ALREADY be
+   the one canonical string, byte for byte — no trailing slash, no case
+   variation, no port, no userinfo, no path, no query, no fragment, no extra
+   label. Judging the string before any parser touches it is what makes the
+   check meaningful: WHATWG `new URL()` silently lowercases the host, drops
+   a default port, resolves dot-segments and percent-decodes, so a parser-
+   first check grades the parser's repairs rather than the operator's input. */
+const CANONICAL_URL = `https://${DECLARED_REF}.supabase.co`;
+if (RAW_URL !== CANONICAL_URL) {
+  refuseTarget(
+    `SUPABASE_URL is not byte-identical to the one canonical form.\n` +
+    `           supplied:  ${JSON.stringify(RAW_URL)}\n` +
+    `           canonical: ${JSON.stringify(CANONICAL_URL)}\n` +
+    `           (the input is judged exactly as given and is never normalised first)`
+  );
+}
+/* Second, independent pass: parse the (already exact) string and re-assert
+   every component, so a future change to the canonical template cannot
+   quietly admit userinfo, a port, a path or a query. */
 let parsed;
 try {
-  parsed = new URL(URL_BASE);
+  parsed = new URL(RAW_URL);
 } catch {
   refuseTarget(`SUPABASE_URL is not a valid URL`);
 }
 if (parsed.protocol !== "https:") refuseTarget(`protocol ${parsed.protocol} is not https:`);
 if (parsed.username !== "" || parsed.password !== "") refuseTarget("URL carries userinfo");
 if (parsed.port !== "") refuseTarget(`URL carries an explicit port (${parsed.port})`);
-if (parsed.pathname !== "/" && parsed.pathname !== "") refuseTarget(`URL carries a path (${parsed.pathname})`);
+if (parsed.pathname !== "/") refuseTarget(`URL carries a path (${parsed.pathname})`);
 if (parsed.search !== "" || parsed.hash !== "") refuseTarget("URL carries a query or fragment");
 // WHOLE-hostname equality — not a prefix, not a first-label match.
 if (parsed.hostname !== `${DECLARED_REF}.supabase.co`) {
   refuseTarget(`hostname ${parsed.hostname} is not exactly ${DECLARED_REF}.supabase.co`);
 }
+const URL_BASE = RAW_URL;
+
+/* ── SOURCE HASHES — every SQL and harness input this proof rests on ──
+   Read-only, from this file's own directory; no secret is ever read from
+   disk. The transcript records the sha256 of each input actually used plus
+   the operator-supplied commit, so a reviewer can bind the transcript to
+   exact bytes instead of to a filename. */
+const HERE = dirname(fileURLToPath(import.meta.url));
+const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
+const hashInputs = () => {
+  const names = ["fixture.sql", "helpers.sql", "negative-control.sql", "run.mjs", "README.md"];
+  const out = {};
+  for (const n of names) {
+    try { out[n] = sha256(readFileSync(join(HERE, n))); }
+    catch (e) { out[n] = `UNREADABLE: ${e.code ?? "error"}`; }
+  }
+  return out;
+};
 
 const transcript = {
   harness: "scripts/galaxy-publication-concurrency/run.mjs",
   mode: NEGATIVE ? "negative-control" : "proof",
   declared_branch_ref: DECLARED_REF,
   run_at: new Date().toISOString(),
+  /* Bind this transcript to exact bytes, not to filenames: the commit the
+     run was performed from, and the sha256 of every SQL and harness input
+     it rests on. The publication migration is hashed on the database side
+     via the target guard's shape assertions; these are the harness's own. */
+  source_commit: DECLARED_COMMIT,
+  source_hashes_sha256: hashInputs(),
+  supabase_url_verified_untouched: CANONICAL_URL,
   test_groups: "6 concurrent interleavings (I1-I6) + 2 postcondition suites (P1-P2)",
   locks_under_test: {
     operator: "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
@@ -170,6 +223,7 @@ async function main() {
     process.exit(2);
   }
   const BRAND = stage.json.brand_id;
+  const ZZ = stage.json.zz_id;
   const COLL = stage.json.coll_id;
   const FAM = stage.json.fam_id;
   const VAR = stage.json.var_id;
@@ -182,8 +236,8 @@ async function main() {
     console.error("REFUSED: staging did not return all five base_counts and view_counts.");
     process.exit(2);
   }
-  if (!BRAND || !COLL || !FAM || !VAR || !REF) {
-    console.error("REFUSED: staging did not create scenario rows at all five hierarchy levels.");
+  if (!BRAND || !ZZ || !COLL || !FAM || !VAR || !REF) {
+    console.error("REFUSED: staging did not create scenario rows at all five hierarchy levels (incl. the hidden ZZ brand).");
     process.exit(2);
   }
 
@@ -394,7 +448,9 @@ async function main() {
 
     // Expected end-state after I1–I5, per level:
     assertRow("L1 Brand TB-001", sr.tb001, BRAND, null, true);        // live baseline brand
-    assertRow("L1 Brand ZZ-HIDDEN", sr.zz_hidden, sr.zz_hidden?.id, null, false);
+    // ZZ is the id captured at STAGING time, not re-read from the row being
+    // asserted — comparing a row's id to itself proves nothing.
+    assertRow("L1 Brand ZZ-HIDDEN", sr.zz_hidden, ZZ, null, false);
     assertRow("L2 Collection NEW-COLL", sr.new_coll, COLL, BRAND, false);  // I5 reverted
     assertRow("L3 Family NEWCOLL-FAM", sr.newcoll_fam, FAM, COLL, false);  // I3-stage reverted
     assertRow("L4 Variant NEWFAM-VAR", sr.newfam_var, VAR, FAM, false);    // never activated
@@ -403,6 +459,31 @@ async function main() {
     // visible-descendant-under-hidden-ancestor: structurally zero at every level
     if (!(s.closure_violations ?? [1]).every((v) => v === 0))
       problems.push(`closure violations ${JSON.stringify(s.closure_violations)}`);
+
+    /* SET-LEVEL RECONCILIATION at all five levels. The per-row checks above
+       speak only for named scenario rows, and closure_violations reads only
+       base tables — neither can see a row the view OMITS, nor one it serves
+       without entitlement. Each level is reconciled as a set: ancestor-closed
+       expected ids vs the ids the view actually serves. Omissions, extras
+       and the symmetric difference must all be zero, at every level. */
+    const LEVELS = ["brand", "collection", "family", "variant", "reference"];
+    const diffs = s.view_set_diff;
+    if (!Array.isArray(diffs) || diffs.length !== 5) {
+      problems.push(`view_set_diff absent or not five levels: ${JSON.stringify(diffs)}`);
+    } else {
+      for (const level of LEVELS) {
+        const d = diffs.find((x) => x.level === level);
+        if (!d) { problems.push(`view_set_diff missing level ${level}`); continue; }
+        if (d.omitted !== 0)
+          problems.push(`${level}: ${d.omitted} entitled row(s) OMITTED from the publication view`);
+        if (d.extra !== 0)
+          problems.push(`${level}: ${d.extra} row(s) served by the view without entitlement`);
+        if (d.symmetric_difference !== 0)
+          problems.push(`${level}: symmetric difference ${d.symmetric_difference} (expected ${d.expected}, view served ${d.actual})`);
+        if (d.expected !== d.actual)
+          problems.push(`${level}: expected-set size ${d.expected} != view size ${d.actual}`);
+      }
+    }
     // duplicates at all five levels
     if (!(s.duplicates ?? [1]).every((v) => v === 0))
       problems.push(`duplicates ${JSON.stringify(s.duplicates)}`);
@@ -417,13 +498,14 @@ async function main() {
     record("P2", "postcondition-suite", "exact five-level state inspection BEFORE any cleanup", [
       { session: "reader", role: "test_inspect_state() — Brand/Collection/Family/Variant/Reference: identity, parent identity, visibility, view membership, copy count; all five base_counts and view_counts" },
     ],
-      "every one of the five levels asserted for exact identity, exact parent identity, galaxy_visible, view membership and copy count = 1; zero closure violations; zero duplicates; all five base_counts and all five view_counts at the captured baseline",
+      "every one of the five levels asserted for exact identity, exact parent identity, galaxy_visible, view membership and copy count = 1; zero closure violations; zero duplicates; zero omissions, zero extras and zero symmetric difference between each publication view and its ancestor-closed expected id set, at all five levels; all five base_counts and all five view_counts at the captured baseline",
       problems.length === 0
-        ? "all five levels (Brand, Collection, Family, Variant, Reference) asserted and held pre-cleanup; all five base_counts and all five view_counts matched baseline"
+        ? "all five levels (Brand, Collection, Family, Variant, Reference) asserted and held pre-cleanup; every view reconciled set-wise against its expected id set with zero omissions, zero extras and zero symmetric difference; all five base_counts and all five view_counts matched baseline"
         : problems.join("; "),
       problems.length === 0,
       { levels_asserted: ["brand", "collection", "family", "variant", "reference"],
-        base_baseline: BASE_BASELINE, view_baseline: VIEW_BASELINE, inspection: s });
+        base_baseline: BASE_BASELINE, view_baseline: VIEW_BASELINE,
+        view_set_reconciliation: s.view_set_diff, inspection: s });
 
     // cleanup only AFTER the assertions completed
     await rpc("test_stage", { p_step: "reset_rows" });

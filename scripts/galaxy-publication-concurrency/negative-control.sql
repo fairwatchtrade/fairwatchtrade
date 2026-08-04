@@ -31,7 +31,7 @@ declare
   v_ref text; v_marker text; v_target text;
   b int; c int; f int; v int; r int;
   cj int; fj int; vj int; rj int;
-  v_missing text; v_extra text;
+  v_missing text; v_extra text; v_rows int; v_kind "char";
 begin
   begin
     v_ref := current_setting('galaxy_proof.declared_branch_ref');
@@ -47,15 +47,31 @@ begin
   end if;
 
   -- identity artifacts minted by guarded fixture.sql; never created here
-  if to_regproc('public.test_branch_marker') is null then
+  if to_regprocedure('public.test_branch_marker()') is null then
     raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; the negative control never mints one.';
   end if;
   if to_regclass('public.galaxy_proof_target') is null then
     raise exception 'REFUSED: no target artifact — the marker alone does not certify a validated fixture.';
   end if;
+  -- ordinary table, exactly one row, null-safe agreement — identical to the
+  -- helpers guard. `select … into` yields NULL on zero rows and an
+  -- arbitrary row on many, and a NULL identity makes `<>` NULL, which does
+  -- NOT raise: an empty target artifact would otherwise pass this guard.
+  if (select c.relkind from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname = 'galaxy_proof_target') <> 'r' then
+    raise exception 'REFUSED: galaxy_proof_target is not an ordinary table';
+  end if;
+  select count(*) into v_rows from public.galaxy_proof_target;
+  if v_rows <> 1 then
+    raise exception 'REFUSED: target artifact holds % row(s), expected exactly 1', v_rows;
+  end if;
   select public.test_branch_marker() into v_marker;
   select t.declared_branch_ref into v_target from public.galaxy_proof_target t;
-  if v_marker <> v_ref or v_target <> v_ref then
+  if v_marker is null or v_target is null then
+    raise exception 'REFUSED: marker or target artifact identity is NULL — nothing to verify against';
+  end if;
+  if v_marker is distinct from v_ref or v_target is distinct from v_ref
+     or v_marker is distinct from v_target then
     raise exception 'REFUSED: identity disagreement — declared %, marker %, target artifact %', v_ref, v_marker, v_target;
   end if;
 
@@ -94,37 +110,51 @@ begin
     raise exception 'REFUSED: missing required hierarchy column(s): %', v_missing;
   end if;
 
-  -- galaxy_visible on all five levels
-  select string_agg(t, ', ') into v_missing from unnest(array[
+  -- galaxy_visible on all five levels, with the EXACT column type
+  select string_agg(format('%s.galaxy_visible', t), ', ') into v_missing from unnest(array[
     'vault_brands','vault_collections','vault_families','vault_variants','vault_references']) t
    where not exists (select 1 from information_schema.columns
-     where table_schema='public' and table_name=t and column_name='galaxy_visible');
+     where table_schema='public' and table_name=t and column_name='galaxy_visible'
+       and data_type='boolean' and is_nullable='NO');
   if v_missing is not null then
-    raise exception 'REFUSED: missing galaxy_visible column on: % — apply the publication migration first', v_missing;
+    raise exception 'REFUSED: galaxy_visible missing, or not boolean NOT NULL, on: % — apply the publication migration first', v_missing;
   end if;
 
-  -- all five publication views, no more and no fewer
+  -- all five publication views, as VIEWS (relkind 'v'), no more and no
+  -- fewer — swept through pg_class so a materialized view of the same name
+  -- cannot hide from information_schema.views.
   select string_agg(t, ', ') into v_missing from unnest(array[
     'vault_galaxy_brands','vault_galaxy_collections','vault_galaxy_families',
     'vault_galaxy_variants','vault_galaxy_references']) t
-   where not exists (select 1 from information_schema.views
-     where table_schema='public' and table_name=t);
+   where not exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+     where n.nspname='public' and c.relname=t and c.relkind='v');
   if v_missing is not null then
-    raise exception 'REFUSED: missing publication view(s): %', v_missing;
+    raise exception 'REFUSED: publication view(s) missing or not an ordinary view: %', v_missing;
   end if;
-  select string_agg(table_name, ', ') into v_extra from information_schema.views
-   where table_schema='public' and table_name like 'vault_galaxy_%'
-     and table_name not in ('vault_galaxy_brands','vault_galaxy_collections',
-       'vault_galaxy_families','vault_galaxy_variants','vault_galaxy_references');
+  select string_agg(format('%s (relkind %s)', c.relname, c.relkind), ', ') into v_extra
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   where n.nspname='public' and c.relname like 'vault\_galaxy\_%'
+     and (c.relkind <> 'v'
+          or c.relname not in ('vault_galaxy_brands','vault_galaxy_collections',
+            'vault_galaxy_families','vault_galaxy_variants','vault_galaxy_references'));
   if v_extra is not null then
-    raise exception 'REFUSED: unexpected extra publication view(s): %', v_extra;
+    raise exception 'REFUSED: unexpected extra or wrong-kind publication relation(s): %', v_extra;
   end if;
 
-  -- operator functions + audit table
-  if to_regproc('public.galaxy_activate') is null
-     or to_regproc('public.galaxy_rollback_event') is null
-     or to_regproc('public.galaxy_brand_subtree') is null then
-    raise exception 'REFUSED: publication operator function(s) missing';
+  -- operator functions by EXACT SIGNATURE (to_regproc cannot prove an
+  -- argument list and returns NULL on any overload)
+  select string_agg(t, ', ') into v_missing from unnest(array[
+    'public.galaxy_activate(jsonb,text,text)',
+    'public.galaxy_rollback_event(uuid,text)',
+    'public.galaxy_brand_subtree(uuid)']) t
+   where to_regprocedure(t) is null;
+  if v_missing is not null then
+    raise exception 'REFUSED: publication operator function(s) missing at the exact signature: %', v_missing;
+  end if;
+  select c.relkind into v_kind from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   where n.nspname='public' and c.relname='galaxy_publication_event';
+  if v_kind is not null and v_kind <> 'r' then
+    raise exception 'REFUSED: galaxy_publication_event is relkind %, not an ordinary table', v_kind;
   end if;
   if to_regclass('public.galaxy_publication_event') is null then
     raise exception 'REFUSED: publication audit table missing';

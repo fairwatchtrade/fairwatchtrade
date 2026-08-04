@@ -36,7 +36,7 @@ declare
   v_ref text; v_marker text; v_target text;
   b int; c int; f int; v int; r int;
   cj int; fj int; vj int; rj int;
-  v_missing text; v_extra text;
+  v_missing text; v_extra text; v_rows int; v_kind "char"; v_seq text;
 begin
   begin
     v_ref := current_setting('galaxy_proof.declared_branch_ref');
@@ -52,16 +52,43 @@ begin
   end if;
 
   -- identity artifacts minted by guarded fixture.sql; never created here
-  if to_regproc('public.test_branch_marker') is null then
+  if to_regprocedure('public.test_branch_marker()') is null then
     raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; this file never mints one.';
   end if;
   if to_regclass('public.galaxy_proof_target') is null then
     raise exception 'REFUSED: no target artifact — the marker alone does not certify a validated fixture.';
   end if;
+  -- the target artifact must be an ORDINARY TABLE: to_regclass is satisfied
+  -- by a view, matview, sequence or foreign table just as happily, any of
+  -- which could serve an attacker-chosen identity.
+  if (select c.relkind from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname = 'galaxy_proof_target') <> 'r' then
+    raise exception 'REFUSED: galaxy_proof_target is not an ordinary table';
+  end if;
+
+  -- CARDINALITY FIRST. `select … into` accepts zero rows (leaving NULL) and
+  -- silently takes an arbitrary row when there are many. A NULL identity
+  -- then makes every `<>` comparison NULL, and `if NULL then raise` does
+  -- NOT raise — an empty target artifact would have passed this guard.
+  select count(*) into v_rows from public.galaxy_proof_target;
+  if v_rows <> 1 then
+    raise exception 'REFUSED: target artifact holds % row(s), expected exactly 1 — the identity root is not trustworthy', v_rows;
+  end if;
+
   select public.test_branch_marker() into v_marker;
   select t.declared_branch_ref into v_target from public.galaxy_proof_target t;
-  if v_marker <> v_ref or v_target <> v_ref then
-    raise exception 'REFUSED: identity disagreement — declared %, marker %, target artifact %', v_ref, v_marker, v_target;
+  -- NULL-SAFE three-way agreement: `is distinct from` treats NULL as a
+  -- disagreement, which is what a missing identity is.
+  if v_marker is null then
+    raise exception 'REFUSED: marker returned NULL — no identity to verify against';
+  end if;
+  if v_target is null then
+    raise exception 'REFUSED: target artifact identity is NULL — no identity to verify against';
+  end if;
+  if v_marker is distinct from v_ref or v_target is distinct from v_ref
+     or v_marker is distinct from v_target then
+    raise exception 'REFUSED: identity disagreement — declared %, marker %, target artifact %',
+      coalesce(v_ref,'<null>'), coalesce(v_marker,'<null>'), coalesce(v_target,'<null>');
   end if;
 
   -- exact five-table counts
@@ -99,43 +126,99 @@ begin
     raise exception 'REFUSED: missing required hierarchy column(s): %', v_missing;
   end if;
 
-  -- galaxy_visible on all five levels
-  select string_agg(t, ', ') into v_missing from unnest(array[
+  -- galaxy_visible on all five levels, with the EXACT column type. A
+  -- text or nullable column of the same name would satisfy an
+  -- existence-only check while changing what every predicate below means.
+  select string_agg(format('%s.galaxy_visible', t), ', ') into v_missing from unnest(array[
     'vault_brands','vault_collections','vault_families','vault_variants','vault_references']) t
    where not exists (select 1 from information_schema.columns
-     where table_schema='public' and table_name=t and column_name='galaxy_visible');
+     where table_schema='public' and table_name=t and column_name='galaxy_visible'
+       and data_type='boolean' and is_nullable='NO');
   if v_missing is not null then
-    raise exception 'REFUSED: missing galaxy_visible column on: % — apply the publication migration first', v_missing;
+    raise exception 'REFUSED: galaxy_visible missing, or not boolean NOT NULL, on: % — apply the publication migration first', v_missing;
   end if;
 
-  -- all five publication views, no more and no fewer
+  -- parent-key columns must be uuid, not merely present
+  select string_agg(x.want, ', ') into v_missing from (
+    select 'vault_collections.brand_id' as want where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_collections' and column_name='brand_id' and data_type='uuid')
+    union all select 'vault_families.collection_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_families' and column_name='collection_id' and data_type='uuid')
+    union all select 'vault_variants.family_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_variants' and column_name='family_id' and data_type='uuid')
+    union all select 'vault_references.variant_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_references' and column_name='variant_id' and data_type='uuid')
+  ) x;
+  if v_missing is not null then
+    raise exception 'REFUSED: parent-key column(s) not of type uuid: %', v_missing;
+  end if;
+
+  -- all five publication views, as VIEWS (relkind 'v'), no more and no fewer.
+  -- Swept through pg_class: a MATERIALIZED view of the same name never
+  -- appears in information_schema.views, so an information_schema sweep
+  -- would report it both "missing" and not "extra" — and a matview serves
+  -- stale rows, which is precisely the failure this proof exists to detect.
   select string_agg(t, ', ') into v_missing from unnest(array[
     'vault_galaxy_brands','vault_galaxy_collections','vault_galaxy_families',
     'vault_galaxy_variants','vault_galaxy_references']) t
-   where not exists (select 1 from information_schema.views
-     where table_schema='public' and table_name=t);
+   where not exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+     where n.nspname='public' and c.relname=t and c.relkind='v');
   if v_missing is not null then
-    raise exception 'REFUSED: missing publication view(s): %', v_missing;
+    raise exception 'REFUSED: publication view(s) missing or not an ordinary view: %', v_missing;
   end if;
-  select string_agg(table_name, ', ') into v_extra from information_schema.views
-   where table_schema='public' and table_name like 'vault_galaxy_%'
-     and table_name not in ('vault_galaxy_brands','vault_galaxy_collections',
-       'vault_galaxy_families','vault_galaxy_variants','vault_galaxy_references');
+  select string_agg(format('%s (relkind %s)', c.relname, c.relkind), ', ') into v_extra
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   where n.nspname='public' and c.relname like 'vault\_galaxy\_%'
+     and (c.relkind <> 'v'
+          or c.relname not in ('vault_galaxy_brands','vault_galaxy_collections',
+            'vault_galaxy_families','vault_galaxy_variants','vault_galaxy_references'));
   if v_extra is not null then
-    raise exception 'REFUSED: unexpected extra publication view(s): %', v_extra;
+    raise exception 'REFUSED: unexpected extra or wrong-kind publication relation(s): %', v_extra;
   end if;
 
-  -- operator functions + audit table
-  if to_regproc('public.galaxy_activate') is null
-     or to_regproc('public.galaxy_rollback_event') is null
-     or to_regproc('public.galaxy_brand_subtree') is null then
-    raise exception 'REFUSED: publication operator function(s) missing';
+  -- operator functions by EXACT SIGNATURE. to_regproc matches on bare name
+  -- and returns NULL when a name is overloaded, so it can neither prove the
+  -- argument list nor survive an added overload; to_regprocedure pins both.
+  select string_agg(t, ', ') into v_missing from unnest(array[
+    'public.galaxy_activate(jsonb,text,text)',
+    'public.galaxy_rollback_event(uuid,text)',
+    'public.galaxy_brand_subtree(uuid)']) t
+   where to_regprocedure(t) is null;
+  if v_missing is not null then
+    raise exception 'REFUSED: publication operator function(s) missing at the exact signature: %', v_missing;
   end if;
-  if to_regclass('public.galaxy_publication_event') is null then
+
+  -- audit table: ordinary table, exact column set, exact types
+  select c.relkind into v_kind from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   where n.nspname='public' and c.relname='galaxy_publication_event';
+  if v_kind is null then
     raise exception 'REFUSED: publication audit table missing';
+  elsif v_kind <> 'r' then
+    raise exception 'REFUSED: galaxy_publication_event is relkind %, not an ordinary table', v_kind;
+  end if;
+  select string_agg(x.want, ', ') into v_missing from (
+    values ('seq','bigint'), ('id','uuid'), ('operation','text'), ('actor','text'),
+           ('changed_rows','integer'), ('reverted_event_id','uuid')
+  ) x(want, typ)
+   where not exists (select 1 from information_schema.columns
+     where table_schema='public' and table_name='galaxy_publication_event'
+       and column_name=x.want and data_type=x.typ);
+  if v_missing is not null then
+    raise exception 'REFUSED: audit table shape wrong — missing or mistyped column(s): %', v_missing;
   end if;
 
-  raise notice 'Exact-target guard passed for declared branch % (fixture 192/396/579/710/388, 5 views, operators present)', v_ref;
+  -- the audit ordering column must be backed by a real sequence: P1 reads
+  -- the log `order by seq`, and an unbacked column orders nothing.
+  select pg_get_serial_sequence('public.galaxy_publication_event','seq') into v_seq;
+  if v_seq is null then
+    raise exception 'REFUSED: galaxy_publication_event.seq has no owned sequence — audit ordering is not guaranteed';
+  end if;
+  if to_regclass(v_seq) is null
+     or (select c.relkind from pg_class c where c.oid = to_regclass(v_seq)) <> 'S' then
+    raise exception 'REFUSED: % is not a sequence', v_seq;
+  end if;
+
+  raise notice 'Exact-target guard passed for declared branch % (fixture 192/396/579/710/388; 5 views as relkind v; 3 operators at exact signature; audit table shape + owned sequence %)', v_ref, v_seq;
 end
 $guard$;
 
@@ -291,6 +374,10 @@ begin
   end if;
   select jsonb_build_object(
     'brand_id',(select id from public.vault_brands where name = 'TB-001'),
+    -- ZZ-HIDDEN's id is returned at STAGING time so P2 can assert it
+    -- against an independently captured value. Reading the expected id out
+    -- of the very row under assertion (`row.id !== row.id`) can never fail.
+    'zz_id',   (select id from public.vault_brands where name = 'ZZ-HIDDEN'),
     'coll_id', (select id from public.vault_collections where name = 'NEW-COLL'),
     'fam_id',  (select id from public.vault_families where name = 'NEWCOLL-FAM'),
     'var_id',  (select id from public.vault_variants where name = 'NEWFAM-VAR'),
@@ -385,6 +472,68 @@ returns jsonb language sql security definer set search_path='' as $$
                  'in_view', exists (select 1 from public.vault_galaxy_references g where g.id=r.id),
                  'copies', (select count(*) from public.vault_references x where x.reference='NEWVAR-REF'))
                  from public.vault_references r where r.reference='NEWVAR-REF')),
+    -- ── SET-LEVEL RECONCILIATION AT ALL FIVE LEVELS ────────────────────
+    -- Per-row `in_view` flags only ever speak for the handful of scenario
+    -- rows named above; closure_violations only ever reads base tables.
+    -- Neither can see a row the view OMITS, nor one it serves that nothing
+    -- entitles. So each level is reconciled as a SET: the ancestor-closed
+    -- expected id set versus the ids the view actually serves, reported as
+    -- omissions (expected but absent), extras (served but not entitled) and
+    -- the symmetric difference. All must be zero at every level.
+    'view_set_diff', (
+      with
+      exp_b as (select b.id from public.vault_brands b where b.galaxy_visible),
+      exp_c as (select c.id from public.vault_collections c
+                  join public.vault_brands b on b.id = c.brand_id
+                 where c.galaxy_visible and b.galaxy_visible),
+      exp_f as (select f.id from public.vault_families f
+                  join public.vault_collections c on c.id = f.collection_id
+                  join public.vault_brands b on b.id = c.brand_id
+                 where f.galaxy_visible and c.galaxy_visible and b.galaxy_visible),
+      exp_v as (select v.id from public.vault_variants v
+                  join public.vault_families f on f.id = v.family_id
+                  join public.vault_collections c on c.id = f.collection_id
+                  join public.vault_brands b on b.id = c.brand_id
+                 where v.galaxy_visible and f.galaxy_visible and c.galaxy_visible and b.galaxy_visible),
+      exp_r as (select r.id from public.vault_references r
+                  join public.vault_variants v on v.id = r.variant_id
+                  join public.vault_families f on f.id = v.family_id
+                  join public.vault_collections c on c.id = f.collection_id
+                  join public.vault_brands b on b.id = c.brand_id
+                 where r.galaxy_visible and v.galaxy_visible and f.galaxy_visible
+                   and c.galaxy_visible and b.galaxy_visible),
+      act_b as (select g.id from public.vault_galaxy_brands g),
+      act_c as (select g.id from public.vault_galaxy_collections g),
+      act_f as (select g.id from public.vault_galaxy_families g),
+      act_v as (select g.id from public.vault_galaxy_variants g),
+      act_r as (select g.id from public.vault_galaxy_references g),
+      lv as (
+        select 'brand'      as level, (select count(*) from exp_b) e, (select count(*) from act_b) a,
+               (select count(*) from (select id from exp_b except select id from act_b) z) omitted,
+               (select count(*) from (select id from act_b except select id from exp_b) z) extra
+        union all
+        select 'collection', (select count(*) from exp_c), (select count(*) from act_c),
+               (select count(*) from (select id from exp_c except select id from act_c) z),
+               (select count(*) from (select id from act_c except select id from exp_c) z)
+        union all
+        select 'family', (select count(*) from exp_f), (select count(*) from act_f),
+               (select count(*) from (select id from exp_f except select id from act_f) z),
+               (select count(*) from (select id from act_f except select id from exp_f) z)
+        union all
+        select 'variant', (select count(*) from exp_v), (select count(*) from act_v),
+               (select count(*) from (select id from exp_v except select id from act_v) z),
+               (select count(*) from (select id from act_v except select id from exp_v) z)
+        union all
+        select 'reference', (select count(*) from exp_r), (select count(*) from act_r),
+               (select count(*) from (select id from exp_r except select id from act_r) z),
+               (select count(*) from (select id from act_r except select id from exp_r) z))
+      select jsonb_agg(jsonb_build_object(
+               'level', level, 'expected', e, 'actual', a,
+               'omitted', omitted, 'extra', extra,
+               'symmetric_difference', omitted + extra)
+             order by case level when 'brand' then 1 when 'collection' then 2
+                                 when 'family' then 3 when 'variant' then 4 else 5 end)
+        from lv),
     -- duplicate detection at every level (same-parent duplicates)
     'duplicates', jsonb_build_array(
       (select count(*) from (select name from public.vault_brands group by name having count(*)>1) d),

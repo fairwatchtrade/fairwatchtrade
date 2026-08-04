@@ -52,29 +52,36 @@ begin
   end if;
 
   -- ── full pre-write inspection: any of these existing = refusal ──
-  select string_agg(t.table_name, ', ') into v_bad
-    from information_schema.tables t
-   where t.table_schema = 'public'
-     and t.table_name in ('vault_brands', 'vault_collections', 'vault_families',
-                          'vault_variants', 'vault_references',
-                          'galaxy_publication_event', 'galaxy_proof_target');
+  -- Swept through pg_class, NOT information_schema. information_schema.tables
+  -- and .views between them omit materialized views, sequences, foreign
+  -- tables, partitioned tables and composite types entirely — so a
+  -- contaminating object of any of those kinds would have passed an
+  -- information_schema sweep unseen. Every relkind is named here:
+  --   r ordinary · p partitioned · v view · m matview · S sequence
+  --   f foreign · c composite type · t TOAST · I partitioned index · i index
+  select string_agg(format('%s (relkind %s)', c.relname, c.relkind), ', ') into v_bad
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relkind = any (array['r','p','v','m','S','f','c','i','I']::"char"[])
+     and (c.relname in ('vault_brands', 'vault_collections', 'vault_families',
+                        'vault_variants', 'vault_references',
+                        'galaxy_publication_event', 'galaxy_proof_target')
+          or c.relname like 'vault\_galaxy\_%'
+          or c.relname like 'galaxy\_publication\_event%'   -- incl. its identity sequence
+          or c.relname like '%\_galaxy\_visible\_idx'
+          or c.relname like 'galaxy\_proof\_%');
   if v_bad is not null then
-    raise exception 'REFUSED: pre-existing hierarchy/publication/target table(s): % — production-shaped or already-used state; use a fresh disposable branch.', v_bad;
+    raise exception 'REFUSED: pre-existing hierarchy / publication / proof relation(s) of some kind: % — production-shaped or already-used state; use a fresh disposable branch.', v_bad;
   end if;
 
-  select string_agg(t.table_name, ', ') into v_bad
-    from information_schema.views t
-   where t.table_schema = 'public' and t.table_name like 'vault_galaxy_%';
-  if v_bad is not null then
-    raise exception 'REFUSED: pre-existing Galaxy publication view(s): %', v_bad;
-  end if;
-
-  select string_agg(p.proname, ', ') into v_bad
+  -- functions and procedures, by name, including every overload
+  select string_agg(format('%s(%s)', p.proname, pg_get_function_identity_arguments(p.oid)), ', ') into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and (p.proname in ('galaxy_activate', 'galaxy_rollback_event', 'galaxy_brand_subtree',
                         'test_branch_marker')
-          or p.proname like 'test\_%');
+          or p.proname like 'test\_%'
+          or p.proname like 'galaxy\_%');
   if v_bad is not null then
     raise exception 'REFUSED: pre-existing publication function / test helper / marker: %', v_bad;
   end if;
@@ -84,6 +91,22 @@ begin
    where c.table_schema = 'public' and c.column_name = 'galaxy_visible';
   if v_bad is not null then
     raise exception 'REFUSED: pre-existing galaxy_visible column(s): %', v_bad;
+  end if;
+
+  -- policies left behind by a previous fixture would silently change what
+  -- anon can read, so they are contamination too
+  select string_agg(format('%s on %s', pol.policyname, pol.tablename), ', ') into v_bad
+    from pg_policies pol
+   where pol.schemaname = 'public'
+     and (pol.tablename like 'vault\_%' or pol.tablename like 'galaxy\_%');
+  if v_bad is not null then
+    raise exception 'REFUSED: pre-existing RLS policy/policies on hierarchy or publication tables: %', v_bad;
+  end if;
+
+  -- a stale session setting from a previous target is contamination of the
+  -- one channel this whole guard chain rests on
+  if current_setting('galaxy_proof.declared_branch_ref', true) is distinct from v_ref then
+    raise exception 'REFUSED: declared identity changed underfoot during inspection';
   end if;
 
   raise notice 'Pre-write inspection clean for declared branch % — building fixture.', v_ref;
@@ -166,7 +189,24 @@ declare
   v_ref text := current_setting('galaxy_proof.declared_branch_ref');
   b int; c int; f int; v int; r int;
   cj int; fj int; vj int; rj int;
+  v_rows int;
 begin
+  -- ── re-validate the identity AT MINT TIME, not just at inspection time ──
+  -- "Marker last" only certifies a validated fixture if the identity being
+  -- minted is itself revalidated here. current_setting is session state and
+  -- can be reassigned between the two blocks; minting whatever it says now
+  -- would let a re-declared (or production) ref be stamped into the marker
+  -- on the strength of a check performed against a different value.
+  if v_ref is null or btrim(v_ref) = '' then
+    raise exception 'REFUSED: declared identity vanished before minting';
+  end if;
+  if v_ref !~ '^[a-z]{20}$' then
+    raise exception 'REFUSED: % is not a plausible Supabase branch ref (re-checked at mint time)', v_ref;
+  end if;
+  if v_ref = 'aqgjcezhdoianqmoknnu' then
+    raise exception 'REFUSED: that is the PRODUCTION project ref (re-checked at mint time).';
+  end if;
+
   select count(*) into b from public.vault_brands;
   select count(*) into c from public.vault_collections;
   select count(*) into f from public.vault_families;
@@ -189,12 +229,42 @@ begin
     'create function public.test_branch_marker() returns text language sql as %L',
     format('select %L::text', v_ref));
   execute 'grant execute on function public.test_branch_marker() to anon';
+
+  -- The target artifact is the root every downstream guard reads its
+  -- expected identity from, so its CARDINALITY is load-bearing. A
+  -- `create table … as select` carries no constraints at all: a later
+  -- insert could add a second, disagreeing row, and a delete could empty it
+  -- — and an empty table yields NULL, which makes `<>` comparisons NULL and
+  -- silently satisfies every downstream `if … then raise` guard. Exactly
+  -- one row is therefore enforced structurally, and the column is NOT NULL
+  -- and shape-checked so no null or malformed identity can ever be stored.
+  execute '
+    create table public.galaxy_proof_target (
+      singleton              boolean     not null default true,
+      declared_branch_ref    text        not null,
+      fixture_validated_at   timestamptz not null default now(),
+      constraint galaxy_proof_target_pkey primary key (singleton),
+      constraint galaxy_proof_target_singleton_check check (singleton),
+      constraint galaxy_proof_target_ref_shape_check
+        check (declared_branch_ref ~ ''^[a-z]{20}$''))';
   execute format(
-    'create table public.galaxy_proof_target as select %L::text as declared_branch_ref, now() as fixture_validated_at',
-    v_ref);
+    'insert into public.galaxy_proof_target (declared_branch_ref) values (%L)', v_ref);
   execute 'alter table public.galaxy_proof_target enable row level security';
   execute 'revoke all on table public.galaxy_proof_target from public, anon, authenticated';
-  raise notice 'Fixture validated; marker + target artifact minted for declared branch %', v_ref;
+
+  -- prove the cardinality invariant holds on the row just written
+  select count(*) into v_rows from public.galaxy_proof_target;
+  if v_rows <> 1 then
+    raise exception 'FIXTURE INVALID: target artifact holds % row(s), expected exactly 1 — rolling back everything', v_rows;
+  end if;
+  if (select t.declared_branch_ref from public.galaxy_proof_target t) is distinct from v_ref then
+    raise exception 'FIXTURE INVALID: target artifact identity does not equal the declared identity — rolling back everything';
+  end if;
+  if public.test_branch_marker() is distinct from v_ref then
+    raise exception 'FIXTURE INVALID: marker identity does not equal the declared identity — rolling back everything';
+  end if;
+
+  raise notice 'Fixture validated; marker + single-row target artifact minted for declared branch %', v_ref;
 end
 $post$;
 
