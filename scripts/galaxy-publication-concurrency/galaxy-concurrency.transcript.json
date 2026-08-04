@@ -1,4 +1,9 @@
 {
+  "STALE": "SUPERSEDED — DO NOT TREAT AS EVIDENCE FOR THE CURRENT CODE",
+  "superseded_on": "2026-08-04",
+  "produced_by_commit": "3adf1e5f24478183faedf71f671e76e149fe4548",
+  "rejected": "George rejected that commit; the harness has since been corrected (source and behaviour both changed), so this transcript describes a run of code that no longer exists.",
+  "replacement_required": "Fresh positive and negative transcripts must be produced on two separate disposable Supabase branches against the corrected harness, with GALAXY_PROOF_COMMIT and source_hashes_sha256 recorded. Until then this packet has NO passing evidence.",
   "harness": "scripts/galaxy-publication-concurrency/run.mjs",
   "mode": "proof",
   "declared_branch_ref": "otcfnjowudgujaainelt",
