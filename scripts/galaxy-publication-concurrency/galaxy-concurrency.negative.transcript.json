@@ -1,19 +1,18 @@
 {
   "harness": "scripts/galaxy-publication-concurrency/run.mjs",
   "mode": "negative-control",
-  "declared_branch_ref": "qtelfhvtautjeteyrzym",
-  "run_at": "2026-08-03T23:02:02.027Z",
+  "declared_branch_ref": "yasckkwvymnclaytbtlb",
+  "run_at": "2026-08-04T00:49:30.302Z",
   "test_groups": "6 concurrent interleavings (I1-I6) + 2 postcondition suites (P1-P2)",
   "locks_under_test": {
     "operator": "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
     "retreat": "same advisory key + ACCESS EXCLUSIVE on vault_brands→vault_collections→vault_families→vault_variants→vault_references, guard-through-commit"
   },
   "target_guard": {
-    "declared_identity_supplied": true,
-    "declared_identity_not_production": true,
-    "url_project_ref_equals_declared": true,
+    "declared_identity_plausible_and_not_production": true,
+    "canonical_https_host_verified_before_credentials": "exactly https://yasckkwvymnclaytbtlb.supabase.co (no port, userinfo, path, query or extra label)",
     "marker_present_and_equals_declared": true,
-    "statement": "the disposable-target guard passed; the connected target matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
+    "statement": "the canonical-URL guard passed before any credential was sent; the connected target's independently minted marker matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
   },
   "groups": [
     {
@@ -24,15 +23,15 @@
         {
           "session": "A",
           "role": "activate NEW-COLL, holding the advisory lock",
-          "t_lock": "2026-08-03T23:02:01.195699+00:00",
-          "t_end": "2026-08-03T23:02:06.214287+00:00",
+          "t_lock": "2026-08-04T00:49:29.339451+00:00",
+          "t_end": "2026-08-04T00:49:34.353102+00:00",
           "outcome": "changed=0"
         },
         {
           "session": "B",
           "role": "same-row activate, +2000ms",
-          "t_start": "2026-08-03T23:02:03.431548+00:00",
-          "t_end": "2026-08-03T23:02:03.447922+00:00",
+          "t_start": "2026-08-04T00:49:31.510012+00:00",
+          "t_end": "2026-08-04T00:49:31.521742+00:00",
           "outcome": "changed=1 noop=false"
         }
       ],

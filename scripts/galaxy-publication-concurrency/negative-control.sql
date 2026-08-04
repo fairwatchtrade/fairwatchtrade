@@ -16,11 +16,22 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 
--- ── NON-CIRCULAR TARGET GUARD (same law as helpers.sql) ─────────────────
--- Never creates the marker; requires the fixture's marker, the operator's
--- session-declared identity, their agreement, and the fixture shape.
+-- ── EXACT-TARGET GUARD (required before ANY DDL below) ──────────────────
+-- This file NEVER creates or repairs the marker. It requires, and verifies
+-- exactly: the operator's session-declared identity; the plausible-ref rule
+-- and production denylist; the connected reference read from the
+-- INDEPENDENTLY minted target artifact; three-way agreement between
+-- declared identity, marker, and target artifact; the exact five-table
+-- fixture counts and parent-child shape; every required hierarchy column;
+-- every required galaxy_visible column; all five publication views; both
+-- operator functions; the audit table; and the absence of unexpected
+-- fixture objects. A broad threshold is not validation.
 do $guard$
-declare v_ref text; v_marker text; v_brands int;
+declare
+  v_ref text; v_marker text; v_target text;
+  b int; c int; f int; v int; r int;
+  cj int; fj int; vj int; rj int;
+  v_missing text; v_extra text;
 begin
   begin
     v_ref := current_setting('galaxy_proof.declared_branch_ref');
@@ -28,18 +39,98 @@ begin
   if v_ref is null or btrim(v_ref) = '' then
     raise exception 'REFUSED: declare the branch first: set galaxy_proof.declared_branch_ref = ''<ref>'';';
   end if;
+  if v_ref !~ '^[a-z]{20}$' then
+    raise exception 'REFUSED: % is not a plausible Supabase branch ref', v_ref;
+  end if;
+  if v_ref = 'aqgjcezhdoianqmoknnu' then
+    raise exception 'REFUSED: that is the PRODUCTION project ref.';
+  end if;
+
+  -- identity artifacts minted by guarded fixture.sql; never created here
   if to_regproc('public.test_branch_marker') is null then
-    raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; the negative control never creates the marker.';
+    raise exception 'REFUSED: no disposable-target marker — run guarded fixture.sql first; the negative control never mints one.';
+  end if;
+  if to_regclass('public.galaxy_proof_target') is null then
+    raise exception 'REFUSED: no target artifact — the marker alone does not certify a validated fixture.';
   end if;
   select public.test_branch_marker() into v_marker;
-  if v_marker <> v_ref then
-    raise exception 'REFUSED: marker identity % does not match declared identity %', v_marker, v_ref;
+  select t.declared_branch_ref into v_target from public.galaxy_proof_target t;
+  if v_marker <> v_ref or v_target <> v_ref then
+    raise exception 'REFUSED: identity disagreement — declared %, marker %, target artifact %', v_ref, v_marker, v_target;
   end if;
-  select count(*) into v_brands from public.vault_brands;
-  if v_brands < 192 then
-    raise exception 'REFUSED: fixture shape unexpected (% brands)', v_brands;
+
+  -- exact five-table counts
+  select count(*) into b from public.vault_brands;
+  select count(*) into c from public.vault_collections;
+  select count(*) into f from public.vault_families;
+  select count(*) into v from public.vault_variants;
+  select count(*) into r from public.vault_references;
+  if (b, c, f, v, r) is distinct from (192, 396, 579, 710, 388) then
+    raise exception 'REFUSED: fixture counts %/%/%/%/% are not the exact guarded fixture (192/396/579/710/388)', b, c, f, v, r;
   end if;
-  raise notice 'Target guard passed for declared branch % — installing NEGATIVE CONTROL', v_ref;
+  -- exact parent-child shape
+  select count(*) into cj from public.vault_collections x join public.vault_brands p on p.id = x.brand_id;
+  select count(*) into fj from public.vault_families x join public.vault_collections p on p.id = x.collection_id;
+  select count(*) into vj from public.vault_variants x join public.vault_families p on p.id = x.family_id;
+  select count(*) into rj from public.vault_references x join public.vault_variants p on p.id = x.variant_id;
+  if (cj, fj, vj, rj) is distinct from (396, 579, 710, 388) then
+    raise exception 'REFUSED: parent-child shape %/%/%/% is not the guarded fixture', cj, fj, vj, rj;
+  end if;
+
+  -- required hierarchy columns (identity + parent key at every level)
+  select string_agg(x.want, ', ') into v_missing from (
+    select 'vault_brands.slug' as want where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_brands' and column_name='slug')
+    union all select 'vault_collections.brand_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_collections' and column_name='brand_id')
+    union all select 'vault_families.collection_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_families' and column_name='collection_id')
+    union all select 'vault_variants.family_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_variants' and column_name='family_id')
+    union all select 'vault_references.variant_id' where not exists (select 1 from information_schema.columns
+      where table_schema='public' and table_name='vault_references' and column_name='variant_id')
+  ) x;
+  if v_missing is not null then
+    raise exception 'REFUSED: missing required hierarchy column(s): %', v_missing;
+  end if;
+
+  -- galaxy_visible on all five levels
+  select string_agg(t, ', ') into v_missing from unnest(array[
+    'vault_brands','vault_collections','vault_families','vault_variants','vault_references']) t
+   where not exists (select 1 from information_schema.columns
+     where table_schema='public' and table_name=t and column_name='galaxy_visible');
+  if v_missing is not null then
+    raise exception 'REFUSED: missing galaxy_visible column on: % — apply the publication migration first', v_missing;
+  end if;
+
+  -- all five publication views, no more and no fewer
+  select string_agg(t, ', ') into v_missing from unnest(array[
+    'vault_galaxy_brands','vault_galaxy_collections','vault_galaxy_families',
+    'vault_galaxy_variants','vault_galaxy_references']) t
+   where not exists (select 1 from information_schema.views
+     where table_schema='public' and table_name=t);
+  if v_missing is not null then
+    raise exception 'REFUSED: missing publication view(s): %', v_missing;
+  end if;
+  select string_agg(table_name, ', ') into v_extra from information_schema.views
+   where table_schema='public' and table_name like 'vault_galaxy_%'
+     and table_name not in ('vault_galaxy_brands','vault_galaxy_collections',
+       'vault_galaxy_families','vault_galaxy_variants','vault_galaxy_references');
+  if v_extra is not null then
+    raise exception 'REFUSED: unexpected extra publication view(s): %', v_extra;
+  end if;
+
+  -- operator functions + audit table
+  if to_regproc('public.galaxy_activate') is null
+     or to_regproc('public.galaxy_rollback_event') is null
+     or to_regproc('public.galaxy_brand_subtree') is null then
+    raise exception 'REFUSED: publication operator function(s) missing';
+  end if;
+  if to_regclass('public.galaxy_publication_event') is null then
+    raise exception 'REFUSED: publication audit table missing';
+  end if;
+
+  raise notice 'Exact-target guard passed for declared branch % (fixture 192/396/579/710/388, 5 views, operators present)', v_ref;
 end
 $guard$;
 

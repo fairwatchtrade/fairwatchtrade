@@ -50,21 +50,38 @@ if (!URL_BASE || !KEY || !DECLARED_REF) {
   console.error("SUPABASE_URL, SUPABASE_ANON_KEY and GALAXY_PROOF_BRANCH_REF are required (environment only).");
   process.exit(2);
 }
-if (DECLARED_REF === PRODUCTION_REF) {
-  console.error("REFUSED: the declared branch identity is the production project ref.");
+
+/* ── CANONICAL URL GUARD — runs BEFORE any credential leaves this process.
+   The URL must be exactly https://<declared-ref>.supabase.co: exact
+   protocol, exact whole hostname, no port, no userinfo, no path-derived
+   identity, no alternate suffix, no extra subdomain, and no hostname whose
+   FIRST LABEL merely matches. The declared ref must independently satisfy
+   the plausible-ref rule and the production denylist. Any deviation exits
+   before a single authenticated request is made. ── */
+function refuseTarget(reason) {
+  console.error(`REFUSED (before any credential was sent): ${reason}`);
   process.exit(2);
 }
-const urlRef = (() => {
-  try {
-    const host = new URL(URL_BASE).hostname; // <ref>.supabase.co
-    return host.split(".")[0];
-  } catch {
-    return null;
-  }
-})();
-if (urlRef !== DECLARED_REF) {
-  console.error(`REFUSED: SUPABASE_URL project ref (${urlRef}) does not equal the declared identity (${DECLARED_REF}).`);
-  process.exit(2);
+if (!/^[a-z]{20}$/.test(DECLARED_REF)) {
+  refuseTarget(`declared identity ${DECLARED_REF} is not a plausible Supabase branch ref`);
+}
+if (DECLARED_REF === PRODUCTION_REF) {
+  refuseTarget("the declared branch identity is the production project ref");
+}
+let parsed;
+try {
+  parsed = new URL(URL_BASE);
+} catch {
+  refuseTarget(`SUPABASE_URL is not a valid URL`);
+}
+if (parsed.protocol !== "https:") refuseTarget(`protocol ${parsed.protocol} is not https:`);
+if (parsed.username !== "" || parsed.password !== "") refuseTarget("URL carries userinfo");
+if (parsed.port !== "") refuseTarget(`URL carries an explicit port (${parsed.port})`);
+if (parsed.pathname !== "/" && parsed.pathname !== "") refuseTarget(`URL carries a path (${parsed.pathname})`);
+if (parsed.search !== "" || parsed.hash !== "") refuseTarget("URL carries a query or fragment");
+// WHOLE-hostname equality — not a prefix, not a first-label match.
+if (parsed.hostname !== `${DECLARED_REF}.supabase.co`) {
+  refuseTarget(`hostname ${parsed.hostname} is not exactly ${DECLARED_REF}.supabase.co`);
 }
 
 const transcript = {
@@ -141,11 +158,10 @@ async function main() {
     process.exit(2);
   }
   transcript.target_guard = {
-    declared_identity_supplied: true,
-    declared_identity_not_production: true,
-    url_project_ref_equals_declared: true,
+    declared_identity_plausible_and_not_production: true,
+    canonical_https_host_verified_before_credentials: `exactly https://${DECLARED_REF}.supabase.co (no port, userinfo, path, query or extra label)`,
     marker_present_and_equals_declared: true,
-    statement: "the disposable-target guard passed; the connected target matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target",
+    statement: "the canonical-URL guard passed before any credential was sent; the connected target's independently minted marker matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target",
   };
 
   const stage = await rpc("test_stage", { p_step: "fresh_fixture" });
@@ -153,9 +169,23 @@ async function main() {
     console.error(`fixture staging failed: ${stage.text}`);
     process.exit(2);
   }
+  const BRAND = stage.json.brand_id;
   const COLL = stage.json.coll_id;
   const FAM = stage.json.fam_id;
-  const BASELINE = stage.json.view_counts;
+  const VAR = stage.json.var_id;
+  const REF = stage.json.ref_id;
+  // Complete baselines: ALL FIVE base counts and ALL FIVE view counts.
+  const BASE_BASELINE = stage.json.base_counts;
+  const VIEW_BASELINE = stage.json.view_counts;
+  if (!Array.isArray(BASE_BASELINE) || BASE_BASELINE.length !== 5
+      || !Array.isArray(VIEW_BASELINE) || VIEW_BASELINE.length !== 5) {
+    console.error("REFUSED: staging did not return all five base_counts and view_counts.");
+    process.exit(2);
+  }
+  if (!BRAND || !COLL || !FAM || !VAR || !REF) {
+    console.error("REFUSED: staging did not create scenario rows at all five hierarchy levels.");
+    process.exit(2);
+  }
 
   const HOLD = 5;
   const GAP = 2000;
@@ -346,35 +376,54 @@ async function main() {
     const problems = [];
     const sr = s.scenario_rows ?? {};
 
-    // exact expected end-state after I1–I5: NEW-COLL hidden (I5 reverted),
-    // NEWCOLL-FAM hidden (I3-stage reverted), ZZ-HIDDEN hidden; identities
-    // unchanged (same ids as staged); exactly one copy of each.
-    if (!sr.new_coll || sr.new_coll.id !== COLL) problems.push("NEW-COLL identity changed or missing");
-    if (sr.new_coll?.visible !== false || sr.new_coll?.in_view !== false) problems.push(`NEW-COLL not hidden (${JSON.stringify(sr.new_coll)})`);
-    if (sr.new_coll?.copies !== 1) problems.push("NEW-COLL duplicated");
-    if (!sr.newcoll_fam || sr.newcoll_fam.id !== FAM) problems.push("NEWCOLL-FAM identity changed or missing");
-    if (sr.newcoll_fam?.visible !== false || sr.newcoll_fam?.in_view !== false) problems.push("NEWCOLL-FAM not hidden");
-    if (sr.newcoll_fam?.copies !== 1) problems.push("NEWCOLL-FAM duplicated");
-    if (sr.zz_hidden?.visible !== false || sr.zz_hidden?.in_view !== false) problems.push("ZZ-HIDDEN not hidden");
-    if (sr.tb001?.visible !== true || sr.tb001?.in_view !== true) problems.push("TB-001 lost visibility");
-    if (sr.tb001?.copies !== 1) problems.push("TB-001 duplicated");
+    /* Exact per-level assertion: identity, PARENT identity, visibility,
+       publication-view membership, copy count. Applied to all five levels —
+       Brand, Collection, Family, Variant, Reference. Any missing, extra,
+       duplicated, partially changed or wrongly visible row fails. */
+    const assertRow = (label, row, expectedId, expectedParentId, expectedVisible) => {
+      if (!row) return problems.push(`${label}: row missing entirely`);
+      if (row.id !== expectedId) problems.push(`${label}: identity mutated (${row.id} != ${expectedId})`);
+      if (expectedParentId !== null && row.parent_id !== expectedParentId)
+        problems.push(`${label}: parent identity mutated (${row.parent_id} != ${expectedParentId})`);
+      if (row.visible !== expectedVisible)
+        problems.push(`${label}: galaxy_visible ${row.visible} != ${expectedVisible}`);
+      if (row.in_view !== expectedVisible)
+        problems.push(`${label}: view membership ${row.in_view} != ${expectedVisible}`);
+      if (row.copies !== 1) problems.push(`${label}: copy count ${row.copies} != 1`);
+    };
+
+    // Expected end-state after I1–I5, per level:
+    assertRow("L1 Brand TB-001", sr.tb001, BRAND, null, true);        // live baseline brand
+    assertRow("L1 Brand ZZ-HIDDEN", sr.zz_hidden, sr.zz_hidden?.id, null, false);
+    assertRow("L2 Collection NEW-COLL", sr.new_coll, COLL, BRAND, false);  // I5 reverted
+    assertRow("L3 Family NEWCOLL-FAM", sr.newcoll_fam, FAM, COLL, false);  // I3-stage reverted
+    assertRow("L4 Variant NEWFAM-VAR", sr.newfam_var, VAR, FAM, false);    // never activated
+    assertRow("L5 Reference NEWVAR-REF", sr.newvar_ref, REF, VAR, false);  // never activated
 
     // visible-descendant-under-hidden-ancestor: structurally zero at every level
-    if (!(s.closure_violations ?? [1]).every((v) => v === 0)) problems.push(`closure violations ${JSON.stringify(s.closure_violations)}`);
+    if (!(s.closure_violations ?? [1]).every((v) => v === 0))
+      problems.push(`closure violations ${JSON.stringify(s.closure_violations)}`);
     // duplicates at all five levels
-    if (!(s.duplicates ?? [1]).every((v) => v === 0)) problems.push(`duplicates ${JSON.stringify(s.duplicates)}`);
-    // view counts back to the captured baseline (partial publication detector)
-    if (!(Array.isArray(s.view_counts) && s.view_counts[0] === BASELINE[0]
-          && s.view_counts[1] === BASELINE[1] && s.view_counts[2] === BASELINE[2]))
-      problems.push(`view counts ${JSON.stringify(s.view_counts)} != baseline ${JSON.stringify(BASELINE)}`);
+    if (!(s.duplicates ?? [1]).every((v) => v === 0))
+      problems.push(`duplicates ${JSON.stringify(s.duplicates)}`);
+    // ALL FIVE base counts and ALL FIVE view counts against the baseline
+    if (!(Array.isArray(s.base_counts) && s.base_counts.length === 5
+          && s.base_counts.every((c, i) => c === BASE_BASELINE[i])))
+      problems.push(`base_counts ${JSON.stringify(s.base_counts)} != baseline ${JSON.stringify(BASE_BASELINE)}`);
+    if (!(Array.isArray(s.view_counts) && s.view_counts.length === 5
+          && s.view_counts.every((c, i) => c === VIEW_BASELINE[i])))
+      problems.push(`view_counts ${JSON.stringify(s.view_counts)} != baseline ${JSON.stringify(VIEW_BASELINE)}`);
 
-    record("P2", "postcondition-suite", "five-level exact state inspection BEFORE any cleanup", [
-      { session: "reader", role: "test_inspect_state() — Brand/Collection/Family/Variant/Reference identities, visibility, closure, duplicates" },
+    record("P2", "postcondition-suite", "exact five-level state inspection BEFORE any cleanup", [
+      { session: "reader", role: "test_inspect_state() — Brand/Collection/Family/Variant/Reference: identity, parent identity, visibility, view membership, copy count; all five base_counts and view_counts" },
     ],
-      "exact ids stable; NEW-COLL/NEWCOLL-FAM/ZZ-HIDDEN hidden; TB-001 live; zero closure violations; zero duplicates; views at baseline",
-      problems.length === 0 ? "all five-level assertions held (pre-cleanup)" : problems.join("; "),
+      "every one of the five levels asserted for exact identity, exact parent identity, galaxy_visible, view membership and copy count = 1; zero closure violations; zero duplicates; all five base_counts and all five view_counts at the captured baseline",
+      problems.length === 0
+        ? "all five levels (Brand, Collection, Family, Variant, Reference) asserted and held pre-cleanup; all five base_counts and all five view_counts matched baseline"
+        : problems.join("; "),
       problems.length === 0,
-      { inspection: s });
+      { levels_asserted: ["brand", "collection", "family", "variant", "reference"],
+        base_baseline: BASE_BASELINE, view_baseline: VIEW_BASELINE, inspection: s });
 
     // cleanup only AFTER the assertions completed
     await rpc("test_stage", { p_step: "reset_rows" });

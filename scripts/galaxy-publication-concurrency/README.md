@@ -48,12 +48,28 @@ exact database assertions and are never described as races.
 
    Secrets come only from the environment; nothing is read from or written
    to the repository beyond the `--out` transcript.
-4. Negative control (proves the harness detects a removed lock):
-   apply `negative-control.sql`, then
+4. **Negative control — use a FRESH SECOND disposable branch.**
+
+   The positive suite's final interleaving (I6) is a schema retreat: it
+   drops the publication functions, views, audit table and every
+   `galaxy_visible` column. Applying `negative-control.sql` to that branch
+   afterwards cannot work — there is no publication layer left to break,
+   and `helpers.sql`'s exact-target guard would (correctly) refuse the
+   post-retreat shape. So:
+
+   - create a **second** disposable branch;
+   - repeat steps 2 and 3's *setup* on it — declare the identity, run
+     guarded `fixture.sql`, the committed migration, guarded `helpers.sql`;
+   - declare the identity once more and apply `negative-control.sql`
+     (it enforces the same exact-target guard and never mints the marker);
+   - then run:
 
    ```bash
-   ... node scripts/galaxy-publication-concurrency/run.mjs --negative-control \
-     --out galaxy-concurrency.negative.transcript.json
+   SUPABASE_URL=https://<second-branch-ref>.supabase.co \
+   SUPABASE_ANON_KEY=<second branch anon key> \
+   GALAXY_PROOF_BRANCH_REF=<second-branch-ref> \
+   node scripts/galaxy-publication-concurrency/run.mjs --negative-control \
+     --out scripts/galaxy-publication-concurrency/galaxy-concurrency.negative.transcript.json
    ```
 
    Expected: interleaving I1 reports `MISSING_SERIALIZATION_DETECTED`
@@ -61,7 +77,13 @@ exact database assertions and are never described as races.
    lock holder finds nothing), and the run exits 0 **only because**
    `--negative-control` inverts I1's expectation; without the flag the same
    state exits non-zero.
-5. **Delete the disposable branch.** The harness writes nothing anywhere else.
+
+   (A complete guarded rebuild of the first branch — drop the fixture and
+   all proof objects, then re-run guarded `fixture.sql`, the migration and
+   guarded `helpers.sql` from scratch — is an acceptable alternative, but a
+   second branch is simpler and leaves the positive evidence untouched.)
+5. **Delete every disposable branch used.** The harness writes nothing
+   anywhere else.
 
 ## Safety
 

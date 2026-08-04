@@ -2,30 +2,40 @@
 -- GALAXY CONCURRENCY PROOF — DISPOSABLE FIXTURE + TARGET-GUARD ROOT
 -- scripts/galaxy-publication-concurrency/fixture.sql
 --
--- THE ONLY FILE THAT CREATES THE DISPOSABLE-TARGET MARKER, and it does so
--- only after independently verifying, in this order:
---   1 · an explicit disposable branch identity supplied by the OPERATOR
---       (session setting galaxy_proof.declared_branch_ref — set it in the
---       same session before running this file);
---   2 · that this connected database is in the expected pre-fixture state
---       (no vault_brands — any production-shaped or unexpected pre-existing
---       state refuses BEFORE any write);
---   3 · that the declared identity is not the production project ref.
--- helpers.sql and negative-control.sql NEVER create the marker; they
--- require it. run.mjs requires the marker's stored identity to equal the
--- identity the operator supplies to IT via environment — two independent
--- declarations that must agree, which is what makes the guard non-circular
--- (no file trusts an identity it minted itself).
+-- THE ONLY FILE THAT MINTS THE DISPOSABLE-TARGET IDENTITY ARTIFACTS, and
+-- it mints them LAST: the marker certifies a COMPLETED, VALIDATED fixture,
+-- never an in-progress attempt. The entire build runs in ONE transaction —
+-- any failure anywhere rolls back every table, every row, and the marker
+-- itself, leaving the branch exactly as found.
+--
+-- Sequence, in one transaction:
+--   1 · full pre-write inspection: refuses ANY pre-existing hierarchy
+--       table, Galaxy publication table/view/function, visibility column,
+--       test helper, target artifact, or marker;
+--   2 · operator-identity verification (session setting
+--       galaxy_proof.declared_branch_ref): plausible ref, not production;
+--   3 · build the five-table fixture + seed;
+--   4 · validate the FINISHED shape (exact counts, parent-child joins);
+--   5 · only then mint the two identity artifacts:
+--         · public.test_branch_marker()  (function)
+--         · public.galaxy_proof_target   (one-row table)
+--       both storing the operator-declared identity, giving downstream
+--       guards two independently-readable channels to cross-check against
+--       a fresh operator declaration.
 --
 -- OPERATOR USAGE (same session):
 --   set galaxy_proof.declared_branch_ref = '<disposable-branch-ref>';
---   \i fixture.sql        -- or paste the file after the SET
+--   -- then execute this file
 -- ════════════════════════════════════════════════════════════════════════
 
-do $guard$
+begin;
+
+do $pre$
 declare
   v_ref text;
+  v_bad text;
 begin
+  -- ── operator identity first: nothing proceeds without it ──
   begin
     v_ref := current_setting('galaxy_proof.declared_branch_ref');
   exception when others then
@@ -40,26 +50,47 @@ begin
   if v_ref = 'aqgjcezhdoianqmoknnu' then
     raise exception 'REFUSED: that is the PRODUCTION project ref. This fixture never runs on production.';
   end if;
-  if exists (select 1 from information_schema.tables
-              where table_schema = 'public' and table_name = 'vault_brands') then
-    raise exception 'REFUSED: vault_brands already exists — production-shaped or unexpected pre-existing state. This fixture only runs on an empty disposable branch.';
-  end if;
-  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-              where n.nspname = 'public' and p.proname = 'test_branch_marker') then
-    raise exception 'REFUSED: a disposable-target marker already exists — this database has hosted a run; use a fresh branch.';
+
+  -- ── full pre-write inspection: any of these existing = refusal ──
+  select string_agg(t.table_name, ', ') into v_bad
+    from information_schema.tables t
+   where t.table_schema = 'public'
+     and t.table_name in ('vault_brands', 'vault_collections', 'vault_families',
+                          'vault_variants', 'vault_references',
+                          'galaxy_publication_event', 'galaxy_proof_target');
+  if v_bad is not null then
+    raise exception 'REFUSED: pre-existing hierarchy/publication/target table(s): % — production-shaped or already-used state; use a fresh disposable branch.', v_bad;
   end if;
 
-  -- The marker: created ONLY here, ONLY after the checks above, and it
-  -- stores the OPERATOR-declared identity so every later consumer can
-  -- verify against an identity this file did not invent.
-  execute format(
-    'create function public.test_branch_marker() returns text language sql as %L',
-    format('select %L::text', v_ref));
-  execute 'grant execute on function public.test_branch_marker() to anon';
-  raise notice 'Disposable-target marker created for declared branch %', v_ref;
+  select string_agg(t.table_name, ', ') into v_bad
+    from information_schema.views t
+   where t.table_schema = 'public' and t.table_name like 'vault_galaxy_%';
+  if v_bad is not null then
+    raise exception 'REFUSED: pre-existing Galaxy publication view(s): %', v_bad;
+  end if;
+
+  select string_agg(p.proname, ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and (p.proname in ('galaxy_activate', 'galaxy_rollback_event', 'galaxy_brand_subtree',
+                        'test_branch_marker')
+          or p.proname like 'test\_%');
+  if v_bad is not null then
+    raise exception 'REFUSED: pre-existing publication function / test helper / marker: %', v_bad;
+  end if;
+
+  select string_agg(c.table_name || '.' || c.column_name, ', ') into v_bad
+    from information_schema.columns c
+   where c.table_schema = 'public' and c.column_name = 'galaxy_visible';
+  if v_bad is not null then
+    raise exception 'REFUSED: pre-existing galaxy_visible column(s): %', v_bad;
+  end if;
+
+  raise notice 'Pre-write inspection clean for declared branch % — building fixture.', v_ref;
 end
-$guard$;
+$pre$;
 
+-- ── the five-table fixture, production-shaped ─────────────────────────────
 create table public.vault_brands (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -129,4 +160,45 @@ insert into public.vault_references (variant_id, reference, sort_order)
 select v.id, 'R-'||lpad(i::text,3,'0'), i from generate_series(1,388) i
   join lateral (select id from public.vault_variants where name='V-'||lpad((((i-1)%322)+1)::text,3,'0')) v on true;
 
-select 'fixture ready (marker holds the declared identity): apply the Galaxy publication migration next' as next_step;
+-- ── validate the FINISHED fixture, then mint the identity artifacts LAST ──
+do $post$
+declare
+  v_ref text := current_setting('galaxy_proof.declared_branch_ref');
+  b int; c int; f int; v int; r int;
+  cj int; fj int; vj int; rj int;
+begin
+  select count(*) into b from public.vault_brands;
+  select count(*) into c from public.vault_collections;
+  select count(*) into f from public.vault_families;
+  select count(*) into v from public.vault_variants;
+  select count(*) into r from public.vault_references;
+  if (b, c, f, v, r) is distinct from (192, 396, 579, 710, 388) then
+    raise exception 'FIXTURE INVALID: counts %/%/%/%/% (expected 192/396/579/710/388) — rolling back everything', b, c, f, v, r;
+  end if;
+  -- parent-child shape: every child joins a real parent, losslessly
+  select count(*) into cj from public.vault_collections x join public.vault_brands p on p.id = x.brand_id;
+  select count(*) into fj from public.vault_families x join public.vault_collections p on p.id = x.collection_id;
+  select count(*) into vj from public.vault_variants x join public.vault_families p on p.id = x.family_id;
+  select count(*) into rj from public.vault_references x join public.vault_variants p on p.id = x.variant_id;
+  if (cj, fj, vj, rj) is distinct from (396, 579, 710, 388) then
+    raise exception 'FIXTURE INVALID: parent-child joins %/%/%/% — rolling back everything', cj, fj, vj, rj;
+  end if;
+
+  -- identity artifacts: minted ONLY now, inside the same transaction.
+  execute format(
+    'create function public.test_branch_marker() returns text language sql as %L',
+    format('select %L::text', v_ref));
+  execute 'grant execute on function public.test_branch_marker() to anon';
+  execute format(
+    'create table public.galaxy_proof_target as select %L::text as declared_branch_ref, now() as fixture_validated_at',
+    v_ref);
+  execute 'alter table public.galaxy_proof_target enable row level security';
+  execute 'revoke all on table public.galaxy_proof_target from public, anon, authenticated';
+  raise notice 'Fixture validated; marker + target artifact minted for declared branch %', v_ref;
+end
+$post$;
+
+commit;
+
+select public.test_branch_marker() as marker,
+       'fixture complete and validated: apply the Galaxy publication migration next' as next_step;

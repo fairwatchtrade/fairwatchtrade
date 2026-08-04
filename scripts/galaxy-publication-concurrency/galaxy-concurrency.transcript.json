@@ -1,19 +1,18 @@
 {
   "harness": "scripts/galaxy-publication-concurrency/run.mjs",
   "mode": "proof",
-  "declared_branch_ref": "qtelfhvtautjeteyrzym",
-  "run_at": "2026-08-03T23:00:16.373Z",
+  "declared_branch_ref": "otcfnjowudgujaainelt",
+  "run_at": "2026-08-04T00:43:35.070Z",
   "test_groups": "6 concurrent interleavings (I1-I6) + 2 postcondition suites (P1-P2)",
   "locks_under_test": {
     "operator": "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
     "retreat": "same advisory key + ACCESS EXCLUSIVE on vault_brands→vault_collections→vault_families→vault_variants→vault_references, guard-through-commit"
   },
   "target_guard": {
-    "declared_identity_supplied": true,
-    "declared_identity_not_production": true,
-    "url_project_ref_equals_declared": true,
+    "declared_identity_plausible_and_not_production": true,
+    "canonical_https_host_verified_before_credentials": "exactly https://otcfnjowudgujaainelt.supabase.co (no port, userinfo, path, query or extra label)",
     "marker_present_and_equals_declared": true,
-    "statement": "the disposable-target guard passed; the connected target matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
+    "statement": "the canonical-URL guard passed before any credential was sent; the connected target's independently minted marker matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
   },
   "groups": [
     {
@@ -24,15 +23,15 @@
         {
           "session": "A",
           "role": "activate NEW-COLL, holding the advisory lock",
-          "t_lock": "2026-08-03T23:00:15.175357+00:00",
-          "t_end": "2026-08-03T23:00:20.205889+00:00",
+          "t_lock": "2026-08-04T00:43:34.094183+00:00",
+          "t_end": "2026-08-04T00:43:39.126075+00:00",
           "outcome": "changed=1"
         },
         {
           "session": "B",
           "role": "same-row activate, +2000ms",
-          "t_start": "2026-08-03T23:00:17.415105+00:00",
-          "t_end": "2026-08-03T23:00:20.235896+00:00",
+          "t_start": "2026-08-04T00:43:36.272689+00:00",
+          "t_end": "2026-08-04T00:43:39.157583+00:00",
           "outcome": "changed=0 noop=true"
         }
       ],
@@ -51,24 +50,24 @@
         {
           "session": "A",
           "role": "activate parent NEW-COLL, holding lock",
-          "t_lock": "2026-08-03T23:00:20.451529+00:00",
-          "t_end": "2026-08-03T23:00:25.472775+00:00",
-          "outcome": "changed=1 event=6e859470-cc1e-4aee-9426-1b7f45d41113"
+          "t_lock": "2026-08-04T00:43:39.366333+00:00",
+          "t_end": "2026-08-04T00:43:44.387411+00:00",
+          "outcome": "changed=1 event=18c8adbe-f93f-411c-a0bb-6c02dd884311"
         },
         {
           "session": "B",
           "role": "activate child NEWCOLL-FAM, +2s",
-          "t_start": "2026-08-03T23:00:22.476749+00:00",
-          "t_end": "2026-08-03T23:00:25.49375+00:00",
-          "outcome": "changed=1 event=47eac09f-580a-47f2-82d0-3de9fd7b759a"
+          "t_start": "2026-08-04T00:43:41.448701+00:00",
+          "t_end": "2026-08-04T00:43:44.409727+00:00",
+          "outcome": "changed=1 event=91cab2d2-f7ab-4d63-a4fd-2592a16f1093"
         }
       ],
       "expected": "child blocks, then SUCCEEDS against the committed live parent",
-      "actual": "A ok=true changed=1; B ok=true changed=1 waited=3017ms",
+      "actual": "A ok=true changed=1; B ok=true changed=1 waited=2961ms",
       "pass": true,
       "evidence": {
-        "parent_event": "6e859470-cc1e-4aee-9426-1b7f45d41113",
-        "child_event": "47eac09f-580a-47f2-82d0-3de9fd7b759a"
+        "parent_event": "18c8adbe-f93f-411c-a0bb-6c02dd884311",
+        "child_event": "91cab2d2-f7ab-4d63-a4fd-2592a16f1093"
       }
     },
     {
@@ -78,25 +77,25 @@
       "sessions": [
         {
           "session": "A",
-          "role": "rollback event 6e859470-cc1e-4aee-9426-1b7f45d41113, holding lock",
-          "t_lock": "2026-08-03T23:00:25.689988+00:00",
-          "t_end": "2026-08-03T23:00:30.705623+00:00",
+          "role": "rollback event 18c8adbe-f93f-411c-a0bb-6c02dd884311, holding lock",
+          "t_lock": "2026-08-04T00:43:44.938793+00:00",
+          "t_end": "2026-08-04T00:43:49.954278+00:00",
           "outcome": "reverted changed=1"
         },
         {
           "session": "B",
           "role": "activate same row, +2s",
-          "t_start": "2026-08-03T23:00:27.690371+00:00",
-          "t_end": "2026-08-03T23:00:30.727814+00:00",
-          "outcome": "changed=1 event=a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922"
+          "t_start": "2026-08-04T00:43:46.985774+00:00",
+          "t_end": "2026-08-04T00:43:49.974356+00:00",
+          "outcome": "changed=1 event=1b861e35-7cef-413a-9afc-2e301d33a369"
         }
       ],
       "expected": "revert commits first; activation then RE-activates as a new event — no decision lost",
       "actual": "A ok=true changed=1; B ok=true changed=1",
       "pass": true,
       "evidence": {
-        "rolled_back_event": "6e859470-cc1e-4aee-9426-1b7f45d41113",
-        "new_event": "a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922"
+        "rolled_back_event": "18c8adbe-f93f-411c-a0bb-6c02dd884311",
+        "new_event": "1b861e35-7cef-413a-9afc-2e301d33a369"
       }
     },
     {
@@ -106,17 +105,17 @@
       "sessions": [
         {
           "session": "A",
-          "role": "rollback parent event a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922, holding lock",
-          "t_lock": "2026-08-03T23:00:30.810493+00:00",
-          "t_end": "2026-08-03T23:00:35.827545+00:00",
+          "role": "rollback parent event 1b861e35-7cef-413a-9afc-2e301d33a369, holding lock",
+          "t_lock": "2026-08-04T00:43:50.066669+00:00",
+          "t_end": "2026-08-04T00:43:55.084987+00:00",
           "outcome": "reverted"
         },
         {
           "session": "B",
           "role": "activate child, +2s",
-          "t_start": "2026-08-03T23:00:32.899704+00:00",
-          "t_end": "2026-08-03T23:00:35.846939+00:00",
-          "outcome": "expected refusal: REFUSED: family 01044fa3-8662-4f1e-a24a-38fc59add584 would stay suppressed by a "
+          "t_start": "2026-08-04T00:43:52.439186+00:00",
+          "t_end": "2026-08-04T00:43:55.107423+00:00",
+          "outcome": "expected refusal: REFUSED: family fa05fb9d-d9ba-4061-8f1f-367105179f48 would stay suppressed by a "
         }
       ],
       "expected": "child blocks, then is REFUSED (hidden ancestor) — no event appended",
@@ -133,24 +132,24 @@
       "sessions": [
         {
           "session": "A",
-          "role": "rollback ec01dfb2-892b-44aa-85a6-0887ec1a26ca, holding lock",
-          "t_lock": "2026-08-03T23:00:36.040982+00:00",
-          "t_end": "2026-08-03T23:00:41.053853+00:00",
+          "role": "rollback 9bed6a42-34d7-4f9a-bd23-560b73afb497, holding lock",
+          "t_lock": "2026-08-04T00:43:55.420753+00:00",
+          "t_end": "2026-08-04T00:44:00.43557+00:00",
           "outcome": "reverted"
         },
         {
           "session": "B",
           "role": "rollback same event, +2s",
-          "t_start": "2026-08-03T23:00:38.07228+00:00",
-          "t_end": "2026-08-03T23:00:41.05711+00:00",
-          "outcome": "expected refusal: REFUSED: event ec01dfb2-892b-44aa-85a6-0887ec1a26ca has already been r"
+          "t_start": "2026-08-04T00:43:57.828089+00:00",
+          "t_end": "2026-08-04T00:44:00.438346+00:00",
+          "outcome": "expected refusal: REFUSED: event 9bed6a42-34d7-4f9a-bd23-560b73afb497 has already been r"
         }
       ],
       "expected": "second blocks, then is REFUSED 'already rolled back' — no double revert, no event",
       "actual": "A ok=true; B refused=true",
       "pass": true,
       "evidence": {
-        "event_id": "ec01dfb2-892b-44aa-85a6-0887ec1a26ca"
+        "event_id": "9bed6a42-34d7-4f9a-bd23-560b73afb497"
       }
     },
     {
@@ -169,80 +168,80 @@
       "evidence": {
         "expected_events": [
           {
-            "event_id": "e4c02098-e276-440b-84f6-793ab3e38fbb",
+            "event_id": "3098209a-5080-42bb-b9fc-a5e0239d24de",
             "operation": "activate",
             "actor": "sessA",
             "changed_rows": 1,
             "reverted_event_id": null
           },
           {
-            "event_id": "865d2a42-90c6-43ed-991d-e86464270e40",
+            "event_id": "b95ad103-7201-4d8f-bd9c-7a40b01020b7",
             "operation": "activate",
             "actor": "sessB",
             "changed_rows": 0,
             "reverted_event_id": null
           },
           {
-            "event_id": "6e859470-cc1e-4aee-9426-1b7f45d41113",
+            "event_id": "18c8adbe-f93f-411c-a0bb-6c02dd884311",
             "operation": "activate",
             "actor": "sessA",
             "changed_rows": 1,
             "reverted_event_id": null
           },
           {
-            "event_id": "47eac09f-580a-47f2-82d0-3de9fd7b759a",
-            "operation": "activate",
-            "actor": "sessB",
-            "changed_rows": 1,
-            "reverted_event_id": null
-          },
-          {
-            "event_id": "4c556d58-d6e4-4024-974e-62bf500a73e1",
-            "operation": "rollback",
-            "actor": "staging",
-            "changed_rows": 1,
-            "reverted_event_id": "47eac09f-580a-47f2-82d0-3de9fd7b759a"
-          },
-          {
-            "event_id": "63c0791d-02c0-4cdf-9449-bc506afe5b74",
-            "operation": "rollback",
-            "actor": "sessA",
-            "changed_rows": 1,
-            "reverted_event_id": "6e859470-cc1e-4aee-9426-1b7f45d41113"
-          },
-          {
-            "event_id": "a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922",
+            "event_id": "91cab2d2-f7ab-4d63-a4fd-2592a16f1093",
             "operation": "activate",
             "actor": "sessB",
             "changed_rows": 1,
             "reverted_event_id": null
           },
           {
-            "event_id": "877f0e20-0112-4094-886d-f2e91685b584",
+            "event_id": "9da4365d-79c2-45e2-a2ed-c2e92a8832cc",
+            "operation": "rollback",
+            "actor": "staging",
+            "changed_rows": 1,
+            "reverted_event_id": "91cab2d2-f7ab-4d63-a4fd-2592a16f1093"
+          },
+          {
+            "event_id": "ff7df6e4-6669-44bf-bf24-39c0f4d0904d",
             "operation": "rollback",
             "actor": "sessA",
             "changed_rows": 1,
-            "reverted_event_id": "a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922"
+            "reverted_event_id": "18c8adbe-f93f-411c-a0bb-6c02dd884311"
           },
           {
-            "event_id": "ec01dfb2-892b-44aa-85a6-0887ec1a26ca",
+            "event_id": "1b861e35-7cef-413a-9afc-2e301d33a369",
+            "operation": "activate",
+            "actor": "sessB",
+            "changed_rows": 1,
+            "reverted_event_id": null
+          },
+          {
+            "event_id": "cbf92d76-f756-49d0-93df-ff83b35c8f3c",
+            "operation": "rollback",
+            "actor": "sessA",
+            "changed_rows": 1,
+            "reverted_event_id": "1b861e35-7cef-413a-9afc-2e301d33a369"
+          },
+          {
+            "event_id": "9bed6a42-34d7-4f9a-bd23-560b73afb497",
             "operation": "activate",
             "actor": "staging",
             "changed_rows": 1,
             "reverted_event_id": null
           },
           {
-            "event_id": "7788bd20-133a-4578-a66f-752092b29b88",
+            "event_id": "a340eed6-063e-48d0-8fff-37a7a5ee3925",
             "operation": "rollback",
             "actor": "sessA",
             "changed_rows": 1,
-            "reverted_event_id": "ec01dfb2-892b-44aa-85a6-0887ec1a26ca"
+            "reverted_event_id": "9bed6a42-34d7-4f9a-bd23-560b73afb497"
           }
         ],
         "audit_rows": [
           {
             "seq": 1,
-            "event_id": "e4c02098-e276-440b-84f6-793ab3e38fbb",
+            "event_id": "3098209a-5080-42bb-b9fc-a5e0239d24de",
             "operation": "activate",
             "actor": "sessA",
             "changed_rows": 1,
@@ -250,7 +249,7 @@
           },
           {
             "seq": 2,
-            "event_id": "865d2a42-90c6-43ed-991d-e86464270e40",
+            "event_id": "b95ad103-7201-4d8f-bd9c-7a40b01020b7",
             "operation": "activate",
             "actor": "sessB",
             "changed_rows": 0,
@@ -258,7 +257,7 @@
           },
           {
             "seq": 3,
-            "event_id": "6e859470-cc1e-4aee-9426-1b7f45d41113",
+            "event_id": "18c8adbe-f93f-411c-a0bb-6c02dd884311",
             "operation": "activate",
             "actor": "sessA",
             "changed_rows": 1,
@@ -266,7 +265,7 @@
           },
           {
             "seq": 4,
-            "event_id": "47eac09f-580a-47f2-82d0-3de9fd7b759a",
+            "event_id": "91cab2d2-f7ab-4d63-a4fd-2592a16f1093",
             "operation": "activate",
             "actor": "sessB",
             "changed_rows": 1,
@@ -274,23 +273,23 @@
           },
           {
             "seq": 5,
-            "event_id": "4c556d58-d6e4-4024-974e-62bf500a73e1",
+            "event_id": "9da4365d-79c2-45e2-a2ed-c2e92a8832cc",
             "operation": "rollback",
             "actor": "staging",
             "changed_rows": 1,
-            "reverted_event_id": "47eac09f-580a-47f2-82d0-3de9fd7b759a"
+            "reverted_event_id": "91cab2d2-f7ab-4d63-a4fd-2592a16f1093"
           },
           {
             "seq": 6,
-            "event_id": "63c0791d-02c0-4cdf-9449-bc506afe5b74",
+            "event_id": "ff7df6e4-6669-44bf-bf24-39c0f4d0904d",
             "operation": "rollback",
             "actor": "sessA",
             "changed_rows": 1,
-            "reverted_event_id": "6e859470-cc1e-4aee-9426-1b7f45d41113"
+            "reverted_event_id": "18c8adbe-f93f-411c-a0bb-6c02dd884311"
           },
           {
             "seq": 7,
-            "event_id": "a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922",
+            "event_id": "1b861e35-7cef-413a-9afc-2e301d33a369",
             "operation": "activate",
             "actor": "sessB",
             "changed_rows": 1,
@@ -298,15 +297,15 @@
           },
           {
             "seq": 8,
-            "event_id": "877f0e20-0112-4094-886d-f2e91685b584",
+            "event_id": "cbf92d76-f756-49d0-93df-ff83b35c8f3c",
             "operation": "rollback",
             "actor": "sessA",
             "changed_rows": 1,
-            "reverted_event_id": "a3cdcd3a-2d88-4711-8cac-fc0e5bbb2922"
+            "reverted_event_id": "1b861e35-7cef-413a-9afc-2e301d33a369"
           },
           {
             "seq": 9,
-            "event_id": "ec01dfb2-892b-44aa-85a6-0887ec1a26ca",
+            "event_id": "9bed6a42-34d7-4f9a-bd23-560b73afb497",
             "operation": "activate",
             "actor": "staging",
             "changed_rows": 1,
@@ -314,11 +313,11 @@
           },
           {
             "seq": 10,
-            "event_id": "7788bd20-133a-4578-a66f-752092b29b88",
+            "event_id": "a340eed6-063e-48d0-8fff-37a7a5ee3925",
             "operation": "rollback",
             "actor": "sessA",
             "changed_rows": 1,
-            "reverted_event_id": "ec01dfb2-892b-44aa-85a6-0887ec1a26ca"
+            "reverted_event_id": "9bed6a42-34d7-4f9a-bd23-560b73afb497"
           }
         ]
       }
@@ -326,17 +325,38 @@
     {
       "id": "P2",
       "kind": "postcondition-suite",
-      "title": "five-level exact state inspection BEFORE any cleanup",
+      "title": "exact five-level state inspection BEFORE any cleanup",
       "sessions": [
         {
           "session": "reader",
-          "role": "test_inspect_state() — Brand/Collection/Family/Variant/Reference identities, visibility, closure, duplicates"
+          "role": "test_inspect_state() — Brand/Collection/Family/Variant/Reference: identity, parent identity, visibility, view membership, copy count; all five base_counts and view_counts"
         }
       ],
-      "expected": "exact ids stable; NEW-COLL/NEWCOLL-FAM/ZZ-HIDDEN hidden; TB-001 live; zero closure violations; zero duplicates; views at baseline",
-      "actual": "all five-level assertions held (pre-cleanup)",
+      "expected": "every one of the five levels asserted for exact identity, exact parent identity, galaxy_visible, view membership and copy count = 1; zero closure violations; zero duplicates; all five base_counts and all five view_counts at the captured baseline",
+      "actual": "all five levels (Brand, Collection, Family, Variant, Reference) asserted and held pre-cleanup; all five base_counts and all five view_counts matched baseline",
       "pass": true,
       "evidence": {
+        "levels_asserted": [
+          "brand",
+          "collection",
+          "family",
+          "variant",
+          "reference"
+        ],
+        "base_baseline": [
+          193,
+          397,
+          580,
+          711,
+          389
+        ],
+        "view_baseline": [
+          192,
+          396,
+          579,
+          710,
+          388
+        ],
         "inspection": {
           "duplicates": [
             0,
@@ -349,8 +369,8 @@
             193,
             397,
             580,
-            710,
-            388
+            711,
+            389
           ],
           "view_counts": [
             192,
@@ -361,28 +381,46 @@
           ],
           "scenario_rows": {
             "tb001": {
-              "id": "d168c1ef-0dc1-4d64-b2da-cb852ea11f7e",
+              "id": "7b3fa250-fc55-48ae-98c9-724646cebb51",
               "copies": 1,
               "in_view": true,
-              "visible": true
+              "visible": true,
+              "parent_id": null
             },
             "new_coll": {
-              "id": "084371d5-6860-4ead-9f77-a373ca34926b",
+              "id": "8e535735-8824-4d4b-b14f-cb451cb059b0",
               "copies": 1,
               "in_view": false,
-              "visible": false
+              "visible": false,
+              "parent_id": "7b3fa250-fc55-48ae-98c9-724646cebb51"
             },
             "zz_hidden": {
-              "id": "e41bf0d7-3775-4bf7-a3e8-5c58ace0d8e1",
+              "id": "a7ce7325-994d-4b13-bf4a-90467eb59259",
               "copies": 1,
               "in_view": false,
-              "visible": false
+              "visible": false,
+              "parent_id": null
+            },
+            "newfam_var": {
+              "id": "129a0307-48ff-4095-83f9-743b7bd38227",
+              "copies": 1,
+              "in_view": false,
+              "visible": false,
+              "parent_id": "fa05fb9d-d9ba-4061-8f1f-367105179f48"
+            },
+            "newvar_ref": {
+              "id": "2b488dd7-9497-4158-9d7c-613278289ef3",
+              "copies": 1,
+              "in_view": false,
+              "visible": false,
+              "parent_id": "129a0307-48ff-4095-83f9-743b7bd38227"
             },
             "newcoll_fam": {
-              "id": "01044fa3-8662-4f1e-a24a-38fc59add584",
+              "id": "fa05fb9d-d9ba-4061-8f1f-367105179f48",
               "copies": 1,
               "in_view": false,
-              "visible": false
+              "visible": false,
+              "parent_id": "8e535735-8824-4d4b-b14f-cb451cb059b0"
             }
           },
           "closure_violations": [
@@ -407,30 +445,30 @@
         {
           "session": "A",
           "role": "retreat: advisory key + 5× ACCESS EXCLUSIVE (fixed order) + 6s hold",
-          "t_locked": "2026-08-03T23:00:41.707738+00:00",
-          "t_guard": "2026-08-03T23:00:41.708177+00:00",
-          "t_end": "2026-08-03T23:00:47.718859+00:00",
+          "t_locked": "2026-08-04T00:44:01.194388+00:00",
+          "t_guard": "2026-08-04T00:44:01.194846+00:00",
+          "t_end": "2026-08-04T00:44:07.207169+00:00",
           "outcome": "retreated"
         },
         {
           "session": "B",
           "role": "INSERT vault_brands, +2s",
-          "elapsed_ms": 4121,
+          "elapsed_ms": 4208,
           "outcome": "inserted post-retreat"
         },
         {
           "session": "C",
           "role": "galaxy_activate, +2s",
-          "elapsed_ms": 4121,
+          "elapsed_ms": 4208,
           "outcome": "failed safely: column \"galaxy_visible\" does not exist"
         }
       ],
       "expected": "hidden rows refuse; locks precede guard; insert blocks through drops and lands only post-retreat; operator call blocks on the shared key then fails safely",
-      "actual": "refusedHidden=true guard-after-locks=1ms insertBlocked=4121ms activateBlocked=4121ms",
+      "actual": "refusedHidden=true guard-after-locks=0ms insertBlocked=4208ms activateBlocked=4208ms",
       "pass": true,
       "evidence": {
-        "b_elapsed_ms": 4121,
-        "c_elapsed_ms": 4121
+        "b_elapsed_ms": 4208,
+        "c_elapsed_ms": 4208
       }
     }
   ],
