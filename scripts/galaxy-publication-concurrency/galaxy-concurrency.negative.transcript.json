@@ -1,13 +1,17 @@
 {
-  "STALE": "SUPERSEDED — DO NOT TREAT AS EVIDENCE FOR THE CURRENT CODE",
-  "superseded_on": "2026-08-04",
-  "produced_by_commit": "3adf1e5f24478183faedf71f671e76e149fe4548",
-  "rejected": "George rejected that commit; the harness has since been corrected (source and behaviour both changed), so this transcript describes a run of code that no longer exists.",
-  "replacement_required": "Fresh positive and negative transcripts must be produced on two separate disposable Supabase branches against the corrected harness, with GALAXY_PROOF_COMMIT and source_hashes_sha256 recorded. Until then this packet has NO passing evidence.",
   "harness": "scripts/galaxy-publication-concurrency/run.mjs",
   "mode": "negative-control",
-  "declared_branch_ref": "yasckkwvymnclaytbtlb",
-  "run_at": "2026-08-04T00:49:30.302Z",
+  "declared_branch_ref": "nbtkfjzkufuwuibonxyu",
+  "run_at": "2026-08-04T05:51:43.771Z",
+  "source_commit": "5df87f74d350c726c9c93a11044d5ab007acba40",
+  "source_hashes_sha256": {
+    "fixture.sql": "a09f0c1ed54ef4cbdc5bc4d689f16f6d78124c1ded8f029409ed53e67c5929b1",
+    "helpers.sql": "bd77d2115ba01c31ee5813409987d2896beedff6322c4f2753186603ea9972bb",
+    "negative-control.sql": "dab56c98038a33178d87764c84d50f5070bbbd9ce7b4e3b923732fa4ad850b8c",
+    "run.mjs": "df26a39ab1270b120fedf664c5c95a8711cfd42519430eccbd9367f3c660b10f",
+    "README.md": "9ae05ce44c53feaa534ad24fb13b214586bbd3adedf00d102c65b217d937f5cf"
+  },
+  "supabase_url_verified_untouched": "https://nbtkfjzkufuwuibonxyu.supabase.co",
   "test_groups": "6 concurrent interleavings (I1-I6) + 2 postcondition suites (P1-P2)",
   "locks_under_test": {
     "operator": "pg_advisory_xact_lock(hashtextextended('fwt.galaxy_publication', 0)) — first statement of both operator functions",
@@ -15,7 +19,7 @@
   },
   "target_guard": {
     "declared_identity_plausible_and_not_production": true,
-    "canonical_https_host_verified_before_credentials": "exactly https://yasckkwvymnclaytbtlb.supabase.co (no port, userinfo, path, query or extra label)",
+    "canonical_https_host_verified_before_credentials": "exactly https://nbtkfjzkufuwuibonxyu.supabase.co (no port, userinfo, path, query or extra label)",
     "marker_present_and_equals_declared": true,
     "statement": "the canonical-URL guard passed before any credential was sent; the connected target's independently minted marker matched the explicitly supplied disposable branch identity; the harness performed no operation outside that verified target"
   },
@@ -28,15 +32,15 @@
         {
           "session": "A",
           "role": "activate NEW-COLL, holding the advisory lock",
-          "t_lock": "2026-08-04T00:49:29.339451+00:00",
-          "t_end": "2026-08-04T00:49:34.353102+00:00",
+          "t_lock": "2026-08-04T05:51:44.61813+00:00",
+          "t_end": "2026-08-04T05:51:49.639392+00:00",
           "outcome": "changed=0"
         },
         {
           "session": "B",
           "role": "same-row activate, +2000ms",
-          "t_start": "2026-08-04T00:49:31.510012+00:00",
-          "t_end": "2026-08-04T00:49:31.521742+00:00",
+          "t_start": "2026-08-04T05:51:46.819425+00:00",
+          "t_end": "2026-08-04T05:51:46.839909+00:00",
           "outcome": "changed=1 noop=false"
         }
       ],
