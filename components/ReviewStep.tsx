@@ -17,6 +17,13 @@ import WatchSpinner from "@/components/WatchSpinner";
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { formatMovementFrequency } from "@/lib/movementFrequency";
+import {
+  requirementProfileFor,
+  evaluateAdmissionGates,
+  missingRequiredViews,
+  replacementComponents,
+  type AdmissionState,
+} from "@/lib/admission/requirementProfile";
 
 /* Money Truth Stage B (order §9.2 + approved Design Gate) — the Review step
    restates the EXACT amount-and-currency pair the seller confirmed in the
@@ -68,6 +75,7 @@ function specRows(draft: ListingDraft): [string, string][] {
 export default function ReviewStep({
   draft,
   onPresentationChange,
+  onAdmissionChange,
   captureSessionId,
   publishRequestId,
   onPublished,
@@ -76,6 +84,9 @@ export default function ReviewStep({
   // Lifts the seller's hero framing back into the draft. Optional so the
   // component still renders read-only if mounted without an owner.
   onPresentationChange?: (p: PhotoPresentation) => void;
+  // Brand admission (profile brands): lifts Review-step affirmations back
+  // into the draft. Optional for the same read-only reason.
+  onAdmissionChange?: (a: AdmissionState) => void;
   // v2.24 · The Aubrey Check desktop correlation — supplied by SellFlow.
   // Optional so the component still renders (and publishes, pre-correlation
   // style) if mounted without them.
@@ -97,7 +108,35 @@ export default function ReviewStep({
   const entryRef = useRef<HTMLButtonElement | null>(null);
   const presentation = sanitizePhotoPresentation(draft.photoPresentation);
 
+  /* ── Brand admission — publication readiness (Rolex Admission Design
+        Gate v1). The SAME shared gate logic the server enforces renders
+        here, so the seller sees exactly what has passed, what needs
+        confirmation, and what must be corrected before submission. Null for
+        every non-profile brand: the step is unchanged for them. */
+  const admissionProfile = requirementProfileFor(draft.brand);
+  const photoCategories = draft.photos.map((p) => p.category);
+  const admissionGates = admissionProfile
+    ? evaluateAdmissionGates({
+        admission: draft.details.admission,
+        includedWithWatch: draft.details.includedWithWatch,
+        documentation: draft.details.documentation,
+        description: draft.description,
+        provenanceNote: draft.provenanceNote,
+        photoCategories,
+      })
+    : null;
+  const admissionMissingViews = admissionProfile
+    ? missingRequiredViews(admissionProfile, photoCategories)
+    : [];
+  const admissionReplacements = admissionProfile
+    ? replacementComponents(draft.details.admission)
+    : [];
+  const admissionReady =
+    !admissionProfile ||
+    (admissionGates!.ready && admissionMissingViews.length === 0);
+
   async function publish() {
+    if (!admissionReady) return;
     setPublishing(true);
     setError(null);
 
@@ -371,6 +410,103 @@ export default function ReviewStep({
         />
       )}
 
+      {/* ── Brand admission — the exact publication gates. Profile brands
+            only; everyone else never sees this panel. */}
+      {admissionProfile && admissionGates && (
+        <div className="mt-6 border border-[var(--border-subtle)] bg-[var(--surface)] px-5 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-display text-[17px] font-light text-[var(--platinum)]">
+              Publication readiness
+            </h3>
+            <span
+              className={`border px-2.5 py-1 text-[9px] uppercase tracking-[1.5px] ${
+                admissionReady
+                  ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
+                  : "border-[var(--border-gold)] text-[var(--gold)]"
+              }`}
+            >
+              {admissionReady ? "Ready" : "Not ready"}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-[var(--muted)]">
+            {admissionProfile.brand} listings publish through exact gates —
+            what has passed, and what must be corrected, is shown here.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {admissionMissingViews.length > 0 && (
+              <div className="border border-[var(--border-subtle)] bg-[var(--ink)] px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[13px] text-[var(--platinum)]">
+                    Required photographs
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--danger)]">
+                    Blocked
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
+                  Still needed:{" "}
+                  {admissionMissingViews.map((v) => v.view).join("; ")}.
+                </p>
+              </div>
+            )}
+            {admissionGates.gates.map((g) => (
+              <div
+                key={g.key}
+                className="border border-[var(--border-subtle)] bg-[var(--ink)] px-4 py-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[13px] text-[var(--platinum)]">{g.title}</div>
+                  <span
+                    className={`whitespace-nowrap text-[10px] uppercase tracking-[1.5px] ${
+                      g.status === "pass"
+                        ? "text-[#7bc49c]"
+                        : g.status === "needs_confirmation"
+                          ? "text-[var(--gold)]"
+                          : "text-[var(--danger)]"
+                    }`}
+                  >
+                    {g.status === "pass"
+                      ? "Pass"
+                      : g.status === "needs_confirmation"
+                        ? "Needs confirmation"
+                        : "Blocked"}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
+                  {g.detail}
+                </p>
+                {g.correction && (
+                  <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--gold-subtle)]">
+                    Required correction: {g.correction}
+                  </p>
+                )}
+                {g.key === "components" &&
+                  admissionReplacements.length > 0 &&
+                  onAdmissionChange && (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-[12px] text-[var(--platinum)]">
+                      <input
+                        type="checkbox"
+                        checked={
+                          draft.details.admission?.componentsStatedPlainly === true
+                        }
+                        onChange={(e) =>
+                          onAdmissionChange({
+                            ...draft.details.admission,
+                            componentsStatedPlainly: e.target.checked,
+                          })
+                        }
+                        className="accent-[#C9A84C]"
+                      />
+                      My description states the replacement plainly.
+                    </label>
+                  )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="mt-4 border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-center text-[13px] text-[var(--danger)]">
           {error}
@@ -384,8 +520,8 @@ export default function ReviewStep({
       <div className="flex justify-end">
         <button
           onClick={publish}
-          disabled={publishing}
-          className={`flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] hover:opacity-90 disabled:opacity-40 ${
+          disabled={publishing || !admissionReady}
+          className={`flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
             publishing ? "cursor-wait" : ""
           }`}
         >

@@ -14,7 +14,7 @@ import PhotoUpload, {
   type UploadedPhotoMeta,
   type PhotoUploadHandle,
 } from "@/components/PhotoUpload";
-import DetailsStep from "@/components/DetailsStep";
+import DetailsStep, { BinaryChoice } from "@/components/DetailsStep";
 import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
 import WatchBlueprint, { type Layer, type Detail } from "@/components/WatchBlueprint";
@@ -44,6 +44,11 @@ import {
   desktopIsPaused,
   type StatusResult,
 } from "@/lib/listingDraft";
+import {
+  requirementProfileFor,
+  missingRequiredViews,
+  type AdmissionState,
+} from "@/lib/admission/requirementProfile";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -67,6 +72,7 @@ async function runCuration(d: ListingDraft): Promise<{
   pass: boolean;
   score: number;
   reasoning: string;
+  decision: string;
 }> {
   const res = await fetch("/api/evaluate", {
     method: "POST",
@@ -82,11 +88,15 @@ async function runCuration(d: ListingDraft): Promise<{
   const json = await res.json();
   const score = Number(json.score ?? json.significance ?? 0);
   const decision = String(json.decision ?? "").toLowerCase();
-  const reasoning = String(json.reasoning ?? json.message ?? "");
+  /* seller_message is the evaluator contract's field; reasoning/message stay
+     first for defensive compatibility with any older response shape. */
+  const reasoning = String(json.reasoning ?? json.message ?? json.seller_message ?? "");
   const pass = decision
     ? !decision.includes("reject") && !decision.includes("declin")
     : score > 0;
-  return { pass, score, reasoning };
+  /* The decision is returned raw so brand-admission callers can require an
+     explicitly admitting decision instead of this lenient default. */
+  return { pass, score, reasoning, decision };
 }
 
 function mandatoryDone(d: ListingDraft): boolean {
@@ -634,8 +644,22 @@ export default function SellFlow() {
     };
   }, []);
 
+  /* ── Brand admission (Rolex Admission Design Gate v1) ──────────────────
+     The identified watch supplies the requirement profile; null means the
+     standard path — non-profile sellers never see admission requirements. */
+  const admissionProfile = requirementProfileFor(draft.brand);
+  const missingAdmissionViews = admissionProfile
+    ? missingRequiredViews(
+        admissionProfile,
+        draft.photos.map((p) => p.category)
+      )
+    : [];
+
   // Per-step gate for the Next button. Step 0 advances via the curation pass.
-  const canProceed = step === 1 ? mandatoryDone(draft) : true;
+  const canProceed =
+    step === 1
+      ? mandatoryDone(draft) && missingAdmissionViews.length === 0
+      : true;
 
   // ── Paused: the phone holds the baton. The flow stays mounted but inert
   // under an honest, calm panel. Not an error — a location.
@@ -746,6 +770,11 @@ export default function SellFlow() {
                 onPresentationChange={(photoPresentation) =>
                   patch({ photoPresentation })
                 }
+                /* Admission affirmations made at Review (profile brands) ride
+                   the same draft autosave as every other field. */
+                onAdmissionChange={(admission) =>
+                  patch({ details: { ...draft.details, admission } })
+                }
                 captureSessionId={desktopIds.captureSessionId}
                 publishRequestId={desktopIds.publishRequestId}
                 onPublished={(listingId) => {
@@ -763,12 +792,23 @@ export default function SellFlow() {
           {step > 0 && (
             <div className="mt-6">
               {step === 1 && !canProceed && (
-                <p className="mb-2 text-[12px] text-[var(--muted)]">
-                  Add and label the required photos to continue
-                  {draft.hasBracelet
-                    ? " (dial, caseback, clasp, and a full shot with the strap/bracelet extended)."
-                    : " (dial, caseback, and clasp)."}
-                </p>
+                missingAdmissionViews.length > 0 ? (
+                  <p className="mb-2 text-[12px] text-[var(--muted)]">
+                    {admissionProfile!.brand} listings photograph the
+                    identity-bearing parts. Still needed:{" "}
+                    <span className="text-[var(--platinum)]">
+                      {missingAdmissionViews.map((v) => v.view).join("; ")}
+                    </span>
+                    .
+                  </p>
+                ) : (
+                  <p className="mb-2 text-[12px] text-[var(--muted)]">
+                    Add and label the required photos to continue
+                    {draft.hasBracelet
+                      ? " (dial, caseback, clasp, and a full shot with the strap/bracelet extended)."
+                      : " (dial, caseback, and clasp)."}
+                  </p>
+                )
               )}
               <div className="flex justify-between">
                 <button
@@ -1059,6 +1099,27 @@ function CurationStep({
   const askingParse = parsePrice(draft.askingPrice, draft.askingCurrency);
   const confirmDisabled = !askingParse.ok;
 
+  /* ── Brand admission (Rolex Admission Design Gate v1) ──────────────────
+     Curation identifies the brand and opens the stricter corridor. The two
+     entry conditions are answered here, before any evaluation call — the
+     product stops early and explains why rather than allowing a listing
+     destined for rejection. */
+  const profile = requirementProfileFor(draft.brand);
+  const admission = draft.details.admission;
+  const setAdmission = (p: Partial<AdmissionState>) =>
+    patch({
+      details: {
+        ...draft.details,
+        admission: { ...draft.details.admission, ...p },
+      },
+    });
+  const entryStopped =
+    !!profile &&
+    profile.entryConditions.some((c) => admission?.[c.key] === false);
+  const entryConditionsMet =
+    !profile ||
+    profile.entryConditions.every((c) => admission?.[c.key] === true);
+
   // v2.4y — reference-check pipeline: local-first, then AI, one advisory.
   // Debounced on blur, cached by (brand|model|reference), stale responses
   // dropped by sequence. The API key never appears client-side — the
@@ -1140,19 +1201,28 @@ function CurationStep({
     draft.askingPrice.trim() &&
     // Design Gate: progression stays disabled until the seller explicitly
     // confirms the amount-and-currency pair.
-    draft.askingConfirmed;
+    draft.askingConfirmed &&
+    // Brand admission: both entry conditions affirmed before eligibility runs.
+    entryConditionsMet;
 
   async function check() {
     setBusy(true);
     setError("");
     try {
-      const { pass, score, reasoning } = await runCuration(draft);
+      const { pass, score, reasoning, decision } = await runCuration(draft);
+      /* A profile brand never takes the lenient normal-path pass: entry into
+         the admission corridor requires an explicitly admitting decision.
+         The evaluator remains the locked door; the identified watch supplies
+         the key. Non-profile brands keep the exact pre-existing behavior. */
+      const admitted = profile
+        ? decision === "approved" || decision === "approved_with_guidance"
+        : pass;
       patch({
         significanceScore: score,
-        curationDecision: pass ? "pass" : "fail",
+        curationDecision: admitted ? "pass" : "fail",
         curationReasoning: reasoning,
       });
-      if (pass) onPass();
+      if (admitted) onPass();
     } catch (e) {
       setError(e instanceof Error ? e.message : "evaluation failed");
     } finally {
@@ -1305,6 +1375,51 @@ function CurationStep({
         <textarea className={`${input} min-h-[72px]`} value={draft.provenanceNote} onChange={(e) => patch({ provenanceNote: e.target.value })} placeholder="Service history, previous ownership, how you acquired it…" spellCheck={false} />
       </div>
 
+      {/* ── Brand admission — profile activation + entry conditions.
+          Renders ONLY when Curation has identified a profile brand; every
+          other seller sees exactly the pre-existing step. */}
+      {profile && (
+        <div className="mt-5">
+          <div className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+              {profile.brand} profile active
+            </div>
+            <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
+              {profile.activationNote}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            {profile.entryConditions.map((c) => (
+              <div key={c.key}>
+                <BinaryChoice
+                  label={c.prompt}
+                  name={`admission-${c.key}`}
+                  value={admission?.[c.key]}
+                  onChange={(v) => setAdmission({ [c.key]: v })}
+                  sentenceLegend
+                />
+                {admission?.[c.key] === false && (
+                  <p
+                    role="alert"
+                    className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]"
+                  >
+                    {c.stop}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {!entryConditionsMet && !entryStopped && (
+            <p className="mt-4 text-[12px] text-[var(--muted)]">
+              Answer both {profile.brand} entry conditions above to check
+              eligibility.
+            </p>
+          )}
+        </div>
+      )}
+
       {draft.curationDecision === "fail" && (
         <div className="mt-4 border border-[rgba(220,80,80,0.25)] bg-[rgba(220,80,80,0.06)] px-4 py-3 text-[13px]">
           <div className="mb-1 font-medium text-[var(--danger)]">Not a fit right now.</div>
@@ -1351,14 +1466,62 @@ function PhotosStep({
     patch({ photos });
   }
 
+  /* Brand admission: the photograph checklist changes for a profile brand.
+     These are evidence, not decorative gallery suggestions. */
+  const profile = requirementProfileFor(draft.brand);
+  const missingViews = profile
+    ? new Set(
+        missingRequiredViews(
+          profile,
+          draft.photos.map((p) => p.category)
+        ).map((v) => v.category)
+      )
+    : null;
+
   return (
     <div>
       <h2 className="mb-1 font-display text-[20px] font-light text-[var(--platinum)]">Photos</h2>
-      <p className="mb-6 text-[13px] text-[var(--muted)]">
-        Upload your shots and label each one. Required: dial, caseback, clasp
-        {draft.hasBracelet ? ", and a full shot with the strap/bracelet extended" : ""}. The score on the
-        right climbs as you go.
-      </p>
+      {profile ? (
+        <>
+          <p className="mb-3 text-[13px] text-[var(--muted)]">
+            Photograph the identity-bearing parts. {profile.brand} listings
+            require {profile.requiredViews.length} labeled views; the score on
+            the right climbs as you go.
+          </p>
+          <div className="mb-3 grid gap-1.5 sm:grid-cols-2">
+            {profile.requiredViews.map((v) => {
+              const done = !missingViews?.has(v.category);
+              return (
+                <div
+                  key={v.category}
+                  className="flex items-baseline gap-2 text-[12px]"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={done ? "text-[var(--gold)]" : "text-[var(--ghost)]"}
+                  >
+                    {done ? "✓" : "·"}
+                  </span>
+                  <span
+                    className={done ? "text-[var(--platinum)]" : "text-[var(--muted)]"}
+                  >
+                    {v.view}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mb-6 text-[11px] leading-[1.6] text-[var(--muted)]">
+            {profile.photosNote}
+          </p>
+        </>
+      ) : (
+        <p className="mb-6 text-[13px] text-[var(--muted)]">
+          Upload your shots and label each one. Required: dial, caseback, clasp
+          {draft.hasBracelet ? ", and a full shot with the strap/bracelet extended" : ""}. The score on the
+          right climbs as you go.
+        </p>
+      )}
 
       <label className="mt-4 flex items-center gap-2 text-[13px] text-[var(--platinum)]">
         <input

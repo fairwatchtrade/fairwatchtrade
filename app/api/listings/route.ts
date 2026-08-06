@@ -22,6 +22,11 @@ import {
   isDefaultPresentation,
   sanitizePhotoPresentation,
 } from "@/lib/photoPresentation";
+import {
+  requirementProfileFor,
+  evaluatePublishAdmission,
+  type AdmissionState,
+} from "@/lib/admission/requirementProfile";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -698,6 +703,37 @@ export async function POST(request: NextRequest) {
       { error: "invalid_amount", detail: money.detail },
       { status: 400 }
     );
+  }
+
+  /* ── Brand admission — server-side publication gates (Rolex Admission
+        Design Gate v1). The SAME shared gate logic the Review step renders
+        decides here: the server never trusts that the client corridor was
+        walked. Non-profile brands skip this entirely; a retry above is
+        exempt because its listing already exists and must stay resumable.
+        PFC274 = 62 — the evaluate route is untouched. ── */
+  const admissionProfile = requirementProfileFor(body.brand);
+  if (admissionProfile) {
+    const details = (body.details ?? {}) as Record<string, unknown>;
+    const verdict = evaluatePublishAdmission(admissionProfile, {
+      admission: details.admission as AdmissionState | undefined,
+      includedWithWatch: Array.isArray(details.includedWithWatch)
+        ? (details.includedWithWatch as string[])
+        : [],
+      documentation:
+        typeof details.documentation === "string" ? details.documentation : undefined,
+      description: typeof body.description === "string" ? body.description : "",
+      provenanceNote:
+        typeof body.provenanceNote === "string" ? body.provenanceNote : "",
+      photoCategories: ((body.photos ?? []) as { category?: unknown }[])
+        .map((p) => (typeof p?.category === "string" ? p.category : ""))
+        .filter(Boolean),
+    });
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: "admission_requirements", detail: verdict.detail },
+        { status: 400 }
+      );
+    }
   }
 
   /* ── v2.2 · badge verification — server-authoritative, before insert ── */

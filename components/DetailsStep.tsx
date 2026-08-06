@@ -3,6 +3,23 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
 import { type DocumentationStatus } from "@/lib/scoring";
+import {
+  requirementProfileFor,
+  governDocumentation,
+  admissionBoxIncluded,
+  unclassifiedComponents,
+  fullSetSupportable,
+  COMPONENT_KEYS,
+  COMPONENT_LABELS,
+  COMPONENT_REPRESENTATIONS,
+  REPRESENTATION_LABELS,
+  PACKAGING_CLASSIFICATIONS,
+  PACKAGING_LABELS,
+  PACKAGING_DESCRIPTIONS,
+  ADMISSION_STOPS,
+  type AdmissionState,
+  type ComponentRepresentation,
+} from "@/lib/admission/requirementProfile";
 import WatchSpinner from "@/components/WatchSpinner";
 import { formatMovementFrequency, vphInputDigits } from "@/lib/movementFrequency";
 
@@ -404,6 +421,36 @@ export default function DetailsStep({
   const set = <K extends keyof ListingDetails>(key: K, val: ListingDetails[K]) =>
     patch({ details: { ...d, [key]: val } });
 
+  /* ── Brand admission (Rolex Admission Design Gate v1) ──────────────────
+     The identified watch supplies the requirement profile; null means the
+     standard path and none of the admission UI below renders. Admission
+     writes re-govern the derived documentation status in the same patch: a
+     packaging change can grant or withdraw "Full Set", and the summary
+     status must never lag the claim that supports it. */
+  const profile = requirementProfileFor(draft.brand);
+  const admission = d.admission;
+  const setAdmission = (p: Partial<AdmissionState>) => {
+    const next = { ...admission, ...p };
+    const included = d.includedWithWatch ?? [];
+    patch({
+      details: {
+        ...d,
+        admission: next,
+        documentation: governDocumentation(
+          deriveDocumentation(included),
+          profile,
+          next,
+          included
+        ),
+      },
+    });
+  };
+  const admissionUnclassified = profile ? unclassifiedComponents(admission) : [];
+  const admissionPackagingMissing =
+    !!profile && admissionBoxIncluded(d.includedWithWatch) && !admission?.packaging;
+  const admissionHolds =
+    admissionUnclassified.length > 0 || admissionPackagingMissing;
+
   const knownMaterials = CASE_MATERIALS;
   const materialIsCustom =
     !!d.caseMaterial && !knownMaterials.includes(d.caseMaterial);
@@ -681,7 +728,7 @@ export default function DetailsStep({
 
         {/* onChange derives the documentation summary status from the checklist —
             single source of truth (see deriveDocumentation above). */}
-        <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => patch({ details: { ...d, includedWithWatch: v, documentation: deriveDocumentation(v) } })} />
+        <MultiSelect label="Included with watch" options={INCLUDED} selected={d.includedWithWatch ?? []} onChange={(v) => patch({ details: { ...d, includedWithWatch: v, documentation: governDocumentation(deriveDocumentation(v), profile, admission, v) } })} />
         <MultiSelect label="Service, repair & case history" options={SERVICE} selected={d.serviceHistory ?? []} onChange={(v) => set("serviceHistory", v)} exclusiveWith={SERVICE_EXCLUSIONS} />
 
         {/* Cross-group contradiction notice. Both selections are LEFT ALONE —
@@ -807,33 +854,128 @@ export default function DetailsStep({
           </div>
         )}
 
-        {/* Step Continue lives here (DetailsStep owns its async gate). Hidden
-            while Final Review is open, since the review's own actions advance. */}
-        {!review && (
-          <div className="mt-8">
-            {/* The Crown present answer is required to leave this step. The
-                reason is stated where the seller is blocked, not only up at
-                the control, so a disabled Continue is never a mystery. */}
-            {d.crownPresent === undefined && (
-              <p className="mb-3 text-[12px] text-[var(--muted)]">
-                Please answer <span className="text-[var(--platinum)]">Crown present</span> above
-                — <span className="text-[var(--platinum)]">No</span> is a perfectly good answer.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleContinue}
-              disabled={reviewing || d.crownPresent === undefined}
-              className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
-                reviewing ? "cursor-wait" : ""
-              }`}
-            >
-              {reviewing && <WatchSpinner size={18} />}
-              {reviewing ? "Reviewing…" : "Continue"}
-            </button>
-          </div>
-        )}
       </Chapter>
+
+      {/* ─────────────────────────────────────────────────────────────
+          VII · Component Review — profile brands only (Rolex Admission
+          Design Gate v1). Originality, period correctness, replacement
+          status, and uncertainty are explicit, separate claims. Non-profile
+          sellers never see this chapter. */}
+      {profile && (
+        <Chapter
+          numeral="VII"
+          title="Component Review"
+          caption="Describe what is present and what is supportable. Original, period-correct, replacement, and unverified are different claims."
+          last
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            {COMPONENT_KEYS.map((key) => (
+              <RepresentationChoice
+                key={key}
+                label={COMPONENT_LABELS[key]}
+                value={admission?.components?.[key]}
+                onChange={(rep) =>
+                  setAdmission({
+                    components: { ...admission?.components, [key]: rep },
+                  })
+                }
+              />
+            ))}
+          </div>
+
+          {admissionBoxIncluded(d.includedWithWatch) && (
+            <div className="mt-8">
+              <h4 className="font-display text-[15px] font-light text-[var(--platinum)]">
+                How is the included box related to this watch?
+              </h4>
+              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--muted)]">
+                A box is optional. The claim about it is not — commercially
+                available packaging is never automatic provenance.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {PACKAGING_CLASSIFICATIONS.map((c) => {
+                  const on = admission?.packaging === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setAdmission({ packaging: c })}
+                      className={`border px-4 py-3 text-left transition ${
+                        on
+                          ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
+                          : "border-[rgba(201,168,76,0.40)] bg-[rgba(255,255,255,0.04)] hover:border-[var(--border-mid)]"
+                      }`}
+                    >
+                      <div
+                        className={`text-[12px] ${
+                          on ? "text-[var(--gold)]" : "text-[var(--platinum)]"
+                        }`}
+                      >
+                        {PACKAGING_LABELS[c]}
+                      </div>
+                      <div className="mt-1 text-[11px] leading-[1.5] text-[var(--muted)]">
+                        {PACKAGING_DESCRIPTIONS[c]}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {!fullSetSupportable(admission, d.includedWithWatch) && (
+                <p className="mt-3 text-[11px] leading-[1.6] text-[var(--muted)]">
+                  “Full set” remains unavailable. It may be claimed only when
+                  the watch, its identity-bearing documentation, and a box
+                  classified as original to this watch stand together.
+                </p>
+              )}
+            </div>
+          )}
+        </Chapter>
+      )}
+
+      {/* Step Continue lives here (DetailsStep owns its async gate). Hidden
+          while Final Review is open, since the review's own actions advance.
+          Moved below the last chapter so the profile Component Review sits
+          inside the step, never after its exit. */}
+      {!review && (
+        <div className="mt-8">
+          {/* The Crown present answer is required to leave this step. The
+              reason is stated where the seller is blocked, not only up at
+              the control, so a disabled Continue is never a mystery. */}
+          {d.crownPresent === undefined && (
+            <p className="mb-3 text-[12px] text-[var(--muted)]">
+              Please answer <span className="text-[var(--platinum)]">Crown present</span> above
+              — <span className="text-[var(--platinum)]">No</span> is a perfectly good answer.
+            </p>
+          )}
+          {admissionUnclassified.length > 0 && (
+            <p className="mb-3 text-[12px] text-[var(--muted)]">
+              {ADMISSION_STOPS.componentUnsupported}{" "}
+              <span className="text-[var(--platinum)]">
+                Still unclassified:{" "}
+                {admissionUnclassified.map((k) => COMPONENT_LABELS[k]).join(", ")}.
+              </span>
+            </p>
+          )}
+          {admissionPackagingMissing && (
+            <p className="mb-3 text-[12px] text-[var(--muted)]">
+              Classify the included box under{" "}
+              <span className="text-[var(--platinum)]">Component Review</span>{" "}
+              before continuing.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={reviewing || d.crownPresent === undefined || admissionHolds}
+            className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+              reviewing ? "cursor-wait" : ""
+            }`}
+          >
+            {reviewing && <WatchSpinner size={18} />}
+            {reviewing ? "Reviewing…" : "Continue"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -939,22 +1081,34 @@ function Toggle({
    Radios rather than two buttons on purpose — the browser gives arrow-key
    movement, roving focus and group semantics for free, and a fieldset/legend
    names the question to assistive technology. Styling reuses the exact tokens
-   the checkbox already uses, so nothing new enters the design system. */
-function BinaryChoice({
+   the checkbox already uses, so nothing new enters the design system.
+
+   Exported for the Curation step's admission entry conditions, whose prompts
+   are full sentences — sentenceLegend renders the legend in sentence case
+   instead of the uppercase micro-label. Default rendering is unchanged. */
+export function BinaryChoice({
   label,
   value,
   onChange,
   name,
+  sentenceLegend,
 }: {
   label: string;
   value: boolean | undefined;
   onChange: (v: boolean) => void;
   name: string;
+  sentenceLegend?: boolean;
 }) {
   const answered = value !== undefined;
   return (
     <fieldset className="min-w-0">
-      <legend className={labelCls}>
+      <legend
+        className={
+          sentenceLegend
+            ? "mb-2 text-[13px] leading-[1.6] text-[var(--platinum)]"
+            : labelCls
+        }
+      >
         {label}
         {!answered && (
           <span className="ml-2 normal-case tracking-normal text-[var(--gold-dim)]">
@@ -983,6 +1137,56 @@ function BinaryChoice({
               className="sr-only"
             />
             {t}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/* ── Component representation choice (profile brands) ────────────────────
+   One required single-choice answer per component: the four admission
+   claims, radio semantics like BinaryChoice, pill tokens like MultiSelect.
+   Unanswered is genuinely unanswered — nothing is preselected, because a
+   default would be a claim the seller never made. */
+function RepresentationChoice({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ComponentRepresentation | undefined;
+  onChange: (v: ComponentRepresentation) => void;
+}) {
+  const answered = value !== undefined;
+  return (
+    <fieldset className="min-w-0">
+      <legend className={labelCls}>
+        {label}
+        {!answered && (
+          <span className="ml-2 normal-case tracking-normal text-[var(--gold-dim)]">
+            required
+          </span>
+        )}
+      </legend>
+      <div className="flex flex-wrap gap-2">
+        {COMPONENT_REPRESENTATIONS.map((rep) => (
+          <label
+            key={rep}
+            className={`cursor-pointer border px-3 py-1.5 text-[11px] transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--gold)] ${
+              value === rep
+                ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                : "border-[var(--border-subtle)] text-[var(--muted)] hover:border-[var(--border-mid)] hover:text-[var(--platinum)]"
+            }`}
+          >
+            <input
+              type="radio"
+              name={`representation-${label}`}
+              checked={value === rep}
+              onChange={() => onChange(rep)}
+              className="sr-only"
+            />
+            {REPRESENTATION_LABELS[rep]}
           </label>
         ))}
       </div>

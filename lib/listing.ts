@@ -5,6 +5,7 @@ import {
 } from "@/lib/scoring";
 import { type UploadedPhoto } from "@/lib/storage";
 import { type PhotoPresentation, defaultPresentation } from "@/lib/photoPresentation";
+import type { AdmissionState } from "@/lib/admission/requirementProfile";
 
 /* ════════════════════════════════════════════════════════════════════════
    LISTING DRAFT — the single state object that travels through all 5 steps
@@ -45,6 +46,10 @@ export type ListingDetails = {
   calibre?: string;
   jewels?: string;
   powerReserve?: string;
+  /* Brand-admission claims (Rolex Admission Design Gate v1). Present only
+     for profile brands; composed at read time against the checklist above —
+     box inclusion itself is never duplicated here. */
+  admission?: AdmissionState;
 };
 
 export type ListingDraft = {
