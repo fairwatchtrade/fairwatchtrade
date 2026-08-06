@@ -114,6 +114,13 @@ export type AdmissionState = {
   components?: Partial<Record<ComponentKey, ComponentRepresentation>>;
   /** Required whenever the Included-with-watch checklist includes a Box. */
   packaging?: PackagingClassification;
+  /** The complete documented Style value exactly as entered, when the seller
+      supplied a composite Style rather than a bare reference (Style-number
+      ruling 2026-08-06). Kept SEPARATE from the canonical reference — never
+      a serial number, never truncated, never substituted. Its presence is a
+      documentary identity CLAIM pending image verification; it never
+      satisfies the original-documentation gate by itself. */
+  styleNumber?: string;
   /** Review affirmation: replacement components are stated plainly in the description. */
   componentsStatedPlainly?: boolean;
 };

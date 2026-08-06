@@ -31,6 +31,16 @@ import {
   admissionBoxIncluded,
   COMPONENT_KEYS,
 } from "../lib/admission/requirementProfile.ts";
+import {
+  classifyRolexIdentifier,
+  ROLEX_IDENTIFIER_STOP,
+  ROLEX_IDENTIFIER_STOP_DETAIL,
+  ROLEX_REFERENCE_RECOGNIZED,
+  ROLEX_REFERENCE_DOC_FLAG,
+  ROLEX_STYLE_RECOGNIZED,
+  rolexStyleReferenceLine,
+  ROLEX_STYLE_DOC_FLAG,
+} from "../lib/admission/rolexIdentifier.ts";
 import { FAIRWATCHTRADE_SYSTEM_PROMPT } from "../lib/evaluationPrompt.ts";
 
 let pass = 0;
@@ -268,6 +278,118 @@ ok("Rolex is never normal-path approved",
   ok("server route enforces the admission verdict",
     readFileSync(new URL("../app/api/listings/route.ts", import.meta.url), "utf8")
       .includes("evaluatePublishAdmission"));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ROLEX IDENTIFIER — canonical references and documented Styles
+   (Style-number ruling · 2026-08-06)
+
+   The governing fixture is the EXACT documented Style value from real
+   Rolex paperwork: R79173327B6252 (the paperwork's Style field — a
+   composite, NOT a serial number; the private Serial Number never appears
+   in this repository). The composite deterministically embeds canonical
+   reference 79173.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── the exact documented Style — preserved verbatim, derived exactly ── */
+{
+  const styled = classifyRolexIdentifier("R79173327B6252");
+  eq("R79173327B6252 is recognized as a Style", styled.kind, "style");
+  eq("its canonical reference derives to 79173", styled.reference, "79173");
+  eq("the complete Style value is preserved exactly", styled.style, "R79173327B6252");
+
+  const typed = classifyRolexIdentifier("  R79173327b6252 ");
+  eq("case and whitespace never defeat recognition", typed.kind, "style");
+  eq("lowercase entry still derives 79173", typed.reference, "79173");
+  eq("preservation keeps the seller's own entry (trimmed only)",
+    typed.style, "R79173327b6252");
+}
+
+/* ── bare canonical references are admitted directly (never rejected for
+      lacking a composite Style) ── */
+{
+  eq("79173 is a recognized canonical reference",
+    classifyRolexIdentifier("79173").kind, "reference");
+  eq("79173 passes through unchanged",
+    classifyRolexIdentifier("79173").reference, "79173");
+  eq("a suffixed reference is recognized (116610LN)",
+    classifyRolexIdentifier("116610LN").kind, "reference");
+  eq("a vintage four-digit reference is recognized (5513)",
+    classifyRolexIdentifier("5513").kind, "reference");
+  const modern = classifyRolexIdentifier("M126610LN-0001");
+  eq("a modern card Style is recognized", modern.kind, "style");
+  eq("the modern Style derives its embedded reference", modern.reference, "126610LN");
+}
+
+/* ── unsupported or ambiguous structure: preserve and stop, never guess ── */
+{
+  const junk = classifyRolexIdentifier("ROLEX123");
+  eq("free text is unsupported", junk.kind, "unsupported");
+  eq("the unsupported entry is preserved verbatim", junk.raw, "ROLEX123");
+  eq("empty entry is unsupported", classifyRolexIdentifier("   ").kind, "unsupported");
+  // 1234567890123 parses two structurally valid ways (six- and five-digit
+  // heads both survive) — ambiguity is a STOP, never a choice.
+  eq("a structurally ambiguous composite stops rather than guesses",
+    classifyRolexIdentifier("1234567890123").kind, "unsupported");
+  eq("a bare letter-prefixed reference without a tail stops for review",
+    classifyRolexIdentifier("R79173").kind, "unsupported");
+}
+
+/* ── governed copy: humble stop, ruled recognition voices ── */
+eq("the stop copy is the ruled sentence",
+  ROLEX_IDENTIFIER_STOP,
+  "This entry does not match the expected Rolex reference format.");
+ok("the stop never calls the value unknown to Rolex",
+  !/unknown to rolex/i.test(ROLEX_IDENTIFIER_STOP) &&
+    /not the same as a reference unknown to Rolex/.test(ROLEX_IDENTIFIER_STOP_DETAIL));
+eq("bare-reference recognition voice", ROLEX_REFERENCE_RECOGNIZED, "Reference recognized");
+eq("bare-reference documentation flag",
+  ROLEX_REFERENCE_DOC_FLAG, "Original documentation not yet verified");
+eq("Style recognition voice", ROLEX_STYLE_RECOGNIZED, "Rolex style recognized");
+eq("Style reference line carries the derived canonical",
+  rolexStyleReferenceLine("79173"), "Canonical reference identified: 79173");
+eq("Style documentation flag",
+  ROLEX_STYLE_DOC_FLAG, "Documentation pending image verification");
+
+/* ── recognition NEVER satisfies the documentation gates ── */
+{
+  // A watch with a recognized Style but no documentation evidence still
+  // blocks on the identity gate — identifier recognition and documentation
+  // are separate facts by ruling.
+  const { gates } = evaluateAdmissionGates({
+    admission: { styleNumber: "R79173327B6252", completeWatch: true },
+    includedWithWatch: [],
+    documentation: undefined,
+    description: "",
+    provenanceNote: "",
+    photoCategories: [],
+  });
+  const identity = gates.find((g) => g.key === "identity");
+  eq("a recognized Style alone never passes the identity gate",
+    identity.status, "blocked");
+}
+
+/* ── the same rule client-side and server-side, deterministically ── */
+{
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../app/api/listings/route.ts", import.meta.url), "utf8");
+  const submission = readFileSync(new URL("../lib/curationSubmission.ts", import.meta.url), "utf8");
+  for (const [name, src] of [["client corridor", sellFlow], ["server gate", route], ["curation submission", submission]]) {
+    ok(`${name} consumes the ONE shared identifier classification`,
+      src.includes("classifyRolexIdentifier"));
+  }
+  ok("client renders both ruled recognition voices",
+    sellFlow.includes("ROLEX_REFERENCE_RECOGNIZED") &&
+      sellFlow.includes("ROLEX_STYLE_RECOGNIZED") &&
+      sellFlow.includes("ROLEX_STYLE_DOC_FLAG"));
+  ok("client stops eligibility on an unsupported identifier",
+    sellFlow.includes("identifierStopped"));
+  ok("server refuses an unsupported identifier with the governed copy",
+    route.includes("ROLEX_IDENTIFIER_STOP"));
+  ok("server preserves the raw Style separately from the canonical reference",
+    route.includes("styleNumber: identifier.style"));
+  ok("the evaluator receives the derived canonical reference for a Style entry",
+    submission.includes('identifier.kind === "style" ? identifier.reference'));
 }
 
 console.log(`rolex-admission: ${pass} assertions PASS`);

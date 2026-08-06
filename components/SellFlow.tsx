@@ -49,6 +49,16 @@ import {
   missingRequiredViews,
   type AdmissionState,
 } from "@/lib/admission/requirementProfile";
+import {
+  classifyRolexIdentifier,
+  ROLEX_IDENTIFIER_STOP,
+  ROLEX_IDENTIFIER_STOP_DETAIL,
+  ROLEX_REFERENCE_RECOGNIZED,
+  ROLEX_REFERENCE_DOC_FLAG,
+  ROLEX_STYLE_RECOGNIZED,
+  rolexStyleReferenceLine,
+  ROLEX_STYLE_DOC_FLAG,
+} from "@/lib/admission/rolexIdentifier";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
@@ -1120,6 +1130,19 @@ function CurationStep({
     !profile ||
     profile.entryConditions.every((c) => admission?.[c.key] === true);
 
+  /* ── Rolex identifier layer (Style-number ruling 2026-08-06) ───────────
+     Deterministic, BEFORE any AI involvement. A bare canonical reference
+     and a documented composite Style are both admitted; the Style is
+     preserved verbatim and its canonical reference derived. An unsupported
+     structure preserves the entry and stops for review with governed copy —
+     identity-format judgments are never left to model prose. Recognition
+     of an identifier NEVER satisfies the documentation gate. */
+  const identifier =
+    profile && draft.reference.trim()
+      ? classifyRolexIdentifier(draft.reference)
+      : null;
+  const identifierStopped = identifier?.kind === "unsupported";
+
   // v2.4y — reference-check pipeline: local-first, then AI, one advisory.
   // Debounced on blur, cached by (brand|model|reference), stale responses
   // dropped by sequence. The API key never appears client-side — the
@@ -1145,6 +1168,21 @@ function CurationStep({
       });
       return;
     }
+    // Rolex identifier layer sits between the local heuristic and the AI:
+    // an unsupported structure is owned by the deterministic stop (no AI
+    // call — the advisory slot stays empty so the governed copy renders
+    // alone), and a recognized composite Style submits its DERIVED
+    // canonical reference to the plausibility check, because the loose AI
+    // layer knows references, not Rolex's internal bracelet/dial coding.
+    let checkRef = ref;
+    if (profile) {
+      const ident = classifyRolexIdentifier(ref);
+      if (ident.kind === "unsupported") {
+        setAdvisory(null);
+        return;
+      }
+      if (ident.kind === "style") checkRef = ident.reference;
+    }
     // Layer 2 — loose AI plausibility. Brand is required context; model
     // rides along when present but is never required.
     const brand = draft.brand.trim();
@@ -1152,7 +1190,7 @@ function CurationStep({
       setAdvisory(null);
       return;
     }
-    const key = `${brand}|${draft.model.trim()}|${ref}`;
+    const key = `${brand}|${draft.model.trim()}|${checkRef}`;
     const cached = refCheckCacheRef.current.get(key);
     if (cached) {
       setAdvisory(cached);
@@ -1164,7 +1202,7 @@ function CurationStep({
         const res = await fetch("/api/validate-reference", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brand, model: draft.model.trim(), reference: ref }),
+          body: JSON.stringify({ brand, model: draft.model.trim(), reference: checkRef }),
         });
         const data = await res.json().catch(() => null);
         if (seq !== checkSeqRef.current) return; // stale — a newer check owns the field
@@ -1203,7 +1241,10 @@ function CurationStep({
     // confirms the amount-and-currency pair.
     draft.askingConfirmed &&
     // Brand admission: both entry conditions affirmed before eligibility runs.
-    entryConditionsMet;
+    entryConditionsMet &&
+    // Rolex identifier: an unsupported structure stops for review here —
+    // deterministically, before the evaluator can author a judgment on it.
+    !identifierStopped;
 
   async function check() {
     setBusy(true);
@@ -1217,10 +1258,24 @@ function CurationStep({
       const admitted = profile
         ? decision === "approved" || decision === "approved_with_guidance"
         : pass;
+      /* Style-number ruling: the raw documented Style rides in admission
+         state, SEPARATE from the canonical reference. The server re-derives
+         from the submitted reference regardless — this persistence is for
+         the seller's own draft, never trusted at publication. */
+      const admissionPatch =
+        identifier?.kind === "style"
+          ? {
+              details: {
+                ...draft.details,
+                admission: { ...draft.details.admission, styleNumber: identifier.style },
+              },
+            }
+          : {};
       patch({
         significanceScore: score,
         curationDecision: admitted ? "pass" : "fail",
         curationReasoning: reasoning,
+        ...admissionPatch,
       });
       if (admitted) onPass();
     } catch (e) {
@@ -1280,6 +1335,35 @@ function CurationStep({
           {advisory && advisory.kind !== "consistent" && (
             <p className="mt-1 text-[11px] italic text-[var(--gold-subtle)]">
               {advisory.message}
+            </p>
+          )}
+          {/* Rolex identifier status (Style-number ruling 2026-08-06).
+              Recognition and documentation are SEPARATE facts: a recognized
+              identifier always states that documentation is still unproven,
+              in the two ruled voices. An unsupported structure preserves the
+              entry and stops with governed copy — never a claim that the
+              value is unknown to Rolex. */}
+          {identifier?.kind === "reference" && (
+            <div className="mt-2 text-[9px] uppercase tracking-[1.5px] leading-[1.8]">
+              <div className="text-[var(--gold)]">{ROLEX_REFERENCE_RECOGNIZED}</div>
+              <div className="text-[var(--muted)]">{ROLEX_REFERENCE_DOC_FLAG}</div>
+            </div>
+          )}
+          {identifier?.kind === "style" && (
+            <div className="mt-2 text-[9px] uppercase tracking-[1.5px] leading-[1.8]">
+              <div className="text-[var(--gold)]">{ROLEX_STYLE_RECOGNIZED}</div>
+              <div className="text-[var(--platinum-dim)]">
+                {rolexStyleReferenceLine(identifier.reference)}
+              </div>
+              <div className="text-[var(--muted)]">{ROLEX_STYLE_DOC_FLAG}</div>
+            </div>
+          )}
+          {identifierStopped && (
+            <p
+              role="alert"
+              className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]"
+            >
+              {ROLEX_IDENTIFIER_STOP} {ROLEX_IDENTIFIER_STOP_DETAIL}
             </p>
           )}
         </div>

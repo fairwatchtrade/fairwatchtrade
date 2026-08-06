@@ -27,6 +27,11 @@ import {
   evaluatePublishAdmission,
   type AdmissionState,
 } from "@/lib/admission/requirementProfile";
+import {
+  classifyRolexIdentifier,
+  ROLEX_IDENTIFIER_STOP,
+  ROLEX_IDENTIFIER_STOP_DETAIL,
+} from "@/lib/admission/rolexIdentifier";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -713,6 +718,35 @@ export async function POST(request: NextRequest) {
         PFC274 = 62 — the evaluate route is untouched. ── */
   const admissionProfile = requirementProfileFor(body.brand);
   if (admissionProfile) {
+    /* ── Rolex identifier (Style-number ruling 2026-08-06) — the SAME
+          deterministic classification the client corridor runs, applied
+          here without trusting that it ran. A bare canonical reference is
+          admitted directly; a recognized composite Style is preserved
+          verbatim as documentary evidence while the listing's public
+          identity becomes its deterministically derived canonical
+          reference; an unsupported structure is refused with the governed
+          humble copy — never a claim that the value is unknown to Rolex.
+          Identifier recognition NEVER satisfies the documentation gates
+          evaluated below. ── */
+    const identifier = classifyRolexIdentifier(body.reference);
+    if (identifier.kind === "unsupported") {
+      return NextResponse.json(
+        {
+          error: "admission_requirements",
+          detail: `${ROLEX_IDENTIFIER_STOP} ${ROLEX_IDENTIFIER_STOP_DETAIL}`,
+        },
+        { status: 400 }
+      );
+    }
+    if (identifier.kind === "style") {
+      body.reference = identifier.reference;
+      const detailsWithStyle = (body.details ?? {}) as Record<string, unknown>;
+      detailsWithStyle.admission = {
+        ...((detailsWithStyle.admission as Record<string, unknown>) ?? {}),
+        styleNumber: identifier.style,
+      };
+      body.details = detailsWithStyle;
+    }
     const details = (body.details ?? {}) as Record<string, unknown>;
     const verdict = evaluatePublishAdmission(admissionProfile, {
       admission: details.admission as AdmissionState | undefined,

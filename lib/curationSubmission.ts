@@ -2,6 +2,8 @@ import type { ListingDraft } from "./listing.ts";
 import type { ListingSubmission } from "./evaluationPrompt.ts";
 import { parsePrice } from "./parsePrice.ts";
 import { isSupportedCurrency } from "./supportedCurrencies.ts";
+import { requirementProfileFor } from "./admission/requirementProfile.ts";
+import { classifyRolexIdentifier } from "./admission/rolexIdentifier.ts";
 
 /* ════════════════════════════════════════════════════════════════════════
    CURATION SUBMISSION — lib/curationSubmission.ts
@@ -68,10 +70,26 @@ function priceForEvaluation(draft: ListingDraft): number | undefined {
  *  piece, an estate sale, a spouse selling a collection they did not build —
  *  explains their situation. It must reach the evaluator intact; that is the
  *  entire point of the field. */
+/** The reference the EVALUATOR should see. For a profile brand whose entry is
+ *  a recognized composite Style, the deterministically derived canonical
+ *  reference is submitted — the evaluator judges watches, and the watch's
+ *  public identity is the canonical reference, not Rolex's internal
+ *  bracelet/dial coding. The raw Style is preserved separately in the draft's
+ *  admission state; it is documentary evidence, not the evaluator's input.
+ *  (Style-number ruling 2026-08-06. Canary: /api/evaluate and the prompt
+ *  module remain untouched — this shapes only the client's payload.) */
+function referenceForEvaluation(draft: ListingDraft): string | undefined {
+  const raw = draft.reference.trim();
+  if (!raw) return undefined;
+  if (!requirementProfileFor(draft.brand)) return raw;
+  const identifier = classifyRolexIdentifier(raw);
+  return identifier.kind === "style" ? identifier.reference : raw;
+}
+
 export function buildCurationSubmission(draft: ListingDraft): ListingSubmission {
   return {
     brand: draft.brand,
-    reference: draft.reference || undefined,
+    reference: referenceForEvaluation(draft),
     year: draft.year || undefined,
     condition: draft.condition || undefined,
     asking_price: priceForEvaluation(draft),
