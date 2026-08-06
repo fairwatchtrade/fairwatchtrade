@@ -19,6 +19,7 @@ import {
   MARKETPLACE_IDENTITY_EYEBROW,
   MARKETPLACE_IDENTITY_CLARIFICATION,
   MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE,
 } from "../lib/marketplaceIdentity.ts";
 
 let pass = 0;
@@ -50,6 +51,27 @@ ok("the two lines rejoin into the exact approved sentence",
   MARKETPLACE_IDENTITY_CLARIFICATION_LINES.join(" ") ===
     MARKETPLACE_IDENTITY_CLARIFICATION);
 
+/* ── the governed PHONE composition (XCover ruling 2026-08-06)
+      The wide break stranded the single word "importance" on a third line at
+      360px. The phone takes its own break at full size — it is never solved
+      by shrinking the type, and it is never left to viewport wrapping. ── */
+ok("the phone clarification is exactly two lines",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.length === 2);
+ok("phone line one breaks after 'and select references whose'",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE[0] ===
+    "and select references whose");
+ok("phone line two is 'collector importance deserves the same care.'",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE[1] ===
+    "collector importance deserves the same care.");
+ok("the phone lines rejoin into the exact same approved sentence",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.join(" ") ===
+    MARKETPLACE_IDENTITY_CLARIFICATION);
+ok("the phone composition turns at a different point than the wide one",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE[0] !==
+    MARKETPLACE_IDENTITY_CLARIFICATION_LINES[0]);
+ok('"importance" is never stranded alone on a phone line',
+  !MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.includes("importance"));
+
 /* ── both implementations consume both governed constants ── */
 for (const [name, src] of [["current homepage", home], ["future homepage", preview]]) {
   ok(`${name} no longer claims "Watchmakers Only"`, !/watchmakers only/i.test(src));
@@ -59,6 +81,12 @@ for (const [name, src] of [["current homepage", home], ["future homepage", previ
     src.includes("MARKETPLACE_IDENTITY_EYEBROW"));
   ok(`${name} renders the governed two-line clarification constant`,
     src.includes("MARKETPLACE_IDENTITY_CLARIFICATION_LINES"));
+  ok(`${name} renders the governed PHONE clarification constant`,
+    src.includes("MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE"));
+  ok(`${name} keeps the phone clarification at full 15px (never shrunk)`,
+    /text-\[15px\][^"]*sm:hidden/.test(src));
+  ok(`${name} shows the wide composition only from sm up`,
+    /hidden[^"]*sm:block[^"]*sm:text-\[18px\]/.test(src));
   ok(`${name} renders the clarification in the brighter gold, not gold-dim`,
     src.includes("text-[var(--gold)]") && !src.includes("text-[var(--gold-dim)]"));
   ok(`${name} does not hardcode the eyebrow (single source of truth)`,

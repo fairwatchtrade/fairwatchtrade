@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   MARKETPLACE_IDENTITY_EYEBROW,
   MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE,
 } from '@/lib/marketplaceIdentity';
 
 export default function MarketplaceHome() {
@@ -68,8 +69,22 @@ export default function MarketplaceHome() {
               for labels and kickers: this is a sentence, so it takes the same
               prose voice as the italic line beneath the headline. The narrower
               serif is also what lets both lines hold their composition on a
-              phone without letter-spacing games. */}
-          <div className="mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:text-[18px]">
+              phone without letter-spacing games.
+
+              Two compositions of the one sentence, one per width, because a
+              single break point cannot serve both: the wide break overran the
+              312px usable width of a 360px phone by a few pixels and stranded
+              "importance" alone on a third line — an accident, not a
+              composition. The phone keeps its full 15px size and turns
+              earlier instead of shrinking. Exactly one block is ever rendered;
+              `hidden` removes the other from the accessibility tree too, so
+              the sentence is never announced twice. */}
+          <div className="mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:hidden">
+            {MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
+          <div className="mt-2 hidden font-display font-light italic leading-[1.7] text-[var(--gold)] sm:block sm:text-[18px]">
             {MARKETPLACE_IDENTITY_CLARIFICATION_LINES.map((line) => (
               <div key={line}>{line}</div>
             ))}
