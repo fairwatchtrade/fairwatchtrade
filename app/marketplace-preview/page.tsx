@@ -58,13 +58,17 @@ export default function MarketplaceHome() {
         {/* Identity copy renders from the shared source (lib/marketplaceIdentity)
             so this surface can never drift from the production homepage: primary
             eyebrow white and dominant, secondary clarification gold and quieter. */}
-        <div className="mb-8 text-center">
-          <div className="text-[13px] uppercase tracking-[4px] text-[var(--platinum)]">
+        <div className="-mt-3 mb-11 text-center">
+          <div className="text-[15px] uppercase leading-[1.5] tracking-[4px] text-[var(--platinum)] sm:text-[18px]">
             {MARKETPLACE_IDENTITY_EYEBROW}
           </div>
           {/* Two centered lines reading as one balanced block — the break is
               governed in the shared source, never left to viewport wrapping. */}
-          <div className="mt-2.5 text-[13px] leading-[1.75] tracking-[0.2px] text-[var(--gold)] sm:text-[14px]">
+          {/* Loosened so the pair reads as two intentionally placed lines, not
+              one squeezed block. Tracking steps up only at sm: below it, the
+              48-character first line would wrap into a third fragment and lose
+              the governed composition. */}
+          <div className="mt-2 text-[13px] font-extralight leading-[2.1] tracking-[0.3px] text-[var(--gold)] sm:text-[14px] sm:tracking-[0.8px]">
             {MARKETPLACE_IDENTITY_CLARIFICATION_LINES.map((line) => (
               <div key={line}>{line}</div>
             ))}
