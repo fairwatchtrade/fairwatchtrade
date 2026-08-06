@@ -8,7 +8,9 @@ import SaveSearchControl from "@/components/SaveSearchControl";
 import { formatMoney } from "@/lib/formatMoney";
 import {
   defaultFrame,
+  frameFor,
   frameStyle,
+  isDefaultFrame,
   presentationStyleFor,
   resolveHeroIndex,
   sanitizePhotoPresentation,
@@ -121,6 +123,15 @@ import {
    Browse URL as an encoded returnTo value via listingHref(), so a buyer who
    opens a listing and clicks "← Browse" returns to the exact same filtered/
    sorted/paginated reality, not a reset one.
+   v3.30 — Mobile Gallery media frame. Below md the card's image well is a
+   responsive 4:3 frame at full card width (card padding p-3), replacing the
+   fixed 140px-tall well that became a tall letterboxed shaft inside the
+   3/4-column grid on a phone. A seller-authored presentation frame (whose
+   editor stage is itself 4:3) renders as the approved cover-crop on mobile;
+   every other photograph stays object-contain — the whole watch, always,
+   never a blind centre-crop. Image badges (🛡️, FULL SET) anchor to the
+   media frame itself, opposite corners, ending the card-corner collision.
+   Desktop ≥md keeps the h-[140px] contain well and p-7 card padding.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -202,11 +213,15 @@ function formatPrice(value: number | null, currency: string | null): string {
 function heroFrame(row: {
   photos: ListingPhoto[];
   photo_presentation?: unknown;
-}): { url: string | null; style: React.CSSProperties } {
+}): {
+  url: string | null;
+  style: React.CSSProperties;
+  galleryFrameStyle: React.CSSProperties | null;
+} {
   const raw = Array.isArray(row.photos) ? row.photos : [];
   const presentation = sanitizePhotoPresentation(row.photo_presentation);
   if (raw.length === 0) {
-    return { url: null, style: frameStyle(defaultFrame()) };
+    return { url: null, style: frameStyle(defaultFrame()), galleryFrameStyle: null };
   }
   // Role order governs which photo leads, exactly as on the listing page.
   const photos = sortByPhotoRole(raw, (p) => p?.category);
@@ -216,12 +231,19 @@ function heroFrame(row: {
     roleAutomaticHero(photos, (p) => p?.category)
   );
   const chosen = photos[index] ?? photos[0];
+  const frame = frameFor(presentation, chosen?.photo?.pathname);
   return {
     url: chosen?.photo?.url ?? null,
     /* The steeper of the card's two breakpoint shapes (150x190) — its
        cover-scale also covers the shallower 120x150, so a rotated photo can
        never show a gap at either size. */
     style: presentationStyleFor(presentation, chosen?.photo?.pathname, 150 / 190),
+    /* The mobile Gallery card's 4:3 frame may cover-crop ONLY with a frame
+       the seller authored — the presentation editor's stage is itself 4:3,
+       so that framing is exactly the crop the seller approved at this
+       aspect, never a blind centre-crop. No authored frame → null → the
+       card falls back to object-contain: the whole watch, always. */
+    galleryFrameStyle: isDefaultFrame(frame) ? null : frameStyle(frame, 4 / 3),
   };
 }
 
@@ -1139,7 +1161,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
               }
             >
               {paginated.map((row) => {
-                const { url: hero, style: heroStyle } = heroFrame(row);
+                const { url: hero, style: heroStyle, galleryFrameStyle } = heroFrame(row);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
                 const meta = [row.condition, row.year].filter(Boolean).join(" · ");
                 const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
@@ -1154,34 +1176,61 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     <Link
                       key={row.id}
                       href={listingHref(row.id)}
-                      className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+                      className="group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[rgba(255,255,255,0.02)] md:p-7"
                     >
-                      {row.in_hand_verified && (
-                        <div
-                          title="In Hand Verified"
-                          className="absolute top-2 right-2 text-[var(--gold)] opacity-70"
-                          aria-label="In Hand Verified"
-                        >
-                          🛡️
-                        </div>
-                      )}
-
-                      {/* Dial / image area */}
-                      <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+                      {/* Dial / image area — v3.30: on mobile the well is a
+                          short 4:3 frame at full card width (the old fixed
+                          140px height turned into a tall letterboxed shaft
+                          once the 3/4-column grid shrank each card on a
+                          phone). Desktop keeps the h-[140px] contain well.
+                          The frame is the positioning context for image
+                          badges, so they anchor to the photograph's frame —
+                          never float over card padding. */}
+                      <div className="relative mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)] md:aspect-auto md:h-[140px]">
                         {hero ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={hero}
-                            alt=""
-                            className="h-full w-full object-contain"
-                          />
+                          galleryFrameStyle ? (
+                            <>
+                              {/* Seller-authored framing: the presentation
+                                  editor's stage is 4:3, so this cover is the
+                                  crop the seller approved — mobile only. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={hero}
+                                alt=""
+                                style={galleryFrameStyle}
+                                className="h-full w-full md:hidden"
+                              />
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={hero}
+                                alt=""
+                                className="hidden h-full w-full object-contain md:block"
+                              />
+                            </>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={hero}
+                              alt=""
+                              className="h-full w-full object-contain p-1.5 md:p-0"
+                            />
+                          )
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
                             No photo
                           </div>
                         )}
+                        {row.in_hand_verified && (
+                          <div
+                            title="In Hand Verified"
+                            className="absolute left-1.5 top-1.5 text-[var(--gold)] opacity-70"
+                            aria-label="In Hand Verified"
+                          >
+                            🛡️
+                          </div>
+                        )}
                         {docBadge && (
-                          <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
+                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--border-gold)] bg-[rgba(12,11,9,0.65)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
                             {docBadge}
                           </span>
                         )}
