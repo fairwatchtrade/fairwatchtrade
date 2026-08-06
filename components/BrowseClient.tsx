@@ -132,6 +132,16 @@ import {
    never a blind centre-crop. Image badges (🛡️, FULL SET) anchor to the
    media frame itself, opposite corners, ending the card-corner collision.
    Desktop ≥md keeps the h-[140px] contain well and p-7 card padding.
+   v3.31 — Derived presentation thumbnails for unframed photographs. A
+   source photo with large EMPTY margins baked into its bytes (a phone
+   screenshot's letterbox bands, a studio backdrop) still rendered the
+   watch small inside the v3.30 frame. Mobile Gallery now loads such
+   photos through /api/presentation-thumb, which trims only near-uniform
+   border margins at read time (trust-gated, safe margin retained, whole
+   watch preserved, original bytes untouched — see
+   lib/media/presentationThumb.ts). Seller-authored frames still win
+   (v3.30 path unchanged); desktop still downloads the untouched original
+   via <picture>/<source>.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
@@ -245,6 +255,16 @@ function heroFrame(row: {
        card falls back to object-contain: the whole watch, always. */
     galleryFrameStyle: isDefaultFrame(frame) ? null : frameStyle(frame, 4 / 3),
   };
+}
+
+/* The derived presentation thumbnail for one photograph — only our own
+   public listing photos route through it; anything else renders as-is.
+   The route itself re-validates and falls back to the original on any
+   failure, so a card can never lose its photograph to the derivation. */
+function presentationThumbSrc(url: string): string {
+  return url.includes(".public.blob.vercel-storage.com/listings/")
+    ? `/api/presentation-thumb?src=${encodeURIComponent(url)}`
+    : url;
 }
 
 function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [string, number][] {
@@ -1208,12 +1228,20 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                               />
                             </>
                           ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={hero}
-                              alt=""
-                              className="h-full w-full object-contain p-1.5 md:p-0"
-                            />
+                            /* Unframed photograph: mobile receives the derived
+                               presentation thumbnail (empty source margins
+                               trimmed, watch whole, safe margin retained —
+                               lib/media/presentationThumb.ts). Desktop keeps
+                               the untouched original. <picture> so each
+                               breakpoint downloads only its own source. */
+                            <picture className="contents">
+                              <source media="(min-width: 768px)" srcSet={hero} />
+                              <img
+                                src={presentationThumbSrc(hero)}
+                                alt=""
+                                className="h-full w-full object-contain p-1.5 md:p-0"
+                              />
+                            </picture>
                           )
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
