@@ -1,18 +1,24 @@
-/* Homepage identity — shared source, exact approved line, no drift
-   (Ruling 2026-08-06 · Rolex Admission — homepage identity correction)
+/* Homepage identity — shared source, exact approved copy, no drift
+   (Hero-copy ruling 2026-08-06 · supersedes the single-line form)
 
    Run: node --experimental-strip-types scripts/homepage-identity.test.mjs
 
    Guards:
      · the retired absolute claim can never return to either homepage;
-     · both homepage implementations consume the ONE shared identity source
-       (they cannot silently diverge);
-     · the shared source carries the exact approved wording;
+     · both homepage implementations consume the TWO governed constants
+       from the one shared identity source (they cannot silently diverge);
+     · the primary eyebrow and secondary clarification carry the exact
+       approved wording — "select", never "selected";
+     · the retired single-line form is gone everywhere;
+     · the italic paragraph carries only the fee promise;
      · no Rolex/Tudor branding, cards, or acquisition language was added;
      · the three featured brands and the navigation survive untouched. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MARKETPLACE_IDENTITY_LINE } from "../lib/marketplaceIdentity.ts";
+import {
+  MARKETPLACE_IDENTITY_EYEBROW,
+  MARKETPLACE_IDENTITY_CLARIFICATION,
+} from "../lib/marketplaceIdentity.ts";
 
 let pass = 0;
 const ok = (name, c) => { assert.ok(c, name); pass++; };
@@ -21,28 +27,36 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const home = read("../app/page.tsx");
 const preview = read("../app/marketplace-preview/page.tsx");
 
-/* ── the exact approved line, from the one durable source ── */
-ok("shared source carries the exact approved line",
-  MARKETPLACE_IDENTITY_LINE ===
-    "Built for independent and boutique watchmaking—and for selected references whose collector importance deserves the same care.");
+/* ── the exact approved copy, from the one durable source ── */
+ok("primary eyebrow is exact",
+  MARKETPLACE_IDENTITY_EYEBROW === "FOR INDEPENDENT & BOUTIQUE WATCHMAKERS");
+ok("secondary clarification is exact",
+  MARKETPLACE_IDENTITY_CLARIFICATION ===
+    "and select references whose collector importance deserves the same care.");
+ok('the clarification says "select", never "selected"',
+  /\bselect references\b/.test(MARKETPLACE_IDENTITY_CLARIFICATION) &&
+    !/selected/.test(MARKETPLACE_IDENTITY_CLARIFICATION));
 
-/* ── the retired absolute claim is gone from both implementations ── */
+/* ── both implementations consume both governed constants ── */
 for (const [name, src] of [["current homepage", home], ["future homepage", preview]]) {
-  ok(`${name} no longer claims "Watchmakers Only"`,
-    !/watchmakers only/i.test(src));
+  ok(`${name} no longer claims "Watchmakers Only"`, !/watchmakers only/i.test(src));
   ok(`${name} imports the shared identity source`,
     src.includes("from '@/lib/marketplaceIdentity'"));
-  ok(`${name} renders the shared constant`,
-    src.includes("MARKETPLACE_IDENTITY_LINE"));
-  ok(`${name} does not hardcode the approved sentence (single source of truth)`,
+  ok(`${name} renders the primary eyebrow constant`,
+    src.includes("MARKETPLACE_IDENTITY_EYEBROW"));
+  ok(`${name} renders the secondary clarification constant`,
+    src.includes("MARKETPLACE_IDENTITY_CLARIFICATION"));
+  ok(`${name} does not hardcode the eyebrow (single source of truth)`,
+    !src.includes("FOR INDEPENDENT & BOUTIQUE WATCHMAKERS"));
+  ok(`${name} does not hardcode the clarification (single source of truth)`,
+    !src.includes("select references whose collector importance"));
+  ok(`${name} no longer carries the retired single-line form`,
     !src.includes("Built for independent and boutique watchmaking"));
+  ok(`${name} italic paragraph carries only the fee promise`,
+    src.includes("One flat fee. No hidden costs. No compromises."));
   ok(`${name} adds no Rolex branding`, !/rolex/i.test(src));
   ok(`${name} adds no Tudor branding`, !/tudor/i.test(src));
 }
-
-/* ── independent & boutique watchmaking remains verbally the center ── */
-ok("the identity line still leads with independent and boutique watchmaking",
-  MARKETPLACE_IDENTITY_LINE.startsWith("Built for independent and boutique watchmaking"));
 
 /* ── featured brands unchanged on the future homepage ── */
 for (const brand of ["Parmigiani Fleurier", "F.P. Journe", "H. Moser"]) {

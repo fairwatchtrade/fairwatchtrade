@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MARKETPLACE_IDENTITY_LINE } from '@/lib/marketplaceIdentity';
+import {
+  MARKETPLACE_IDENTITY_EYEBROW,
+  MARKETPLACE_IDENTITY_CLARIFICATION,
+} from '@/lib/marketplaceIdentity';
 
 export default function Home() {
   const [time, setTime] = useState({ hourDeg: -90, minDeg: -90, secDeg: -90 });
@@ -84,10 +87,16 @@ export default function Home() {
       >
 
         {/* Gap between market bar and eyebrow — inline guaranteed.
-            Identity line renders from the shared source (lib/marketplaceIdentity)
-            so this surface can never drift from the future homepage. */}
-        <div className="mb-8 max-w-[540px] font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-dim)]">
-          {MARKETPLACE_IDENTITY_LINE}
+            Identity copy renders from the shared source (lib/marketplaceIdentity)
+            so this surface can never drift from the future homepage: primary
+            eyebrow white and dominant, secondary clarification gold and quieter. */}
+        <div className="mb-8 text-center">
+          <div className="font-[Inter] text-[13px] uppercase tracking-[4px] text-[var(--platinum)]">
+            {MARKETPLACE_IDENTITY_EYEBROW}
+          </div>
+          <div className="mx-auto mt-2 max-w-[420px] font-[Inter] text-[10px] tracking-[1.5px] text-[var(--gold-dim)]">
+            {MARKETPLACE_IDENTITY_CLARIFICATION}
+          </div>
         </div>
 
         <div className="mx-auto mb-9 w-full max-w-[180px]">
@@ -134,7 +143,7 @@ export default function Home() {
         </h1>
 
         <p className="mb-9 max-w-[400px] font-display text-[16px] font-light italic leading-[1.8] text-[var(--slate)]">
-          {MARKETPLACE_IDENTITY_LINE} One flat fee. No hidden costs. No compromises.
+          One flat fee. No hidden costs. No compromises.
         </p>
 
         <div className="fw-rule" />

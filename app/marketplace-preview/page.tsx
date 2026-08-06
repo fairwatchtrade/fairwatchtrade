@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MARKETPLACE_IDENTITY_LINE } from '@/lib/marketplaceIdentity';
+import {
+  MARKETPLACE_IDENTITY_EYEBROW,
+  MARKETPLACE_IDENTITY_CLARIFICATION,
+} from '@/lib/marketplaceIdentity';
 
 export default function MarketplaceHome() {
   const [time, setTime] = useState({ hourDeg: -90, minDeg: -90, secDeg: -90 });
@@ -52,10 +55,16 @@ export default function MarketplaceHome() {
 
       {/* HERO */}
       <div className="relative flex flex-col items-center px-10 py-[52px] text-center">
-        {/* Identity line renders from the shared source (lib/marketplaceIdentity)
-            so this surface can never drift from the production homepage. */}
-        <div className="mb-8 max-w-[540px] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
-          {MARKETPLACE_IDENTITY_LINE}
+        {/* Identity copy renders from the shared source (lib/marketplaceIdentity)
+            so this surface can never drift from the production homepage: primary
+            eyebrow white and dominant, secondary clarification gold and quieter. */}
+        <div className="mb-8 text-center">
+          <div className="text-[13px] uppercase tracking-[4px] text-[var(--platinum)]">
+            {MARKETPLACE_IDENTITY_EYEBROW}
+          </div>
+          <div className="mx-auto mt-2 max-w-[420px] text-[10px] tracking-[1.5px] text-[var(--gold-dim)]">
+            {MARKETPLACE_IDENTITY_CLARIFICATION}
+          </div>
         </div>
 
         {/* Hero clock — 220 viewBox from prototype, real-time hands applied */}
@@ -110,7 +119,7 @@ export default function MarketplaceHome() {
         </h1>
 
         <p className="mb-9 max-w-[400px] text-center font-display text-[16px] font-light italic leading-[1.8] text-[var(--slate)]">
-          {MARKETPLACE_IDENTITY_LINE} One flat fee. No hidden costs. No compromises.
+          One flat fee. No hidden costs. No compromises.
         </p>
 
         <div className="fw-rule mb-9" />

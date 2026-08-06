@@ -1,16 +1,22 @@
 /* ════════════════════════════════════════════════════════════════════════
-   MARKETPLACE IDENTITY — the platform's public identity line
-   (Ruling 2026-08-06 · Rolex Admission — homepage identity correction)
+   MARKETPLACE IDENTITY — the platform's public identity copy
+   (Hero-copy ruling 2026-08-06 · supersedes the prior single-line form)
 
    The absolute claim "Independent & Boutique Watchmakers Only" is retired:
    it conflicts with the approved selective-mainstream-admission position.
    Independent and boutique watchmaking remains the visible and verbal
    center of the marketplace; admitted references never redefine it.
 
-   Every homepage implementation renders THIS constant, so the two surfaces
-   can never drift apart again. The exact wording below is approved
-   language — do not edit it without an equivalent ruling.
+   Two governed pieces: the primary eyebrow (white, uppercase, dominant,
+   centered) and the secondary clarification (gold, smaller and quieter,
+   centered, may wrap). Every homepage implementation renders THESE
+   constants, so the surfaces can never drift apart. The exact wording is
+   approved language — the clarification says "select", never "selected" —
+   do not edit either string without an equivalent ruling.
    ════════════════════════════════════════════════════════════════════════ */
 
-export const MARKETPLACE_IDENTITY_LINE =
-  "Built for independent and boutique watchmaking—and for selected references whose collector importance deserves the same care.";
+export const MARKETPLACE_IDENTITY_EYEBROW =
+  "FOR INDEPENDENT & BOUTIQUE WATCHMAKERS";
+
+export const MARKETPLACE_IDENTITY_CLARIFICATION =
+  "and select references whose collector importance deserves the same care.";
