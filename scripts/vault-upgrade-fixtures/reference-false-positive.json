@@ -1,0 +1,30 @@
+{
+  "Brand": "Fixture Horlogerie",
+  "description": "Independent Saxon workshop founded for fixture purposes, producing a small number of hand-finished test pieces that exercise the specification upgrade engine with realistic collector-facing prose.",
+  "country_of_origin": "Germany",
+  "region": "Europe",
+  "independent_status": "independent",
+  "revival_status": "active",
+  "cluster": "German",
+  "cluster_rationale": "Fixture brand used to prove deterministic structural upgrades without inventing collector truth.",
+  "search_aliases": [],
+  "Collections": [
+    {
+      "name": "Proof",
+      "Families": [
+        {
+          "name": "Proof Classic",
+          "Variants": [
+            {
+              "name": "Proof Classic Skeleton",
+              "description": "A fixture variant whose notes deliberately contain calibre, serial, and limited-edition numbers that must never be promoted into the references array by any engine.",
+              "search_aliases": [],
+              "notes": "Calibre L951.1, serial 145032, limited edition 25/100, EAN 4012345678901.",
+              "references": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

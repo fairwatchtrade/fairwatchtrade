@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "fairwatchtrade:vault-lock-v3.2.schema.json",
+  "title": "FairWatchTrade Vault specification v3.2 — closed structural schema",
+  "description": "Machine-executable companion to the governing human specification VAULT-LOCK-v3.2.md. Closed at every hierarchy level: unknown fields are schema violations, never silently dropped. Conditional lifecycle rules (revival_type presence, historical_continuity consistency) and prose word-count ranges are enforced by the analyzer, not encoded here, so every schema error maps to exactly one unresolved-item class.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Brand",
+    "description",
+    "country_of_origin",
+    "region",
+    "independent_status",
+    "revival_status",
+    "cluster",
+    "cluster_rationale",
+    "search_aliases",
+    "Collections"
+  ],
+  "properties": {
+    "Brand": { "type": "string" },
+    "description": { "type": "string" },
+    "country_of_origin": { "type": "string" },
+    "region": {
+      "type": "string",
+      "enum": [
+        "Europe",
+        "Asia",
+        "North America",
+        "South America",
+        "Oceania",
+        "Africa",
+        "Unknown"
+      ]
+    },
+    "independent_status": {
+      "type": "string",
+      "enum": [
+        "independent",
+        "group-owned",
+        "manufacture",
+        "microbrand",
+        "maison",
+        "unknown"
+      ]
+    },
+    "revival_status": {
+      "type": "string",
+      "enum": ["active", "revived", "discontinued"]
+    },
+    "revival_type": {
+      "type": "string",
+      "enum": ["original", "acquired"]
+    },
+    "historical_continuity": {
+      "type": "string",
+      "enum": ["continuous", "interrupted", "revived"]
+    },
+    "cluster": {
+      "type": "string",
+      "enum": [
+        "Japanese",
+        "German",
+        "British",
+        "American",
+        "Heritage Swiss",
+        "Contemporary Independent",
+        "High Complication",
+        "Dress / Classic",
+        "Tool / Sports",
+        "Military / Pilot",
+        "Dive",
+        "Microbrand",
+        "Jewelry Maison",
+        "Experimental / Conceptual",
+        "Historic / Defunct",
+        "Other"
+      ]
+    },
+    "cluster_rationale": { "type": "string" },
+    "search_aliases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Collections": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Collection" }
+    }
+  },
+  "definitions": {
+    "Collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "Families"],
+      "properties": {
+        "name": { "type": "string" },
+        "search_aliases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "Families": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Family" }
+        }
+      }
+    },
+    "Family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "Variants"],
+      "properties": {
+        "name": { "type": "string" },
+        "search_aliases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "Variants": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Variant" }
+        }
+      }
+    },
+    "Variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "search_aliases", "notes", "references"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "search_aliases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" },
+        "references": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Reference" }
+        }
+      }
+    },
+    "Reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference"],
+      "properties": {
+        "reference": { "type": "string" },
+        "dial": { "type": "string" },
+        "case": { "type": "string" },
+        "movement": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

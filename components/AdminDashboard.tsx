@@ -206,13 +206,23 @@ export default function AdminDashboard({
         {/* URGENT fix (Admin-Back-To-Account-Link.md): the only way back to
             /account from here was closing the tab and re-navigating by hand.
             Immediately visible, not buried — this is for founder utility
-            only, no one else ever sees this page. */}
-        <Link
-          href="/account"
-          className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.06)]"
-        >
-          ← Back to Seller Workspace
-        </Link>
+            only, no one else ever sees this page. The Vault Review door is
+            the visible route into both Vault rooms (Cluster Review and
+            Specification Upgrade) — no more direct-URL-only navigation. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/admin/vault-review"
+            className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+          >
+            ◈ Vault Review →
+          </Link>
+          <Link
+            href="/account"
+            className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.06)]"
+          >
+            ← Back to Seller Workspace
+          </Link>
+        </div>
       </div>
 
       <div className="px-8 py-8">

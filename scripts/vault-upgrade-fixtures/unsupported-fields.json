@@ -1,0 +1,39 @@
+{
+  "Brand": "Fixture Horlogerie",
+  "description": "Independent Saxon workshop founded for fixture purposes, producing a small number of hand-finished test pieces that exercise the specification upgrade engine with realistic collector-facing prose.",
+  "country_of_origin": "Germany",
+  "region": "Europe",
+  "independent_status": "independent",
+  "revival_status": "active",
+  "cluster": "German",
+  "cluster_rationale": "Fixture brand used to prove deterministic structural upgrades without inventing collector truth.",
+  "search_aliases": [],
+  "founded_year": 1994,
+  "Collections": [
+    {
+      "name": "Proof",
+      "marketing_tagline": "Unknown collection field",
+      "Families": [
+        {
+          "name": "Proof Classic",
+          "price_band": "entry",
+          "Variants": [
+            {
+              "name": "Proof Classic Blue",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "40 mm steel case, manual wind, blue dial.",
+              "rarity_score": 7,
+              "references": [
+                {
+                  "reference": "FH-100-BL",
+                  "market_value": 4200
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

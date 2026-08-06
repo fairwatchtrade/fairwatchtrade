@@ -1,0 +1,21 @@
+{
+  "id": "fixture-horlogerie",
+  "name": "Fixture Horlogerie",
+  "search_aliases": ["Fixture"],
+  "collections": [
+    {
+      "name": "Proof",
+      "families": [
+        {
+          "name": "Proof Classic",
+          "variants": [
+            {
+              "name": "Proof Classic Blue",
+              "references": ["FH-100-BL"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
