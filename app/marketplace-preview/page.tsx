@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MARKETPLACE_IDENTITY_EYEBROW,
-  MARKETPLACE_IDENTITY_CLARIFICATION,
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
 } from '@/lib/marketplaceIdentity';
 
 export default function MarketplaceHome() {
@@ -62,8 +62,12 @@ export default function MarketplaceHome() {
           <div className="text-[13px] uppercase tracking-[4px] text-[var(--platinum)]">
             {MARKETPLACE_IDENTITY_EYEBROW}
           </div>
-          <div className="mx-auto mt-2 max-w-[420px] text-[10px] tracking-[1.5px] text-[var(--gold-dim)]">
-            {MARKETPLACE_IDENTITY_CLARIFICATION}
+          {/* Two centered lines reading as one balanced block — the break is
+              governed in the shared source, never left to viewport wrapping. */}
+          <div className="mt-2.5 text-[13px] leading-[1.75] tracking-[0.2px] text-[var(--gold)] sm:text-[14px]">
+            {MARKETPLACE_IDENTITY_CLARIFICATION_LINES.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
 

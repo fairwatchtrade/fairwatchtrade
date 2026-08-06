@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import {
   MARKETPLACE_IDENTITY_EYEBROW,
   MARKETPLACE_IDENTITY_CLARIFICATION,
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
 } from "../lib/marketplaceIdentity.ts";
 
 let pass = 0;
@@ -37,6 +38,18 @@ ok('the clarification says "select", never "selected"',
   /\bselect references\b/.test(MARKETPLACE_IDENTITY_CLARIFICATION) &&
     !/selected/.test(MARKETPLACE_IDENTITY_CLARIFICATION));
 
+/* ── the governed two-line composition (approved visual reference) ── */
+ok("the clarification is exactly two lines",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES.length === 2);
+ok("line one breaks after 'collector importance'",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES[0] ===
+    "and select references whose collector importance");
+ok("line two is 'deserves the same care.'",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES[1] === "deserves the same care.");
+ok("the two lines rejoin into the exact approved sentence",
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES.join(" ") ===
+    MARKETPLACE_IDENTITY_CLARIFICATION);
+
 /* ── both implementations consume both governed constants ── */
 for (const [name, src] of [["current homepage", home], ["future homepage", preview]]) {
   ok(`${name} no longer claims "Watchmakers Only"`, !/watchmakers only/i.test(src));
@@ -44,8 +57,10 @@ for (const [name, src] of [["current homepage", home], ["future homepage", previ
     src.includes("from '@/lib/marketplaceIdentity'"));
   ok(`${name} renders the primary eyebrow constant`,
     src.includes("MARKETPLACE_IDENTITY_EYEBROW"));
-  ok(`${name} renders the secondary clarification constant`,
-    src.includes("MARKETPLACE_IDENTITY_CLARIFICATION"));
+  ok(`${name} renders the governed two-line clarification constant`,
+    src.includes("MARKETPLACE_IDENTITY_CLARIFICATION_LINES"));
+  ok(`${name} renders the clarification in the brighter gold, not gold-dim`,
+    src.includes("text-[var(--gold)]") && !src.includes("text-[var(--gold-dim)]"));
   ok(`${name} does not hardcode the eyebrow (single source of truth)`,
     !src.includes("FOR INDEPENDENT & BOUTIQUE WATCHMAKERS"));
   ok(`${name} does not hardcode the clarification (single source of truth)`,

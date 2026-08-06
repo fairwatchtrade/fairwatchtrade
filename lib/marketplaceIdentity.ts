@@ -8,15 +8,22 @@
    center of the marketplace; admitted references never redefine it.
 
    Two governed pieces: the primary eyebrow (white, uppercase, dominant,
-   centered) and the secondary clarification (gold, smaller and quieter,
-   centered, may wrap). Every homepage implementation renders THESE
-   constants, so the surfaces can never drift apart. The exact wording is
-   approved language — the clarification says "select", never "selected" —
-   do not edit either string without an equivalent ruling.
+   centered) and the secondary clarification (gold, secondary but fully
+   legible, rendered as EXACTLY two centered lines reading as one balanced
+   block — the break point is governed here, per the approved visual
+   reference). Every homepage implementation renders THESE constants, so
+   the surfaces can never drift apart. The exact wording is approved
+   language — the clarification says "select", never "selected" — do not
+   edit the strings or the break point without an equivalent ruling.
    ════════════════════════════════════════════════════════════════════════ */
 
 export const MARKETPLACE_IDENTITY_EYEBROW =
   "FOR INDEPENDENT & BOUTIQUE WATCHMAKERS";
 
+export const MARKETPLACE_IDENTITY_CLARIFICATION_LINES = [
+  "and select references whose collector importance",
+  "deserves the same care.",
+] as const;
+
 export const MARKETPLACE_IDENTITY_CLARIFICATION =
-  "and select references whose collector importance deserves the same care.";
+  MARKETPLACE_IDENTITY_CLARIFICATION_LINES.join(" ");
