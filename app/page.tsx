@@ -95,12 +95,13 @@ export default function Home() {
             {MARKETPLACE_IDENTITY_EYEBROW}
           </div>
           {/* Two centered lines reading as one balanced block — the break is
-              governed in the shared source, never left to viewport wrapping. */}
-          {/* Loosened so the pair reads as two intentionally placed lines, not
-              one squeezed block. Tracking steps up only at sm: below it, the
-              48-character first line would wrap into a third fragment and lose
-              the governed composition. */}
-          <div className="mt-2 font-[Inter] text-[13px] font-extralight leading-[2.1] tracking-[0.3px] text-[var(--gold)] sm:text-[14px] sm:tracking-[0.8px]">
+              governed in the shared source, never left to viewport wrapping.
+              Cormorant italic, not the letter-spaced sans this platform uses
+              for labels and kickers: this is a sentence, so it takes the same
+              prose voice as the italic line beneath the headline. The narrower
+              serif is also what lets both lines hold their composition on a
+              phone without letter-spacing games. */}
+          <div className="mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:text-[18px]">
             {MARKETPLACE_IDENTITY_CLARIFICATION_LINES.map((line) => (
               <div key={line}>{line}</div>
             ))}
