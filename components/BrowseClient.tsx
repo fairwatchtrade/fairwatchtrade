@@ -784,6 +784,45 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
 
   const paginated = pageSize === "all" ? filtered : filtered.slice(0, pageSize);
 
+  /* ── Exact Identifier Search Law — presentation truth ────────────────────
+     When the Search IS one exact identifier (a listing code or a
+     manufacturer reference, resolved or identifier-shaped), a zero-result
+     outcome must say "No exact match found." and any nearby watches may
+     appear only afterward, under their own visible label. Relatedness is
+     deterministic: shared leading characters (case-insensitive, punctuation
+     stripped) against each listing's reference and public code — at least
+     three shared, longest first. Related results are computed OUTSIDE the
+     canonical result set and can never enter it. */
+  const exactIdentifier = activeSearch.code ?? activeSearch.reference;
+
+  const relatedToIdentifier = useMemo(() => {
+    if (!exactIdentifier || filtered.length > 0) return [];
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const wanted = norm(exactIdentifier);
+    if (wanted.length < 3) return [];
+    const sharedPrefix = (a: string, b: string) => {
+      let i = 0;
+      while (i < a.length && i < b.length && a[i] === b[i]) i++;
+      return i;
+    };
+    return listings
+      .map((l) => ({
+        l,
+        shared: Math.max(
+          sharedPrefix(wanted, norm(l.reference ?? "")),
+          sharedPrefix(wanted, norm(l.public_code ?? ""))
+        ),
+      }))
+      .filter((e) => e.shared >= 3)
+      .sort(
+        (a, b) =>
+          b.shared - a.shared ||
+          (a.l.reference ?? "").localeCompare(b.l.reference ?? "")
+      )
+      .slice(0, 6)
+      .map((e) => e.l);
+  }, [exactIdentifier, filtered.length, listings]);
+
   // v1.62 — Collector workflow handlers.
   const toggleSnapshot = (id: string) =>
     setOpenSnapshotId((prev) => (prev === id ? null : id));
@@ -1069,6 +1108,15 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                 searchState={activeSearch}
                 queryString={searchParams.toString()}
                 browseUrl={currentBrowseUrl}
+                exactIdentifier={exactIdentifier}
+                related={relatedToIdentifier.map((l) => ({
+                  id: l.id,
+                  href: listingHref(l.id),
+                  brand: l.brand,
+                  model: l.model,
+                  reference: l.reference,
+                  priceText: formatPrice(l.asking_price, l.asking_currency),
+                }))}
               />
             ) : (
               <p className="text-[14px] text-[var(--slate)]">

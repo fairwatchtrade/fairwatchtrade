@@ -113,6 +113,31 @@ export function normalizeListingCode(raw: string): string | null {
   return m ? `${m[1].toLowerCase()}${m[2]}` : null;
 }
 
+/* ── Identifier shape ──────────────────────────────────────────────────────
+   Exact Identifier Search Law: an exact identifier search is a promise, and
+   related never masquerades as found. A query that IS one identifier-shaped
+   token — a single word of letters, digits, dots, slashes, and hyphens, at
+   least five characters, carrying at least one letter AND one digit — is a
+   request for one exact thing, whether or not it exists here today.
+
+   One changed character can identify a different case material, dial,
+   movement, generation, market, configuration, or watch entirely, so an
+   identifier-shaped query must NEVER fall through to substring text
+   matching: "PFC274-0000600" (a missing suffix) must not quietly return
+   PFC274-0000600-HA3141 as though it had been found.
+
+   Deliberately conservative: pure digits ("5711") stay ordinary text — the
+   established bare-number law (deciding a number is an identifier would be
+   guessing) — and exact resolution for digit-only references still happens
+   through knownReferences above this shape test. */
+export function isIdentifierShaped(raw: string): boolean {
+  const token = raw.trim();
+  if (token.length < 5) return false;
+  if (/\s/.test(token)) return false;
+  if (!/^[a-z0-9][a-z0-9./-]*$/i.test(token)) return false;
+  return /[a-z]/i.test(token) && /\d/.test(token);
+}
+
 /* ── Allowlisted phrases ───────────────────────────────────────────────────
    Longest / most specific first: "power reserve >5d" must be consumed before
    plain "power reserve" can claim the words. */
@@ -418,6 +443,24 @@ export function parseSearch(
         };
       }
     }
+  }
+
+  // 2b — Exact Identifier Search Law: an identifier-shaped query that did
+  // not resolve above is STILL an exact request. It becomes state.reference
+  // exactly as typed, so matching stays exact identity everywhere: live
+  // Browse returns the honest "No exact match found." state today, and the
+  // saved-Search watcher (saved_search_matches_listing already compares
+  // state.reference by exact lowercase equality) matches the moment a
+  // listing with precisely this reference appears. It must never fall
+  // through to substring text matching — related never masquerades as found.
+  if (isIdentifierShaped(trimmed)) {
+    return {
+      version: SEARCH_MEANING_VERSION,
+      text,
+      code: null,
+      reference: trimmed,
+      meanings: [],
+    };
   }
 
   // 3 — allowlisted meanings, consumed out of a working copy.

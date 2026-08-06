@@ -11,15 +11,22 @@ const ok = (name, cond) => {
 };
 
 // ── Included discovery surfaces → compact Search shown ──
-ok("catalogue included", headerSearchVisible("/catalogue"));
-ok("account included", headerSearchVisible("/account"));
-ok("account deep-link keeps pathname", headerSearchVisible("/account")); // query string is not part of pathname
+// v3.21b PERMANENT STRUCTURAL LAW (bench ruling 2026-08-02, arbitrated by
+// Jason): Painted Line rail pages (/account, /account/settings, /catalogue,
+// /watch-dna) carry NO compact search row — the rail begins immediately
+// beneath the metals strip. This test previously asserted the pre-v3.21b
+// allowlist and had been failing against the ruled law ever since; the
+// Search Completion Flight corrects the EXPECTATIONS to repository truth.
 ok("listing detail included", headerSearchVisible("/listings/abc-123"));
 ok("listing detail (uuid) included", headerSearchVisible("/listings/9dd35666-e9ea-49b3-89c8-4c9e3f57d142"));
 ok("seller profile included", headerSearchVisible("/sellers/xyz"));
-ok("trailing slash tolerated", headerSearchVisible("/catalogue/"));
+ok("trailing slash tolerated", headerSearchVisible("/listings/abc-123/"));
 
-// ── Excluded: canonical Search / Vault / operational / auth / legal / admin ──
+// ── Excluded: rail pages (v3.21b) / canonical Search / Vault / operational /
+//    auth / legal / admin ──
+ok("catalogue excluded (v3.21b Painted Line law)", !headerSearchVisible("/catalogue"));
+ok("account excluded (v3.21b Painted Line law)", !headerSearchVisible("/account"));
+ok("watch-dna excluded (v3.21b Painted Line law)", !headerSearchVisible("/watch-dna"));
 ok("browse excluded (full inline Search is canonical)", !headerSearchVisible("/browse"));
 ok("vault excluded", !headerSearchVisible("/vault"));
 ok("vault galaxy excluded", !headerSearchVisible("/vault/galaxy"));

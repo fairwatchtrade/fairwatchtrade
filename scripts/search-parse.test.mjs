@@ -67,11 +67,17 @@ check("ambiguous fallback stays text", labels(s), ["Search text: gold-ish maybe 
 check("fallback creates no exclusions", s.meanings.every((m) => m.kind === "text"), true);
 
 s = parseSearch("manual wind blue dial power reserve under 40mm full set independent maker");
+/* v3.17 (Smart Search dial color, shipped + device-verified) taught the
+   parser "blue dial" — this expectation predated that flight and had been
+   failing against the ruled, shipped behavior ever since. The Search
+   Completion Flight corrects the EXPECTATION: the recognized dial family is
+   a meaning, and only the genuinely unknown words remain text. */
 check("long query keeps unknown words as text", labels(s).sort(), [
   "Case size: under 40 mm",
+  "Dial Color: Blue",
   "Movement: Manual Wind",
   "Power Reserve: Present",
-  "Search text: blue dial full set independent maker",
+  "Search text: full set independent maker",
 ].sort());
 
 s = parseSearch("automatic chronograph with date");
@@ -125,7 +131,14 @@ check(
 );
 
 s = parseSearch("SBGH201");
-check("unknown reference falls back to text", s.reference, null);
+/* Exact Identifier Search Law (Search Completion Flight) — SUPERSEDES the
+   old fall-back-to-text behavior this case used to assert. An
+   identifier-shaped query stays an exact request even when unknown: it
+   becomes state.reference verbatim (never substring text luck), the live
+   result is the honest no-match state, and the saved-Search watcher matches
+   the day a listing carrying exactly this reference arrives. */
+check("unknown identifier stays an exact request", s.reference, "SBGH201");
+check("unknown identifier produces no loose meanings", s.meanings.length, 0);
 
 /* ── Matching semantics ── */
 const kalpa = {
@@ -372,6 +385,106 @@ check(
   rq("parmigiani kalpa -gold", "Exclude Case Material: Gold"),
   "parmigiani kalpa"
 );
+
+/* ══ Exact Identifier Search Law — Search Completion Flight ═══════════════
+   An exact identifier search is a promise. Related never masquerades as
+   found. Fixtures mirror real production shapes (a Parmigiani reference and
+   lowercase no-hyphen listing codes). */
+
+const lawRefs = ["PFC274-0000600-HC3142", "166.0209", "1210", "SBGH201"];
+const lawPfc = {
+  brand: "Parmigiani Fleurier",
+  model: "Tonda GT",
+  reference: "PFC274-0000600-HC3142",
+  public_code: "o96825",
+  details: {},
+};
+const lawOmega = {
+  brand: "Omega",
+  model: "Seamaster Cosmic",
+  reference: "166.0209",
+  public_code: "k26573",
+  details: {},
+};
+const lawSeiko = {
+  brand: "Grand Seiko",
+  model: "Heritage",
+  reference: "SBGH201",
+  public_code: "b11111",
+  details: {},
+};
+const lawFixtures = [lawPfc, lawOmega, lawSeiko];
+const lawOpts = { knownReferences: lawRefs };
+const matchCount = (state) => lawFixtures.filter((l) => matchesSearch(l, state)).length;
+
+/* exact listing code — as stored, case difference, optional hyphen */
+s = parseSearch("o96825");
+check("exact code resolves", s.code, "o96825");
+check("exact code returns exactly its listing", matchesSearch(lawPfc, s), true);
+check("exact code excludes every other listing", matchCount(s), 1);
+s = parseSearch("O96825");
+check("code case difference normalizes", s.code, "o96825");
+s = parseSearch("O-96825");
+check("optional code hyphen normalizes", s.code, "o96825");
+check("hyphenated code still returns its listing", matchesSearch(lawPfc, s), true);
+
+/* code-shaped query with no owner → clear exact no-match, never a neighbor */
+s = parseSearch("q15932");
+check("unknown code stays an exact request", s.code, "q15932");
+check("unknown code matches nothing", matchCount(s), 0);
+s = parseSearch("o96826"); // one character from a real code
+check("near-miss code never substitutes", matchCount(s), 0);
+
+/* exact manufacturer reference — as stored + case difference */
+s = parseSearch("PFC274-0000600-HC3142", lawOpts);
+check("exact reference resolves", s.reference, "PFC274-0000600-HC3142");
+check("exact reference returns exactly its listing", matchesSearch(lawPfc, s), true);
+check("exact reference excludes every other listing", matchCount(s), 1);
+s = parseSearch("pfc274-0000600-hc3142", lawOpts);
+check("reference case difference resolves to canonical", s.reference, "PFC274-0000600-HC3142");
+check("case-different reference still returns its listing", matchesSearch(lawPfc, s), true);
+
+/* governed punctuation: digit-only and dotted references resolve through
+   the known-reference identity path (the bare-number law is untouched) */
+s = parseSearch("166.0209", lawOpts);
+check("dotted reference resolves exactly", s.reference, "166.0209");
+check("dotted reference returns its listing", matchesSearch(lawOmega, s), true);
+
+/* the no-substitution family — every corruption is a different watch */
+s = parseSearch("PFC274-0000600-HC3143", lawOpts); // one-character substitution
+check("one-character substitution stays exact", s.reference, "PFC274-0000600-HC3143");
+check("one-character substitution matches nothing", matchCount(s), 0);
+s = parseSearch("PFC274-000600-HC3142", lawOpts); // omitted character
+check("omitted character matches nothing", matchCount(s), 0);
+s = parseSearch("PFC274-0000600", lawOpts); // missing suffix — the substring hazard
+check("missing suffix stays an exact request", s.reference, "PFC274-0000600");
+check("missing suffix never substring-returns the full reference", matchesSearch(lawPfc, s), false);
+s = parseSearch("PFC274-0000600-HC3142X", lawOpts); // added suffix
+check("added suffix matches nothing", matchCount(s), 0);
+s = parseSearch("SBGH200", lawOpts); // unknown closely resembling a known
+check("lookalike identifier stays exact", s.reference, "SBGH200");
+check("lookalike identifier never returns its neighbor", matchesSearch(lawSeiko, s), false);
+
+/* exact no-match state shape: identifier set, zero meanings, zero results */
+s = parseSearch("UB0134101B1U9", lawOpts);
+check("no-match state carries the identifier", s.reference, "UB0134101B1U9");
+check("no-match state carries no meanings", s.meanings.length, 0);
+check("no-match state returns nothing", matchCount(s), 0);
+
+/* identifier-shape boundaries — the conservative edges stay ordinary text */
+s = parseSearch("5711", lawOpts); // pure digits: bare-number law holds
+check("pure digits stay text, never a guessed identifier", s.reference, null);
+s = parseSearch("gmt2", lawOpts); // under the five-character floor
+check("short mixed token stays text", s.reference, null);
+s = parseSearch("omega PFC274-0000600", lawOpts); // identifier inside a sentence
+check("multi-word query is never an exact-identifier claim", s.reference, null);
+
+/* unmatched quotation recovery — the order's exact production example */
+s = parseSearch('"omega -gold filled');
+check("unmatched quote + minus material recovers", labels(s).sort(), [
+  "Exclude Case Material: Gold Filled",
+  "Search text: omega",
+].sort());
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
