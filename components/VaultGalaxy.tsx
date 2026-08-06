@@ -2259,12 +2259,22 @@ export default function VaultGalaxy({
             }}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-white/[0.04] px-8 py-[18px]">
-              <div className="font-display text-[15px] font-normal text-[var(--platinum)]">
+              {/* Entrance header controls are real exits, not decoration:
+                  wordmark → home, Marketplace → /browse. Same treatment. */}
+              <Link
+                href="/"
+                aria-label="FairWatchTrade home"
+                className="font-display text-[15px] font-normal text-[var(--platinum)]"
+              >
                 Fair<span className="text-[var(--gold)]">Watch</span>Trade
-              </div>
-              <div className="text-[9px] uppercase tracking-[2px] text-[#4A4F5C]">
+              </Link>
+              <Link
+                href="/browse"
+                aria-label="Return to the marketplace"
+                className="text-[9px] uppercase tracking-[2px] text-[#4A4F5C] transition-colors hover:text-[var(--slate)]"
+              >
                 ← Marketplace
-              </div>
+              </Link>
             </div>
 
             <div className="relative flex flex-1 items-stretch">
