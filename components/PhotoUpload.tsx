@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import { randomUUID } from "@/lib/uuid";
+import HelpBubble from "@/components/HelpBubble";
 import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
@@ -314,13 +315,39 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                   </p>
                 )}
                 {it.category === "Service Evidence" && (
-                  <div className="text-[10px] leading-snug text-[var(--muted)]">
-                    <p>
-                      Service records, invoices, or timing results. Optional
-                      supporting evidence — service documentation provided, not
-                      verified by FairWatchTrade. Private by default: this
-                      image stays off your public listing.
-                    </p>
+                  <div className="relative text-[10px] leading-snug text-[var(--muted)]">
+                    {/* Instructional copy lives in the ONE shared help bubble
+                        (Layout ruling 2026-08-06). The opt-in checkbox and
+                        its warning are a CONSENT affordance, not help — they
+                        stay inline, visible before the choice is made. */}
+                    <div className="flex items-center">
+                      <span>Service records, invoices, or timing results.</span>
+                      <HelpBubble
+                        label="Service Evidence help"
+                        historyKey="fwtServiceEvidenceHelp"
+                        title="Optional supporting evidence"
+                        triggerClassName="-my-3"
+                        bubbleClassName="left-0 right-0 top-[calc(100%+10px)] sm:left-0 sm:right-auto sm:w-[320px]"
+                        caretClassName="left-[18px]"
+                      >
+                        <div className="text-[13px] leading-[1.5] text-[var(--muted)]">
+                          <p>
+                            Service evidence is optional and never required —
+                            it can strengthen your listing, and a solid
+                            caseback never needs to be opened for admission.
+                          </p>
+                          <p className="mt-2">
+                            Uploading a document means service documentation
+                            provided, not verified by FairWatchTrade.
+                          </p>
+                          <p className="mt-2">
+                            Private by default: this image stays off your
+                            public listing unless you deliberately choose to
+                            show it below.
+                          </p>
+                        </div>
+                      </HelpBubble>
+                    </div>
                     <label className="mt-1.5 flex items-start gap-1.5 text-[var(--platinum-dim)]">
                       <input
                         type="checkbox"

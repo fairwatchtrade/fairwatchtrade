@@ -19,6 +19,7 @@ import DescriptionStep from "@/components/DescriptionStep";
 import ReviewStep from "@/components/ReviewStep";
 import WatchBlueprint, { type Layer, type Detail } from "@/components/WatchBlueprint";
 import WatchSpinner from "@/components/WatchSpinner";
+import HelpBubble from "@/components/HelpBubble";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
 import { randomUUID } from "@/lib/uuid";
@@ -1061,7 +1062,6 @@ function CurationStep({
   setAdvisory: (a: RefAdvisory | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [conditionHelpOpen, setConditionHelpOpen] = useState(false);
   const [error, setError] = useState("");
 
   /* ── Money Truth Stage B — seller currency selector (approved Design Gate,
@@ -1378,20 +1378,54 @@ function CurationStep({
           <label className={label}>Year</label>
           <input className={input} value={draft.year} onChange={(e) => patch({ year: e.target.value })} placeholder="e.g. 2021" />
         </div>
-        <div>
-          <div className="flex items-center gap-1.5">
+        <div className="relative">
+          <div className="flex items-center">
             <label className={`${label} mb-0`}>Condition</label>
-            {/* Condition-governance help (ruling 2026-08-06): tap/click, never
-                hover-only, so it works identically on desktop and phone. */}
-            <button
-              type="button"
-              aria-label="What do the condition grades mean?"
-              aria-expanded={conditionHelpOpen}
-              onClick={() => setConditionHelpOpen((v) => !v)}
-              className="mb-2 flex h-[14px] min-w-[18px] items-center justify-center rounded-full border border-[var(--gold)] px-1 text-[9px] leading-none text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+            {/* Condition-governance help in FairWatchTrade's ONE help
+                language (Layout ruling 2026-08-06): the Search help's gold ?
+                with its hover/focus/tap behavior and anchored speech bubble,
+                via the shared HelpBubble — never a second question-mark
+                design, never inline copy that expands the page. */}
+            <HelpBubble
+              label="Condition help"
+              historyKey="fwtConditionHelp"
+              title="One grade, honestly supported"
+              triggerClassName="-my-3"
+              bubbleClassName="left-0 right-0 top-[calc(100%+10px)] sm:left-0 sm:right-auto sm:w-[390px]"
+              caretClassName="left-[52px]"
             >
-              ?
-            </button>
+              <div className="text-[13px] leading-[1.5] text-[var(--muted)]">
+                <p>
+                  Condition is a factual claim, not sales language. Choose ONE
+                  grade — never a range like &ldquo;good to excellent&rdquo; —
+                  and your photographs and description must support it.
+                </p>
+                <p className="mt-2">
+                  <span className="text-[var(--platinum-dim)]">Very Good</span>{" "}
+                  means fully wearable and functioning, with honest
+                  age-consistent wear and no undisclosed major defect that
+                  would materially surprise a buyer.
+                </p>
+                <p className="mt-2">
+                  Polishing, refinishing, repairs, service parts, replacement
+                  components, corrosion, damage, and functional issues are
+                  disclosed separately — condition does not establish
+                  originality.
+                </p>
+                <p className="mt-2 border-t border-[var(--border-subtle)] pt-2 text-[12px]">
+                  Material misgrading or material omission may violate the{" "}
+                  <a
+                    href="/terms#seller-responsibilities"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--gold)] underline"
+                  >
+                    FairWatchTrade Terms of Service — Seller Responsibilities
+                  </a>
+                  .
+                </p>
+              </div>
+            </HelpBubble>
           </div>
           <select
             className={input}
@@ -1403,39 +1437,6 @@ function CurationStep({
               <option key={c} value={c} style={OPTION_STYLE}>{c}</option>
             ))}
           </select>
-          {conditionHelpOpen && (
-            <div className="mt-2 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5 text-[11px] leading-[1.6] text-[var(--muted)]">
-              <p>
-                Condition is a factual claim, not sales language. Choose ONE
-                grade — never a range like &ldquo;good to excellent&rdquo; —
-                and your photographs and description must support it.
-              </p>
-              <p className="mt-1.5">
-                <span className="text-[var(--platinum-dim)]">Very Good</span>{" "}
-                means fully wearable and functioning, with honest
-                age-consistent wear and no undisclosed major defect that would
-                materially surprise a buyer.
-              </p>
-              <p className="mt-1.5">
-                Polishing, refinishing, repairs, service parts, replacement
-                components, corrosion, damage, and functional issues are
-                disclosed separately — condition does not establish
-                originality.
-              </p>
-              <p className="mt-1.5">
-                Material misgrading or material omission may violate the{" "}
-                <a
-                  href="/terms#seller-responsibilities"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--gold)] underline"
-                >
-                  FairWatchTrade Terms of Service — Seller Responsibilities
-                </a>
-                .
-              </p>
-            </div>
-          )}
         </div>
         <div className="sm:col-span-2">
           <label className={label}>Asking price</label>

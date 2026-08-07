@@ -542,7 +542,7 @@ ok("a disclosed replacement crystal is never by itself a rejection",
   ok("the warning names the private-information kinds",
     /address, phone, email, billing ZIP, partial\s+payment or card details, account or customer numbers,\s+signatures, service or purchase prices/.test(uploader));
   ok("uploading means PROVIDED, never VERIFIED",
-    /service documentation provided, not\s+verified/i.test(uploader) &&
+    /service documentation\s+provided, not\s+verified/i.test(uploader) &&
       !/documentation verified/i.test(uploader));
 }
 
@@ -600,9 +600,28 @@ ok("a disclosed replacement crystal is never by itself a rejection",
     sellFlow.includes(ORDERED));
   ok("Very Good sits between Excellent and Good on the mobile wizard",
     wizard.includes(ORDERED));
-  ok("the help control is click/tap, not hover-only",
-    sellFlow.includes("onClick={() => setConditionHelpOpen") &&
-      !/onMouseEnter=\{[^}]*ConditionHelp/.test(sellFlow));
+  // Layout ruling 2026-08-06: ONE help-affordance language. Both Sell Flow
+  // helps consume the shared HelpBubble — the Search help's gold ?, its
+  // hover/focus/tap behavior, its anchored speech bubble — never a second
+  // question-mark design, never inline copy that expands the page.
+  const helpBubble = readFileSync(new URL("../components/HelpBubble.tsx", import.meta.url), "utf8");
+  const uploaderSrc = readFileSync(new URL("../components/PhotoUpload.tsx", import.meta.url), "utf8");
+  ok("Condition help consumes the shared HelpBubble",
+    sellFlow.includes('label="Condition help"') &&
+      sellFlow.includes('@/components/HelpBubble'));
+  ok("Service Evidence help consumes the shared HelpBubble",
+    uploaderSrc.includes('label="Service Evidence help"') &&
+      uploaderSrc.includes('@/components/HelpBubble'));
+  ok("the shared bubble carries the Search help interaction contract",
+    /Escape/.test(helpBubble) && /popstate/.test(helpBubble) &&
+      /pointerdown/.test(helpBubble) && /pushState/.test(helpBubble) &&
+      /btnRef\.current\?\.focus\(\)/.test(helpBubble));
+  ok("the shared bubble is the Search help's visual language",
+    helpBubble.includes("rounded-full border bg-[#151a22]") &&
+      helpBubble.includes("rgba(201,168,76,0.48)") &&
+      helpBubble.includes("rotate-45"));
+  ok("no second inline-expanding help slab remains in the Sell Flow",
+    !sellFlow.includes("conditionHelpOpen"));
   ok("the help forbids ranges and demands support",
     /never a range/.test(sellFlow) && /must\s+support it/.test(sellFlow));
   ok("the help separates condition from originality",
