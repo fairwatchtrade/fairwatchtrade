@@ -70,26 +70,39 @@ function priceForEvaluation(draft: ListingDraft): number | undefined {
  *  piece, an estate sale, a spouse selling a collection they did not build —
  *  explains their situation. It must reach the evaluator intact; that is the
  *  entire point of the field. */
-/** The reference the EVALUATOR should see. For a profile brand whose entry is
- *  a recognized composite Style, the deterministically derived canonical
- *  reference is submitted — the evaluator judges watches, and the watch's
- *  public identity is the canonical reference, not Rolex's internal
- *  bracelet/dial coding. The raw Style is preserved separately in the draft's
- *  admission state; it is documentary evidence, not the evaluator's input.
- *  (Style-number ruling 2026-08-06. Canary: /api/evaluate and the prompt
- *  module remain untouched — this shapes only the client's payload.) */
-function referenceForEvaluation(draft: ListingDraft): string | undefined {
+/** The identity the EVALUATOR should see, for a profile (Rolex) submission.
+ *
+ *  The evaluator must judge the EXACT watch, never the bare family — so a
+ *  profile submission carries the model name, the canonical reference, and,
+ *  when the seller entered a recognized composite Style, the complete
+ *  documented Style code as exact-configuration evidence (it encodes dial
+ *  and bracelet configuration beyond the reference). The canonical reference
+ *  is what derives from the Style — the evaluator never receives Rolex's
+ *  internal coding AS the reference. (Style-number ruling + admission-logic
+ *  defect correction, 2026-08-06.)
+ *
+ *  Non-profile brands return null and their payload stays byte-for-byte what
+ *  it always was — including the canary's. */
+function profileIdentityForEvaluation(
+  draft: ListingDraft
+): Pick<ListingSubmission, "reference" | "model" | "style_number"> | null {
+  if (!requirementProfileFor(draft.brand)) return null;
   const raw = draft.reference.trim();
-  if (!raw) return undefined;
-  if (!requirementProfileFor(draft.brand)) return raw;
-  const identifier = classifyRolexIdentifier(raw);
-  return identifier.kind === "style" ? identifier.reference : raw;
+  const identifier = raw ? classifyRolexIdentifier(raw) : null;
+  return {
+    reference:
+      identifier?.kind === "style" ? identifier.reference : raw || undefined,
+    model: draft.model.trim() || undefined,
+    style_number: identifier?.kind === "style" ? identifier.style : undefined,
+  };
 }
 
 export function buildCurationSubmission(draft: ListingDraft): ListingSubmission {
+  const profileIdentity = profileIdentityForEvaluation(draft);
   return {
     brand: draft.brand,
-    reference: referenceForEvaluation(draft),
+    reference: draft.reference || undefined,
+    ...(profileIdentity ?? {}),
     year: draft.year || undefined,
     condition: draft.condition || undefined,
     asking_price: priceForEvaluation(draft),

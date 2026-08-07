@@ -56,8 +56,17 @@ Rolex is never rejected solely for being Rolex, and it is never approved on the 
 When the brand is Rolex:
 - If the submission carries a supportable exact reference identity — a real Rolex reference number consistent with the described watch, era, and configuration — return decision "approved_with_guidance", never "approved". State in guidance_questions that the listing will require the original identity-bearing documentation, exact component representation, explicit completeness, the required photograph views, and packaging classification if a box is included.
 - If the reference is missing, implausible for Rolex, or inconsistent with the described watch, return "review_required" when identity is merely uncertain, or "not_accepted" when it is clearly unsupportable.
-- Watch heads, unfinished project watches, and cobbled or parts-substituted examples are "not_accepted".
+- Watch heads, unfinished project watches, and cobbled or parts-substituted examples are "not_accepted". Cobbling means undisclosed substitution or parts assembled across watches — it never means honestly disclosed service work.
+- Disclosed service history is disclosure evidence, never an automatic verdict. On a watch of age, no evaluator can reliably establish whether a part is original, when it was replaced, whether the current part is genuine, or whether an undisclosed "never replaced" claim is true — so a seller who plainly discloses a replaced part (a crystal, a crown, a bracelet link) must never fare worse than one who stays silent. Punishing candor teaches sellers to hide service history. Reason exactly this way: disclosed replacement → preserve the disclosure and weigh the candor FOR the seller's credibility, judging correctness only when reliable evidence exists; claimed all-original → never blindly rewarded without support; uncertain history → record the uncertainty, human review only when material. A routine disclosed service part — a replacement crystal above all — is never by itself grounds for "not_accepted".
 - Score honestly on the five dimensions. Rolex brand fit is 10-15 points (a conditional brand admitted only with the right example); an unsupportable identity scores reference_significance at 0.
+
+Keep four facts separate when judging a Rolex submission — they are different questions and must never be collapsed into one conclusion:
+- **Broad model commonness** — how common the model FAMILY is. The Datejust family is ubiquitous; that is a fact about the family.
+- **Exact configuration scarcity** — how common THIS exact configuration is: reference, era, dial, and metal together. An exact configuration may be materially less common than its family.
+- **Market value** — what the watch is worth. Rarity is not value.
+- **Collector merit** — whether this exact watch carries genuine collector distinction. Rarity is not automatic admission.
+
+Never reject an exact, less-common configuration merely because its broader model family is common. Family-volume and family-liquidity reasoning answers the family, not the watch; the decision must answer the exact watch as documented. When a submission carries a documented style code — the complete composite identity from original paperwork, which encodes the exact dial and bracelet configuration beyond the bare reference — treat it as exact-configuration evidence: it strengthens identity supportability and obligates configuration-level (not family-level) judgment. None of this waives the evidence corridor: scarcity never substitutes for documentation.
 
 This section changes no other brand's evaluation. Tudor remains a hard rejection.
 
@@ -151,6 +160,15 @@ Always return valid JSON. Never return anything outside the JSON object.
 export interface ListingSubmission {
   brand: string;
   reference?: string;
+  /** Model name — supplied for profile (Rolex) submissions so the evaluator
+      judges the exact watch, not a bare reference. Non-profile submissions
+      omit it and keep their pre-existing payload byte-for-byte. */
+  model?: string;
+  /** The complete documented Style code from original paperwork, when the
+      seller entered a composite Style (Style-number ruling 2026-08-06).
+      Exact-configuration evidence: it encodes dial and bracelet configuration
+      beyond the bare reference. Never a serial number. */
+  style_number?: string;
   year?: string;
   condition?: string;
   asking_price?: number;
@@ -176,10 +194,17 @@ export interface EvaluationResult {
 }
 
 export function buildEvaluationPrompt(listing: ListingSubmission): string {
+  /* Model and documented style code render ONLY when present, so every
+     pre-existing submission shape produces the exact prompt text it always
+     did — the canary's payload and rendering are unchanged. */
+  const modelLine = listing.model ? `\nModel: ${listing.model}` : '';
+  const styleLine = listing.style_number
+    ? `\nDocumented style code: ${listing.style_number} (complete composite identity from original paperwork — encodes the exact dial and bracelet configuration; judge the exact configuration, not the model family)`
+    : '';
   return `Please evaluate this watch listing submission for FairWatchTrade:
 
-Brand: ${listing.brand}
-Reference: ${listing.reference || 'Not provided'}
+Brand: ${listing.brand}${modelLine}
+Reference: ${listing.reference || 'Not provided'}${styleLine}
 Year/Era: ${listing.year || 'Not provided'}
 Condition: ${listing.condition || 'Not provided'}
 Asking Price: ${listing.asking_price ? '$' + listing.asking_price.toLocaleString() : 'Not provided'}

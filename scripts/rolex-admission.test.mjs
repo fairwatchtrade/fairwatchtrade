@@ -41,7 +41,11 @@ import {
   rolexStyleReferenceLine,
   ROLEX_STYLE_DOC_FLAG,
 } from "../lib/admission/rolexIdentifier.ts";
-import { FAIRWATCHTRADE_SYSTEM_PROMPT } from "../lib/evaluationPrompt.ts";
+import {
+  FAIRWATCHTRADE_SYSTEM_PROMPT,
+  buildEvaluationPrompt,
+} from "../lib/evaluationPrompt.ts";
+import { buildCurationSubmission } from "../lib/curationSubmission.ts";
 
 let pass = 0;
 const ok = (name, c) => { assert.ok(c, name); pass++; };
@@ -389,7 +393,94 @@ eq("Style documentation flag",
   ok("server preserves the raw Style separately from the canonical reference",
     route.includes("styleNumber: identifier.style"));
   ok("the evaluator receives the derived canonical reference for a Style entry",
-    submission.includes('identifier.kind === "style" ? identifier.reference'));
+    submission.includes('identifier?.kind === "style" ? identifier.reference'));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMISSION-LOGIC DEFECT CORRECTION (Verbose · 2026-08-06)
+   The evaluator must judge the EXACT watch, never the bare family. Four
+   facts stay separate; exact-configuration evidence reaches the evaluator.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── the prompt keeps the four facts separate ── */
+ok("prompt names broad model commonness as its own fact",
+  /Broad model commonness/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("prompt names exact configuration scarcity as its own fact",
+  /Exact configuration scarcity/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("prompt rules that rarity is not value",
+  /Rarity is not value/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("prompt rules that rarity is not automatic admission",
+  /Rarity is not automatic admission/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("prompt forbids family-commonness rejection of an exact configuration",
+  /Never reject an exact, less-common configuration merely because its broader model family is common/.test(
+    FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("prompt treats a documented style code as exact-configuration evidence",
+  /documented style code/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("scarcity never substitutes for documentation",
+  /scarcity never substitutes for documentation/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+
+/* ── disclosure rule (Jason + Verbose ruling 2026-08-06): crystal status is
+      disclosure evidence, never an automatic verdict ── */
+ok("cobbling is bounded to undisclosed substitution",
+  /it never means honestly disclosed service work/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("disclosed service history is evidence, never a verdict",
+  /Disclosed service history is disclosure evidence, never an automatic verdict/.test(
+    FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("the prompt names the honesty asymmetry",
+  /must never fare worse than one who stays silent/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("punishing candor is named as the failure mode",
+  /Punishing candor teaches sellers to hide service history/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("an all-original claim is never blindly rewarded",
+  /never blindly rewarded without support/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+ok("a disclosed replacement crystal is never by itself a rejection",
+  /never by itself grounds for "not_accepted"/.test(FAIRWATCHTRADE_SYSTEM_PROMPT));
+
+/* ── the exact identity reaches the evaluator (profile brands only) ── */
+{
+  const baseDraft = {
+    brand: "Rolex", model: "Datejust", reference: "R79173327B6252",
+    year: "2004", condition: "Excellent",
+    askingPrice: "7100", askingCurrency: "USD", askingConfirmed: true,
+    provenanceNote: "note", details: {},
+  };
+  const sub = buildCurationSubmission(baseDraft);
+  eq("Rolex Style entry: evaluator receives the canonical reference",
+    sub.reference, "79173");
+  eq("Rolex Style entry: evaluator receives the complete documented Style",
+    sub.style_number, "R79173327B6252");
+  eq("Rolex Style entry: evaluator receives the model", sub.model, "Datejust");
+
+  const bare = buildCurationSubmission({ ...baseDraft, reference: "79173" });
+  eq("Rolex bare reference: passes through", bare.reference, "79173");
+  eq("Rolex bare reference: no style claimed", bare.style_number, undefined);
+  eq("Rolex bare reference: model still reaches the evaluator",
+    bare.model, "Datejust");
+
+  // Non-profile submissions stay byte-for-byte what they always were —
+  // no model, no style — including the canary's payload shape.
+  const canaryShaped = buildCurationSubmission({
+    ...baseDraft, brand: "Parmigiani Fleurier", model: "Tonda Métrographe",
+    reference: "PFC274",
+  });
+  eq("non-profile: reference untouched", canaryShaped.reference, "PFC274");
+  ok("non-profile: model and style are NOT added",
+    !("model" in canaryShaped && canaryShaped.model !== undefined) &&
+      canaryShaped.style_number === undefined);
+}
+
+/* ── prompt rendering: absent fields change nothing ── */
+{
+  const plain = buildEvaluationPrompt({ brand: "Parmigiani Fleurier", reference: "PFC274" });
+  ok("no model/style → no model/style lines (canary rendering unchanged)",
+    !/Model:/.test(plain) && !/Documented style code:/.test(plain));
+  const styled = buildEvaluationPrompt({
+    brand: "Rolex", model: "Datejust", reference: "79173",
+    style_number: "R79173327B6252",
+  });
+  ok("style submission renders the documented style line",
+    /Documented style code: R79173327B6252/.test(styled) &&
+      /Model: Datejust/.test(styled) &&
+      /judge the exact configuration, not the model family/.test(styled));
 }
 
 console.log(`rolex-admission: ${pass} assertions PASS`);
