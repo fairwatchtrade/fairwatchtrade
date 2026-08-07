@@ -72,7 +72,7 @@ The composition, the surrounding whitespace, the vertical breathing room — the
 The seller dashboard should never have nav labels brighter than watch names. The interface defers to the object.
 
 **"The bar is outdoor sunlight at full brightness — not a dark room."**
-Studio prototypes are designed as dark-room art pieces. Production runs on phone screens in Florida sun. Every text token gets lifted one tier before first render. See Readability-Floor-Governance.md.
+Studio prototypes are designed as dark-room art pieces. Production runs on phone screens in Florida sun. Every text token gets lifted one tier before first render. See /docs/product-laws/Readability-Floor-Governance.md.
 
 ---
 
