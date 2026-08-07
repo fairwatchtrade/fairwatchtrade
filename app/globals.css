@@ -29,15 +29,23 @@
   --ghost:        #646B7A;
 
   /* VOID FLOOR WARNING: #3D424F is below the readable floor.
-     Use ONLY for decorative elements, placeholders, and disabled states.
-     Never for instructional or informational text.
-     Minimum readable text = --ghost (#646B7A). */
+     Use ONLY for decorative elements, placeholders, and valid disabled
+     states. Never for instructional or informational text.
+     --ghost is NOT the readable minimum, and is never the automatic
+     replacement for text that was wrongly placed on --void. */
   --void:         #3D424F;
   /* GOVERNANCE: --void is ONLY for placeholder: text, truly decorative
-     elements, and disabled states. Any text a user needs to read —
-     labels, hints, captions, "Soon" pills, progress step names,
-     nav items — floors at --ghost (#646B7A) minimum.
-     If a brief specifies --void on informational text, --ghost wins. */
+     elements, and disabled states where the disabled meaning stays clear.
+     --ghost is for genuinely secondary decoration only.
+     Any text a user needs to read — labels, hints, captions, "Soon" pills,
+     progress step names, nav items — takes the readable floor defined by
+     Readability-Floor-Governance (--muted minimum), never --ghost and
+     never --void.
+     Governing law:
+       /docs/product-laws/Void-Token-Governance.md
+         — where --void may be used;
+       /docs/product-laws/Readability-Floor-Governance.md
+         — how bright readable text must be; controls on conflict. */
 
   --gold-dim:     #9A7E3A;
   --gold-subtle:  rgba(201,168,76,0.45);
