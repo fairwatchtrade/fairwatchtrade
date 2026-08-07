@@ -1397,7 +1397,17 @@ function CurationStep({
               label="Condition help"
               historyKey="fwtConditionHelp"
               title="One grade, honestly supported"
-              triggerClassName="-my-3"
+              /* The 36px hit target is centred on the label row, so its lower
+                 half reached into the select below and the ? met the select's
+                 focus ring — help read as part of the control. The lift clears
+                 it while the ? stays on the label's own optical centre. The
+                 shift is vertical only: the caret is pinned horizontally to
+                 the trigger, so moving it sideways would drag the bubble's
+                 approved geometry with it. Hit target, ? size and gold states
+                 are untouched — transform moves the button, it does not
+                 resize it, and the row height is unchanged so the select does
+                 not move. */
+              triggerClassName="-my-3 -translate-y-[5px]"
               /* Long-help CARD treatment (Layout correction 2026-08-06):
                  size, position, caret, copy, border, spacing and behavior all
                  preserved — the corner radius ALONE changes, to the moderate
