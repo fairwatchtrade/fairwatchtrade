@@ -24,11 +24,26 @@ export type CurationDecision = "pending" | "pass" | "fail";
 
 export type ListingPhoto = {
   photo: UploadedPhoto;
-  category: PhotoCategory;
+  /** "" means uploaded but not yet tagged. An accepted upload belongs in the
+      draft the moment it exists — the draft is the ONE photo store, and a
+      photo that is only in component state is a photo the seller can lose by
+      navigating (Jason's walk, 2026-08-07: some photos survived a Sell Flow
+      disturbance and some did not — the untagged ones were being filtered out
+      on the way in). Tagging is a later, separate act. Every consumer keys off
+      SPECIFIC categories (Set membership / includes), so an untagged entry
+      contributes nothing to scoring, required views, or publication gates —
+      it simply stops disappearing. */
+  category: PhotoCategory | "";
   isWristShot?: boolean;
   /** Service Evidence only: the seller's deliberate opt-in to public display.
       PRIVATE BY DEFAULT (lib/servicePhotoPrivacy governs every public surface). */
   servicePublicOptIn?: boolean;
+  /** SHA-256 of the exact selected file's bytes, for same-draft duplicate
+      rejection only. Draft-scoped and client-side: this answers "is this exact
+      photo already in THIS listing?" and nothing else. It is NOT the Aubrey
+      Check exact-hash index, which answers cross-listing recurrence. Optional
+      so drafts written before this resume without migration. */
+  contentHash?: string;
 };
 
 export type ListingDetails = {
@@ -140,7 +155,13 @@ export function wordCount(text: string): number {
 export function toScoringState(d: ListingDraft): ListingState {
   return {
     significanceScore: d.significanceScore ?? 0,
-    photoCategories: d.photos.map((p) => p.category),
+    /* Untagged uploads live in the draft but carry no category, so they are
+       dropped here rather than reaching the scorer as empty strings. Scoring
+       has always been driven by which categories are PRESENT, never by how
+       many photos exist — an untagged photo earns nothing until tagged. */
+    photoCategories: d.photos
+      .map((p) => p.category)
+      .filter((c): c is PhotoCategory => c !== ""),
     hasBracelet: d.hasBracelet,
     hasWristShot: d.photos.some((p) => p.isWristShot),
     documentation: d.details.documentation,

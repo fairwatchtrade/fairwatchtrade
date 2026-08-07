@@ -1728,14 +1728,18 @@ function PhotosStep({
   const dragOver = dragCount > 0;
 
   function onPhotos(metas: UploadedPhotoMeta[]) {
-    const photos: ListingPhoto[] = metas
-      .filter((m) => m.category)
-      .map((m) => ({
-        photo: { url: m.url, pathname: m.pathname },
-        category: m.category as PhotoCategory,
-        isWristShot: m.isWristShot,
-        servicePublicOptIn: m.servicePublicOptIn === true,
-      }));
+    /* Every accepted upload is recorded, tagged or not. The old
+       `.filter((m) => m.category)` silently dropped untagged photos on the way
+       into the draft, so a seller who uploaded seven and tagged five kept five
+       — the other two were live in the uploader and nowhere else, and any
+       remount took them. Tagging is a separate act from keeping. */
+    const photos: ListingPhoto[] = metas.map((m) => ({
+      photo: { url: m.url, pathname: m.pathname },
+      category: (m.category ?? "") as PhotoCategory | "",
+      isWristShot: m.isWristShot,
+      servicePublicOptIn: m.servicePublicOptIn === true,
+      contentHash: m.contentHash,
+    }));
     patch({ photos });
   }
 
@@ -1833,6 +1837,7 @@ function PhotosStep({
             category: p.category,
             isWristShot: p.isWristShot === true,
             servicePublicOptIn: p.servicePublicOptIn === true,
+            contentHash: p.contentHash,
           }))}
           /* Context-gated tags (Photos-step ruling 2026-08-06): Service
              Evidence exists only in the Rolex corridor — it is the OR-half

@@ -34,6 +34,9 @@ export type UploadedPhotoMeta = {
   isWristShot: boolean;
   /** Service Evidence only: deliberate public-display opt-in (default off). */
   servicePublicOptIn?: boolean;
+  /** SHA-256 of the selected file's bytes — same-draft duplicate rejection
+      only. Never fraud detection, never cross-listing recurrence. */
+  contentHash?: string;
 };
 
 /* Parent can call uploadFiles() directly (used by the page-level drop guard),
@@ -77,7 +80,25 @@ type Item = {
   /** Service Evidence only: the seller's deliberate opt-in to show the
       document publicly. PRIVATE BY DEFAULT — see lib/servicePhotoPrivacy. */
   servicePublicOptIn?: boolean;
+  contentHash?: string;
 };
+
+/* SHA-256 over the exact selected bytes. Same-draft duplicate rejection only
+   — deliberately NOT the Aubrey Check exact-hash index, which answers the
+   cross-listing recurrence question server-side over retained bytes. Returns
+   null if the platform withholds SubtleCrypto (non-secure context), and every
+   caller treats null as "cannot tell, allow it". */
+async function sha256OfFile(file: File): Promise<string | null> {
+  try {
+    if (!globalThis.crypto?.subtle) return null;
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
 
 const PhotoUpload = forwardRef<PhotoUploadHandle, {
   onChange?: (photos: UploadedPhotoMeta[]) => void;
@@ -110,9 +131,13 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
         category: p.category,
         isWristShot: !!p.isWristShot,
         servicePublicOptIn: p.servicePublicOptIn === true,
+        contentHash: p.contentHash,
       }))
     );
     const [dragging, setDragging] = useState(false);
+    /* Seller-facing notice for a rejected same-draft duplicate. Ordinary
+       feedback, not an accusation — the existing photo is never touched. */
+    const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
     /* Which item's public-display attempt is currently showing the privacy
        warning card (Layout correction 2026-08-06). Escape and outside
        pointerdown dismiss WITHOUT enabling — only the explicit confirm
@@ -178,9 +203,28 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
       };
     }, [publishWarnFor]);
 
+    /* ── Reaching the draft must not depend on still being mounted ─────────
+       An upload resolves on its own clock. If the Photos step has unmounted
+       by then — a step change, or the help-history kick-out — React discards
+       the setItems and the items-derived effect below never runs, so a photo
+       that finished uploading is in Blob storage and in NO listing state at
+       all. That is the in-flight loss around the old line 184.
+
+       itemsRef is the authoritative list and is updated SYNCHRONOUSLY at
+       every mutation, so parallel uploads in one Promise.all each see the
+       latest value instead of racing a stale closure. onChangeRef keeps the
+       parent callback reachable after unmount — SellFlow itself stays mounted
+       while the step content swaps, so the draft is still there to write to.
+       The draft remains the one photo store; nothing here is a second one. */
+    const itemsRef = useRef<Item[]>(items);
+    const onChangeRef = useRef(onChange);
     useEffect(() => {
-      onChange?.(
-        items
+      onChangeRef.current = onChange;
+    });
+
+    const emitFrom = useCallback((list: Item[]) => {
+      onChangeRef.current?.(
+        list
           .filter((i) => i.status === "done" && i.url)
           .map((i) => ({
             url: i.url!,
@@ -188,47 +232,101 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
             category: i.category,
             isWristShot: i.isWristShot,
             servicePublicOptIn: i.servicePublicOptIn === true,
+            contentHash: i.contentHash,
           }))
       );
+    }, []);
+
+    useEffect(() => {
+      itemsRef.current = items;
+      emitFrom(items);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [items]);
 
-    const handleFiles = useCallback(async (files: FileList | null) => {
-      if (!files || files.length === 0) return;
-      const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
-      if (list.length === 0) return;
+    /* Commit a list from anywhere — mounted or not. setItems is a no-op after
+       unmount; the ref update and the emit are what actually preserve work. */
+    const commit = useCallback(
+      (next: Item[]) => {
+        itemsRef.current = next;
+        setItems(next);
+        emitFrom(next);
+      },
+      [emitFrom]
+    );
 
-      const incoming: Item[] = list.map((f) => ({
-        id: randomUUID(),
-        name: f.name,
-        previewUrl: URL.createObjectURL(f),
-        status: "uploading",
-        category: "",
-        isWristShot: false,
-      }));
-      setItems((prev) => [...prev, ...incoming]);
+    const handleFiles = useCallback(
+      async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
+        if (list.length === 0) return;
+        setDuplicateNotice(null);
 
-      await Promise.all(
-        list.map(async (file, idx) => {
-          const id = incoming[idx].id;
-          try {
-            const uploaded = await uploadPhoto(file);
-            setItems((prev) =>
-              prev.map((it) =>
-                it.id === id
-                  ? { ...it, status: "done", url: uploaded.url, pathname: uploaded.pathname }
-                  : it
-              )
-            );
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : "upload failed";
-            setItems((prev) =>
-              prev.map((it) => (it.id === id ? { ...it, status: "error", error: msg } : it))
-            );
+        /* Same-draft duplicate check, BEFORE upload — the exact bytes decide,
+           not the filename (a re-saved copy renames freely). Scope is this
+           listing draft and nothing else: it answers "is this exact photo
+           already in this listing?" and never asks a cross-listing question.
+           Fail-open by construction — if hashing is unavailable the upload
+           proceeds, because blocking a real photo is worse than allowing a
+           duplicate. */
+        const seen = new Set(
+          itemsRef.current.map((i) => i.contentHash).filter(Boolean) as string[]
+        );
+        const accepted: { file: File; hash: string | null }[] = [];
+        let rejected = 0;
+        for (const file of list) {
+          const hash = await sha256OfFile(file);
+          if (hash && seen.has(hash)) {
+            rejected += 1;
+            continue;
           }
-        })
-      );
-    }, []);
+          if (hash) seen.add(hash); // also catches duplicates inside one batch
+          accepted.push({ file, hash });
+        }
+        if (rejected > 0) {
+          setDuplicateNotice(
+            rejected === 1
+              ? "This photo is already in your listing."
+              : `${rejected} photos are already in your listing.`
+          );
+        }
+        if (accepted.length === 0) return;
+
+        const incoming: Item[] = accepted.map(({ file, hash }) => ({
+          id: randomUUID(),
+          name: file.name,
+          previewUrl: URL.createObjectURL(file),
+          status: "uploading",
+          category: "",
+          isWristShot: false,
+          contentHash: hash ?? undefined,
+        }));
+        commit([...itemsRef.current, ...incoming]);
+
+        await Promise.all(
+          accepted.map(async ({ file }, idx) => {
+            const id = incoming[idx].id;
+            try {
+              const uploaded = await uploadPhoto(file);
+              commit(
+                itemsRef.current.map((it) =>
+                  it.id === id
+                    ? { ...it, status: "done", url: uploaded.url, pathname: uploaded.pathname }
+                    : it
+                )
+              );
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : "upload failed";
+              commit(
+                itemsRef.current.map((it) =>
+                  it.id === id ? { ...it, status: "error", error: msg } : it
+                )
+              );
+            }
+          })
+        );
+      },
+      [commit]
+    );
 
     useImperativeHandle(
       ref,
@@ -242,8 +340,8 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
     );
 
     function setCategory(id: string, value: string) {
-      setItems((prev) =>
-        prev.map((it) => {
+      commit(
+        itemsRef.current.map((it) => {
           if (it.id !== id) return it;
           if (value === "Wrist shot") return { ...it, category: "Other", isWristShot: true };
           return { ...it, category: value as PhotoCategory | "", isWristShot: false };
@@ -252,7 +350,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
     }
 
     function remove(id: string) {
-      setItems((prev) => prev.filter((it) => it.id !== id));
+      commit(itemsRef.current.filter((it) => it.id !== id));
     }
 
     return (
@@ -295,6 +393,28 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
             }}
           />
         </div>
+
+        {duplicateNotice && (
+          /* Ordinary feedback, dismissible, and deliberately plain — the
+             seller picked the same file twice, which is a slip, not a
+             suspicion. The photo already in the listing is untouched. */
+          <div
+            role="status"
+            className="mt-4 flex items-start gap-2.5 border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5"
+          >
+            <span className="flex-1 text-[12px] leading-[1.5] text-[var(--platinum-dim)]">
+              {duplicateNotice}
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setDuplicateNotice(null)}
+              className="shrink-0 text-[16px] leading-none text-[var(--muted)] hover:text-[var(--platinum)]"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {items.length > 0 && (
           <div className="mb-3 mt-4 flex items-center gap-2.5 border border-l-[3px] border-[var(--border-gold)] border-l-[var(--gold)] bg-[var(--gold-whisper)] px-3.5 py-2.5">
@@ -435,8 +555,8 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                           if (e.target.checked) {
                             setPublishWarnFor(it.id);
                           } else {
-                            setItems((prev) =>
-                              prev.map((p) =>
+                            commit(
+                              itemsRef.current.map((p) =>
                                 p.id === it.id ? { ...p, servicePublicOptIn: false } : p
                               )
                             );
@@ -496,8 +616,8 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                         <button
                           type="button"
                           onClick={() => {
-                            setItems((prev) =>
-                              prev.map((p) =>
+                            commit(
+                              itemsRef.current.map((p) =>
                                 p.id === it.id ? { ...p, servicePublicOptIn: true } : p
                               )
                             );
