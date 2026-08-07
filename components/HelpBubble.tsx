@@ -72,6 +72,14 @@ export default function HelpBubble({
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushedHistory = useRef(false);
+  /* True only while close() is programmatically handing focus back to the
+     trigger. Focus opens the preview by design — but the RESTORED focus of a
+     close must not, or × and Escape on an unpinned preview close and reopen
+     in one batched render and look dead. (A pinned bubble accidentally
+     escaped this: its history.back() popstate closed the ghost a beat
+     later.) Focus events dispatch synchronously inside .focus(), so setting
+     and clearing the flag around that one call is exact. */
+  const restoringFocus = useRef(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,7 +101,11 @@ export default function HelpBubble({
           window.history.back();
         }
       }
-      if (restoreFocus) btnRef.current?.focus();
+      if (restoreFocus) {
+        restoringFocus.current = true;
+        btnRef.current?.focus();
+        restoringFocus.current = false;
+      }
     },
     [historyKey]
   );
@@ -213,6 +225,7 @@ export default function HelpBubble({
           }, 220);
         }}
         onFocus={() => {
+          if (restoringFocus.current) return; // a close handing focus back, not the user arriving
           if (!pinnedRef.current) openHelp(false);
         }}
         onClick={() => {
