@@ -297,9 +297,13 @@ export default async function ListingDetailPage({
     : { data: null };
 
   // Photos: keep only entries that actually carry a URL, so category-based
-  // hero detection and the URL list stay index-aligned.
+  // hero detection and the URL list stay index-aligned. Service Evidence is
+  // review evidence, never public: service documents routinely carry names,
+  // addresses, and identity-bearing detail (Photos-step ruling 2026-08-06).
   const allPhotos = Array.isArray(listing.photos) ? listing.photos : [];
-  const withUrls = allPhotos.filter((p) => p?.photo?.url);
+  const withUrls = allPhotos.filter(
+    (p) => p?.photo?.url && p?.category !== "Service Evidence"
+  );
   // Sort by category priority so the gallery receives URLs in display order;
   // a Dial photo lands at index 0 and becomes the hero. Stable sort keeps the
   // original order within a category. (Done here because category data lives

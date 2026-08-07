@@ -72,8 +72,19 @@ type Item = {
   isWristShot: boolean;
 };
 
-const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: UploadedPhotoMeta[]) => void }>(
-  function PhotoUpload({ onChange }, ref) {
+const PhotoUpload = forwardRef<PhotoUploadHandle, {
+  onChange?: (photos: UploadedPhotoMeta[]) => void;
+  /* Context-gated evidence tags appended to the base taxonomy (Photos-step
+     ruling 2026-08-06): "Service Evidence" rides only in the Rolex corridor,
+     "Extra Links" only while the bracelet checkbox is active. The base list
+     and its required markers are untouched for every other seller. */
+  extraCategories?: string[];
+}>(
+  function PhotoUpload({ onChange, extraCategories }, ref) {
+    const categoryOptions = [
+      ...CATEGORY_OPTIONS,
+      ...(extraCategories ?? []).map((value) => ({ value } as { value: string; required?: boolean })),
+    ];
     const [items, setItems] = useState<Item[]>([]);
     const [dragging, setDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -253,7 +264,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                   }`}
                 >
                   <option value="" style={OPTION_STYLE}>Tag photo…</option>
-                  {CATEGORY_OPTIONS.map((c) => (
+                  {categoryOptions.map((c) => (
                     <option key={c.value} value={c.value} style={OPTION_STYLE}>
                       {c.required ? `${c.value} *` : c.value}
                     </option>
@@ -275,6 +286,18 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, { onChange?: (photos: Uploaded
                 {it.category === "Crown Side" && (
                   <p className="text-[10px] leading-snug text-[var(--muted)]">
                     The crown side — shows the crown, pushers, and case finishing at 3 o&apos;clock.
+                  </p>
+                )}
+                {it.category === "Service Evidence" && (
+                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                    Service records, invoices, or timing results. Review evidence
+                    only — never shown on the public listing.
+                  </p>
+                )}
+                {it.category === "Extra Links" && (
+                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                    Loose spare links included with the watch. Welcome
+                    completeness evidence — never required.
                   </p>
                 )}
               </div>

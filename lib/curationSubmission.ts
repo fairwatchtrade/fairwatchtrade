@@ -87,12 +87,15 @@ function profileIdentityForEvaluation(
   draft: ListingDraft
 ): Pick<ListingSubmission, "reference" | "model" | "style_number"> | null {
   if (!requirementProfileFor(draft.brand)) return null;
-  const raw = draft.reference.trim();
+  // Null-safe on purpose: live drafts always initialize these fields, but
+  // this module must never crash on a partial draft (test fixtures, future
+  // callers) — a missing field is "Not provided", not an exception.
+  const raw = (draft.reference ?? "").trim();
   const identifier = raw ? classifyRolexIdentifier(raw) : null;
   return {
     reference:
       identifier?.kind === "style" ? identifier.reference : raw || undefined,
-    model: draft.model.trim() || undefined,
+    model: (draft.model ?? "").trim() || undefined,
     style_number: identifier?.kind === "style" ? identifier.style : undefined,
   };
 }

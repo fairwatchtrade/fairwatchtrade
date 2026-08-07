@@ -34,6 +34,22 @@ export type PhotoCategory =
   | "Clasp/Pin Buckle"
   | "Box"
   | "Papers/Warranty"
+  /* Service documentation (invoices, service cards, timing results) — the
+     OR-alternative to a movement photograph in the Rolex "Movement or
+     service evidence" requirement, so a solid-caseback watch never has to
+     be opened just to prove service. Distinct from Papers/Warranty
+     (identity documentation) by ruling. Review evidence: never displayed
+     on the public listing — service documents routinely carry names,
+     addresses, and identity-bearing detail. Exposed only in the Rolex
+     corridor. */
+  | "Service Evidence"
+  /* Loose spare bracelet links accompanying the watch. Encouraged
+     completeness evidence, NEVER required — a fully sized bracelet
+     legitimately leaves nothing separate to photograph, and absence never
+     implies missing hardware. Exposed only while the bracelet checkbox is
+     active. Proves inclusion of loose links, never bracelet originality —
+     component classification stays separately governed. */
+  | "Extra Links"
   | "Other";
 
 export type DocumentationStatus =

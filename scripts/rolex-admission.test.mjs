@@ -468,6 +468,82 @@ ok("a disclosed replacement crystal is never by itself a rejection",
       canaryShaped.style_number === undefined);
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   PHOTOS-STEP EVIDENCE CORRECTION (order 2026-08-06, found on Jason's
+   production corridor walk): "Movement or service evidence" is a real OR,
+   Service Evidence is a governed private tag, Extra Links is encouraged
+   and never required.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── the OR requirement, at the one shared function every gate reads ── */
+{
+  const catsWithout = (cat) => allCats.filter((c) => c !== cat);
+  const movementOnly = allCats; // movement photo present, no service evidence
+  const serviceOnly = [...catsWithout("Movement (closeup)"), "Service Evidence"];
+  const neither = catsWithout("Movement (closeup)");
+  const unrelatedPaper = [...catsWithout("Movement (closeup)"), "Papers/Warranty", "Other"];
+
+  eq("movement evidence only → PASS",
+    missingRequiredViews(profile, movementOnly).length, 0);
+  eq("service evidence only → PASS",
+    missingRequiredViews(profile, serviceOnly).length, 0);
+  const neitherMissing = missingRequiredViews(profile, neither);
+  eq("neither → the movement view BLOCKS", neitherMissing.length, 1);
+  eq("…and it is the movement-or-service view",
+    neitherMissing[0].view, "Movement or service evidence");
+  eq("unrelated paperwork only → still BLOCKS (no accidental satisfaction)",
+    missingRequiredViews(profile, unrelatedPaper).length, 1);
+
+  // The same OR at the server-side publication verdict.
+  ok("server verdict: service evidence satisfies the movement view",
+    evaluatePublishAdmission(profile, { ...READY_INPUT, photoCategories: serviceOnly }).ok);
+  {
+    const v = evaluatePublishAdmission(profile, { ...READY_INPUT, photoCategories: neither });
+    ok("server verdict: neither movement nor service evidence blocks", !v.ok);
+    ok("…naming the movement-or-service view", /Movement or service evidence/.test(v.detail));
+  }
+}
+
+/* ── Papers/Warranty stays distinct from Service Evidence ── */
+{
+  const papersView = profile.requiredViews.find((v) => v.category === "Papers/Warranty");
+  ok("the papers view exists and never accepts Service Evidence",
+    !!papersView && !(papersView.altCategories ?? []).includes("Service Evidence"));
+  const serviceAsPapers = allCats
+    .filter((c) => c !== "Papers/Warranty")
+    .concat("Service Evidence");
+  eq("Service Evidence can never satisfy the papers view",
+    missingRequiredViews(profile, serviceAsPapers).length, 1);
+}
+
+/* ── Service Evidence is private: never on the public listing ── */
+{
+  const publicPage = readFileSync(
+    new URL("../app/listings/[id]/page.tsx", import.meta.url), "utf8");
+  ok("the public listing page excludes Service Evidence from display",
+    /category !== "Service Evidence"/.test(publicPage));
+}
+
+/* ── Extra Links: encouraged, gated to the bracelet checkbox, NEVER required ── */
+{
+  ok("Extra Links appears in NO required view (primary or alternative)",
+    profile.requiredViews.every(
+      (v) => v.category !== "Extra Links" &&
+        !(v.altCategories ?? []).includes("Extra Links")));
+  ok("bracelet + no Extra Links photo → publishes",
+    evaluatePublishAdmission(profile, READY_INPUT).ok);
+  ok("bracelet + Extra Links photo → publishes identically",
+    evaluatePublishAdmission(profile, {
+      ...READY_INPUT,
+      photoCategories: [...allCats, "Extra Links"],
+    }).ok);
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  ok("Extra Links tag exists only while the bracelet checkbox is active",
+    /draft\.hasBracelet \? \["Extra Links"\] : \[\]/.test(sellFlow));
+  ok("Service Evidence tag exists only in the Rolex corridor",
+    /profile \? \["Service Evidence"\] : \[\]/.test(sellFlow));
+}
+
 /* ── prompt rendering: absent fields change nothing ── */
 {
   const plain = buildEvaluationPrompt({ brand: "Parmigiani Fleurier", reference: "PFC274" });

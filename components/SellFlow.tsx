@@ -1631,8 +1631,28 @@ function PhotosStep({
           setDragCount(0);
         }}
       >
-        <PhotoUpload ref={photoRef} onChange={onPhotos} />
+        <PhotoUpload
+          ref={photoRef}
+          onChange={onPhotos}
+          /* Context-gated tags (Photos-step ruling 2026-08-06): Service
+             Evidence exists only in the Rolex corridor — it is the OR-half
+             of "Movement or service evidence", so a solid-caseback watch is
+             never opened for admission. Extra Links exists only while the
+             bracelet checkbox is active — encouraged completeness evidence,
+             NEVER required, never a gate anywhere. */
+          extraCategories={[
+            ...(profile ? ["Service Evidence"] : []),
+            ...(draft.hasBracelet ? ["Extra Links"] : []),
+          ]}
+        />
       </div>
+      {draft.hasBracelet && (
+        <p className="mt-2 text-[11px] leading-[1.6] text-[var(--muted)]">
+          Loose spare links included? An Extra Links photo is welcome
+          completeness evidence — never required, and a fully sized bracelet
+          may leave nothing separate to photograph.
+        </p>
+      )}
     </div>
   );
 }

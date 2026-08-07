@@ -142,6 +142,12 @@ export const ADMISSION_STOPS = {
 
 export type RequiredView = {
   category: PhotoCategory;
+  /** OR-alternatives: any ONE of the primary category or these satisfies the
+      view (Photos-step ruling 2026-08-06 — "Movement or service evidence" is
+      a genuine OR; a solid-caseback watch is never opened just to produce a
+      movement photograph). Only the exact listed categories count — an
+      unrelated tag can never satisfy a view by accident. */
+  altCategories?: PhotoCategory[];
   /** The evidence this view exists to support, in the seller's language. */
   view: string;
 };
@@ -173,11 +179,15 @@ const ROLEX_PROFILE: RequirementProfile = {
     { category: "Non-Crown Side", view: "Case, serial and reference evidence" },
     { category: "Bracelet/Strap", view: "Bracelet or strap" },
     { category: "Clasp/Pin Buckle", view: "Clasp and code" },
-    { category: "Movement (closeup)", view: "Movement or service evidence" },
+    {
+      category: "Movement (closeup)",
+      altCategories: ["Service Evidence"],
+      view: "Movement or service evidence",
+    },
     { category: "Papers/Warranty", view: "Warranty card / papers" },
   ],
   photosNote:
-    "These images support component correctness and completeness. Serial and reference photographs remain private evidence unless publication policy explicitly permits a safe partial display — please do not obscure them from FairWatchTrade review.",
+    "These images support component correctness and completeness. Serial and reference photographs remain private evidence unless publication policy explicitly permits a safe partial display — please do not obscure them from FairWatchTrade review. Service documentation may satisfy the movement view in place of a movement photograph — a solid caseback never needs to be opened for admission — and Service Evidence images are review evidence, never shown on the public listing.",
   entryConditions: [
     {
       key: "documentationAvailable",
@@ -215,7 +225,11 @@ export function missingRequiredViews(
   photoCategories: string[]
 ): RequiredView[] {
   const have = new Set(photoCategories);
-  return profile.requiredViews.filter((v) => !have.has(v.category));
+  return profile.requiredViews.filter(
+    (v) =>
+      !have.has(v.category) &&
+      !(v.altCategories ?? []).some((alt) => have.has(alt))
+  );
 }
 
 /** "Full set" is genuinely supportable only when the watch, its papers, and a
