@@ -4,30 +4,37 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Work on main. Do not create worktrees.
+# Solo-Developer / Worktree Proportionality Law
 
-This is one person building a website. No employees, no users, no release train.
-The worst realistic outcome of most changes is that he asks for it again.
+Governing law, full text: `/docs/product-laws/Solo-Developer-Worktree-Proportionality-Law.md`
 
-**Default: branch from `main` in this directory, commit, push, done.**
+FairWatchTrade is a solo-development project with no employees and no public
+users. **The default working location is the existing main worktree.**
 
-Do not run `git worktree add`. Do not create a lane, a proof harness, or an
-isolated copy because a change *feels* important. Every worktree you create is
-a directory he has to clean up later, and it will still be there long after you
-are gone. If you genuinely believe one is justified, ask first and say why.
+Do not create a new worktree, branch, verification lane, temporary checkout,
+preview environment, or parallel repository merely to isolate ordinary work.
+A new worktree is justified only when one of these is actually true:
 
-**Size the process to what the change can actually break.**
+- concurrent unfinished work must remain untouched;
+- a destructive migration or rollback requires isolation;
+- a security/authentication change has meaningful blast radius;
+- an exact historical commit must be reproduced or compared;
+- Jason explicitly requests an isolated lane.
 
-A CSS nudge, a copy fix, a comment, a doc move: find it, change it, run the one
-check that's relevant, ship it. That is the whole procedure. Do not install
-dependencies, run full test suites, or run production builds to justify a
-one-line visual edit.
+A worktree is **not** justified merely because a change is visual, observable,
+deployable, or being verified. Before creating one, inspect the existing
+worktrees and reuse an appropriate one. Remove any temporary worktree when its
+work closes — abandoned directories are not historical evidence; git history is.
 
-Reserve real rigor for what can genuinely bite: money, database migrations,
-deletions, auth and privilege boundaries, and anything touching
-`app/api/evaluate/route.ts`.
+For ordinary UI polish, copy, spacing, positioning, typography, icons, bounded
+component fixes, and similarly reversible work:
 
-**Verification means the smallest proof that answers the question**, not the
-most proof available. State the question ("is the ? clear of the select in both
-states?"), answer it, stop. If it's visual, he looks at it — you don't need a
-ceremony to hand it over.
+**find it → change it → run the smallest relevant check → ship it → Jason looks.**
+
+Verification must be the **smallest proof that answers the actual question**,
+not maximum ceremony. Do not run full builds, broad regression suites, or
+reproduce environments unless the changed surface can realistically require it.
+
+When uncertain, prefer the simpler path — unless the change can realistically
+damage data, money, authentication, publication state, security, or other
+difficult-to-reverse system state.
