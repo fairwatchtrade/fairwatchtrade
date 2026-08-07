@@ -10,6 +10,16 @@
    Voice: state what happened, why, and what to do next. Never accuse, never
    name the review machinery, never imply a verdict about the seller.
 
+   RULE — decision emails send the seller back to their listing. Never
+   instruct them to reply by email unless FairWatchTrade has a deliberately
+   configured and monitored reply channel. It does not today:
+   fairwatchtrade.com publishes NO MX records, so the domain sends but cannot
+   receive, and "reply to this email" pointed a just-rejected seller at a
+   bounce at the exact moment they most needed to reach someone. The product
+   already owns the right destination — Your Listings — and keeping the
+   conversation there also stops a second support workflow growing inside
+   somebody's personal inbox.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
@@ -78,7 +88,7 @@ export async function sendListingRejectedEmail(
       reason: escapeHtml(facts.sellerMessage),
       reasonLabel: "Why",
       nextAction:
-        "Your listing and everything in it are saved — nothing has been deleted. If you'd like to discuss this or think something was missed, reply to this email.",
+        "Your listing and everything in it are saved — nothing has been deleted. Open Your Listings to review the decision and see what to do next.",
       ctaHref: ACCOUNT_URL,
       ctaLabel: "View Your Listings",
     }),
