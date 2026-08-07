@@ -701,4 +701,25 @@ ok("a disclosed replacement crystal is never by itself a rejection",
       .includes('"Very Good"') && !/Very Good.*(alias|downgrade)/i.test(route));
 }
 
+/* ── history state-merge law (data-loss correction 2026-08-06) ──
+      Raw object state in pushState/replaceState wipes the Next App Router's
+      own history.state; a later history.back() onto such an entry makes the
+      router fall back to a FULL navigation — remounting the Sell page and
+      destroying every entered field. Every entry this app writes must MERGE
+      the existing state, never replace it. ── */
+{
+  const helpBubble = readFileSync(new URL("../components/HelpBubble.tsx", import.meta.url), "utf8");
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  ok("HelpBubble merges history.state into its pinned entry",
+    /pushState\(\s*\{ \.\.\.window\.history\.state, \[historyKey\]: true \}/.test(helpBubble));
+  ok("SellFlow merges history.state at mount",
+    sellFlow.includes("replaceState({ ...window.history.state, sellStep: 0 }"));
+  ok("SellFlow merges history.state on step push",
+    sellFlow.includes("pushState({ ...window.history.state, sellStep: step }"));
+  ok("no raw-object state replacement remains in either component",
+    !/pushState\(\{ \[historyKey\]/.test(helpBubble) &&
+      !/replaceState\(\{ sellStep/.test(sellFlow) &&
+      !/pushState\(\{ sellStep/.test(sellFlow));
+}
+
 console.log(`rolex-admission: ${pass} assertions PASS`);

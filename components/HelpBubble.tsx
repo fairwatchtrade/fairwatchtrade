@@ -95,7 +95,17 @@ export default function HelpBubble({
       // preview must never own history.
       if (pinned && typeof window !== "undefined" && !pushedHistory.current) {
         pushedHistory.current = true;
-        window.history.pushState({ [historyKey]: true }, "");
+        /* MERGE, never replace: raw object state wipes the Next App Router's
+           own history.state, and the close's history.back() then pops to an
+           entry the router cannot reconcile — it falls back to a full
+           navigation, remounting the page and destroying every entered
+           field (launch-blocking data loss, reproduced 2026-08-06). The
+           spread carries the router's state and any host-page keys (e.g.
+           the Sell flow's sellStep) through the help entry untouched. */
+        window.history.pushState(
+          { ...window.history.state, [historyKey]: true },
+          ""
+        );
       }
     },
     [historyKey]

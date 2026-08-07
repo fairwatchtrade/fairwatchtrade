@@ -336,7 +336,12 @@ export default function SellFlow() {
   const poppingRef = useRef(false);
 
   useEffect(() => {
-    window.history.replaceState({ sellStep: 0 }, "");
+    /* MERGE, never replace (data-loss correction 2026-08-06): a raw state
+       object here wiped the Next App Router's own history.state for the
+       current entry, so ANY later history.back() onto it — the shared help
+       bubble's close path above all — made the router fall back to a full
+       navigation, remounting this component and destroying the draft. */
+    window.history.replaceState({ ...window.history.state, sellStep: 0 }, "");
     function onPop(e: PopStateEvent) {
       const s = (e.state as { sellStep?: number } | null)?.sellStep;
       if (typeof s === "number") {
@@ -358,7 +363,9 @@ export default function SellFlow() {
       return;
     }
     if (step === 0) return;
-    window.history.pushState({ sellStep: step }, "");
+    // Same merge law as the mount replaceState above — the router's own
+    // state must ride every entry this flow creates.
+    window.history.pushState({ ...window.history.state, sellStep: step }, "");
   }, [step]);
 
   /* Reload, tab close, or navigating away by URL still bypass step history
