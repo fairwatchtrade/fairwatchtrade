@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { type ListingPhoto } from "@/lib/listing";
 import { sortByPhotoRole } from "@/lib/photoRoles";
+import PhotoRedactionEditor from "@/components/PhotoRedactionEditor";
+import {
+  type PhotoRedactionRecord,
+  type RedactionStroke,
+} from "@/lib/photoRedaction";
 import {
   type PhotoFrame,
   type PhotoPresentation,
@@ -103,6 +108,8 @@ export default function PhotoPresentationEditor({
   automaticHeroPathname,
   onSave,
   onClose,
+  redactions,
+  onApplyRedaction,
 }: {
   photos: ListingPhoto[];
   value: PhotoPresentation;
@@ -110,6 +117,16 @@ export default function PhotoPresentationEditor({
   automaticHeroPathname: string | null;
   onSave: (next: PhotoPresentation) => void;
   onClose: () => void;
+  /** Privacy redaction state from the draft, keyed by current pathname.
+      Optional: absent means the redaction utility is simply not offered. */
+  redactions?: Record<string, PhotoRedactionRecord>;
+  /** Commits a stroke list for one photo (empty = restore the original).
+      Resolves the photo's NEW current pathname on success, null on failure.
+      The parent owns the upload and the draft swap. */
+  onApplyRedaction?: (
+    currentPathname: string,
+    strokes: RedactionStroke[]
+  ) => Promise<string | null>;
 }) {
   const titleId = useId();
   const confirmTitleId = useId();
@@ -125,6 +142,7 @@ export default function PhotoPresentationEditor({
   const [activeIndex, setActiveIndex] = useState(0);
   const [preview, setPreview] = useState<"desktop" | "mobile">("desktop");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [redactOpen, setRedactOpen] = useState(false);
   /* Measured aspect per photograph, keyed by pathname — no reset effect
      needed when switching photos; the active one is simply looked up. */
   const [aspects, setAspects] = useState<Record<string, number>>({});
@@ -526,6 +544,24 @@ export default function PhotoPresentationEditor({
               </div>
             </div>
 
+            {/* Privacy redaction — a separate governed tool, not a framing
+                control. Blur brush and whiteout for private details; the
+                original upload is preserved privately and the public photo
+                becomes the redacted result. Offered whenever the parent
+                wires the capability (all listing flows). */}
+            {onApplyRedaction && (
+              <button
+                type="button"
+                disabled={!activePath}
+                onClick={() => setRedactOpen(true)}
+                className={`${btn} mt-2 h-[34px] w-full border-[#363940] bg-[#101217] px-2 text-[#c8c4b9] hover:border-[#5d5233] hover:text-[#cfb866]`}
+              >
+                {activePath && redactions?.[activePath]
+                  ? "✎ Edit privacy redaction"
+                  : "Redact private details"}
+              </button>
+            )}
+
             {/* ── Bottom-anchored action stack — approved order ──
                   SET AS HERO
                   RESET THIS PHOTO | EDIT NEXT PHOTO →
@@ -595,6 +631,39 @@ export default function PhotoPresentationEditor({
             <span className="h-px flex-1 bg-[rgba(201,168,76,0.32)]" aria-hidden="true" />
           </div>
         </div>
+
+        {/* ── Privacy redaction sub-editor ── always opens on the ORIGINAL
+            photograph plus its existing marks, so edits never compound. On
+            success the parent swaps the draft photo; staged framing and the
+            hero selection follow the photograph to its new pathname. */}
+        {redactOpen && activePath && onApplyRedaction && active && (
+          <PhotoRedactionEditor
+            photoUrl={redactions?.[activePath]?.originalUrl ?? active.photo.url}
+            categoryLabel={active.category || "photo"}
+            initialStrokes={redactions?.[activePath]?.strokes ?? []}
+            onApply={async (strokes: RedactionStroke[]) => {
+              const newPath = await onApplyRedaction(activePath, strokes);
+              if (newPath === null) return false;
+              if (newPath !== activePath) {
+                setStaged((s) => {
+                  const frames = { ...s.frames };
+                  const moved = frames[activePath];
+                  if (moved) {
+                    frames[newPath] = moved;
+                    delete frames[activePath];
+                  }
+                  return {
+                    heroPathname:
+                      s.heroPathname === activePath ? newPath : s.heroPathname,
+                    frames,
+                  };
+                });
+              }
+              return true;
+            }}
+            onClose={() => setRedactOpen(false)}
+          />
+        )}
 
         {/* ── Governed unsaved-changes confirmation ── the only gate through
             which a dirty session may be discarded. */}

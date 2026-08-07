@@ -12,6 +12,10 @@ import {
   resolveHeroIndex,
   sanitizePhotoPresentation,
 } from "@/lib/photoPresentation";
+import {
+  type PhotoRedactionRecord,
+  type RedactionStroke,
+} from "@/lib/photoRedaction";
 import { toScoringState } from "@/lib/listing";
 import WatchSpinner from "@/components/WatchSpinner";
 import { parsePrice } from "@/lib/parsePrice";
@@ -79,6 +83,8 @@ export default function ReviewStep({
   captureSessionId,
   publishRequestId,
   onPublished,
+  photoRedactions,
+  onApplyRedaction,
 }: {
   draft: ListingDraft;
   // Lifts the seller's hero framing back into the draft. Optional so the
@@ -95,6 +101,13 @@ export default function ReviewStep({
   // List From Phone — lets SellFlow close its server draft (idempotent) once
   // the real listing exists. Additive; publish behavior itself is untouched.
   onPublished?: (listingId: string) => void;
+  // Privacy redaction — draft state + the commit callback, both owned by
+  // SellFlow. Optional: absent simply hides the redaction utility.
+  photoRedactions?: Record<string, PhotoRedactionRecord>;
+  onApplyRedaction?: (
+    currentPathname: string,
+    strokes: RedactionStroke[]
+  ) => Promise<string | null>;
 }) {
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
@@ -340,33 +353,18 @@ export default function ReviewStep({
             <div className="mt-0.5 font-display text-[18px] font-light text-[var(--gold)]">
               {money.text}
             </div>
-          </div>
-
-          {/* What to Know — contextual disclosure tied to the price area. The
-              currency explanation used to hold permanent page space directly
-              above the seller's story, so the two ran together. It lives here
-              now: the Review page stays quiet, and the explanation appears only
-              when asked for. */}
-          <details className="group mt-2 border-b border-[var(--border-faint)] pb-2">
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)] [&::-webkit-details-marker]:hidden">
-              <svg
-                width="9"
-                height="9"
-                viewBox="0 0 14 14"
-                fill="none"
-                aria-hidden="true"
-                className="shrink-0 transition-transform duration-200 group-open:rotate-90"
-              >
-                <path d="M5 3l5 4-5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              What to Know
-            </summary>
-            <p className="mt-1.5 max-w-[560px] text-[11px] leading-[1.6] text-[var(--muted)]">
-              The amount and currency shown here are the exact values attached to the listing.
+            {/* Currency disclosure belongs WITH the price — marketplace
+                currency handling is a property of this figure, not general
+                what-to-know material, so it lives inside the price area
+                rather than in a separate disclosure block (placement ruling
+                2026-08-07). WHAT TO KNOW is reserved for watch/listing-
+                specific seller/buyer information. */}
+            <p className="mt-1.5 max-w-[560px] text-[10px] leading-[1.6] text-[var(--muted)]">
+              The amount and currency shown are the exact values attached to the listing.
               FairWatchTrade does not convert the price into another currency, and buyers make
               offers in the same currency you chose.
             </p>
-          </details>
+          </div>
 
           {draft.description && (
             <div className="mt-5">
@@ -402,6 +400,8 @@ export default function ReviewStep({
           photos={photos}
           value={presentation}
           automaticHeroPathname={photos[automaticHeroIndex]?.photo.pathname ?? null}
+          redactions={photoRedactions}
+          onApplyRedaction={onApplyRedaction}
           onSave={onPresentationChange}
           onClose={() => {
             setEditorOpen(false);

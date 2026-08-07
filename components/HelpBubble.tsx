@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 /* ════════════════════════════════════════════════════════════════════════
    HELP BUBBLE — FairWatchTrade's one help-affordance language
@@ -55,6 +55,12 @@ export default function HelpBubble({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  /* Viewport-aware placement: the bubble opens below by default, but when the
+     trigger sits near the bottom of the viewport the card would clip or force
+     a scroll merely to be read. Measured after layout, before paint — if the
+     card would leave the viewport below AND there is genuinely more room
+     above, it opens above instead. Same card, same caret, mirrored. */
+  const [placeAbove, setPlaceAbove] = useState(false);
   const pinnedRef = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,6 +146,29 @@ export default function HelpBubble({
 
   useEffect(() => () => clearTimers(), []);
 
+  /* Placement measurement. Runs synchronously after the open render so the
+     flip never paints in the wrong place first. Closing resets to the
+     default downward placement for the next open. */
+  useLayoutEffect(() => {
+    if (!open) {
+      setPlaceAbove(false);
+      return;
+    }
+    const bubble = bubbleRef.current;
+    const trigger = btnRef.current;
+    if (!bubble || !trigger) return;
+    const b = bubble.getBoundingClientRect();
+    if (b.bottom <= window.innerHeight - 12) return; // fits below — stay put
+    const t = trigger.getBoundingClientRect();
+    const spaceAbove = t.top;
+    const spaceBelow = window.innerHeight - t.bottom;
+    // Flip only when above is genuinely the better room AND the whole card
+    // fits there — otherwise below (scrollable) beats above (clipped at top).
+    if (spaceAbove > spaceBelow && spaceAbove >= b.height + 22) {
+      setPlaceAbove(true);
+    }
+  }, [open]);
+
   return (
     <>
       <button
@@ -197,15 +226,21 @@ export default function HelpBubble({
               if (!pinnedRef.current) close(false);
             }, 220);
           }}
+          /* Inline top/bottom wins over the placement classes in
+             bubbleClassName, so callers' horizontal geometry is untouched
+             while the vertical side mirrors. */
+          style={placeAbove ? { top: "auto", bottom: "calc(100% + 10px)" } : undefined}
           className={`absolute z-30 border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px] ${
             bubbleClassName ?? "left-0 right-0 top-[calc(100%+10px)] sm:left-auto sm:right-0 sm:w-[390px]"
           }`}
         >
           <span
             aria-hidden="true"
-            className={`absolute top-[-10px] h-[18px] w-[18px] rotate-45 border-l border-t border-[rgba(201,168,76,0.48)] bg-[#12161e] ${
-              caretClassName ?? "right-[23px]"
-            }`}
+            className={`absolute h-[18px] w-[18px] rotate-45 border-[rgba(201,168,76,0.48)] bg-[#12161e] ${
+              placeAbove
+                ? "bottom-[-10px] border-b border-r"
+                : "top-[-10px] border-l border-t"
+            } ${caretClassName ?? "right-[23px]"}`}
           />
           <button
             type="button"

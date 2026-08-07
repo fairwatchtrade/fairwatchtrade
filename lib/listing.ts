@@ -5,6 +5,7 @@ import {
 } from "@/lib/scoring";
 import { type UploadedPhoto } from "@/lib/storage";
 import { type PhotoPresentation, defaultPresentation } from "@/lib/photoPresentation";
+import { type PhotoRedactionRecord } from "@/lib/photoRedaction";
 import type { AdmissionState } from "@/lib/admission/requirementProfile";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -87,6 +88,12 @@ export type ListingDraft = {
      photographs in `photos` are never modified by it. Optional so drafts
      written before this existed resume without migration. */
   photoPresentation?: PhotoPresentation;
+  /* Privacy redaction state, keyed by the CURRENT (redacted) pathname in
+     `photos`. Each record privately preserves the original upload and the
+     stroke list, so redactions can be re-edited from the original or cleared
+     entirely. Lives in DRAFT state only — never in presentation metadata,
+     which reaches public surfaces. Optional: older drafts resume clean. */
+  photoRedactions?: Record<string, PhotoRedactionRecord>;
 
   // Step 3 — structured details
   details: ListingDetails;

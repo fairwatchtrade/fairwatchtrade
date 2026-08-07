@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type CSSProperties } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -23,6 +23,13 @@ import HelpBubble from "@/components/HelpBubble";
 import BrandCombobox from "@/components/BrandCombobox";
 import ModelCombobox from "@/components/ModelCombobox";
 import { randomUUID } from "@/lib/uuid";
+import { uploadPhoto } from "@/lib/storage";
+import { sanitizePhotoPresentation } from "@/lib/photoPresentation";
+import {
+  renderRedactedBlob,
+  sanitizeRedactions,
+  type RedactionStroke,
+} from "@/lib/photoRedaction";
 import { parsePrice } from "@/lib/parsePrice";
 import { buildCurationSubmission } from "@/lib/curationSubmission";
 import { formatMoney } from "@/lib/formatMoney";
@@ -357,15 +364,34 @@ export default function SellFlow() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  /* Previous step, for the landing rule below. Seeded to the initial step so
+     the mount run is a non-transition and touches nothing. */
+  const prevStepRef = useRef(0);
+
   useEffect(() => {
     if (poppingRef.current) {
       poppingRef.current = false;
+      prevStepRef.current = step;
+      /* Browser Back/Forward: the browser's own scroll restoration governs
+         where the seller lands — normal history behavior, untouched. */
       return;
     }
-    if (step === 0) return;
-    // Same merge law as the mount replaceState above — the router's own
-    // state must ride every entry this flow creates.
-    window.history.pushState({ ...window.history.state, sellStep: step }, "");
+    const isTransition = prevStepRef.current !== step;
+    prevStepRef.current = step;
+    if (!isTransition) return; // mount, not a step change
+    if (step !== 0) {
+      // Same merge law as the mount replaceState above — the router's own
+      // state must ride every entry this flow creates.
+      window.history.pushState({ ...window.history.state, sellStep: step }, "");
+    }
+    /* Entering a step lands at its top. The steps swap content inside one
+       page, so without this the scroll depth of the step being LEFT carried
+       into the one being entered — Photos → Continue delivered the seller
+       partway down Details, around Component Review, instead of at its
+       beginning. This is the cause (stale scroll across an in-place content
+       swap), not a symptom patch: the reset runs in the same effect that
+       commits the step change, never on a timer. */
+    window.scrollTo(0, 0);
   }, [step]);
 
   /* Reload, tab close, or navigating away by URL still bypass step history
@@ -469,6 +495,88 @@ export default function SellFlow() {
   function patch(p: Partial<ListingDraft>) {
     userTouchedRef.current = true;
     setDraft((d) => ({ ...d, ...p }));
+  }
+
+  /* ── Privacy redaction commit (the one owner of the swap) ───────────────
+     The redaction editors upstream only collect strokes; committing them is
+     draft surgery and belongs to the draft's owner. Applying renders the
+     composite from the ORIGINAL bytes, uploads it as its own object, and
+     swaps the listing photo to the redacted result; the original upload is
+     preserved privately in the draft's redaction record. An empty stroke
+     list restores the original. Presentation framing and the hero selection
+     follow the photograph to its new pathname, so redacting never loses the
+     seller's staged composition. */
+  const photoRedactions = useMemo(
+    () => sanitizeRedactions(draft.photoRedactions),
+    [draft.photoRedactions]
+  );
+
+  async function applyPhotoRedaction(
+    currentPathname: string,
+    strokes: RedactionStroke[]
+  ): Promise<string | null> {
+    try {
+      const photos = draft.photos;
+      const idx = photos.findIndex((p) => p.photo.pathname === currentPathname);
+      if (idx === -1) return null;
+      const entry = photos[idx];
+      const redactions = { ...photoRedactions };
+      const record = redactions[currentPathname];
+      const originalUrl = record?.originalUrl ?? entry.photo.url;
+      const originalPathname = record?.originalPathname ?? entry.photo.pathname;
+
+      const movePresentationKey = (from: string, to: string) => {
+        const base = sanitizePhotoPresentation(draft.photoPresentation);
+        if (from === to) return base;
+        const frames = { ...base.frames };
+        const moved = frames[from];
+        if (moved) {
+          frames[to] = moved;
+          delete frames[from];
+        }
+        return {
+          heroPathname: base.heroPathname === from ? to : base.heroPathname,
+          frames,
+        };
+      };
+
+      if (strokes.length === 0) {
+        if (!record) return currentPathname; // nothing applied, nothing to clear
+        delete redactions[currentPathname];
+        const nextPhotos = [...photos];
+        nextPhotos[idx] = {
+          ...entry,
+          photo: { ...entry.photo, url: originalUrl, pathname: originalPathname },
+        };
+        patch({
+          photos: nextPhotos,
+          photoRedactions: redactions,
+          photoPresentation: movePresentationKey(currentPathname, originalPathname),
+        });
+        return originalPathname;
+      }
+
+      const blob = await renderRedactedBlob(originalUrl, strokes);
+      const uploaded = await uploadPhoto(
+        new File([blob], "redacted.jpg", { type: "image/jpeg" })
+      );
+      delete redactions[currentPathname];
+      redactions[uploaded.pathname] = { originalPathname, originalUrl, strokes };
+      const nextPhotos = [...photos];
+      nextPhotos[idx] = {
+        ...entry,
+        photo: { ...entry.photo, url: uploaded.url, pathname: uploaded.pathname },
+      };
+      patch({
+        photos: nextPhotos,
+        photoRedactions: redactions,
+        photoPresentation: movePresentationKey(currentPathname, uploaded.pathname),
+      });
+      return uploaded.pathname;
+    } catch (e) {
+      console.error("photo redaction apply failed:", e);
+      return null;
+    }
   }
 
   // Debounced canonical save — active desktop editor only, revision-guarded.
@@ -793,6 +901,11 @@ export default function SellFlow() {
                 onAdmissionChange={(admission) =>
                   patch({ details: { ...draft.details, admission } })
                 }
+                /* Privacy redaction — draft state + commit, both owned here.
+                   Offered for every brand: hiding private detail in a
+                   photograph is not a corridor feature. */
+                photoRedactions={photoRedactions}
+                onApplyRedaction={applyPhotoRedaction}
                 captureSessionId={desktopIds.captureSessionId}
                 publishRequestId={desktopIds.publishRequestId}
                 onPublished={(listingId) => {
