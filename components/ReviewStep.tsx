@@ -211,7 +211,10 @@ export default function ReviewStep({
         return;
       }
       window.scrollTo(0, 0);
-      setHeld(data?.status === "pending_review");
+      /* Every submission is now pending_review, so the status alone no longer
+         distinguishes the two messages — `held` is the server's own answer to
+         "is there something for a human to look at", never a signal name. */
+      setHeld(data?.held === true);
       setPublished(true);
       if (data?.id && onPublished) onPublished(String(data.id));
     } catch {
@@ -223,7 +226,8 @@ export default function ReviewStep({
 
   if (published && held) {
     // v2.24 · locked held-state copy (Design Gate ruling) — truthful, never
-    // accusatory, no machinery named.
+    // accusatory, no machinery named. Reached only when the system actually
+    // has something for a human to look at, never for the ordinary queue.
     return (
       <div className="py-12 text-center">
         <div className="mb-6 font-display text-[28px] font-light text-[var(--platinum)]">
@@ -238,16 +242,25 @@ export default function ReviewStep({
   }
 
   if (published) {
+    /* Submission is not publication. This screen once said "Your listing is
+       live" the instant the seller pressed the button — it was the seller-
+       facing half of the direct-publish defect. The listing is now genuinely
+       submitted and waiting, so the words say exactly that. The closing line
+       stays: the watch IS ready for its next collector, which is why it was
+       submitted. */
     return (
       <div className="py-12 text-center">
         <div className="mb-6 font-display text-[28px] font-light text-[var(--platinum)]">
-          Your listing is live.
+          Your listing has been submitted for review.
         </div>
         <p className="mx-auto mb-4 max-w-md font-display text-[16px] font-light italic leading-[1.8] text-[var(--muted)]">
           Your watch is ready for its next collector.
         </p>
         <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[var(--slate)]">
-          {draft.brand} {draft.model || draft.reference} is now published on FairWatchTrade. You can manage or edit it anytime from your listings.
+          {draft.brand} {draft.model || draft.reference} is saved and is not
+          visible to buyers yet. You&apos;ll find it under your listings as
+          Pending Review, and it appears on FairWatchTrade once review is
+          complete.
         </p>
       </div>
     );
@@ -526,7 +539,7 @@ export default function ReviewStep({
           }`}
         >
           {publishing && <WatchSpinner size={16} />}
-          {publishing ? "Publishing…" : "Publish Listing"}
+          {publishing ? "Submitting…" : "Submit for Review"}
         </button>
       </div>
     </div>

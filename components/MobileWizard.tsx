@@ -1059,7 +1059,9 @@ export default function MobileWizard({
           }),
         }).catch(() => {});
       }
-      setPublishHeld(data?.status === "pending_review");
+      /* Every submission is pending_review now, so status alone no longer
+         separates the two messages — `held` is the server's own answer. */
+      setPublishHeld(data?.held === true);
       // List From Phone — close the server draft idempotently now that the
       // real listing owns the work (it can never publish twice).
       if (serverIdRef.current && data?.id) {
@@ -1766,10 +1768,10 @@ export default function MobileWizard({
         >
           {publishing ? (
             <>
-              <WatchSpinner size={16} /> Publishing…
+              <WatchSpinner size={16} /> Submitting…
             </>
           ) : (
-            "Publish Listing"
+            "Submit for Review"
           )}
         </button>
         <p className="mt-4 text-center font-display text-[11px] font-light italic text-[#8A8F9E]">
@@ -1799,12 +1801,15 @@ export default function MobileWizard({
           </>
         ) : (
           <>
+            {/* Submission is not publication — "Listed." and "in the
+                marketplace" were true only under the old direct-publish
+                behavior. The listing now waits for review. */}
             <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
-              Listed.
+              Submitted.
             </div>
             <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
-              Your watch is in the marketplace. Curation reviews every listing;
-              you&apos;ll hear from us if anything needs attention.
+              Your watch is submitted for review and is not visible to buyers
+              yet. It appears in the marketplace once review is complete.
             </p>
           </>
         )}

@@ -326,14 +326,17 @@ async function regateHeldListing(params: {
     /** Already-formatted, currency-aware price text (or the undisclosed state). */
     priceText: string;
   };
-}): Promise<{ status: string }> {
-  const { service, listing, mediaMeta, media, urlByPath, aubreyOn, email } = params;
+}): Promise<{ status: string; holdReason: string | null }> {
+  const { service, listing, mediaMeta, media, urlByPath, aubreyOn } = params;
+  const current = listing.integrity_hold_reason ?? null;
 
-  if (listing.status !== "pending_review") return { status: listing.status };
-  if (!isSystemReleasableHold(listing.integrity_hold_reason ?? null)) {
-    return { status: listing.status };
+  if (listing.status !== "pending_review") {
+    return { status: listing.status, holdReason: current };
   }
-  if (!service) return { status: listing.status }; // can't verify → hold stands
+  if (!isSystemReleasableHold(current)) {
+    return { status: listing.status, holdReason: current };
+  }
+  if (!service) return { status: listing.status, holdReason: current }; // can't verify → hold stands
 
   if (aubreyOn) {
     await ensureAuthenticityAttempts({
@@ -352,38 +355,30 @@ async function regateHeldListing(params: {
   });
 
   if (gate.status === "published") {
-    const { data: released, error } = await service
+    /* The system's objection is gone — so clear the WHY. It does NOT publish.
+       Under the governed lifecycle only founder approval publishes, so a
+       cleared hold hands the listing to the ordinary founder queue (NULL
+       reason) rather than to buyers. The seller is told nothing new here and
+       no live email fires: nothing went live. */
+    const { error } = await service
       .from("listings")
-      .update({ status: "published", integrity_hold_reason: null })
+      .update({ integrity_hold_reason: null })
       .eq("id", listing.id)
-      .eq("status", "pending_review")
-      .select("id")
-      .maybeSingle();
-    if (error || !released) {
-      if (error) console.error("[aubrey] hold release failed:", error.message);
-      return { status: listing.status };
-    }
-    await sendListingLiveEmail({
-      to: email.to,
-      brand: email.brand ?? "",
-      model: email.model,
-      reference: email.reference ?? "",
-      priceText: email.priceText,
-      listingId: listing.id,
-    });
-    return { status: "published" };
+      .eq("status", "pending_review");
+    if (error) console.error("[aubrey] hold clear failed:", error.message);
+    return { status: "pending_review", holdReason: error ? current : null };
   }
 
   // Still held — if the newest truth upgraded the WHY (e.g. a finding
   // arrived between attempts), record it. Never downgrades finding_review.
-  if (gate.holdReason && gate.holdReason !== (listing.integrity_hold_reason ?? null)) {
+  if (gate.holdReason && gate.holdReason !== current) {
     await service
       .from("listings")
       .update({ integrity_hold_reason: gate.holdReason })
       .eq("id", listing.id)
       .eq("status", "pending_review");
   }
-  return { status: "pending_review" };
+  return { status: "pending_review", holdReason: gate.holdReason ?? current };
 }
 
 /* ── v2.24 · the one live-listing email, extracted so the fresh-publish and
@@ -693,6 +688,7 @@ export async function POST(request: NextRequest) {
           id: existing.id,
           in_hand_verified: existing.in_hand_verified === true,
           status: regated.status,
+          held: regated.status === "pending_review" && regated.holdReason !== null,
           idempotent: true,
         },
         { status: 200 }
@@ -818,21 +814,31 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  /* ── v2.3/v2.24 · decide initial lifecycle status BEFORE insert — the one
-        shared gate, plus the WHY (integrity_hold_reason) for pending_review. ── */
-  let initialStatus: ListingStatus = "published";
+  /* ── Submission is never publication (governed lifecycle, 2026-08-07) ─────
+        A seller submits for review; a listing becomes public ONLY through the
+        founder adjudication path in app/api/admin/listings/[id]/status. This
+        route therefore always lands at 'pending_review' — the previous
+        default of 'published' was the direct-publish defect: a clean integrity
+        result put a listing straight into Browse with no human decision.
+
+        The integrity gate is NOT removed, it is demoted from gatekeeper to
+        witness: it no longer decides publication, it records WHY a listing
+        needs attention (integrity_hold_reason). A NULL hold reason now means
+        "nothing the system objects to" — the ordinary founder queue — which
+        is exactly what NULL already meant for the dealer/founder path. ── */
+  const initialStatus: ListingStatus = "pending_review";
   let holdReason: IntegrityHoldReason | null = null;
   if (hasCorrelatableMedia) {
     if (serviceUnavailable || !service) {
-      initialStatus = "pending_review"; // can't verify → hold, don't fabricate clean
-      holdReason = HOLD_RESULTS_PENDING;
+      holdReason = HOLD_RESULTS_PENDING; // can't verify → say so, don't fabricate clean
     } else {
       const gate = await aggregateIntegrityForListing({
         service,
         mediaMeta,
         requireAuthenticityCoverage: aubreyOn,
       });
-      initialStatus = gate.status;
+      // gate.status 'published' means "the system has no objection", which is
+      // now recorded as the absence of a hold reason, never as publication.
       holdReason = gate.holdReason;
     }
   }
@@ -967,8 +973,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  /* `held` distinguishes "the system has something for a human to look at"
+     from the ordinary review queue. Both are pending_review; only the first
+     earns the authenticity-review wording. It is a boolean by design — which
+     signal fired is never seller-facing. */
   return NextResponse.json(
-    { id: data.id, in_hand_verified: inHandVerified, status: data.status },
+    {
+      id: data.id,
+      in_hand_verified: inHandVerified,
+      status: data.status,
+      held: holdReason !== null,
+    },
     { status: 201 }
   );
 }
