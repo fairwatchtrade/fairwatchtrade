@@ -70,7 +70,7 @@ Jason decides whether to:
 - accept an interim stage;
 - or change the feature.
 
-That product decision is never made on Jason’s behalf.
+Agents do not make that product decision on Jason’s behalf.
 
 ## 6. Intermediate infrastructure is not the product
 
