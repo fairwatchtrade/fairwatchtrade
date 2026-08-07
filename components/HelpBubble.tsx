@@ -80,6 +80,17 @@ export default function HelpBubble({
      later.) Focus events dispatch synchronously inside .focus(), so setting
      and clearing the flag around that one call is exact. */
   const restoringFocus = useRef(false);
+  /* True from the instant close() asks for its entry back until that pop
+     actually lands. history.back() is ASYNCHRONOUS: the entry is still
+     current when back() returns, so anything that pushes during this window
+     stacks a NEW entry on top and the in-flight pop consumes THAT instead.
+     The bubble's bookkeeping then believes it still owns an entry it has
+     already spent, and its next close pops one level too far — into a Sell
+     Flow step entry, dropping the seller to Curation with the draft intact
+     (reproduced twice, 2026-08-07). Suppressing the push for the few ms the
+     pop is in flight costs that one bubble its Android-Back entry and
+     nothing else. */
+  const popPending = useRef(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
 
@@ -97,7 +108,17 @@ export default function HelpBubble({
       setOpen(false);
       if (pushedHistory.current) {
         pushedHistory.current = false;
-        if (typeof window !== "undefined" && window.history.state?.[historyKey]) {
+        /* Two conditions, and BOTH are load-bearing. The state check proves
+           the current entry is this bubble's own — a help overlay may only
+           ever consume its own entry, never a step entry beneath it. The
+           popPending check proves we are not already waiting on a pop we
+           asked for, so one close can never spend two entries. */
+        if (
+          typeof window !== "undefined" &&
+          !popPending.current &&
+          window.history.state?.[historyKey]
+        ) {
+          popPending.current = true;
           window.history.back();
         }
       }
@@ -118,7 +139,12 @@ export default function HelpBubble({
       // Only pinned (tap-opened) help takes a history entry — the first
       // Android Back then closes help without leaving the page. A hover
       // preview must never own history.
-      if (pinned && typeof window !== "undefined" && !pushedHistory.current) {
+      if (
+        pinned &&
+        typeof window !== "undefined" &&
+        !pushedHistory.current &&
+        !popPending.current // never stack an entry onto an in-flight pop
+      ) {
         pushedHistory.current = true;
         /* MERGE, never replace: raw object state wipes the Next App Router's
            own history.state, and the close's history.back() then pops to an
@@ -135,6 +161,20 @@ export default function HelpBubble({
     },
     [historyKey]
   );
+
+  /* Clearing popPending needs a listener that outlives the close. The
+     open-scoped one below is already torn down by the time our own pop
+     lands — close() sets open to false first — so the flag would latch on
+     forever and silently cost this bubble its Back entry for the rest of
+     the session. This one is mounted for the component's whole life and
+     does nothing else. */
+  useEffect(() => {
+    const clearPending = () => {
+      popPending.current = false;
+    };
+    window.addEventListener("popstate", clearPending);
+    return () => window.removeEventListener("popstate", clearPending);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
