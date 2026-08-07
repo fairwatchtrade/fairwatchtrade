@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
+import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/listings/[id]/status — founder status change
@@ -212,11 +214,27 @@ export async function POST(
     );
   }
 
-  // v2.21 · availability gate — 'Not Currently Available' cannot publish.
+  /* v2.21 · availability gate — 'Not Currently Available' cannot publish.
+     The same read also captures the PRIOR status and the seller-email facts:
+     since v3.53 this route is the only door to publication, so it is also the
+     only place that can truthfully say "your listing is live". Reading it here
+     costs nothing extra — the query already had to run for the gate. */
+  let priorStatus: string | null = null;
+  let liveEmailFacts: {
+    seller_id: string | null;
+    brand: string | null;
+    model: string | null;
+    reference: string | null;
+    asking_price: number | null;
+    asking_currency: string | null;
+  } | null = null;
+
   if (status === "published") {
     const { data: current, error: readErr } = await service
       .from("listings")
-      .select("details")
+      .select(
+        "details, status, seller_id, brand, model, reference, asking_price, asking_currency"
+      )
       .eq("id", id)
       .maybeSingle();
     if (readErr) {
@@ -242,6 +260,15 @@ export async function POST(
         { status: 409 }
       );
     }
+    priorStatus = typeof current.status === "string" ? current.status : null;
+    liveEmailFacts = {
+      seller_id: current.seller_id ?? null,
+      brand: current.brand ?? null,
+      model: current.model ?? null,
+      reference: current.reference ?? null,
+      asking_price: current.asking_price ?? null,
+      asking_currency: current.asking_currency ?? null,
+    };
   }
 
   const { data, error } = await service
@@ -304,6 +331,41 @@ export async function POST(
         { status: 500 }
       );
     }
+  }
+
+  /* ── The publication moment — the one place that can truthfully say live ──
+     Sent only on a REAL transition into 'published'. The prior status is the
+     idempotency boundary and needs no new machinery: re-running an approval,
+     refreshing the admin page, or re-saving an already-public listing all
+     read priorStatus === 'published' and send nothing. A reject, a
+     clarification, or a return-to-draft never reaches here because the read
+     that populates these facts only runs when the target is 'published'.
+
+     Deliberately AFTER the status write and the review record: the email
+     claims the listing is live, so it must follow the write that made it so.
+     Failure is non-fatal by construction inside the sender — a mail outage
+     must never undo a completed approval. In-app notifications and
+     saved-search alerts are untouched: those fire from database triggers on
+     the same transition and are not duplicated here. */
+  if (
+    data.status === "published" &&
+    priorStatus !== "published" &&
+    liveEmailFacts?.seller_id
+  ) {
+    const { data: sellerUser } = await service.auth.admin.getUserById(
+      liveEmailFacts.seller_id
+    );
+    await sendListingLiveEmail({
+      to: sellerUser?.user?.email,
+      brand: liveEmailFacts.brand ?? "",
+      model: liveEmailFacts.model,
+      reference: liveEmailFacts.reference ?? "",
+      priceText: formatMoney(
+        liveEmailFacts.asking_price,
+        liveEmailFacts.asking_currency
+      ),
+      listingId: id,
+    });
   }
 
   return NextResponse.json({ ok: true, id: data.id, status: data.status }, { status: 200 });

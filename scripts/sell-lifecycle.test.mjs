@@ -159,4 +159,54 @@ const status = read("lib/listingStatus.ts");
   );
 }
 
+/* ── 6. The live email fires at approval, exactly once ─────────────────── */
+{
+  const mail = read("lib/listingLiveEmail.ts");
+  ok(
+    "the live email is one shared module, not a copy per route",
+    /export async function sendListingLiveEmail/.test(mail) &&
+      /Your listing is live on FairWatchTrade/.test(mail)
+  );
+  ok(
+    "the seller route no longer defines its own copy",
+    !/async function sendListingLiveEmail/.test(route) &&
+      /from "@\/lib\/listingLiveEmail"/.test(route)
+  );
+  ok(
+    "the founder approval route sends it",
+    /from "@\/lib\/listingLiveEmail"/.test(admin) &&
+      /await sendListingLiveEmail\(/.test(admin)
+  );
+  ok(
+    "it fires ONLY on a real transition into published",
+    /data\.status === "published"\s*&&\s*priorStatus !== "published"/.test(admin)
+  );
+  ok(
+    "the prior status is read before the write, from the existing gate query",
+    /priorStatus = typeof current\.status === "string"/.test(admin)
+  );
+  ok(
+    "the send happens after the status write, not before",
+    admin.indexOf("await sendListingLiveEmail(") >
+      admin.indexOf('.update({\n      status: status as AllowedStatus')
+  );
+  ok(
+    "reject / clarify / return_to_draft can never reach the send",
+    /if \(status === "published"\) \{/.test(admin) &&
+      /liveEmailFacts\?\.seller_id/.test(admin)
+  );
+  ok(
+    "the price is currency-aware, never a bare dollar sign",
+    /priceText: formatMoney\(/.test(admin)
+  );
+  ok(
+    "the seller route still only mails when something is genuinely live",
+    /if \(data\.status === "published"\) \{/.test(route)
+  );
+  ok(
+    "submission alone cannot mail — nothing publishes in the seller route",
+    !/status:\s*"published"/.test(route)
+  );
+}
+
 console.log(`sell-lifecycle: ${n} assertions PASS`);
