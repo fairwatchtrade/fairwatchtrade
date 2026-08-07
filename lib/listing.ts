@@ -14,13 +14,20 @@ import type { AdmissionState } from "@/lib/admission/requirementProfile";
    (toScoringState below). This is the spine the whole flow hangs on.
    ════════════════════════════════════════════════════════════════════════ */
 
-export type Condition = "Unworn" | "Mint" | "Excellent" | "Good" | "Fair";
+/* "Very Good" added by the condition-governance ruling 2026-08-06: a fully
+   wearable, functioning watch showing honest age-consistent wear, with no
+   undisclosed major defect that would materially surprise a buyer. Condition
+   is a factual claim — one grade, never a range. */
+export type Condition = "Unworn" | "Mint" | "Excellent" | "Very Good" | "Good" | "Fair";
 export type CurationDecision = "pending" | "pass" | "fail";
 
 export type ListingPhoto = {
   photo: UploadedPhoto;
   category: PhotoCategory;
   isWristShot?: boolean;
+  /** Service Evidence only: the seller's deliberate opt-in to public display.
+      PRIVATE BY DEFAULT (lib/servicePhotoPrivacy governs every public surface). */
+  servicePublicOptIn?: boolean;
 };
 
 export type ListingDetails = {

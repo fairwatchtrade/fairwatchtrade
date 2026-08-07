@@ -18,6 +18,7 @@ import {
 import { automaticHeroIndex as roleAutomaticHero, sortByPhotoRole } from "@/lib/photoRoles";
 import BrowseSearch, { type SearchChip } from "@/components/BrowseSearch";
 import SearchEmptyState from "@/components/SearchEmptyState";
+import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import {
   parseSearch,
   matchesSearch,
@@ -228,7 +229,9 @@ function heroFrame(row: {
   style: React.CSSProperties;
   galleryFrameStyle: React.CSSProperties | null;
 } {
-  const raw = Array.isArray(row.photos) ? row.photos : [];
+  // Service Evidence stays off the Browse card unless the seller opted in —
+  // a hero must never surface a service receipt (lib/servicePhotoPrivacy).
+  const raw = publiclyDisplayablePhotos(Array.isArray(row.photos) ? row.photos : []);
   const presentation = sanitizePhotoPresentation(row.photo_presentation);
   if (raw.length === 0) {
     return { url: null, style: frameStyle(defaultFrame()), galleryFrameStyle: null };

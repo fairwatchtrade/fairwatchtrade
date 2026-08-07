@@ -61,7 +61,7 @@ import {
 } from "@/lib/admission/rolexIdentifier";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
-const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
+const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Very Good", "Good", "Fair"];
 const ROMAN = ["I", "II", "III", "IV", "V"] as const;
 
 /* Native <option> elements don't reliably inherit the form's dark styling — when
@@ -1061,6 +1061,7 @@ function CurationStep({
   setAdvisory: (a: RefAdvisory | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [conditionHelpOpen, setConditionHelpOpen] = useState(false);
   const [error, setError] = useState("");
 
   /* ── Money Truth Stage B — seller currency selector (approved Design Gate,
@@ -1320,7 +1321,13 @@ function CurationStep({
           />
         </div>
         <div>
-          <label className={label}>Reference number</label>
+          {/* Consolidation ruling 2026-08-06: the Rolex corridor accepts both
+              a canonical reference (79173) and a documented Style
+              (R79173327B6252), so its label says so. Identifier behavior
+              itself is unchanged. */}
+          <label className={label}>
+            {profile ? "Rolex Reference / Style" : "Reference number"}
+          </label>
           <input
             id="reference"
             className={input}
@@ -1372,7 +1379,20 @@ function CurationStep({
           <input className={input} value={draft.year} onChange={(e) => patch({ year: e.target.value })} placeholder="e.g. 2021" />
         </div>
         <div>
-          <label className={label}>Condition</label>
+          <div className="flex items-center gap-1.5">
+            <label className={`${label} mb-0`}>Condition</label>
+            {/* Condition-governance help (ruling 2026-08-06): tap/click, never
+                hover-only, so it works identically on desktop and phone. */}
+            <button
+              type="button"
+              aria-label="What do the condition grades mean?"
+              aria-expanded={conditionHelpOpen}
+              onClick={() => setConditionHelpOpen((v) => !v)}
+              className="mb-2 flex h-[14px] min-w-[18px] items-center justify-center rounded-full border border-[var(--gold)] px-1 text-[9px] leading-none text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+            >
+              ?
+            </button>
+          </div>
           <select
             className={input}
             value={draft.condition}
@@ -1383,6 +1403,39 @@ function CurationStep({
               <option key={c} value={c} style={OPTION_STYLE}>{c}</option>
             ))}
           </select>
+          {conditionHelpOpen && (
+            <div className="mt-2 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5 text-[11px] leading-[1.6] text-[var(--muted)]">
+              <p>
+                Condition is a factual claim, not sales language. Choose ONE
+                grade — never a range like &ldquo;good to excellent&rdquo; —
+                and your photographs and description must support it.
+              </p>
+              <p className="mt-1.5">
+                <span className="text-[var(--platinum-dim)]">Very Good</span>{" "}
+                means fully wearable and functioning, with honest
+                age-consistent wear and no undisclosed major defect that would
+                materially surprise a buyer.
+              </p>
+              <p className="mt-1.5">
+                Polishing, refinishing, repairs, service parts, replacement
+                components, corrosion, damage, and functional issues are
+                disclosed separately — condition does not establish
+                originality.
+              </p>
+              <p className="mt-1.5">
+                Material misgrading or material omission may violate the{" "}
+                <a
+                  href="/terms#seller-responsibilities"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--gold)] underline"
+                >
+                  FairWatchTrade Terms of Service — Seller Responsibilities
+                </a>
+                .
+              </p>
+            </div>
+          )}
         </div>
         <div className="sm:col-span-2">
           <label className={label}>Asking price</label>
@@ -1546,6 +1599,7 @@ function PhotosStep({
         photo: { url: m.url, pathname: m.pathname },
         category: m.category as PhotoCategory,
         isWristShot: m.isWristShot,
+        servicePublicOptIn: m.servicePublicOptIn === true,
       }));
     patch({ photos });
   }
@@ -1634,6 +1688,17 @@ function PhotosStep({
         <PhotoUpload
           ref={photoRef}
           onChange={onPhotos}
+          /* The draft IS the photo store — hydrate the uploader from it so
+             stepping back to Photos finds completed work instead of an empty
+             mount that would wipe draft.photos (consolidation ruling
+             2026-08-06, Jason's corridor-walk state loss). */
+          initialPhotos={draft.photos.map((p) => ({
+            url: p.photo.url,
+            pathname: p.photo.pathname,
+            category: p.category,
+            isWristShot: p.isWristShot === true,
+            servicePublicOptIn: p.servicePublicOptIn === true,
+          }))}
           /* Context-gated tags (Photos-step ruling 2026-08-06): Service
              Evidence exists only in the Rolex corridor — it is the OR-half
              of "Movement or service evidence", so a solid-caseback watch is

@@ -36,6 +36,14 @@ import type { DocumentationStatus, PhotoCategory } from "@/lib/scoring";
    Originality, period correctness, replacement status, and uncertainty are
    never collapsed into a single "original" checkbox. */
 
+/* Consolidation ruling 2026-08-06: Case is REMOVED from the required grid —
+   demanding a provenance claim about the identity-bearing chassis asked
+   normal sellers for stronger claims than they can usually support. Crystal
+   replaces it: a disclosed service-replacement crystal is not an admission
+   failure and is never cobbling; crystal status is disclosure evidence, and
+   honest classification is the goal. Saved drafts that still carry a `case`
+   classification remain resumable — unclassifiedComponents() iterates THIS
+   list, so a stale extra key is simply ignored, never an error. */
 export const COMPONENT_KEYS = [
   "dial",
   "hands",
@@ -44,7 +52,7 @@ export const COMPONENT_KEYS = [
   "bracelet",
   "clasp",
   "movement",
-  "case",
+  "crystal",
 ] as const;
 export type ComponentKey = (typeof COMPONENT_KEYS)[number];
 
@@ -56,7 +64,7 @@ export const COMPONENT_LABELS: Record<ComponentKey, string> = {
   bracelet: "Bracelet / strap",
   clasp: "Clasp",
   movement: "Movement",
-  case: "Case",
+  crystal: "Crystal",
 };
 
 export const COMPONENT_REPRESENTATIONS = [
@@ -179,15 +187,17 @@ const ROLEX_PROFILE: RequirementProfile = {
     { category: "Non-Crown Side", view: "Case, serial and reference evidence" },
     { category: "Bracelet/Strap", view: "Bracelet or strap" },
     { category: "Clasp/Pin Buckle", view: "Clasp and code" },
-    {
-      category: "Movement (closeup)",
-      altCategories: ["Service Evidence"],
-      view: "Movement or service evidence",
-    },
+    /* Consolidation ruling 2026-08-06: "Movement or service evidence" is no
+       longer a REQUIRED view. Movement photography is optional when
+       naturally available — a solid-caseback Rolex is never opened for
+       admission — and service documentation is optional supporting
+       evidence that may strengthen the listing but never blocks it.
+       Uploading a service document means SERVICE DOCUMENTATION PROVIDED,
+       never VERIFIED. */
     { category: "Papers/Warranty", view: "Warranty card / papers" },
   ],
   photosNote:
-    "These images support component correctness and completeness. Serial and reference photographs remain private evidence unless publication policy explicitly permits a safe partial display — please do not obscure them from FairWatchTrade review. Service documentation may satisfy the movement view in place of a movement photograph — a solid caseback never needs to be opened for admission — and Service Evidence images are review evidence, never shown on the public listing.",
+    "These images support component correctness and completeness. Serial and reference photographs remain private evidence unless publication policy explicitly permits a safe partial display — please do not obscure them from FairWatchTrade review. Movement photographs and service documentation are welcome supporting evidence, never required — a solid caseback never needs to be opened for admission. Service Evidence images stay off the public listing unless you deliberately choose otherwise.",
   entryConditions: [
     {
       key: "documentationAvailable",

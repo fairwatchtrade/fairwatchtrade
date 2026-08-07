@@ -7,6 +7,7 @@ import CatalogueRail from "@/components/CatalogueRail";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
+import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 
 /* Content-aware Catalogue sizing — static class maps so Tailwind sees every
    variant. Card cells target ~280px; the section width = cards + 220px rail
@@ -231,11 +232,15 @@ function formatPrice(value: number | null, currency: string | null): string {
   return formatMoney(value, currency);
 }
 
-// Dial photo first, fallback to the first photo. Matches /browse.
+// Dial photo first, fallback to the first photo. Matches /browse. Service
+// Evidence is excluded unless opted-in (lib/servicePhotoPrivacy) — a hero
+// must never surface a service receipt.
 function heroUrl(photos: ListingPhoto[]): string | null {
   if (!Array.isArray(photos) || photos.length === 0) return null;
-  const dial = photos.find((p) => p?.category === "Dial");
-  return (dial ?? photos[0])?.photo?.url ?? null;
+  const visible = publiclyDisplayablePhotos(photos);
+  if (visible.length === 0) return null;
+  const dial = visible.find((p) => p?.category === "Dial");
+  return (dial ?? visible[0])?.photo?.url ?? null;
 }
 
 /* ── Left nav ─────────────────────────────────────────────────────────

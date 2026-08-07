@@ -30,6 +30,8 @@ export type UploadedPhotoMeta = {
   pathname: string;
   category: PhotoCategory | "";
   isWristShot: boolean;
+  /** Service Evidence only: deliberate public-display opt-in (default off). */
+  servicePublicOptIn?: boolean;
 };
 
 /* Parent can call uploadFiles() directly (used by the page-level drop guard),
@@ -70,6 +72,9 @@ type Item = {
   error?: string;
   category: PhotoCategory | "";
   isWristShot: boolean;
+  /** Service Evidence only: the seller's deliberate opt-in to show the
+      document publicly. PRIVATE BY DEFAULT — see lib/servicePhotoPrivacy. */
+  servicePublicOptIn?: boolean;
 };
 
 const PhotoUpload = forwardRef<PhotoUploadHandle, {
@@ -79,13 +84,32 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
      "Extra Links" only while the bracelet checkbox is active. The base list
      and its required markers are untouched for every other seller. */
   extraCategories?: string[];
+  /* Already-uploaded photos from the draft, so a seller returning to the
+     Photos step finds their completed work instead of an empty uploader.
+     The draft IS the photo store; this component hydrates from it and
+     never wipes it on remount (consolidation ruling 2026-08-06 — Jason's
+     corridor walk lost every photo by stepping back to Photos, because
+     the fresh mount emitted an empty list over the populated draft). */
+  initialPhotos?: UploadedPhotoMeta[];
 }>(
-  function PhotoUpload({ onChange, extraCategories }, ref) {
+  function PhotoUpload({ onChange, extraCategories, initialPhotos }, ref) {
     const categoryOptions = [
       ...CATEGORY_OPTIONS,
       ...(extraCategories ?? []).map((value) => ({ value } as { value: string; required?: boolean })),
     ];
-    const [items, setItems] = useState<Item[]>([]);
+    const [items, setItems] = useState<Item[]>(() =>
+      (initialPhotos ?? []).map((p) => ({
+        id: p.pathname || randomUUID(),
+        name: p.pathname?.split("/").pop() ?? "photo",
+        previewUrl: p.url,
+        status: "done" as const,
+        url: p.url,
+        pathname: p.pathname,
+        category: p.category,
+        isWristShot: !!p.isWristShot,
+        servicePublicOptIn: p.servicePublicOptIn === true,
+      }))
+    );
     const [dragging, setDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +122,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
             pathname: i.pathname!,
             category: i.category,
             isWristShot: i.isWristShot,
+            servicePublicOptIn: i.servicePublicOptIn === true,
           }))
       );
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,10 +314,38 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                   </p>
                 )}
                 {it.category === "Service Evidence" && (
-                  <p className="text-[10px] leading-snug text-[var(--muted)]">
-                    Service records, invoices, or timing results. Review evidence
-                    only — never shown on the public listing.
-                  </p>
+                  <div className="text-[10px] leading-snug text-[var(--muted)]">
+                    <p>
+                      Service records, invoices, or timing results. Optional
+                      supporting evidence — service documentation provided, not
+                      verified by FairWatchTrade. Private by default: this
+                      image stays off your public listing.
+                    </p>
+                    <label className="mt-1.5 flex items-start gap-1.5 text-[var(--platinum-dim)]">
+                      <input
+                        type="checkbox"
+                        checked={it.servicePublicOptIn === true}
+                        onChange={(e) =>
+                          setItems((prev) =>
+                            prev.map((p) =>
+                              p.id === it.id
+                                ? { ...p, servicePublicOptIn: e.target.checked }
+                                : p
+                            )
+                          )
+                        }
+                        className="mt-[1px] accent-[#C9A84C]"
+                      />
+                      <span>Show this service document on my public listing</span>
+                    </label>
+                    <p className="mt-1 text-[var(--gold-subtle)]">
+                      Before enabling, check the document for private
+                      information: address, phone, email, billing ZIP, partial
+                      payment or card details, account or customer numbers,
+                      signatures, service or purchase prices, or anything else
+                      you would not publish.
+                    </p>
+                  </div>
                 )}
                 {it.category === "Extra Links" && (
                   <p className="text-[10px] leading-snug text-[var(--muted)]">

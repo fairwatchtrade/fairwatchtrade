@@ -11,6 +11,7 @@ import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
 import { resolveHeroIndex, sanitizePhotoPresentation } from "@/lib/photoPresentation";
+import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -298,12 +299,10 @@ export default async function ListingDetailPage({
 
   // Photos: keep only entries that actually carry a URL, so category-based
   // hero detection and the URL list stay index-aligned. Service Evidence is
-  // review evidence, never public: service documents routinely carry names,
-  // addresses, and identity-bearing detail (Photos-step ruling 2026-08-06).
+  // private by default — shown only on the seller's deliberate opt-in
+  // (lib/servicePhotoPrivacy, consolidation ruling 2026-08-06).
   const allPhotos = Array.isArray(listing.photos) ? listing.photos : [];
-  const withUrls = allPhotos.filter(
-    (p) => p?.photo?.url && p?.category !== "Service Evidence"
-  );
+  const withUrls = publiclyDisplayablePhotos(allPhotos).filter((p) => p?.photo?.url);
   // Sort by category priority so the gallery receives URLs in display order;
   // a Dial photo lands at index 0 and becomes the hero. Stable sort keeps the
   // original order within a category. (Done here because category data lives

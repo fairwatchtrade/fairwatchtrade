@@ -277,7 +277,7 @@ type Stage =
   | "review"
   | "published";
 
-const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Good", "Fair"];
+const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Very Good", "Good", "Fair"];
 
 const SALE_STATE_OPTIONS: { value: SaleState; label: string }[] = [
   { value: "bracelet", label: "Bracelet" },

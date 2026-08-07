@@ -28,7 +28,10 @@ export default function TermsPage() {
           and boutique timepieces. We charge a flat 5% fee on completed sales.
         </p>
 
-        <h2 className="mt-8 mb-2 text-[15px] font-medium text-[#E8E4DC]">
+        <h2
+          id="seller-responsibilities"
+          className="mt-8 mb-2 scroll-mt-24 text-[15px] font-medium text-[#E8E4DC]"
+        >
           3. Seller Responsibilities
         </h2>
         <p className="text-[14px] leading-relaxed text-[#B7BAC4]">

@@ -30,6 +30,7 @@ import {
   evaluatePublishAdmission,
   admissionBoxIncluded,
   COMPONENT_KEYS,
+  COMPONENT_LABELS,
 } from "../lib/admission/requirementProfile.ts";
 import {
   classifyRolexIdentifier,
@@ -46,6 +47,10 @@ import {
   buildEvaluationPrompt,
 } from "../lib/evaluationPrompt.ts";
 import { buildCurationSubmission } from "../lib/curationSubmission.ts";
+import {
+  isPubliclyDisplayable,
+  publiclyDisplayablePhotos,
+} from "../lib/servicePhotoPrivacy.ts";
 
 let pass = 0;
 const ok = (name, c) => { assert.ok(c, name); pass++; };
@@ -68,7 +73,7 @@ const EXISTING_CATEGORIES = [
   "Bracelet/Strap", "Full watch, strap/bracelet extended", "Clasp/Pin Buckle",
   "Box", "Papers/Warranty", "Other",
 ];
-eq("exactly 8 required views", profile.requiredViews.length, 8);
+eq("exactly 7 required views (movement/service evidence is optional — consolidation 2026-08-06)", profile.requiredViews.length, 7);
 for (const v of profile.requiredViews) {
   ok(`required view "${v.view}" uses a real category (${v.category})`,
     EXISTING_CATEGORIES.includes(v.category));
@@ -78,7 +83,7 @@ ok("Box is NOT a required view (optional, classified when included)",
 
 /* ── missingRequiredViews ── */
 const allCats = profile.requiredViews.map((v) => v.category);
-eq("no photos → all 8 missing", missingRequiredViews(profile, []).length, 8);
+eq("no photos → all 7 missing", missingRequiredViews(profile, []).length, 7);
 eq("all views present → none missing", missingRequiredViews(profile, allCats).length, 0);
 eq("one absent view is named", missingRequiredViews(profile, allCats.slice(1)).length, 1);
 
@@ -469,59 +474,76 @@ ok("a disclosed replacement crystal is never by itself a rejection",
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   PHOTOS-STEP EVIDENCE CORRECTION (order 2026-08-06, found on Jason's
-   production corridor walk): "Movement or service evidence" is a real OR,
-   Service Evidence is a governed private tag, Extra Links is encouraged
-   and never required.
+   CONSOLIDATION BATCH (order 2026-08-06): movement/service evidence is
+   OPTIONAL, Service Evidence is private-by-default with a deliberate
+   opt-in, the component grid trades Case for Crystal, condition gains
+   Very Good, the identifier label says Reference / Style, and photo state
+   survives navigation.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── the OR requirement, at the one shared function every gate reads ── */
+/* ── movement / service evidence: optional, never a gate ── */
 {
-  const catsWithout = (cat) => allCats.filter((c) => c !== cat);
-  const movementOnly = allCats; // movement photo present, no service evidence
-  const serviceOnly = [...catsWithout("Movement (closeup)"), "Service Evidence"];
-  const neither = catsWithout("Movement (closeup)");
-  const unrelatedPaper = [...catsWithout("Movement (closeup)"), "Papers/Warranty", "Other"];
+  eq("the profile now requires exactly 7 views", profile.requiredViews.length, 7);
+  ok("no required view demands the movement photograph",
+    profile.requiredViews.every((v) => v.category !== "Movement (closeup)"));
+  ok("no required view demands Service Evidence",
+    profile.requiredViews.every(
+      (v) => v.category !== "Service Evidence" &&
+        !(v.altCategories ?? []).includes("Service Evidence")));
+  ok("a solid-caseback listing with no movement and no service evidence publishes",
+    evaluatePublishAdmission(profile, { ...READY_INPUT, photoCategories: allCats }).ok);
+  ok("adding service evidence changes nothing at the gate",
+    evaluatePublishAdmission(profile, {
+      ...READY_INPUT, photoCategories: [...allCats, "Service Evidence"],
+    }).ok);
+}
 
-  eq("movement evidence only → PASS",
-    missingRequiredViews(profile, movementOnly).length, 0);
-  eq("service evidence only → PASS",
-    missingRequiredViews(profile, serviceOnly).length, 0);
-  const neitherMissing = missingRequiredViews(profile, neither);
-  eq("neither → the movement view BLOCKS", neitherMissing.length, 1);
-  eq("…and it is the movement-or-service view",
-    neitherMissing[0].view, "Movement or service evidence");
-  eq("unrelated paperwork only → still BLOCKS (no accidental satisfaction)",
-    missingRequiredViews(profile, unrelatedPaper).length, 1);
+/* ── the altCategories OR mechanism itself stays proven (unused today) ── */
+{
+  const synthetic = { requiredViews: [
+    { category: "A", altCategories: ["B"], view: "A or B" },
+  ] };
+  eq("primary satisfies", missingRequiredViews(synthetic, ["A"]).length, 0);
+  eq("alternative satisfies", missingRequiredViews(synthetic, ["B"]).length, 0);
+  eq("unrelated tag never satisfies", missingRequiredViews(synthetic, ["C"]).length, 1);
+}
 
-  // The same OR at the server-side publication verdict.
-  ok("server verdict: service evidence satisfies the movement view",
-    evaluatePublishAdmission(profile, { ...READY_INPUT, photoCategories: serviceOnly }).ok);
-  {
-    const v = evaluatePublishAdmission(profile, { ...READY_INPUT, photoCategories: neither });
-    ok("server verdict: neither movement nor service evidence blocks", !v.ok);
-    ok("…naming the movement-or-service view", /Movement or service evidence/.test(v.detail));
+/* ── Service Evidence: private BY DEFAULT, deliberate opt-in only ── */
+{
+  ok("no opt-in → not publicly displayable",
+    !isPubliclyDisplayable({ category: "Service Evidence" }));
+  ok("explicit false → not displayable",
+    !isPubliclyDisplayable({ category: "Service Evidence", servicePublicOptIn: false }));
+  ok("only the deliberate opt-in displays",
+    isPubliclyDisplayable({ category: "Service Evidence", servicePublicOptIn: true }));
+  ok("every other category displays normally",
+    isPubliclyDisplayable({ category: "Dial" }));
+  const photos = [
+    { category: "Dial" },
+    { category: "Service Evidence" },
+    { category: "Service Evidence", servicePublicOptIn: true },
+  ];
+  eq("the filter keeps exactly the visible set",
+    publiclyDisplayablePhotos(photos).length, 2);
+
+  for (const [name, file] of [
+    ["public listing page", "../app/listings/[id]/page.tsx"],
+    ["Browse hero", "../components/BrowseClient.tsx"],
+    ["Catalogue hero", "../components/CatalogueClient.tsx"],
+  ]) {
+    ok(`${name} consumes the ONE privacy predicate`,
+      readFileSync(new URL(file, import.meta.url), "utf8")
+        .includes("publiclyDisplayablePhotos"));
   }
-}
-
-/* ── Papers/Warranty stays distinct from Service Evidence ── */
-{
-  const papersView = profile.requiredViews.find((v) => v.category === "Papers/Warranty");
-  ok("the papers view exists and never accepts Service Evidence",
-    !!papersView && !(papersView.altCategories ?? []).includes("Service Evidence"));
-  const serviceAsPapers = allCats
-    .filter((c) => c !== "Papers/Warranty")
-    .concat("Service Evidence");
-  eq("Service Evidence can never satisfy the papers view",
-    missingRequiredViews(profile, serviceAsPapers).length, 1);
-}
-
-/* ── Service Evidence is private: never on the public listing ── */
-{
-  const publicPage = readFileSync(
-    new URL("../app/listings/[id]/page.tsx", import.meta.url), "utf8");
-  ok("the public listing page excludes Service Evidence from display",
-    /category !== "Service Evidence"/.test(publicPage));
+  const uploader = readFileSync(new URL("../components/PhotoUpload.tsx", import.meta.url), "utf8");
+  ok("the opt-in control is the ruled sentence, default unchecked",
+    uploader.includes("Show this service document on my public listing") &&
+      uploader.includes("servicePublicOptIn === true"));
+  ok("the warning names the private-information kinds",
+    /address, phone, email, billing ZIP, partial\s+payment or card details, account or customer numbers,\s+signatures, service or purchase prices/.test(uploader));
+  ok("uploading means PROVIDED, never VERIFIED",
+    /service documentation provided, not\s+verified/i.test(uploader) &&
+      !/documentation verified/i.test(uploader));
 }
 
 /* ── Extra Links: encouraged, gated to the bracelet checkbox, NEVER required ── */
@@ -542,6 +564,72 @@ ok("a disclosed replacement crystal is never by itself a rejection",
     /draft\.hasBracelet \? \["Extra Links"\] : \[\]/.test(sellFlow));
   ok("Service Evidence tag exists only in the Rolex corridor",
     /profile \? \["Service Evidence"\] : \[\]/.test(sellFlow));
+}
+
+/* ── component grid: Case out, Crystal in; old drafts stay resumable ── */
+{
+  ok("Crystal is a governed component", COMPONENT_KEYS.includes("crystal"));
+  ok("Case is no longer a required classification", !COMPONENT_KEYS.includes("case"));
+  eq("the grid stays exactly eight components", COMPONENT_KEYS.length, 8);
+  eq("Crystal carries the ruled label", COMPONENT_LABELS.crystal, "Crystal");
+
+  // A pre-change draft that classified the case resumes without corruption:
+  // the stale key is ignored, and only the genuinely missing crystal is asked
+  // for — the draft is never blocked solely because the grid changed.
+  const legacyComponents = Object.fromEntries(
+    [...COMPONENT_KEYS.filter((k) => k !== "crystal"), "case"].map((k) => [k, "original"]));
+  const missing = unclassifiedComponents({ components: legacyComponents });
+  eq("a legacy Case-classified draft asks only for the crystal",
+    missing.join(","), "crystal");
+  eq("a fully reclassified draft is clean",
+    unclassifiedComponents({
+      components: Object.fromEntries(COMPONENT_KEYS.map((k) => [k, "original"])),
+    }).length, 0);
+}
+
+/* ── condition governance: Very Good, one grade, real Terms link ── */
+{
+  const listingLib = readFileSync(new URL("../lib/listing.ts", import.meta.url), "utf8");
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  const wizard = readFileSync(new URL("../components/MobileWizard.tsx", import.meta.url), "utf8");
+  const terms = readFileSync(new URL("../app/terms/page.tsx", import.meta.url), "utf8");
+  const ORDERED = '"Excellent", "Very Good", "Good"';
+  ok("Very Good is a first-class Condition grade",
+    listingLib.includes('"Very Good"'));
+  ok("Very Good sits between Excellent and Good on desktop",
+    sellFlow.includes(ORDERED));
+  ok("Very Good sits between Excellent and Good on the mobile wizard",
+    wizard.includes(ORDERED));
+  ok("the help control is click/tap, not hover-only",
+    sellFlow.includes("onClick={() => setConditionHelpOpen") &&
+      !/onMouseEnter=\{[^}]*ConditionHelp/.test(sellFlow));
+  ok("the help forbids ranges and demands support",
+    /never a range/.test(sellFlow) && /must\s+support it/.test(sellFlow));
+  ok("the help separates condition from originality",
+    /condition does not establish\s+originality/i.test(sellFlow));
+  ok("the Terms link targets the REAL Seller Responsibilities provision",
+    sellFlow.includes('href="/terms#seller-responsibilities"') &&
+      terms.includes('id="seller-responsibilities"'));
+}
+
+/* ── photo state survives navigation: the draft is the ONE store ── */
+{
+  const uploader = readFileSync(new URL("../components/PhotoUpload.tsx", import.meta.url), "utf8");
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  ok("PhotoUpload hydrates its items from initialPhotos",
+    uploader.includes("initialPhotos?: UploadedPhotoMeta[]") &&
+      /useState<Item\[\]>\(\(\) =>\s*\(initialPhotos \?\? \[\]\)/.test(uploader));
+  ok("the Photos step seeds the uploader from draft.photos",
+    sellFlow.includes("initialPhotos={draft.photos.map"));
+  ok("per-photo tags, wrist-shot and opt-in state ride the hydration",
+    /category: p\.category,\s*isWristShot: p\.isWristShot === true,\s*servicePublicOptIn: p\.servicePublicOptIn === true,/.test(sellFlow));
+}
+
+/* ── identifier label (behavior unchanged, label truthful) ── */
+{
+  const sellFlow = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  ok("the Rolex corridor labels the field Reference / Style",
+    sellFlow.includes('profile ? "Rolex Reference / Style" : "Reference number"'));
 }
 
 /* ── prompt rendering: absent fields change nothing ── */
