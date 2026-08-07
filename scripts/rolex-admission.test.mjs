@@ -683,4 +683,22 @@ ok("a disclosed replacement crystal is never by itself a rejection",
       /judge the exact configuration, not the model family/.test(styled));
 }
 
+/* ── evaluator transport: the 1024-token truncation defect stays dead ──
+      (Sell-corridor functional correction 2026-08-06: max_tokens 1024
+      truncated rich v3.39 responses mid-JSON — an intermittent 500 blamed
+      on whatever input happened to be selected. Condition values were
+      never the cause.) ── */
+{
+  const route = readFileSync(new URL("../app/api/evaluate/route.ts", import.meta.url), "utf8");
+  ok("the evaluator response budget covers rich corridor guidance",
+    route.includes("max_tokens: 2048"));
+  ok("the retired truncating budget is gone", !route.includes("max_tokens: 1024"));
+  ok("a future cap hit fails loudly, never as a mystery parse error",
+    route.includes("stop_reason === 'max_tokens'") &&
+      /truncated at max_tokens/.test(route));
+  ok("Very Good is a supported condition, never aliased or downgraded",
+    readFileSync(new URL("../lib/listing.ts", import.meta.url), "utf8")
+      .includes('"Very Good"') && !/Very Good.*(alias|downgrade)/i.test(route));
+}
+
 console.log(`rolex-admission: ${pass} assertions PASS`);

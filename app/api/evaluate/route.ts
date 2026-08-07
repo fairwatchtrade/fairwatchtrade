@@ -21,7 +21,12 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        /* 1024 truncated real evaluations mid-JSON once the Rolex
+           selective-admission guidance grew (v3.39): the response ended
+           inside a string, JSON.parse threw "Unterminated string", and the
+           seller saw an intermittent 500 unrelated to their inputs. 2048
+           gives the richest observed response roughly 2x headroom. */
+        max_tokens: 2048,
         system: FAIRWATCHTRADE_SYSTEM_PROMPT,
         messages: [
           {
@@ -37,6 +42,11 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
+    // Fail loudly and diagnosably if the cap is ever hit again — a truncated
+    // response must never reach JSON.parse as a mystery syntax error.
+    if (data.stop_reason === 'max_tokens') {
+      throw new Error('Evaluation response truncated at max_tokens');
+    }
     const rawText = data.content
       .map((block: { type: string; text?: string }) => block.type === 'text' ? block.text : '')
       .join('');
