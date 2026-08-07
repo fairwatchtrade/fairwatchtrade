@@ -161,7 +161,7 @@ html, body {
   font-size: 9px;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .fw-pull {
