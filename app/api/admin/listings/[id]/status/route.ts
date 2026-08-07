@@ -154,7 +154,13 @@ export async function POST(
       { status: 400 }
     );
   }
-  const rejectionReason = status === "rejected" && rawReason ? rawReason : null;
+  /* NOTE: the mirror is finalised AFTER sellerMessage is resolved below —
+     see `mirrorRejectionReason`. Deriving it from body.rejection_reason alone
+     left the column NULL whenever the evidence panel was the caller, because
+     that surface posts seller_message instead (caught in production, first
+     real rejection). The current-actionable mirror must not depend on which
+     button the founder happened to press. */
+  const rawRejectionReason = status === "rejected" && rawReason ? rawReason : null;
 
   // v2.24 · optional review-action context (the evidence panel's four
   // actions). Action and status must agree — the panel and the dropdown can
@@ -205,7 +211,7 @@ export async function POST(
       { status: 400 }
     );
   }
-  const sellerClarificationNote =
+  const rawClarificationNote =
     reviewAction === "clarify" && rawSellerNote ? rawSellerNote : null;
 
   /* ── The seller-facing reason, required at the TRANSITION boundary ───────
@@ -265,6 +271,16 @@ export async function POST(
       );
     }
   }
+
+  /* The current-actionable mirrors, derived from the ONE resolved message so
+     they cannot depend on which admin surface posted. Each column keeps its
+     own meaning: rejection_reason stays rejection-only, and the clarification
+     note stays clarification-only — a return-to-draft writes neither, which
+     is exactly why its reason lives in the decision event. */
+  const rejectionReason =
+    status === "rejected" ? sellerMessage || rawRejectionReason : null;
+  const sellerClarificationNote =
+    reviewAction === "clarify" ? sellerMessage || rawClarificationNote : null;
 
   // 3 · perform the update with the trusted client (bypasses RLS; reached only
   //     after the admin gate above).
