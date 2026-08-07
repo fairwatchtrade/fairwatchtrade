@@ -1391,7 +1391,11 @@ function CurationStep({
               historyKey="fwtConditionHelp"
               title="One grade, honestly supported"
               triggerClassName="-my-3"
-              bubbleClassName="left-0 right-0 top-[calc(100%+10px)] sm:left-0 sm:right-auto sm:w-[390px]"
+              /* Long-help CARD treatment (Layout correction 2026-08-06):
+                 size, position, caret, copy, border, spacing and behavior all
+                 preserved — the corner radius ALONE changes, to the moderate
+                 rounded-card character of the approved reference. */
+              bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[390px]"
               caretClassName="left-[52px]"
             >
               <div className="text-[13px] leading-[1.5] text-[var(--muted)]">

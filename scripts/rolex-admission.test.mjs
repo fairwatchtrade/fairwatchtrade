@@ -540,7 +540,22 @@ ok("a disclosed replacement crystal is never by itself a rejection",
     uploader.includes("Show this service document on my public listing") &&
       uploader.includes("servicePublicOptIn === true"));
   ok("the warning names the private-information kinds",
-    /address, phone, email, billing ZIP, partial\s+payment or card details, account or customer numbers,\s+signatures, service or purchase prices/.test(uploader));
+    /address, phone, email, billing ZIP,\s+partial payment or card details, account or customer\s+numbers, signatures, service or purchase prices/.test(uploader));
+  // Layout correction 2026-08-06: the long warning is TRIGGERED, not
+  // permanent inline — it renders only for an enable attempt, in the rounded
+  // floating card, and only its explicit confirm enables. Escape and outside
+  // pointerdown dismiss without enabling; unchecking never warns.
+  ok("the warning renders only on an enable attempt",
+    uploader.includes("publishWarnFor === it.id") &&
+      uploader.includes("setPublishWarnFor(it.id)"));
+  ok("only the explicit confirm enables public display",
+    /I checked it — show it publicly/.test(uploader) &&
+      !/servicePublicOptIn: e\.target\.checked/.test(uploader));
+  ok("Escape and outside pointerdown dismiss without enabling",
+    /setPublishWarnFor\(null\)/.test(uploader) &&
+      /data-publish-warning/.test(uploader));
+  ok("the warning card carries the rounded long-help treatment",
+    /data-publish-warning[\s\S]{0,300}rounded-2xl/.test(uploader));
   ok("uploading means PROVIDED, never VERIFIED",
     /service documentation\s+provided, not\s+verified/i.test(uploader) &&
       !/documentation verified/i.test(uploader));
@@ -622,6 +637,8 @@ ok("a disclosed replacement crystal is never by itself a rejection",
       helpBubble.includes("rotate-45"));
   ok("no second inline-expanding help slab remains in the Sell Flow",
     !sellFlow.includes("conditionHelpOpen"));
+  ok("the Condition long-help card takes the moderate rounded radius",
+    /bubbleClassName="[^"]*rounded-2xl[^"]*"/.test(sellFlow));
   ok("the help forbids ranges and demands support",
     /never a range/.test(sellFlow) && /must\s+support it/.test(sellFlow));
   ok("the help separates condition from originality",

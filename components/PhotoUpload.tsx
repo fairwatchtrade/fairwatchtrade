@@ -112,7 +112,33 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
       }))
     );
     const [dragging, setDragging] = useState(false);
+    /* Which item's public-display attempt is currently showing the privacy
+       warning card (Layout correction 2026-08-06). Escape and outside
+       pointerdown dismiss WITHOUT enabling — only the explicit confirm
+       enables. */
+    const [publishWarnFor, setPublishWarnFor] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+      if (!publishWarnFor) return;
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setPublishWarnFor(null);
+        }
+      };
+      const onPointerDown = (e: PointerEvent) => {
+        const t = e.target as HTMLElement;
+        if (t.closest?.("[data-publish-warning]")) return;
+        setPublishWarnFor(null);
+      };
+      document.addEventListener("keydown", onKey);
+      document.addEventListener("pointerdown", onPointerDown);
+      return () => {
+        document.removeEventListener("keydown", onKey);
+        document.removeEventListener("pointerdown", onPointerDown);
+      };
+    }, [publishWarnFor]);
 
     useEffect(() => {
       onChange?.(
@@ -348,30 +374,78 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                         </div>
                       </HelpBubble>
                     </div>
+                    {/* The checkbox stays visible before the choice; the long
+                        privacy warning is NOT permanent inline copy — it
+                        appears in the rounded floating card when the seller
+                        ATTEMPTS to enable public display, and only its
+                        explicit confirm actually enables (Layout correction
+                        2026-08-06; the consent ruling's warn-before-enable is
+                        preserved — strengthened: enabling now passes THROUGH
+                        the warning). Unchecking never warns. */}
                     <label className="mt-1.5 flex items-start gap-1.5 text-[var(--platinum-dim)]">
                       <input
                         type="checkbox"
                         checked={it.servicePublicOptIn === true}
-                        onChange={(e) =>
-                          setItems((prev) =>
-                            prev.map((p) =>
-                              p.id === it.id
-                                ? { ...p, servicePublicOptIn: e.target.checked }
-                                : p
-                            )
-                          )
-                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPublishWarnFor(it.id);
+                          } else {
+                            setItems((prev) =>
+                              prev.map((p) =>
+                                p.id === it.id ? { ...p, servicePublicOptIn: false } : p
+                              )
+                            );
+                          }
+                        }}
                         className="mt-[1px] accent-[#C9A84C]"
                       />
                       <span>Show this service document on my public listing</span>
                     </label>
-                    <p className="mt-1 text-[var(--gold-subtle)]">
-                      Before enabling, check the document for private
-                      information: address, phone, email, billing ZIP, partial
-                      payment or card details, account or customer numbers,
-                      signatures, service or purchase prices, or anything else
-                      you would not publish.
-                    </p>
+                    {publishWarnFor === it.id && (
+                      <div
+                        role="dialog"
+                        aria-label="Before showing this service document publicly"
+                        data-publish-warning
+                        className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 rounded-2xl border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px]"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-[18px] top-[-10px] h-[18px] w-[18px] rotate-45 border-l border-t border-[rgba(201,168,76,0.48)] bg-[#12161e]"
+                        />
+                        <button
+                          type="button"
+                          aria-label="Close without showing publicly"
+                          onClick={() => setPublishWarnFor(null)}
+                          className="absolute right-2 top-1 text-[20px] leading-none text-[var(--muted)] hover:text-[var(--platinum)]"
+                        >
+                          ×
+                        </button>
+                        <h2 className="mb-2 mr-8 font-display text-[20px] font-light text-[var(--platinum)]">
+                          Check it before you show it
+                        </h2>
+                        <p className="text-[13px] leading-[1.5] text-[var(--muted)]">
+                          Before enabling, check the document for private
+                          information: address, phone, email, billing ZIP,
+                          partial payment or card details, account or customer
+                          numbers, signatures, service or purchase prices, or
+                          anything else you would not publish.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setItems((prev) =>
+                              prev.map((p) =>
+                                p.id === it.id ? { ...p, servicePublicOptIn: true } : p
+                              )
+                            );
+                            setPublishWarnFor(null);
+                          }}
+                          className="mt-3 border border-[var(--gold)] px-3.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+                        >
+                          I checked it — show it publicly
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {it.category === "Extra Links" && (
