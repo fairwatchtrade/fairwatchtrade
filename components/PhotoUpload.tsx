@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -117,7 +118,44 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
        pointerdown dismiss WITHOUT enabling — only the explicit confirm
        enables. */
     const [publishWarnFor, setPublishWarnFor] = useState<string | null>(null);
+    /* Measured placement for the privacy warning card. Like the help bubble,
+       it anchors inside one narrow photo-grid cell, so it takes a real width
+       and is then slid/flipped to stay inside the viewport — width is never
+       crushed to solve collision. Only one card is open at a time. */
+    const warnCardRef = useRef<HTMLDivElement | null>(null);
+    const [warnAbove, setWarnAbove] = useState(false);
+    const [warnShiftX, setWarnShiftX] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    useLayoutEffect(() => {
+      if (!publishWarnFor) {
+        setWarnAbove(false);
+        setWarnShiftX(0);
+        return;
+      }
+      const card = warnCardRef.current;
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      const margin = 12;
+      let shift = 0;
+      if (r.right > window.innerWidth - margin) {
+        shift = r.right - (window.innerWidth - margin);
+      }
+      if (r.left - shift < margin) {
+        shift = Math.max(0, r.left - margin);
+      }
+      if (shift !== 0) setWarnShiftX(shift);
+      if (r.bottom > window.innerHeight - margin) {
+        const anchor = card.parentElement?.getBoundingClientRect();
+        if (anchor) {
+          const spaceAbove = anchor.top;
+          const spaceBelow = window.innerHeight - anchor.bottom;
+          if (spaceAbove > spaceBelow && spaceAbove >= r.height + 22) {
+            setWarnAbove(true);
+          }
+        }
+      }
+    }, [publishWarnFor]);
 
     useEffect(() => {
       if (!publishWarnFor) return;
@@ -353,7 +391,14 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                         historyKey="fwtServiceEvidenceHelp"
                         title="Optional supporting evidence"
                         triggerClassName="-my-3"
-                        bubbleClassName="left-0 right-0 top-[calc(100%+10px)] sm:left-0 sm:right-auto sm:w-[320px]"
+                        /* A REAL width at every breakpoint. This bubble
+                           anchors inside one photo-grid CELL (~150px on a
+                           phone), and the old left-0/right-0 mobile
+                           geometry made the cell's width the card's width —
+                           the production long-and-skinny strip. The card
+                           now keeps a readable width and HelpBubble's
+                           measured clamp slides it into the viewport. */
+                        bubbleClassName="left-0 top-[calc(100%+10px)] w-[min(320px,calc(100vw-24px))]"
                         caretClassName="left-[18px]"
                       >
                         <div className="text-[13px] leading-[1.5] text-[var(--muted)]">
@@ -403,14 +448,32 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                     </label>
                     {publishWarnFor === it.id && (
                       <div
+                        ref={warnCardRef}
                         role="dialog"
                         aria-label="Before showing this service document publicly"
                         data-publish-warning
-                        className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 rounded-2xl border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px]"
+                        className="absolute left-0 top-[calc(100%+10px)] z-30 w-[min(320px,calc(100vw-24px))] rounded-2xl border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px]"
+                        style={{
+                          ...(warnAbove
+                            ? { top: "auto", bottom: "calc(100% + 10px)" }
+                            : null),
+                          ...(warnShiftX !== 0
+                            ? { transform: `translateX(${-warnShiftX}px)` }
+                            : null),
+                        }}
                       >
                         <span
                           aria-hidden="true"
-                          className="absolute left-[18px] top-[-10px] h-[18px] w-[18px] rotate-45 border-l border-t border-[rgba(201,168,76,0.48)] bg-[#12161e]"
+                          style={
+                            warnShiftX !== 0
+                              ? { transform: `translateX(${warnShiftX}px) rotate(45deg)` }
+                              : undefined
+                          }
+                          className={`absolute left-[18px] h-[18px] w-[18px] rotate-45 border-[rgba(201,168,76,0.48)] bg-[#12161e] ${
+                            warnAbove
+                              ? "bottom-[-10px] border-b border-r"
+                              : "top-[-10px] border-l border-t"
+                          }`}
                         />
                         <button
                           type="button"

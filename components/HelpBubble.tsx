@@ -61,6 +61,13 @@ export default function HelpBubble({
      card would leave the viewport below AND there is genuinely more room
      above, it opens above instead. Same card, same caret, mirrored. */
   const [placeAbove, setPlaceAbove] = useState(false);
+  /* Horizontal viewport clamp. The bubble anchors to its positioning
+     ancestor, which may be a narrow grid cell near the viewport edge — a
+     fixed-width card anchored there can run off screen. The measured shift
+     slides the CARD back inside the viewport while the caret is compensated
+     the opposite way, so it keeps pointing at its trigger. Width is never
+     crushed to solve collision. */
+  const [shiftX, setShiftX] = useState(0);
   const pinnedRef = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,12 +159,26 @@ export default function HelpBubble({
   useLayoutEffect(() => {
     if (!open) {
       setPlaceAbove(false);
+      setShiftX(0);
       return;
     }
     const bubble = bubbleRef.current;
     const trigger = btnRef.current;
     if (!bubble || !trigger) return;
     const b = bubble.getBoundingClientRect();
+
+    /* Horizontal: slide the card back inside the viewport, never narrower.
+       Measured before any shift is applied (shiftX is 0 on a fresh open). */
+    const margin = 12;
+    let shift = 0;
+    if (b.right > window.innerWidth - margin) {
+      shift = b.right - (window.innerWidth - margin);
+    }
+    if (b.left - shift < margin) {
+      shift = Math.max(0, b.left - margin); // never push the card off the left
+    }
+    if (shift !== 0) setShiftX(shift);
+
     if (b.bottom <= window.innerHeight - 12) return; // fits below — stay put
     const t = trigger.getBoundingClientRect();
     const spaceAbove = t.top;
@@ -226,16 +247,29 @@ export default function HelpBubble({
               if (!pinnedRef.current) close(false);
             }, 220);
           }}
-          /* Inline top/bottom wins over the placement classes in
-             bubbleClassName, so callers' horizontal geometry is untouched
-             while the vertical side mirrors. */
-          style={placeAbove ? { top: "auto", bottom: "calc(100% + 10px)" } : undefined}
+          /* Inline placement wins over the classes in bubbleClassName: the
+             vertical side mirrors when flipped, and the measured horizontal
+             shift slides the card inside the viewport. Caller geometry is
+             otherwise untouched. */
+          style={{
+            ...(placeAbove ? { top: "auto", bottom: "calc(100% + 10px)" } : null),
+            ...(shiftX !== 0 ? { transform: `translateX(${-shiftX}px)` } : null),
+          }}
           className={`absolute z-30 border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px] ${
             bubbleClassName ?? "left-0 right-0 top-[calc(100%+10px)] sm:left-auto sm:right-0 sm:w-[390px]"
           }`}
         >
           <span
             aria-hidden="true"
+            /* The caret rides the card, so a shifted card would drag it off
+               its trigger — the inline transform walks it back. It must
+               restate rotate(45deg): an inline transform replaces the class
+               transform entirely. */
+            style={
+              shiftX !== 0
+                ? { transform: `translateX(${shiftX}px) rotate(45deg)` }
+                : undefined
+            }
             className={`absolute h-[18px] w-[18px] rotate-45 border-[rgba(201,168,76,0.48)] bg-[#12161e] ${
               placeAbove
                 ? "bottom-[-10px] border-b border-r"

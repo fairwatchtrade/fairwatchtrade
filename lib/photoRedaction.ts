@@ -49,7 +49,12 @@ export type PhotoRedactionRecord = {
   strokes: RedactionStroke[];
 };
 
-export const REDACTION_BRUSH_RADIUS = 0.035;
+/* 0.035 → 0.024 (production-walk polish 2026-08-07): the original brush
+   covered too much per swipe for small private details — an address line, a
+   short serial. Narrower favors two or three controlled swipes over placing
+   one oversized stroke perfectly. Strokes store their own radius, so marks
+   saved at the old width re-render exactly as drawn. */
+export const REDACTION_BRUSH_RADIUS = 0.024;
 export const MAX_REDACTION_STROKES = 60;
 export const MAX_STROKE_POINTS = 400;
 
