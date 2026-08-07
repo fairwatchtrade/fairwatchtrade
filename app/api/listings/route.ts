@@ -18,6 +18,7 @@ import {
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
+import { sendSubmissionReceivedEmail } from "@/lib/listingDecisionEmail";
 import { isSupportedCurrency } from "@/lib/supportedCurrencies";
 import {
   isDefaultPresentation,
@@ -842,7 +843,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("listings")
     .insert(row)
-    .select("id, status")
+    .select("id, status, public_code")
     .single();
 
   if (error) {
@@ -917,6 +918,21 @@ export async function POST(request: NextRequest) {
       reference: body.reference,
       priceText: emailPriceText,
       listingId: data.id,
+    });
+  }
+
+  /* ── Submission receipt ─────────────────────────────────────────────────
+     No silent review state: the seller is told immediately that we have the
+     listing and that it is NOT public yet. This is a fresh insert, so it is
+     inherently once-per-submission — a retry with the same publish_request_id
+     returns from the idempotent branch far above and never reaches here. */
+  if (data.status === "pending_review") {
+    await sendSubmissionReceivedEmail({
+      to: user.email,
+      brand: body.brand,
+      model: body.model,
+      reference: body.reference,
+      publicCode: (data as { public_code?: string | null }).public_code ?? null,
     });
   }
 

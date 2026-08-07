@@ -40,6 +40,9 @@ import { WRITABLE_STATUSES, isWritableStatus, type WritableStatus } from "@/lib/
 const STATUS_OPTIONS = WRITABLE_STATUSES;
 type StatusOption = WritableStatus;
 const isStatusOption = isWritableStatus;
+/* Adverse from the SELLER's side: their listing is refused, or their live
+   listing is taken down. Both owe them a reason. */
+const ADVERSE_STATUSES: string[] = ["rejected", "draft"];
 
 export default function ListingStatusControls({
   listingId,
@@ -58,6 +61,19 @@ export default function ListingStatusControls({
 
   async function apply(next: StatusOption, confirmText: string) {
     if (busy) return;
+    /* This surface must not be the back door. The server refuses an adverse
+       transition without a seller-facing reason regardless of which admin
+       control posts it, so asking here is what turns a 400 into an
+       explanation the founder can act on. Take Down lands on 'draft', which
+       is adverse from the seller's side — their live listing disappeared. */
+    if (ADVERSE_STATUSES.includes(next) && !rejectionReason.trim()) {
+      setFeedback({
+        kind: "err",
+        text:
+          "A message to the seller is required before this listing can be rejected or returned to draft. They see this text, and it is their only explanation.",
+      });
+      return;
+    }
     if (!window.confirm(confirmText)) return;
     setBusy(true);
     setFeedback(null);
@@ -66,8 +82,15 @@ export default function ListingStatusControls({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          next === "rejected" && rejectionReason.trim()
-            ? { status: next, rejection_reason: rejectionReason.trim() }
+          ADVERSE_STATUSES.includes(next)
+            ? {
+                status: next,
+                seller_message: rejectionReason.trim(),
+                // Keep the rejection-only column's own meaning intact.
+                ...(next === "rejected"
+                  ? { rejection_reason: rejectionReason.trim() }
+                  : {}),
+              }
             : { status: next }
         ),
       });
@@ -192,17 +215,21 @@ export default function ListingStatusControls({
         </button>
       </div>
 
-      {selected === "rejected" && (
+      {/* Shown for BOTH adverse targets, and for Take Down — which lands on
+          'draft' and is adverse from the seller's side. Required, because
+          the transition boundary refuses it blank either way. */}
+      {ADVERSE_STATUSES.includes(selected) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={label}>
-            Rejection reason (shown to the dealer · {rejectionReason.length} / 1000)
+            Message to seller — required ({rejectionReason.length} / 1000) · shown in their
+            account and sent by email
           </span>
           <textarea
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value.slice(0, 1000))}
             disabled={busy}
             rows={3}
-            placeholder="What must the dealer correct before resubmitting?"
+            placeholder="What happened, why, and what should they do next?"
             style={{ ...select, resize: "vertical", lineHeight: 1.5 }}
           />
         </div>

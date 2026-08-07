@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
+import {
+  sendListingRejectedEmail,
+  sendClarificationRequestedEmail,
+  sendReturnedToDraftEmail,
+} from "@/lib/listingDecisionEmail";
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -114,6 +119,8 @@ export async function POST(
     review_action?: unknown;
     reviewer_note?: unknown;
     seller_clarification_note?: unknown;
+    /** Canonical seller-facing reason for an adverse decision. */
+    seller_message?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -201,6 +208,64 @@ export async function POST(
   const sellerClarificationNote =
     reviewAction === "clarify" && rawSellerNote ? rawSellerNote : null;
 
+  /* ── The seller-facing reason, required at the TRANSITION boundary ───────
+     Standing product law: no adverse listing decision without a
+     seller-visible reason. Enforcing it in a React component would only bind
+     whichever component happened to ask — this route is the single door BOTH
+     admin surfaces post through (the evidence panel and the generic status
+     controls), so the rule lives here and neither can be the bypass.
+
+     `seller_message` is the canonical field. The two older shapes still work:
+     the panel's clarify note and the dropdown's rejection reason are accepted
+     as the message when the canonical one is absent, so existing callers keep
+     functioning while everything converges on one input. */
+  const ADVERSE_STATUSES = ["rejected", "draft"] as const;
+  const isAdverse = (ADVERSE_STATUSES as readonly string[]).includes(status);
+
+  const canonicalMessage =
+    typeof body.seller_message === "string" ? body.seller_message.trim() : "";
+  const sellerMessage =
+    canonicalMessage ||
+    (status === "rejected" ? rawReason : "") ||
+    (reviewAction === "clarify" ? rawSellerNote : "");
+
+  if (isAdverse) {
+    // Rejection copy keeps its historical 1000-char room; everything else
+    // shares the clarification bound the seller-note column already enforces.
+    const maxLen = status === "rejected" ? 1000 : NOTE_MAX;
+    if (!sellerMessage) {
+      return NextResponse.json(
+        {
+          error: "seller_message_required",
+          detail:
+            "A message to the seller is required. Say what happened and what they should do next — they see this, and it is the only explanation they get.",
+        },
+        { status: 400 }
+      );
+    }
+    if (sellerMessage.length > maxLen) {
+      return NextResponse.json(
+        {
+          error: "seller_message_too_long",
+          detail: `The message to the seller is limited to ${maxLen} characters.`,
+        },
+        { status: 400 }
+      );
+    }
+    // §E — the seller-copy safety boundary now covers EVERY seller-visible
+    // adjudication message, not just clarification.
+    if (FORBIDDEN_SELLER_NOTE.test(sellerMessage)) {
+      return NextResponse.json(
+        {
+          error: "seller_message_forbidden_content",
+          detail:
+            "The message to the seller may not mention the provider, scores, source URLs, match classifications, or suspicion language. Describe what you need from the seller instead.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   // 3 · perform the update with the trusted client (bypasses RLS; reached only
   //     after the admin gate above).
   let service;
@@ -219,33 +284,41 @@ export async function POST(
      since v3.53 this route is the only door to publication, so it is also the
      only place that can truthfully say "your listing is live". Reading it here
      costs nothing extra — the query already had to run for the gate. */
-  let priorStatus: string | null = null;
-  let liveEmailFacts: {
-    seller_id: string | null;
-    brand: string | null;
-    model: string | null;
-    reference: string | null;
-    asking_price: number | null;
-    asking_currency: string | null;
-  } | null = null;
+  /* The pre-read now runs for EVERY transition, not just publication. The
+     prior status is what makes a decision a decision: an event is only
+     recorded, and an email only sent, when the listing genuinely moves. A
+     re-save of the same state is not a decision and leaves no trace. */
+  const { data: current, error: readErr } = await service
+    .from("listings")
+    .select(
+      "details, status, seller_id, brand, model, reference, asking_price, asking_currency, public_code"
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) {
+    return NextResponse.json({ error: "read_failed", detail: readErr.message }, { status: 500 });
+  }
+  if (!current) {
+    return NextResponse.json(
+      { error: "not_found", detail: `No listing with id ${id}.` },
+      { status: 404 }
+    );
+  }
 
+  const priorStatus: string | null =
+    typeof current.status === "string" ? current.status : null;
+  const listingFacts = {
+    seller_id: (current.seller_id as string | null) ?? null,
+    brand: (current.brand as string | null) ?? null,
+    model: (current.model as string | null) ?? null,
+    reference: (current.reference as string | null) ?? null,
+    asking_price: (current.asking_price as number | null) ?? null,
+    asking_currency: (current.asking_currency as string | null) ?? null,
+    public_code: (current.public_code as string | null) ?? null,
+  };
+
+  // v2.21 · availability gate — 'Not Currently Available' cannot publish.
   if (status === "published") {
-    const { data: current, error: readErr } = await service
-      .from("listings")
-      .select(
-        "details, status, seller_id, brand, model, reference, asking_price, asking_currency"
-      )
-      .eq("id", id)
-      .maybeSingle();
-    if (readErr) {
-      return NextResponse.json({ error: "read_failed", detail: readErr.message }, { status: 500 });
-    }
-    if (!current) {
-      return NextResponse.json(
-        { error: "not_found", detail: `No listing with id ${id}.` },
-        { status: 404 }
-      );
-    }
     const availability =
       current.details && typeof current.details === "object"
         ? (current.details as Record<string, unknown>).availability
@@ -260,15 +333,6 @@ export async function POST(
         { status: 409 }
       );
     }
-    priorStatus = typeof current.status === "string" ? current.status : null;
-    liveEmailFacts = {
-      seller_id: current.seller_id ?? null,
-      brand: current.brand ?? null,
-      model: current.model ?? null,
-      reference: current.reference ?? null,
-      asking_price: current.asking_price ?? null,
-      asking_currency: current.asking_currency ?? null,
-    };
   }
 
   const { data, error } = await service
@@ -333,6 +397,74 @@ export async function POST(
     }
   }
 
+  /* ── The decision event — the durable history, written once per movement ──
+     Only a real transition is a decision, which is also what makes the email
+     idempotent per event rather than per listing: re-saving the same state
+     records nothing and therefore sends nothing. The database refuses an
+     adverse event with a blank seller_message, so history can never contain
+     a decision the seller was owed an explanation for and never got.
+
+     Append-only by construction — a later decision inserts a later row and
+     cannot rewrite an earlier one. The listing columns updated above remain
+     the current-actionable mirror; this table is the historical authority. */
+  const DECISION_FOR_STATUS: Record<string, string> = {
+    published: "approved",
+    rejected: "rejected",
+    draft: reviewAction === "clarify" ? "clarification_requested" : "returned_to_draft",
+  };
+  const decision = DECISION_FOR_STATUS[status];
+  const realTransition = priorStatus !== null && priorStatus !== data.status;
+
+  if (decision && realTransition) {
+    const { error: eventErr } = await service.from("listing_decision_events").insert({
+      listing_id: id,
+      decision,
+      prior_status: priorStatus,
+      resulting_status: data.status,
+      seller_message: sellerMessage || null,
+      actor_uid: user.id,
+    });
+    if (eventErr) {
+      // The status write already landed. Say so plainly rather than pretend
+      // the decision was recorded — this mirrors the review-record handling
+      // directly above and keeps the founder informed instead of guessing.
+      console.error("[decision-event] insert failed:", eventErr.message);
+      return NextResponse.json(
+        {
+          error: "decision_event_failed",
+          detail:
+            "The status change was applied, but the decision record could not be written. Repeat the action.",
+          status: data.status,
+        },
+        { status: 500 }
+      );
+    }
+
+    /* The adverse emails read the message that was just persisted with the
+       event — never a second copy rebuilt from request state, so the words in
+       the seller's inbox and the words in their Account cannot drift. */
+    if (decision !== "approved" && listingFacts.seller_id) {
+      const { data: sellerUser } = await service.auth.admin.getUserById(
+        listingFacts.seller_id
+      );
+      const facts = {
+        to: sellerUser?.user?.email,
+        brand: listingFacts.brand,
+        model: listingFacts.model,
+        reference: listingFacts.reference,
+        publicCode: listingFacts.public_code,
+      };
+      const message = sellerMessage;
+      if (decision === "rejected") {
+        await sendListingRejectedEmail({ ...facts, sellerMessage: message });
+      } else if (decision === "clarification_requested") {
+        await sendClarificationRequestedEmail({ ...facts, sellerMessage: message });
+      } else {
+        await sendReturnedToDraftEmail({ ...facts, sellerMessage: message });
+      }
+    }
+  }
+
   /* ── The publication moment — the one place that can truthfully say live ──
      Sent only on a REAL transition into 'published'. The prior status is the
      idempotency boundary and needs no new machinery: re-running an approval,
@@ -350,19 +482,19 @@ export async function POST(
   if (
     data.status === "published" &&
     priorStatus !== "published" &&
-    liveEmailFacts?.seller_id
+    listingFacts.seller_id
   ) {
     const { data: sellerUser } = await service.auth.admin.getUserById(
-      liveEmailFacts.seller_id
+      listingFacts.seller_id
     );
     await sendListingLiveEmail({
       to: sellerUser?.user?.email,
-      brand: liveEmailFacts.brand ?? "",
-      model: liveEmailFacts.model,
-      reference: liveEmailFacts.reference ?? "",
+      brand: listingFacts.brand ?? "",
+      model: listingFacts.model,
+      reference: listingFacts.reference ?? "",
       priceText: formatMoney(
-        liveEmailFacts.asking_price,
-        liveEmailFacts.asking_currency
+        listingFacts.asking_price,
+        listingFacts.asking_currency
       ),
       listingId: id,
     });

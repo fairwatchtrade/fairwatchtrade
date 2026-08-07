@@ -141,6 +141,9 @@ function fmtDate(iso: string | null): string {
 }
 
 type Action = "approve" | "clarify" | "reject" | "return_to_draft";
+/* The three decisions the seller is owed an explanation for. Approve needs
+   none — nothing adverse happened, and the live email speaks for itself. */
+const ADVERSE_ACTIONS: Action[] = ["clarify", "reject", "return_to_draft"];
 const ACTION_STATUS: Record<Action, string> = {
   approve: "published",
   reject: "rejected",
@@ -237,8 +240,20 @@ export default function IntegrityEvidencePanel({
 
   async function act(action: Action) {
     if (busy) return;
-    if (action === "clarify" && !clarifyOpen) {
+    /* Every adverse action now opens the seller-message field first, not just
+       clarify. Standing law: no adverse listing decision without a
+       seller-visible reason — rejecting or returning a listing silently is
+       how a seller ends up refreshing Browse with no idea what happened. The
+       server enforces this too; this is only the courteous half. */
+    if (ADVERSE_ACTIONS.includes(action) && !clarifyOpen) {
       setClarifyOpen(true);
+      return;
+    }
+    if (ADVERSE_ACTIONS.includes(action) && !sellerNote.trim()) {
+      setFeedback({
+        kind: "err",
+        text: "A message to the seller is required for this decision.",
+      });
       return;
     }
     if (!window.confirm(ACTION_CONFIRM[action])) return;
@@ -250,8 +265,11 @@ export default function IntegrityEvidencePanel({
         review_action: action,
       };
       if (note.trim()) payload.reviewer_note = note.trim();
-      if (action === "clarify" && sellerNote.trim()) {
-        payload.seller_clarification_note = sellerNote.trim();
+      if (ADVERSE_ACTIONS.includes(action) && sellerNote.trim()) {
+        // Canonical field for every adverse decision; the clarify-only column
+        // keeps its own name so its existing meaning is untouched.
+        payload.seller_message = sellerNote.trim();
+        if (action === "clarify") payload.seller_clarification_note = sellerNote.trim();
       }
       const res = await fetch(`/api/admin/listings/${listingId}/status`, {
         method: "POST",
@@ -481,16 +499,21 @@ export default function IntegrityEvidencePanel({
             )}
             {clarifyOpen && (
               <div className="clarify-input">
+                {/* Required, not optional — and named for what it is. This is
+                    the ONLY explanation the seller ever receives: it appears
+                    in their Account and in the decision email, word for word.
+                    Kept visually distinct from the founder-only note below. */}
                 <span className="clarify-label">
-                  Bounded seller-visible note (optional · {sellerNote.length} / {NOTE_MAX}) — no
-                  provider names, scores, sources, or suspicion language
+                  Message to seller — REQUIRED ({sellerNote.length} / {NOTE_MAX}) · shown in their
+                  account and sent by email · no provider names, scores, sources, or suspicion
+                  language
                 </span>
                 <textarea
                   value={sellerNote}
                   onChange={(e) => setSellerNote(e.target.value.slice(0, NOTE_MAX))}
                   disabled={busy}
                   rows={3}
-                  placeholder="What do you need the seller to confirm or replace?"
+                  placeholder="What happened, why, and what should they do next?"
                   className="reviewer-note"
                 />
               </div>

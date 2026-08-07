@@ -112,6 +112,18 @@ export type AccountListing = {
   // neither field ever carries provider names, scores, or sources.
   integrity_hold_reason?: string | null;
   seller_clarification_note?: string | null;
+  /** Seller-facing rejection reason. Fetched since the adverse-decision
+      flight — before that a founder could write one only dealers could read. */
+  rejection_reason?: string | null;
+};
+
+/** One recorded adjudication decision, seller-visible fields only. The
+    founder-only reviewer note lives in a different table and never appears. */
+export type AccountDecisionEvent = {
+  listing_id: string;
+  decision: string;
+  seller_message: string | null;
+  created_at: string;
 };
 
 type ModuleId =
@@ -1054,8 +1066,12 @@ function RequestsView({
 
 export default function AccountDashboard({
   listings,
+  decisions = [],
 }: {
   listings: AccountListing[];
+  /** Adjudication history for these listings, newest first. Optional so any
+      other caller keeps working without it. */
+  decisions?: AccountDecisionEvent[];
 }) {
   /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
      ?module=saved deep link becomes the general convention: every real
@@ -1341,6 +1357,7 @@ export default function AccountDashboard({
                 </div>
                 <SellerListingsRoom
                   listings={searchFiltered}
+                  decisions={decisions}
                   threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                   threadsLoaded={threadsLoaded}
                   onSubmitForReview={submitForReview}
@@ -1375,6 +1392,7 @@ export default function AccountDashboard({
                 ) : (
                   <SellerListingsRoom
                     listings={searchFiltered}
+                  decisions={decisions}
                     threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                     threadsLoaded={threadsLoaded}
                     onSubmitForReview={submitForReview}

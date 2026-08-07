@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
-import type { AccountListing } from "@/components/AccountDashboard";
+import type { AccountListing, AccountDecisionEvent } from "@/components/AccountDashboard";
+
+/** Seller-facing names for the recorded decisions. */
+const DECISION_LABEL: Record<string, string> = {
+  approved: "Approved",
+  rejected: "Not accepted",
+  clarification_requested: "More information requested",
+  returned_to_draft: "Returned to draft",
+};
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -117,6 +125,7 @@ function thumbUrl(photos?: ListingPhoto[]): string | null {
 
 export default function SellerListingsRoom({
   listings,
+  decisions = [],
   threadStats,
   threadsLoaded,
   onSubmitForReview,
@@ -126,6 +135,8 @@ export default function SellerListingsRoom({
   submitErrorMsg,
 }: {
   listings: AccountListing[];
+  /** Adjudication history for these listings, newest first. */
+  decisions?: AccountDecisionEvent[];
   /** listing ids of the seller's RLS-scoped correspondence threads (one entry per thread). */
   threadStats: ListingThreadStat[];
   /** false until /api/messages has answered — an unanswered source must not render as 0. */
@@ -139,6 +150,20 @@ export default function SellerListingsRoom({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  /* Decision history readers. `decisions` arrives newest-first, so the first
+     match for a listing is its current one and anything after it is genuinely
+     earlier — which is the whole point of the append-only record: a later
+     ruling never erases the fact that an earlier one was given. */
+  const latestMessage = (listingId: string, decision: string): string | null => {
+    const hit = decisions.find(
+      (d) => d.listing_id === listingId && d.decision === decision
+    );
+    const msg = hit?.seller_message?.trim();
+    return msg ? msg : null;
+  };
+  const priorDecisions = (listingId: string): AccountDecisionEvent[] =>
+    decisions.filter((d) => d.listing_id === listingId).slice(1);
   /* dealer_import provenance, RLS-scoped — identifies which drafts have a
      REAL editing room (the Imported Drafts workspace). Null until answered:
      an unanswered source must not silently disable a real action. */
@@ -501,6 +526,69 @@ export default function SellerListingsRoom({
                         {selected.seller_clarification_note}
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* Submitted and waiting — the first-time seller who cannot
+                    find their watch on Browse gets the answer here, without
+                    needing to know what a dashboard is. */}
+                {selected.status === "pending_review" && !selected.integrity_hold_reason && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    We&apos;ve received this listing and it&apos;s waiting for review.
+                    <span className="mt-1 block">
+                      It is not public yet. We&apos;ll let you know when it&apos;s approved or
+                      if anything needs your attention.
+                    </span>
+                  </div>
+                )}
+
+                {/* What happened, why, and what next — for the decisions that
+                    go against the seller. The reason is the founder's own
+                    persisted message: the same words that were emailed, never
+                    the founder-only reviewer note. */}
+                {selected.status === "rejected" && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    This listing won&apos;t be going live on FairWatchTrade.
+                    {(selected.rejection_reason ?? latestMessage(selected.id, "rejected")) && (
+                      <span className="mt-1 block text-[var(--platinum-dim)]">
+                        {selected.rejection_reason ?? latestMessage(selected.id, "rejected")}
+                      </span>
+                    )}
+                    <span className="mt-1 block">
+                      Nothing has been deleted — your listing and its photographs are saved.
+                    </span>
+                  </div>
+                )}
+
+                {selected.status === "draft" &&
+                  selected.seller_clarification_note == null &&
+                  latestMessage(selected.id, "returned_to_draft") && (
+                    <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                      This listing was returned to your drafts so you can make a change.
+                      <span className="mt-1 block text-[var(--platinum-dim)]">
+                        {latestMessage(selected.id, "returned_to_draft")}
+                      </span>
+                      <span className="mt-1 block">
+                        Everything you entered is still here. Submit it for review again when
+                        you&apos;re ready.
+                      </span>
+                    </div>
+                  )}
+
+                {/* Earlier decisions stay truthful. A later ruling never
+                    rewrites an earlier one, so a listing that was clarified
+                    and then rejected still shows that both happened. */}
+                {priorDecisions(selected.id).length > 0 && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    <span className="block text-[var(--ghost)]">Earlier in this review</span>
+                    {priorDecisions(selected.id).map((d, i) => (
+                      <span key={i} className="mt-1 block">
+                        <span className="text-[var(--platinum-dim)]">
+                          {DECISION_LABEL[d.decision] ?? d.decision}
+                        </span>
+                        {d.seller_message ? ` — ${d.seller_message}` : ""}
+                      </span>
+                    ))}
                   </div>
                 )}
 

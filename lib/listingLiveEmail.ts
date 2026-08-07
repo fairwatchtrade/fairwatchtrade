@@ -19,6 +19,8 @@
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
+import { sendSellerEmail } from "@/lib/sellerEmail";
+
 export async function sendListingLiveEmail(params: {
   to: string | null | undefined;
   brand?: string;
@@ -29,18 +31,15 @@ export async function sendListingLiveEmail(params: {
   listingId: string;
 }): Promise<void> {
   const { to, brand, model, reference, priceText, listingId } = params;
-  if (!to) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "FairWatchTrade <hello@fairwatchtrade.com>",
-      to,
-      subject: "Your listing is live on FairWatchTrade",
-      html: `
+  /* Transport moved to lib/sellerEmail: the old inline fetch resolved on a
+     401 and swallowed it, which is exactly how a stale production key made
+     every live email vanish silently for a month. Markup and subject are
+     unchanged — only the failure now has a voice. */
+  await sendSellerEmail({
+    to,
+    kind: "listing-live",
+    subject: "Your listing is live on FairWatchTrade",
+    html: `
         <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; background: #0D0F14; color: #E8E4DC; padding: 2rem;">
           <h1 style="font-family: Georgia, serif; font-weight: 300; color: #C9A84C; font-size: 1.8rem; margin-bottom: 0.5rem;">
             FairWatchTrade
@@ -68,8 +67,7 @@ export async function sendListingLiveEmail(params: {
           </p>
         </div>
       `,
-    }),
-  }).catch(() => {
-    // Email failure is non-fatal — the listing is already live.
   });
+  // Still non-fatal: the listing is already live either way. The difference
+  // is that a failure is now logged inside the transport instead of vanishing.
 }

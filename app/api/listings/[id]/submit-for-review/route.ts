@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendSubmissionReceivedEmail } from "@/lib/listingDecisionEmail";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/listings/[id]/submit-for-review — Dealer Accelerator Flight 2B
@@ -116,6 +117,30 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  /* ── Submission receipt (resubmission path) ─────────────────────────────
+     The RPC transitions ONLY draft/rejected → pending_review and 409s on
+     anything else, so reaching this line is proof of a real new review
+     event. That is the whole idempotency mechanism — a second call on an
+     already-pending listing fails the transition above and never gets here,
+     while a legitimate correct-and-resubmit cycle earns its own receipt.
+     No delivery marker column was needed.
+
+     The seller is read from the row rather than the session so the address
+     always belongs to the listing's owner. Non-fatal by construction. */
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("brand, model, reference, public_code")
+    .eq("id", id)
+    .maybeSingle();
+
+  await sendSubmissionReceivedEmail({
+    to: user.email,
+    brand: listing?.brand ?? null,
+    model: listing?.model ?? null,
+    reference: listing?.reference ?? null,
+    publicCode: listing?.public_code ?? null,
+  });
 
   return NextResponse.json({ ok: true, ...((data as object) ?? {}) }, { status: 200 });
 }

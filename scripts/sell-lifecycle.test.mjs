@@ -182,8 +182,8 @@ const status = read("lib/listingStatus.ts");
     /data\.status === "published"\s*&&\s*priorStatus !== "published"/.test(admin)
   );
   ok(
-    "the prior status is read before the write, from the existing gate query",
-    /priorStatus = typeof current\.status === "string"/.test(admin)
+    "the prior status is read before the write",
+    /const priorStatus: string \| null =\s*typeof current\.status === "string"/.test(admin)
   );
   ok(
     "the send happens after the status write, not before",
@@ -191,9 +191,10 @@ const status = read("lib/listingStatus.ts");
       admin.indexOf('.update({\n      status: status as AllowedStatus')
   );
   ok(
-    "reject / clarify / return_to_draft can never reach the send",
-    /if \(status === "published"\) \{/.test(admin) &&
-      /liveEmailFacts\?\.seller_id/.test(admin)
+    "reject / clarify / return_to_draft can never reach the LIVE send",
+    /data\.status === "published" &&\s*priorStatus !== "published" &&\s*listingFacts\.seller_id/.test(
+      admin
+    )
   );
   ok(
     "the price is currency-aware, never a bare dollar sign",
@@ -206,6 +207,102 @@ const status = read("lib/listingStatus.ts");
   ok(
     "submission alone cannot mail — nothing publishes in the seller route",
     !/status:\s*"published"/.test(route)
+  );
+}
+
+/* ── 7. No adverse decision without a seller-visible reason ────────────── */
+{
+  const panel = read("components/IntegrityEvidencePanel.tsx");
+  const controls = read("components/ListingStatusControls.tsx");
+  const account = read("app/account/page.tsx");
+  const room = read("components/SellerListingsRoom.tsx");
+  const decisionMail = read("lib/listingDecisionEmail.ts");
+  const transport = read("lib/sellerEmail.ts");
+  const migration = read(
+    "supabase/migrations/20260807213000_listing_decision_events.sql"
+  );
+
+  // The rule lives at the transition boundary, not in one component.
+  ok(
+    "the route requires a seller message for every adverse transition",
+    /const ADVERSE_STATUSES = \["rejected", "draft"\]/.test(admin) &&
+      /seller_message_required/.test(admin)
+  );
+  ok(
+    "the seller-copy boundary now covers every seller-visible message",
+    /FORBIDDEN_SELLER_NOTE\.test\(sellerMessage\)/.test(admin)
+  );
+  ok(
+    "the founder-only reviewer note is never used as seller copy",
+    !/sellerMessage\s*=\s*reviewerNote/.test(admin) &&
+      /reviewer_note/.test(admin)
+  );
+
+  // Both admin surfaces must ask; neither may be the bypass.
+  ok(
+    "the evidence panel requires a message for all three adverse actions",
+    /ADVERSE_ACTIONS: Action\[\] = \["clarify", "reject", "return_to_draft"\]/.test(panel) &&
+      /A message to the seller is required/.test(panel) &&
+      /payload\.seller_message/.test(panel)
+  );
+  ok(
+    "the status dropdown cannot bypass it, take-down included",
+    /const ADVERSE_STATUSES: string\[\] = \["rejected", "draft"\]/.test(controls) &&
+      /seller_message: rejectionReason\.trim\(\)/.test(controls)
+  );
+
+  // History is append-only and enforced by the database.
+  ok(
+    "an adverse decision cannot be recorded blank",
+    /lde_seller_message_required_check/.test(migration) &&
+      /decision = 'approved'/.test(migration)
+  );
+  ok(
+    "only a real movement is a decision",
+    /lde_real_transition_check/.test(migration) &&
+      /prior_status <> resulting_status/.test(migration)
+  );
+  ok(
+    "the event is written only on a real transition",
+    /const realTransition = priorStatus !== null && priorStatus !== data\.status/.test(admin) &&
+      /listing_decision_events/.test(admin)
+  );
+  ok(
+    "a later decision inserts, never updates",
+    /from\("listing_decision_events"\)\s*\.insert\(/.test(admin.replace(/\s+/g, " ")) &&
+      !/from\("listing_decision_events"\)[\s\S]{0,80}\.update\(/.test(admin)
+  );
+
+  // The same persisted message reaches both places.
+  ok(
+    "adverse emails are sent from the persisted decision message",
+    /sendListingRejectedEmail\(\{ \.\.\.facts, sellerMessage: message \}\)/.test(admin) &&
+      /sendReturnedToDraftEmail\(/.test(admin)
+  );
+  ok(
+    "the seller Account finally fetches the rejection reason",
+    /rejection_reason/.test(account) && /listing_decision_events/.test(account)
+  );
+  ok(
+    "the Account surface renders reason and prior decisions",
+    /latestMessage\(/.test(room) && /priorDecisions\(/.test(room)
+  );
+  ok(
+    "submission receipt exists and says not public yet",
+    /sendSubmissionReceivedEmail/.test(decisionMail) &&
+      /not public yet/i.test(decisionMail) &&
+      /sendSubmissionReceivedEmail/.test(route)
+  );
+
+  // Silent sends are over.
+  ok(
+    "the transport checks response.ok instead of assuming success",
+    /if \(!res\.ok\)/.test(transport) && /Resend rejected the send/.test(transport)
+  );
+  ok(
+    "the live email now rides the checked transport",
+    /sendSellerEmail/.test(read("lib/listingLiveEmail.ts")) &&
+      !/\.catch\(\(\) => \{\s*\/\/ Email failure/.test(read("lib/listingLiveEmail.ts"))
   );
 }
 

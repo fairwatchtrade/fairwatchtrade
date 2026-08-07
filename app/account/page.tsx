@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import AccountDashboard, { type AccountListing } from "@/components/AccountDashboard";
+import AccountDashboard, {
+  type AccountListing,
+  type AccountDecisionEvent,
+} from "@/components/AccountDashboard";
 
 /* ────────────────────────────────────────────────────────────────────────
    MY LISTINGS — /account  (v1.43)
@@ -36,12 +39,35 @@ export default async function AccountPage() {
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, condition, asking_price, asking_currency, status, created_at, photos, integrity_hold_reason, seller_clarification_note"
+      "id, brand, model, reference, condition, asking_price, asking_currency, status, created_at, photos, integrity_hold_reason, seller_clarification_note, rejection_reason"
     )
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 
   const listings = (!error && Array.isArray(data) ? data : []) as AccountListing[];
 
-  return <AccountDashboard listings={listings} />;
+  /* ── The reason the seller is owed ──────────────────────────────────────
+     rejection_reason was never fetched here, so a founder could write a
+     reason that only the dealer workspace could read — the ordinary seller
+     saw the word "Rejected" and nothing else. It joins the select above.
+
+     The decision events carry the rest: return-to-draft has no listing
+     column of its own, and only the event history can say what was decided
+     BEFORE the current state. RLS scopes this to the seller's own listings,
+     and the founder-only reviewer note lives in a different table entirely,
+     so nothing internal can arrive here. Newest first, capped — this is a
+     status explanation, not an audit log. */
+  const ids = listings.map((l) => l.id);
+  let decisions: AccountDecisionEvent[] = [];
+  if (ids.length > 0) {
+    const { data: events } = await supabase
+      .from("listing_decision_events")
+      .select("listing_id, decision, seller_message, created_at")
+      .in("listing_id", ids)
+      .order("id", { ascending: false })
+      .limit(60);
+    decisions = (Array.isArray(events) ? events : []) as AccountDecisionEvent[];
+  }
+
+  return <AccountDashboard listings={listings} decisions={decisions} />;
 }
