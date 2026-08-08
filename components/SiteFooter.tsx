@@ -36,12 +36,17 @@ export default function SiteFooter({
             About
           </Link>
           <span className="text-[#8A8F9E]">·</span>
-          <a
-            href="mailto:hello@fairwatchtrade.com"
-            className="transition-colors hover:text-[#E8E4DC]"
-          >
+          {/* Public discovery: a FAQ nobody can find answers nobody. Sits with
+              the other public utility links, visible signed-out and signed-in. */}
+          <Link href="/faq" className="transition-colors hover:text-[#E8E4DC]">
+            FAQ
+          </Link>
+          <span className="text-[#8A8F9E]">·</span>
+          {/* Was a mailto: — it handed the visitor to Outlook or Gmail and out
+              of FairWatchTrade. Now an in-site contact page. */}
+          <Link href="/contact" className="transition-colors hover:text-[#E8E4DC]">
             Contact
-          </a>
+          </Link>
           <span className="text-[#8A8F9E]">·</span>
           <Link href="/terms" className="transition-colors hover:text-[#E8E4DC]">
             Terms

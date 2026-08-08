@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FAQ_SUBJECTS, FIXTURE_NOTICE, type FaqSubject } from "@/lib/faq/faqFixture";
 
@@ -25,8 +26,6 @@ import { FAQ_SUBJECTS, FIXTURE_NOTICE, type FaqSubject } from "@/lib/faq/faqFixt
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
-
-const CONTACT_EMAIL = "hello@fairwatchtrade.com";
 
 export default function FaqRoom() {
   const [subjectId, setSubjectId] = useState<string>(FAQ_SUBJECTS[0].id);
@@ -212,22 +211,25 @@ export default function FaqRoom() {
             ))
           )}
 
-          {/* ── Contact ending ── */}
-          <div className="mt-[24px] flex flex-col gap-4 border border-[var(--border-faint)] bg-[var(--surface)] p-[20px] sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <strong className="font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
-                Still have a question?
-              </strong>
-              <span className="mt-[4px] block text-[13px] leading-[20px] text-[var(--muted)]">
-                Contact FairWatchTrade and we&rsquo;ll help point you in the right direction.
-              </span>
-            </div>
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="inline-flex min-h-[40px] shrink-0 items-center justify-center border border-[var(--border-gold)] px-[18px] py-[11px] text-[11px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)]"
+          {/* ── Contact ending ──
+              Bounded polish only: the accepted ending is unchanged in kind.
+              The action sits directly under the sentence that invites it
+              rather than pushed to the far edge, and the button carries a
+              little more weight — still one restrained line, not a card. */}
+          <div className="mt-[24px] border border-[var(--border-faint)] bg-[var(--surface)] p-[20px]">
+            <strong className="font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
+              Still have a question?
+            </strong>
+            <span className="mt-[4px] block max-w-[560px] text-[13px] leading-[20px] text-[var(--muted)]">
+              Contact FairWatchTrade and we&rsquo;ll help point you in the right direction.
+            </span>
+            {/* An in-site page, never the visitor's mail client. */}
+            <Link
+              href="/contact"
+              className="mt-[14px] inline-flex min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)]"
             >
               Contact Us
-            </a>
+            </Link>
           </div>
         </section>
       </div>
