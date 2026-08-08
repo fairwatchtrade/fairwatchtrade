@@ -115,6 +115,13 @@ export default function FaqRoom() {
           <p className="max-w-[720px] text-[14px] leading-[22px] text-[var(--muted)]">
             Choose a subject to see its questions. Open any question for the answer.
           </p>
+          {/* The one thing the answers cannot say for themselves: what their
+              own Planned label means. The word is italicised to match how the
+              label renders inside an answer; the sentence is Jason's, verbatim. */}
+          <p className="mt-2 max-w-[720px] text-[13px] leading-[20px] text-[var(--muted)]">
+            Answers marked <em>Planned</em> describe features or policies that are not live
+            yet.
+          </p>
         </div>
         <div className="shrink-0">
           <label htmlFor="faq-search" className="sr-only">
