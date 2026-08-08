@@ -19,22 +19,18 @@ import FaqRoom from "@/components/FaqRoom";
    /account/faq remains for signed-in users, so an Account-side entry point
    exists when one is authorized. Both render the identical room.
 
-   NOINDEX WHILE FIXTURES REMAIN. The answers are still badged placeholders,
-   so this page asks search engines to skip it. (Site-wide robots.txt is also
-   closed pre-launch, but that is a crawler request about the whole site and
-   will open at launch — this page-level block is what keeps a placeholder
-   FAQ out of an index on the day that happens.) Remove it in the same change
-   that publishes approved copy, not before.
-
-   No public navigation entry is added here. The route works; linking to it
-   is a separate authorization.
+   The page-level noindex is GONE. It was set on the explicit condition that
+   it hold "only while placeholder fixture answers remain" — the answers are
+   now the published customer copy, so the condition has lapsed and the block
+   came off with it. Nothing becomes crawlable today regardless: app/robots.ts
+   still disallows the whole site pre-launch. This only changes what happens
+   on the day that opens.
    ──────────────────────────────────────────────────────────────────────── */
 
 export const metadata: Metadata = {
   title: "Frequently Asked Questions — FairWatchTrade",
   description:
     "Answers to common questions about buying, selling, payments, listings, verification, and privacy on FairWatchTrade.",
-  robots: { index: false, follow: false },
 };
 
 export default function FaqPage() {

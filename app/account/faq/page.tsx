@@ -21,8 +21,8 @@ import FaqRoom from "@/components/FaqRoom";
    AccountRail is mounted unmodified (surface="account" with no activeModule),
    so no navigation item lights up and none is added.
 
-   NOINDEX WHILE FIXTURES REMAIN — the answers are still badged placeholders.
-   Remove it in the same change that publishes approved copy.
+   Kept noindex — not because of the copy (that is now published and public at
+   /faq), but because an authenticated route should not be crawled at all.
    ──────────────────────────────────────────────────────────────────────── */
 
 export const metadata: Metadata = {

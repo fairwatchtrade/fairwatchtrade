@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { FAQ_SUBJECTS, FIXTURE_NOTICE, type FaqSubject } from "@/lib/faq/faqFixture";
+import { FAQ_SUBJECTS, type FaqSubject } from "@/lib/faq/faqContent";
 
 /* ════════════════════════════════════════════════════════════════════════
    FAQ ROOM — components/FaqRoom.tsx
@@ -13,10 +13,9 @@ import { FAQ_SUBJECTS, FIXTURE_NOTICE, type FaqSubject } from "@/lib/faq/faqFixt
    existing Account shell — the navbar, auction strip, metals strip, and
    Account rail are production components and are not touched by this file.
 
-   THE RECEPTACLE, NOT THE WORDS. Every answer rendered here comes from
-   lib/faq/faqFixture.ts and is a visibly-marked placeholder. When approved
-   customer copy lands, only the fixture's `answer` values change; nothing in
-   this component needs to move.
+   The words come from lib/faq/faqContent.ts, which holds the published
+   customer copy verbatim. This file renders it and never edits it — the copy
+   was written deliberately and is not this component's to adjust.
 
    Typography follows the implementation brief's production targets, NOT the
    mockup's smaller values — subjects 13px (mockup had 11px), questions 17px
@@ -26,6 +25,38 @@ import { FAQ_SUBJECTS, FIXTURE_NOTICE, type FaqSubject } from "@/lib/faq/faqFixt
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
+
+/* The copy's own inline markers, rendered rather than stripped: **bold**,
+   *italic* (which is how the approved wording carries its "Planned:" labels),
+   and a newline where the copy asked for a hard break. Nothing else is
+   interpreted, so an answer can never be reformatted into something other
+   than what was written. */
+const EMPHASIS = /(\*\*[^*]+\*\*|\*[^*]+\*)/;
+
+function renderCopy(text: string) {
+  const lines = text.split("\n");
+  return lines.map((line, li) => (
+    <span key={li}>
+      {line
+        .split(EMPHASIS)
+        .filter((part) => part !== "")
+        .map((part, pi) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return (
+              <strong key={pi} className="font-medium text-[var(--platinum)]">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          if (part.startsWith("*") && part.endsWith("*")) {
+            return <em key={pi}>{part.slice(1, -1)}</em>;
+          }
+          return <span key={pi}>{part}</span>;
+        })}
+      {li < lines.length - 1 && <br />}
+    </span>
+  ));
+}
 
 export default function FaqRoom() {
   const [subjectId, setSubjectId] = useState<string>(FAQ_SUBJECTS[0].id);
@@ -194,12 +225,8 @@ export default function FaqRoom() {
                         </button>
                         {isOpen && (
                           <div className="max-w-[780px] pb-[22px] pl-[5px] pr-[48px]">
-                            {/* No reader can mistake a fixture for an answer. */}
-                            <div className="mb-2 inline-block border border-[var(--border-gold)] px-2 py-[3px] text-[10px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
-                              {FIXTURE_NOTICE}
-                            </div>
                             <p className="text-[15px] font-normal leading-[24px] text-[var(--platinum-dim)]">
-                              {q.answer}
+                              {renderCopy(q.answer)}
                             </p>
                           </div>
                         )}
