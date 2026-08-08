@@ -44,17 +44,20 @@ export const SLICE_MAX_ITEMS = 25;
 export const SLICE_DEADLINE_MS = 45_000;
 export const LEASE_SECONDS = 120;
 
-/** §13 retry policy — the CALLER's, deliberately. The spine's
-    record_item_retry holds no ceiling and no backoff of its own: it is a
-    mechanism that records whatever the worker decides, and refuses only
-    incoherent combinations (an exhausted retry that also schedules a future
-    attempt, a next_attempt_at already in the past, a lease the caller does not
-    hold). Naming the policy here keeps it visible and changeable in one place.
+/** Retry policy — the CALLER's, deliberately. The spine's record_item_retry
+    holds no ceiling and no backoff of its own: it is a mechanism that records
+    whatever the worker decides, and refuses only incoherent combinations (an
+    exhausted retry that also schedules a future attempt, a next_attempt_at
+    already in the past, a lease the caller does not hold).
 
     Three attempts total, then the item blocks as technical_retry_exhausted.
     Backoff is linear on the attempt number and short on purpose: slices are
     founder-triggered rather than daemon-driven, so a due time measured in
-    minutes means the next ordinary invocation picks the work up. */
+    minutes means the next ordinary invocation picks the work up.
+
+    APPROVED POLICY — these two numbers are agreed product/runtime policy, not
+    incidental tuning. They are recorded in docs/DEALER_ACCELERATOR_RETRY_POLICY.md
+    and must be changed there in the same edit. */
 export const RETRY_MAX_ATTEMPTS = 3;
 export const RETRY_BACKOFF_BASE_MS = 60_000;
 
