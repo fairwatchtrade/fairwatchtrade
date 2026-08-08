@@ -12,17 +12,17 @@ import FaqRoom from "@/components/FaqRoom";
    The navbar, auction strip, and metals strip come from the root layout and
    are untouched.
 
-   PRE-COPY BOUNDARY. The FAQ shell ships before its customer copy is
-   written, so this route is deliberately NOT reachable from customer
-   navigation — nothing in the navbar, the AccountRail, or the workspace
-   links here, and AccountRail is mounted unmodified (surface="account" with
-   no activeModule), so no navigation item lights up and none is added.
-   Sitting behind the auth guard is the point: placeholder answers can never
-   be read by the public, or indexed, while the shell is verified.
+   NOT THE LAUNCH LOCATION. The FAQ's public home is /faq — a FAQ answers the
+   questions people ask BEFORE they have an account, so it cannot sit behind a
+   login. This route survives as the signed-in entry point, so an Account-side
+   link exists when one is authorized. Both routes render the identical
+   FaqRoom; the shell is single-sourced.
 
-   Reached only by typing the route. Public activation is a separate
-   authorization after customer copy closes; at that point this page needs
-   nothing but a nav entry and real answers in the fixture's place.
+   AccountRail is mounted unmodified (surface="account" with no activeModule),
+   so no navigation item lights up and none is added.
+
+   NOINDEX WHILE FIXTURES REMAIN — the answers are still badged placeholders.
+   Remove it in the same change that publishes approved copy.
    ──────────────────────────────────────────────────────────────────────── */
 
 export const metadata: Metadata = {
