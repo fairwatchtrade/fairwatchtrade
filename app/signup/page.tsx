@@ -40,6 +40,13 @@ type Role = "collector" | "seller" | "both";
    client context, exactly like the immediate-session branch already does.
    ──────────────────────────────────────────────────────────────────────── */
 
+/* The emailed code's length is a project setting, not a constant of this form.
+   It is adjustable from six to ten digits, so this field accepts the widest
+   valid code and lets the verifier decide. Hardcoding a shorter length silently
+   truncates a longer code and then reports the result as expired or invalid —
+   blaming the credential for what the input box did. */
+const CODE_MAX_LENGTH = 10;
+
 export default function SignUpPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -105,7 +112,7 @@ export default function SignUpPage() {
       router.refresh();
     } else {
       // Confirmation required — show the code-entry form. No link exists
-      // to click; the email now contains only the 6-digit code.
+      // to click; the email carries only the code.
       setSent(true);
     }
     setBusy(false);
@@ -270,7 +277,7 @@ export default function SignUpPage() {
                 Check your email.
               </div>
               <div className="mb-7 text-center font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
-                We sent a 6-digit code to{" "}
+                We sent a confirmation code to{" "}
                 <span className="text-[var(--platinum)]">{email}</span>. Enter it below to
                 finish creating your account.
               </div>
@@ -283,10 +290,12 @@ export default function SignUpPage() {
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  maxLength={6}
-                  placeholder="123456"
+                  maxLength={CODE_MAX_LENGTH}
+                  placeholder="Enter code"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  onChange={(e) =>
+                    setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, CODE_MAX_LENGTH))
+                  }
                   className="fw-input text-center tracking-[6px]"
                 />
               </div>
