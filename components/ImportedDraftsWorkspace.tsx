@@ -42,6 +42,21 @@ import { currencyMeta } from "@/lib/supportedCurrencies";
    · Included-items vocabulary is the repo's canonical DetailsStep list —
      NOT the artifact fixture's differing labels.
    · Scoring fields are never selected. PFC274 = 62 — evaluate untouched.
+
+   v3.61 — WORKROOM PASS (visual only; no data path, query, RPC, or truth
+   boundary above was touched):
+   · Horizontal balance. The queue+workbench pair is now a bounded, centred
+     object with real gutters instead of two columns running to the
+     workspace cliff. The queue stays 300px on purpose — the imbalance was
+     never the queue being too small.
+   · Legibility. The reference, model, and year are identifiers, and one
+     changed character is a different watch; they no longer render smaller
+     and dimmer than the decoration around them. Guidance text moved off
+     --ghost, which the token law reserves for disabled states and
+     placeholders.
+   · Lighter, less ornamental. Panels sit on the ink at --surface, the cards
+     inside them at --surface-2, and photographs on a dark mat — so imported
+     truth and dealer confirmation read as different things.
    ════════════════════════════════════════════════════════════════════════ */
 
 type ImportedPhoto = { photo: { url: string; pathname: string | null }; category: string | null; isWristShot?: boolean };
@@ -309,6 +324,20 @@ export default function ImportedDraftsWorkspace() {
     );
   }, [rows, search]);
 
+  /* Queue counts — computed from the same rows on screen, never stored.
+     A zero is omitted rather than printed: "0 need attention" is noise, and
+     the room should only ever say things that are true of what is shown. */
+  const queueCounts = useMemo(() => {
+    let attention = 0;
+    let ready = 0;
+    for (const l of filtered) {
+      const s = roomStatus(l);
+      if (s === "attention" || s === "rejected") attention++;
+      else if (s === "draft") ready++;
+    }
+    return { attention, ready };
+  }, [filtered]);
+
   function selectListing(id: string) {
     if (id === selectedId) return;
     const next = rows.find((l) => l.id === id) ?? null;
@@ -489,7 +518,7 @@ export default function ImportedDraftsWorkspace() {
 
   if (loading) {
     return (
-      <div className="px-6 py-10 text-center font-display text-[13px] italic text-[var(--ghost)]">
+      <div className="px-6 py-10 text-center font-display text-[13px] italic text-[var(--muted)]">
         Opening your imported drafts…
       </div>
     );
@@ -497,7 +526,7 @@ export default function ImportedDraftsWorkspace() {
 
   if (loadError) {
     return (
-      <div className="mx-6 mt-6 border border-[var(--border-faint)] px-6 py-10 text-center">
+      <div className="mx-auto mt-5 w-full max-w-[1120px] border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-10 text-center">
         <p className="text-[13px] text-[var(--danger)]">{loadError}</p>
       </div>
     );
@@ -505,7 +534,7 @@ export default function ImportedDraftsWorkspace() {
 
   if (rows.length === 0) {
     return (
-      <div className="mx-6 mt-6 border border-[var(--border-faint)] px-6 py-12 text-center">
+      <div className="mx-auto mt-5 w-full max-w-[1120px] border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-12 text-center">
         <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
           No imported drafts yet. When FairWatchTrade prepares drafts from your
           existing inventory, they appear here — visible only to you until you
@@ -529,9 +558,19 @@ export default function ImportedDraftsWorkspace() {
   const shownCeremony = (live: boolean) => (editable ? live : hasRecordedAttestation);
 
   return (
-    <div className="flex min-h-0">
+    /* ── HORIZONTAL BALANCE ──────────────────────────────────────────────
+       The room used to be two columns bleeding to the workspace edge: a
+       300px rail and a flex-1 workbench whose right edge stopped 24px from
+       the screen cliff. At ordinary desktop widths that read as work shoved
+       against the far edge rather than placed in front of the dealer.
+
+       The fix is composition, not size. The pair is now a bounded, centred
+       object with real air on both sides and a true gutter between the two
+       panels. The queue is DELIBERATELY unchanged at 300px — widening it
+       would have balanced the row by making the wrong half bigger. ── */
+    <div className="mx-auto flex min-h-0 w-full max-w-[1120px] gap-5 px-5 py-5">
       {/* ── LEFT: draft list ── */}
-      <aside className="w-[300px] shrink-0 border-r border-[var(--border-faint)]">
+      <aside className="w-[300px] shrink-0 self-start border border-[var(--border-faint)] bg-[var(--surface)]">
         <div className="border-b border-[var(--border-faint)] px-5 py-3">
           <input
             type="search"
@@ -540,9 +579,20 @@ export default function ImportedDraftsWorkspace() {
             placeholder="Search brand, model, or reference…"
             className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
           />
-          <div className="mt-2 flex justify-between text-[9px] tracking-[0.5px] text-[var(--muted)]">
-            <span>{filtered.length} shown</span>
-            <span>Sorted by attention needed</span>
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[10px] tracking-[0.5px] text-[var(--muted)]">
+            <span>
+              {filtered.length} imported draft{filtered.length === 1 ? "" : "s"}
+              {filtered.length !== rows.length ? ` of ${rows.length}` : ""}
+            </span>
+            <span className="shrink-0">
+              {queueCounts.attention > 0 && (
+                <span className="text-[var(--gold-dim)]">
+                  {queueCounts.attention} need attention
+                </span>
+              )}
+              {queueCounts.attention > 0 && queueCounts.ready > 0 && " · "}
+              {queueCounts.ready > 0 && `${queueCounts.ready} ready`}
+            </span>
           </div>
         </div>
         <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
@@ -561,7 +611,7 @@ export default function ImportedDraftsWorkspace() {
                     : ""
                 }`}
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--ink)]">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="h-full w-full object-cover" />
@@ -570,21 +620,26 @@ export default function ImportedDraftsWorkspace() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[8.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                  <div className="truncate text-[9.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                     {l.brand}
                   </div>
-                  <div className="truncate font-display text-[13px] font-light text-[var(--platinum)]">
+                  <div className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
                     {l.model ?? l.reference}
                   </div>
-                  <div className="mt-[2px] text-[9px] text-[var(--muted)]">Ref. {l.reference}</div>
+                  {/* The reference is the promise this room is built around —
+                      it does not get set smaller than the brand above it. */}
+                  <div className="mt-[3px] flex gap-2.5 truncate text-[11px] text-[var(--platinum-dim)]">
+                    <span className="truncate">Ref. {l.reference}</span>
+                    {l.year && <span className="shrink-0 text-[var(--muted)]">{l.year}</span>}
+                  </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="font-display text-[12px] font-light text-[var(--platinum-dim)]">
+                  <div className="font-display text-[13px] font-light text-[var(--platinum-dim)]">
                     {l.asking_price !== null
                       ? formatMoney(l.asking_price, l.asking_currency)
                       : "—"}
                   </div>
-                  <div className={`mt-[3px] text-[8px] uppercase tracking-[1.2px] ${m.cls}`}>
+                  <div className={`mt-[4px] text-[9px] uppercase tracking-[1.2px] ${m.cls}`}>
                     {m.label}
                   </div>
                 </div>
@@ -601,20 +656,35 @@ export default function ImportedDraftsWorkspace() {
 
       {/* ── RIGHT: detail workbench ── */}
       {selected && buffer && meta ? (
-        <section className="min-w-0 flex-1">
+        <section className="min-w-0 flex-1 border border-[var(--border-faint)] bg-[var(--surface)]">
           <div className="px-6 pb-28 pt-5">
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border-faint)] pb-4">
-              <div>
-                <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
                   {selected.brand}
                 </div>
                 <h3 className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
                   {selected.model ?? selected.reference}
                 </h3>
-                <div className="mt-1 text-[10px] text-[var(--muted)]">
-                  Reference {selected.reference}
-                  {selected.year ? ` · ${selected.year}` : ""}
+                {/* Identity, plainly readable. The label is the quiet half and
+                    the identifier is the loud one — one changed character is a
+                    different watch, so the value never sits below the label. */}
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                  <span className="text-[13px] text-[var(--platinum-dim)]">
+                    <span className="mr-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                      Reference
+                    </span>
+                    {selected.reference}
+                  </span>
+                  {selected.year && (
+                    <span className="text-[13px] text-[var(--platinum-dim)]">
+                      <span className="mr-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                        Year
+                      </span>
+                      {selected.year}
+                    </span>
+                  )}
                 </div>
               </div>
               <span className={`shrink-0 border border-current px-2 py-1 text-[9px] uppercase tracking-[1.5px] ${meta.cls}`}>
@@ -704,7 +774,9 @@ export default function ImportedDraftsWorkspace() {
 
             {/* Photographs */}
             <div className="mt-5 flex gap-3">
-              <div className="relative flex min-h-[300px] flex-1 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
+              {/* The photograph sits on a dark mat, not on the panel — a
+                  dealer judging a dial needs the frame to recede. */}
+              <div className="relative flex min-h-[300px] flex-1 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--ink)]">
                 {photoUrls[activePhoto] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -713,7 +785,7 @@ export default function ImportedDraftsWorkspace() {
                     className="max-h-[380px] w-full object-contain"
                   />
                 ) : (
-                  <span className="font-display text-[12px] italic text-[var(--ghost)]">
+                  <span className="font-display text-[12px] italic text-[var(--muted)]">
                     No photographs
                   </span>
                 )}
@@ -751,7 +823,7 @@ export default function ImportedDraftsWorkspace() {
               submission.
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border border-[var(--border-faint)] bg-[var(--surface)] px-4 py-3">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
               <label className="flex items-center gap-2.5 text-[12px] text-[var(--platinum-dim)]">
                 <input
                   type="checkbox"
@@ -916,7 +988,7 @@ export default function ImportedDraftsWorkspace() {
                   return (
                     <label
                       key={item}
-                      className="flex items-center gap-2.5 border border-[var(--border-faint)] bg-[var(--surface)] px-3 py-2.5 text-[12px] text-[var(--platinum-dim)]"
+                      className="flex items-center gap-2.5 border border-[var(--border-faint)] bg-[var(--surface-2)] px-3 py-2.5 text-[12px] text-[var(--platinum-dim)]"
                     >
                       <input
                         type="checkbox"
@@ -942,7 +1014,7 @@ export default function ImportedDraftsWorkspace() {
                   <label className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
                     Additional Included Items Notes
                   </label>
-                  <span className="text-[9px] text-[var(--ghost)]">
+                  <span className="text-[10px] text-[var(--muted)]">
                     {buffer.includedNotes.length} / 300
                   </span>
                 </div>
@@ -963,7 +1035,7 @@ export default function ImportedDraftsWorkspace() {
                 <h4 className="font-display text-[16px] font-light text-[var(--platinum)]">
                   Description
                 </h4>
-                <span className="text-[9px] text-[var(--ghost)]">
+                <span className="text-[10px] text-[var(--muted)]">
                   {buffer.description.length} / 1800
                 </span>
               </div>
@@ -991,7 +1063,7 @@ export default function ImportedDraftsWorkspace() {
           </div>
 
           {/* Action bar */}
-          <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[var(--border-faint)] bg-[var(--ink)] px-6 py-4">
+          <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[var(--border-faint)] bg-[var(--surface)] px-6 py-4">
             {/* v2.22 — the LEFT line keeps errors and unsaved-state words; the
                 saved acknowledgement now lives beside the button that earned it. */}
             <div className="min-w-0 text-[11px] text-[var(--muted)]">
@@ -1063,7 +1135,7 @@ export default function ImportedDraftsWorkspace() {
           </div>
         </section>
       ) : (
-        <div className="flex-1 px-6 py-10 text-center font-display text-[13px] italic text-[var(--ghost)]">
+        <div className="min-w-0 flex-1 self-start border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-16 text-center font-display text-[13px] italic text-[var(--muted)]">
           Select a draft to review.
         </div>
       )}
@@ -1090,7 +1162,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border border-[var(--border-faint)] bg-[var(--surface)] px-4 py-3">
+    /* Imported truth and dealer confirmation stay visibly distinct: the card
+       lifts off the workbench panel rather than dissolving into it. */
+    <div className="border border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)]">
           {label}
@@ -1111,7 +1185,9 @@ function Field({
           />
           Confirmed by dealer
         </label>
-        <span className="text-[9px] text-[var(--ghost)]">{foot}</span>
+        {/* Guidance the dealer is meant to READ — never --ghost, which the
+            token law reserves for disabled states and placeholders. */}
+        <span className="text-right text-[10px] text-[var(--muted)]">{foot}</span>
       </div>
     </div>
   );
