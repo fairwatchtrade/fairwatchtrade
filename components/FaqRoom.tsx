@@ -212,12 +212,16 @@ export default function FaqRoom() {
           )}
 
           {/* ── Contact ending ──
-              The action belongs to the sentence that invites it, so it sits IN
-              that sentence — one continuous line on desktop, reading
-              "…point you in the right direction. [ CONTACT US ]". It is part of
-              the paragraph's inline flow rather than a row beneath it, so at
-              narrow widths it simply wraps like any other word. Not centred,
-              not a card, not a CTA band. */}
+              Desktop: the action belongs to the sentence that invites it, so it
+              sits IN that sentence — one continuous line reading "…point you in
+              the right direction. [ CONTACT US ]".
+
+              Mobile: letting it wrap "like any other word" was wrong on a real
+              phone. The sentence breaks across two lines and the button landed
+              beside the tail of the second one, reading as though it belonged
+              mid-sentence. So below md the button stops being inline: the
+              sentence completes as text, and the button takes the next line,
+              flush with the copy. Same styling, same 44px target, no card. */}
           <div className="mt-[24px] border border-[var(--border-faint)] bg-[var(--surface)] p-[20px]">
             <strong className="block font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
               Still have a question?
@@ -227,7 +231,7 @@ export default function FaqRoom() {
               {/* An in-site page, never the visitor's mail client. */}
               <Link
                 href="/contact"
-                className="ml-[6px] inline-flex min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] align-middle text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)]"
+                className="mt-[12px] ml-0 flex w-fit min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)] md:mt-0 md:ml-[6px] md:inline-flex md:align-middle"
               >
                 Contact Us
               </Link>
