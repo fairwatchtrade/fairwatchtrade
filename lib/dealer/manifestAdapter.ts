@@ -44,6 +44,20 @@ export const SLICE_MAX_ITEMS = 25;
 export const SLICE_DEADLINE_MS = 45_000;
 export const LEASE_SECONDS = 120;
 
+/** §13 retry policy — the CALLER's, deliberately. The spine's
+    record_item_retry holds no ceiling and no backoff of its own: it is a
+    mechanism that records whatever the worker decides, and refuses only
+    incoherent combinations (an exhausted retry that also schedules a future
+    attempt, a next_attempt_at already in the past, a lease the caller does not
+    hold). Naming the policy here keeps it visible and changeable in one place.
+
+    Three attempts total, then the item blocks as technical_retry_exhausted.
+    Backoff is linear on the attempt number and short on purpose: slices are
+    founder-triggered rather than daemon-driven, so a due time measured in
+    minutes means the next ordinary invocation picks the work up. */
+export const RETRY_MAX_ATTEMPTS = 3;
+export const RETRY_BACKOFF_BASE_MS = 60_000;
+
 const sha256hex = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 /** §5.1 — the deterministic idempotency digest over the exact typed tuple
@@ -483,8 +497,11 @@ async function processOneItem(
   });
   if (bi.status === "blocked") return false;
 
+  // The claim returns the item row, so attempt_count here is the authoritative
+  // count BEFORE this cycle — the number the retry decision below is made on.
+  let claimed: { attempt_count: number };
   try {
-    await rpc(db, "dealer_accelerator_claim_item_lease", {
+    claimed = await rpc<{ attempt_count: number }>(db, "dealer_accelerator_claim_item_lease", {
       p_item_id: bi.id,
       p_lease_token: leaseToken,
       p_lease_seconds: LEASE_SECONDS,
@@ -593,19 +610,43 @@ async function processOneItem(
     }
 
     if (retryableRemains) {
-      // exactly ONE record_item_retry per slice — attempt_count increments
-      // once per item processing cycle, never once per photograph (§13)
-      try {
-        await rpc(db, "dealer_accelerator_record_item_retry", {
-          p_item_id: bi.id,
-          p_reason_code: "photograph_retryable_failures",
-          p_actor_kind: "worker",
-          p_actor_user_id: null,
-        });
-      } catch (e) {
-        // ceiling reached → item blocked (technical_retry_exhausted): mark
-        // EVERY still-pending photograph retrieval_terminal so nothing
-        // claims future work will come (§13)
+      // §13: exactly ONE record_item_retry per slice — attempt_count increments
+      // once per item processing CYCLE, never once per photograph.
+      //
+      // The database function takes SEVEN arguments and does not decide
+      // exhaustion for us: the caller states whether the ceiling is reached
+      // (p_exhausted) and, when it is not, supplies a FUTURE p_next_attempt_at
+      // which claim_item_lease then honours by refusing to re-claim the item
+      // before it falls due. It also verifies the caller still owns the lease.
+      //
+      // This call previously passed four arguments and wrapped itself in a
+      // try/catch that treated ANY failure as "ceiling reached". Four arguments
+      // match no overload, so the very first retryable photograph failure threw
+      // on arity and was mistaken for exhaustion — the item was blocked and
+      // every outstanding photograph terminalised before a single retry was
+      // ever attempted. The catch is gone with it: a genuine failure here must
+      // surface, not be silently reinterpreted as a policy outcome.
+      const attemptsAfterThis = claimed.attempt_count + 1;
+      const exhausted = attemptsAfterThis >= RETRY_MAX_ATTEMPTS;
+
+      await rpc(db, "dealer_accelerator_record_item_retry", {
+        p_item_id: bi.id,
+        p_lease_token: leaseToken,
+        p_reason_code: "photograph_retryable_failures",
+        // Exhausted retries must schedule nothing; the function rejects a
+        // next_attempt_at paired with p_exhausted.
+        p_next_attempt_at: exhausted
+          ? null
+          : new Date(Date.now() + RETRY_BACKOFF_BASE_MS * attemptsAfterThis).toISOString(),
+        p_exhausted: exhausted,
+        p_actor_kind: "worker",
+        p_actor_user_id: null,
+      });
+
+      if (exhausted) {
+        // The item is now blocked (technical_retry_exhausted). Mark EVERY
+        // still-pending photograph retrieval_terminal so nothing left behind
+        // claims that future work is coming (§13).
         const { data: pending } = await db
           .from("dealer_accelerator_photographs")
           .select("id")
