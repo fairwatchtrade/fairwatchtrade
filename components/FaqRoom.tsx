@@ -212,24 +212,26 @@ export default function FaqRoom() {
           )}
 
           {/* ── Contact ending ──
-              Bounded polish only: the accepted ending is unchanged in kind.
-              The action sits directly under the sentence that invites it
-              rather than pushed to the far edge, and the button carries a
-              little more weight — still one restrained line, not a card. */}
+              The action belongs to the sentence that invites it, so it sits IN
+              that sentence — one continuous line on desktop, reading
+              "…point you in the right direction. [ CONTACT US ]". It is part of
+              the paragraph's inline flow rather than a row beneath it, so at
+              narrow widths it simply wraps like any other word. Not centred,
+              not a card, not a CTA band. */}
           <div className="mt-[24px] border border-[var(--border-faint)] bg-[var(--surface)] p-[20px]">
-            <strong className="font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
+            <strong className="block font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
               Still have a question?
             </strong>
-            <span className="mt-[4px] block max-w-[560px] text-[13px] leading-[20px] text-[var(--muted)]">
-              Contact FairWatchTrade and we&rsquo;ll help point you in the right direction.
-            </span>
-            {/* An in-site page, never the visitor's mail client. */}
-            <Link
-              href="/contact"
-              className="mt-[14px] inline-flex min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)]"
-            >
-              Contact Us
-            </Link>
+            <p className="mt-[4px] max-w-[760px] text-[13px] leading-[20px] text-[var(--muted)]">
+              Contact FairWatchTrade and we&rsquo;ll help point you in the right direction.{" "}
+              {/* An in-site page, never the visitor's mail client. */}
+              <Link
+                href="/contact"
+                className="ml-[6px] inline-flex min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] align-middle text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)]"
+              >
+                Contact Us
+              </Link>
+            </p>
           </div>
         </section>
       </div>
