@@ -704,7 +704,15 @@ export default function ImportedDraftsWorkspace() {
       {/* ── RIGHT: detail workbench ── */}
       {selected && buffer && meta ? (
         <section className="min-w-0 flex-1 border border-[var(--border-faint)] bg-[var(--surface)]">
-          <div className="px-6 pb-28 pt-5">
+          {/* pb-5, not pb-28. The old 112px reserve was there to keep the
+              sticky action row from covering the last content, but a sticky
+              element lands in its own flow position at the end of the scroll —
+              so all the reserve bought was a large empty band under the
+              Description confirmation. The row now sits a modest gap below it,
+              still sticks to the viewport bottom while there is more to scroll,
+              and still travels downward naturally as the Description textarea
+              is dragged taller. */}
+          <div className="px-6 pb-5 pt-5">
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border-faint)] pb-4">
               <div className="min-w-0">
@@ -1082,8 +1090,11 @@ export default function ImportedDraftsWorkspace() {
               </div>
               <div className="mt-3">
                 <div className="mb-1 flex items-baseline justify-between">
-                  <label className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                    Additional Included Items Notes
+                  {/* Reads as a section label, like the two it sits between —
+                      same family, size, weight and colour as "Included Items &
+                      Documentation" and "Description". */}
+                  <label className="font-display text-[16px] font-light text-[var(--platinum)]">
+                    Additional Included Item Notes
                   </label>
                   <span className="text-[10px] text-[var(--muted)]">
                     {buffer.includedNotes.length} / 300
