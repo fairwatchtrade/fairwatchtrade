@@ -1088,7 +1088,9 @@ export default function ImportedDraftsWorkspace() {
                   );
                 })}
               </div>
-              <div className="mt-3">
+              {/* Sits with the items it annotates rather than drifting away
+                  from them. */}
+              <div className="mt-2">
                 <div className="mb-1 flex items-baseline justify-between">
                   {/* Reads as a section label, like the two it sits between —
                       same family, size, weight and colour as "Included Items &
@@ -1111,8 +1113,10 @@ export default function ImportedDraftsWorkspace() {
               </div>
             </div>
 
-            {/* Description */}
-            <div className="mt-6 border-t border-[var(--border-faint)] pt-5">
+            {/* Description — a tighter separator than the sections above it.
+                This is the last block before the sticky action row, so every
+                pixel here is dead space a dealer scrolls past to reach Save. */}
+            <div className="mt-4 border-t border-[var(--border-faint)] pt-4">
               <div className="mb-3 flex items-baseline justify-between">
                 <h4
                   className={`font-display text-[16px] font-light ${
