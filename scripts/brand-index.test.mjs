@@ -36,9 +36,12 @@ function check(name, fn) {
   console.log(`  ok  ${name}`);
 }
 
-/* A faithful excerpt of production vault_brands: every row below carries the
-   exact name and aliases the live table holds, chosen because each one
-   exercises a distinct trap. */
+/* A faithful excerpt of vault_brands AS IT STOOD BEFORE the 2026-08-09
+   identity repair — the duplicate Chaykin row, the "The Citizen" naming, the
+   TAG-Heuer-under-Heuer alias and the second MB&F claimant are all preserved
+   here deliberately. The upstream data is now clean, but this consumer must
+   keep failing safely if bad data ever returns, so the fixture stays
+   adversarial on purpose. Do not "update" it to match current production. */
 const VAULT = [
   { name: "A. Lange & Söhne", search_aliases: ["Lange", "A Lange & Sohne"] },
   { name: "Audemars Piguet", search_aliases: ["AP"] },

@@ -29,6 +29,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { screenAliases, describeHeld, type BrandRow } from "../lib/vaultAliasGuard.ts";
 
 /* ── Minimal .env.local loader (no extra dependency) ─────────────────────── */
 function loadEnv() {
@@ -232,8 +233,23 @@ async function main() {
   const queue = LIMIT ? brands.slice(0, LIMIT) : DRY_RUN ? brands.slice(0, 5) : brands;
   console.log(`${brands.length} brands need enrichment. Processing ${queue.length}.\n`);
 
+  /* The whole corpus, for alias collision screening. Each brand is enriched
+     in isolation, so without this the model cannot know that the alias it
+     suggests is already another maker's name. Loaded once and kept current
+     as accepted aliases are written, so two brands in the same run cannot
+     both claim the same alias. */
+  const { data: corpusRows, error: corpusErr } = await supabase
+    .from("vault_brands")
+    .select("id, name, search_aliases");
+  if (corpusErr) {
+    console.error("Corpus fetch failed:", corpusErr.message);
+    process.exit(1);
+  }
+  const corpus: BrandRow[] = Array.isArray(corpusRows) ? corpusRows : [];
+
   let ok = 0;
   let fail = 0;
+  let heldTotal = 0;
 
   for (let i = 0; i < queue.length; i++) {
     const b = queue[i];
@@ -246,13 +262,20 @@ async function main() {
       const cluster = coerce(e.cluster, CLUSTERS, "Other");
       const status = coerce(e.independent_status, INDEPENDENT_STATUS, "unknown");
       const rationale = (e.cluster_rationale || "").trim();
-      const aliases = Array.isArray(e.search_aliases)
+      const proposed = Array.isArray(e.search_aliases)
         ? e.search_aliases.filter((s) => typeof s === "string")
         : [];
+
+      /* Screen before writing. A held alias is never silently resolved to a
+         winner — it is reported so a person can settle the identity. */
+      const verdict = screenAliases(b.id, b.name, proposed, corpus);
+      const aliases = verdict.accepted;
+      heldTotal += verdict.held.length;
 
       console.log(
         `${tag}\n   country=${country} | region=${region} | status=${status}\n   cluster→staging=${cluster}\n   rationale=${rationale}\n   aliases=${JSON.stringify(aliases)}`
       );
+      for (const line of describeHeld(verdict.held)) console.log(`   ⚠ ${line}`);
 
       if (!DRY_RUN) {
         const { error: upErr } = await supabase
@@ -270,6 +293,11 @@ async function main() {
           .eq("id", b.id);
         if (upErr) throw new Error(`DB write: ${upErr.message}`);
       }
+      /* Keep the screening corpus current so a later brand in this same run
+         cannot claim an alias this one just took. */
+      const mine = corpus.find((row) => row.id === b.id);
+      if (mine) mine.search_aliases = aliases;
+      else corpus.push({ id: b.id, name: b.name, search_aliases: aliases });
       ok++;
     } catch (err) {
       fail++;
@@ -281,8 +309,15 @@ async function main() {
   }
 
   console.log(
-    `\nDone. ${ok} enriched, ${fail} failed${DRY_RUN ? " (dry run — nothing written)" : ""}. Failed brands keep cluster_staging=null and will retry on next run.\n`
+    `\nDone. ${ok} enriched, ${fail} failed${DRY_RUN ? " (dry run — nothing written)" : ""}. Failed brands keep cluster_staging=null and will retry on next run.`
   );
+  if (heldTotal > 0) {
+    console.log(
+      `${heldTotal} alias${heldTotal === 1 ? "" : "es"} held for human review — see the ⚠ lines above. Held aliases were not written and no winner was chosen.\n`
+    );
+  } else {
+    console.log("No alias collisions held.\n");
+  }
 }
 
 main().catch((e) => {

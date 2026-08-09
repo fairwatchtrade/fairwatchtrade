@@ -8,7 +8,7 @@ export const WATCH_BRANDS: string[] = [
   "Biolley", "Blancpain", "Blaken", "Bovet", "Bravur", "Breguet", "Breitling", "Bremont", 
   "Bulgari", "Bulova", "Bvlgari", "Ciga Design", "Carl F. Bucherer", "Cartier", 
   "Casio", "Cedric Johner", "Certina", "Chanel", "Chopard", "Christopher Ward", 
-  "Chronoswiss", "Citizen", "Claude Meylan", "Clemence Watches", "Constantin Chaykin", 
+  "Chronoswiss", "Citizen", "Claude Meylan", "Clemence Watches", "Konstantin Chaykin",
   "Corum", "Credor", "Czapek & Cie", "Daniel Roth", "Dan Henry", "David Candaux", 
   "De Bethune", "DeLaneau", "DeWitt", "Direnzo", "Doxa", "Dubey & Schaldenbrand", "Dufour", 
   "Dufrane", "Ebel", "Eberhard & Co.", "Edox", "Edward Hornby", "Enicar", "Epos", "Elka Watch Co.", "Eterna", 
