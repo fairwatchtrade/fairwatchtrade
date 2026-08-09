@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import WatchBlueprint from "@/components/WatchBlueprint";
 
 // v2.5 — same admin-email pattern used across the app (app/layout.tsx,
 // admin gates). No new auth mechanism invented.
@@ -87,23 +88,26 @@ export default function LoginPage() {
           <circle cx="190" cy="190" r="4" fill="white" />
         </svg>
 
-        <div className="relative z-[1] mb-12 font-display text-[15px] font-normal tracking-[0.5px] text-[var(--platinum)]">
-          Fair<span className="text-[var(--gold)]">Watch</span>Trade
-        </div>
-
-        {/* Small clock */}
-        <div className="relative z-[1] mb-9">
-          <svg viewBox="0 0 56 56" fill="none" width="44" height="44">
-            <circle cx="28" cy="28" r="26" stroke="rgba(201,168,76,0.25)" strokeWidth="0.8" />
-            <circle cx="28" cy="28" r="22" stroke="rgba(201,168,76,0.15)" strokeWidth="0.5" />
-            <line x1="28" y1="6" x2="28" y2="10" stroke="#C9A84C" strokeWidth="1" opacity="0.7" />
-            <line x1="28" y1="46" x2="28" y2="50" stroke="#C9A84C" strokeWidth="1" opacity="0.7" />
-            <line x1="6" y1="28" x2="10" y2="28" stroke="#C9A84C" strokeWidth="1" opacity="0.7" />
-            <line x1="46" y1="28" x2="50" y2="28" stroke="#C9A84C" strokeWidth="1" opacity="0.7" />
-            <line x1="28" y1="28" x2="28" y2="12" stroke="#E8E4DC" strokeWidth="1" strokeLinecap="round" opacity="0.7" />
-            <line x1="28" y1="28" x2="38" y2="28" stroke="#E8E4DC" strokeWidth="0.9" strokeLinecap="round" opacity="0.6" />
-            <circle cx="28" cy="28" r="2" fill="#C9A84C" opacity="0.8" />
-          </svg>
+        {/* Engineering plate — the same canonical artwork, geometry and layer
+            state Join uses, so the two doors of the same house open on the
+            same drawing. It replaces a 44px hand-drawn clock face that read
+            as a stray icon beside Join's 140px plate: the panel is one
+            composition, and the object at its head has to carry it. */}
+        <div className="pointer-events-none relative z-[1] mx-auto -mb-6 mt-[42.5px] w-[140px] shrink-0 overflow-visible">
+          <WatchBlueprint
+            completed={[
+              "strap",
+              "clasp",
+              "lugs",
+              "case",
+              "crown",
+              "dial",
+              "hands",
+              "movement",
+              "glass",
+            ]}
+            active={["dial", "hands"]}
+          />
         </div>
 
         {/* The manifesto */}
@@ -225,10 +229,14 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="-mt-[10px] mb-7 text-right">
+            {/* Was 8.5px in --slate: the smallest text on the page, in one of
+                its dimmest tokens, on the one control a locked-out collector
+                actually needs to find. Lifted to the platform's readable
+                secondary size with a gold hover and a visible focus ring. */}
+            <div className="-mt-[6px] mb-7 text-right">
               <Link
                 href="/forgot-password"
-                className="text-[8.5px] tracking-[0.5px] text-[var(--slate)]"
+                className="text-[11px] tracking-[0.3px] text-[var(--muted)] underline decoration-[rgba(201,168,76,0.28)] underline-offset-[3px] transition-colors hover:text-[var(--gold)] hover:decoration-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]"
               >
                 Forgot password?
               </Link>
@@ -252,9 +260,15 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="text-center text-[9px] text-[var(--muted)]">
+            {/* Same 1px lift and gold hover as above. Join carries the mirror
+                of this line at 9px/--slate; both deserve the same treatment,
+                but that page is this flight's reference, not its subject. */}
+            <div className="text-center text-[10px] text-[var(--muted)]">
               New to FairWatchTrade?{" "}
-              <Link href="/signup" className="text-[var(--slate)]">
+              <Link
+                href="/signup"
+                className="text-[var(--platinum-dim)] transition-colors hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]"
+              >
                 Join us →
               </Link>
             </div>

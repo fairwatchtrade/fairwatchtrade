@@ -285,6 +285,29 @@ html, body {
 }
 .fw-input:focus { border-bottom-color: rgba(201,168,76,0.50); }
 
+/* Autofill. `background: transparent` above is not something the browser
+   honours once a password manager fills a field: Chrome paints its own
+   opaque near-white block and dark text over it, which is why a returning
+   collector met bright generic browser fields on Sign In while the same
+   markup on Join looked correct — Join is never autofilled. Background
+   colour cannot be overridden on an autofilled control, so the accepted
+   remedy is an inset shadow large enough to cover the field, plus
+   text-fill-color for the glyphs. The long delay keeps the browser's own
+   fade from flashing white first. */
+.fw-input:-webkit-autofill,
+.fw-input:-webkit-autofill:hover,
+.fw-input:-webkit-autofill:focus,
+.fw-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--ink) inset;
+  box-shadow: 0 0 0 1000px var(--ink) inset;
+  -webkit-text-fill-color: var(--platinum);
+  caret-color: var(--platinum);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  -webkit-transition: background-color 6000s ease-in-out 0s;
+  transition: background-color 6000s ease-in-out 0s;
+}
+
 /* ── NAV ── */
 .fw-nav {
   padding: 18px 32px;
