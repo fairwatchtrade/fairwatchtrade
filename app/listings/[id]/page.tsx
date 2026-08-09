@@ -722,6 +722,9 @@ export default async function ListingDetailPage({
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
               listingStatus={listing.status}
+              askingPrice={listing.asking_price}
+              askingCurrency={listing.asking_currency}
+              canRequestInline={!!user}
             />
           </aside>
         </div>
@@ -791,7 +794,36 @@ export default async function ListingDetailPage({
             logic — ONE implementation (ListingActionRail), two dressings, so
             the branches can never drift apart. Because `hidden` is
             display:none, only one variant is ever in the accessibility tree. */}
-        <div className="xl:hidden">
+        {/* NARROW DESKTOP (lg → xl): the rail can no longer hold the form, so
+            the request becomes one deliberate full-width section of this same
+            page. The collector still never leaves the watch, and the desktop
+            Collector's Drawer — which also runs at lg and above — stays
+            exactly where it is. lg is not a convenience breakpoint: it is the
+            page's own composition boundary, where the mobile Drawer regime
+            ends and the desktop one begins. */}
+        <div className="hidden lg:block xl:hidden">
+          <ListingActionRail
+            variant="inline"
+            listingId={listing.id}
+            sellerId={listing.seller_id}
+            sellerName={sellerName}
+            priceText={priceText}
+            isOwner={isOwner}
+            requestStatus={myLatestRequest?.status ?? null}
+            listingStatus={listing.status}
+            askingPrice={listing.asking_price}
+            askingCurrency={listing.asking_currency}
+            canRequestInline={!!user}
+          />
+        </div>
+
+        {/* MOBILE (below lg): the dedicated /listings/[id]/purchase-request
+            route, deliberately kept. No inline form and no second sheet that
+            would compete with the mobile Collector's Drawer. Because `hidden`
+            is display:none, exactly one of these is ever in the accessibility
+            tree — the same one-logic-two-dressings rule the rail already
+            follows. */}
+        <div className="lg:hidden">
           <ListingActionRail
             variant="inline"
             listingId={listing.id}

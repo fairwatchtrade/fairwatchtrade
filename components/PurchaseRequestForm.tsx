@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
+import { usePurchaseRequest } from "@/components/usePurchaseRequest";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER PURCHASE REQUEST — approved Design Gate implementation (v2.28)
@@ -53,23 +53,39 @@ type ListingContext = {
   strap: string;
 };
 
-type View = "form" | "success" | "expired" | "unavailable" | "changed";
-
 const BAD = "#d8a171"; // approved soft-amber validation colour (not alarm red)
 const BAD_BORDER = "rgba(216,161,113,0.65)";
 
 export default function PurchaseRequestForm({ listing }: { listing: ListingContext }) {
-  const [offer, setOffer] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<View>("form");
-  const [fieldError, setFieldError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [changed, setChanged] = useState<{ old: number; current: number } | null>(null);
-  const [submittedOffer, setSubmittedOffer] = useState<number | null>(null);
-  const offerRef = useRef<HTMLInputElement>(null);
+  /* One controller, shared with the listing page's in-place surfaces: same
+     form state, same validation, same POST, same error taxonomy. This route
+     keeps the "handoff" draft mode it has always had — a draft is written
+     only when a 401 sends the buyer to sign in, and consumed on return. */
+  const {
+    offer,
+    setOffer,
+    message,
+    setMessage,
+    busy,
+    view,
+    formError,
+    changed,
+    submittedOffer,
+    offerRef,
+    parsed,
+    showOfferError,
+    offerErrorText,
+    submit,
+    keepEditing,
+  } = usePurchaseRequest(
+    {
+      id: listing.id,
+      askingPrice: listing.askingPrice,
+      askingCurrency: listing.askingCurrency,
+    },
+    "handoff"
+  );
 
-  const draftKey = `fwt.pr.draft.${listing.id}`;
   const backToListing = `/listings/${listing.id}`;
   const signInHref = `/login?callbackUrl=/listings/${listing.id}/purchase-request`;
   const title = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
@@ -81,43 +97,10 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
   const fmt = (n: number) => formatMoney(n, listing.askingCurrency);
   const askingText = fmt(listing.askingPrice);
 
-  const parsed = parsePrice(offer, listing.askingCurrency);
-  // Field-associated validation: a non-empty amount the shared parser rejects
-  // surfaces the approved validation state immediately (the Send button also
-  // stays disabled). An empty field stays in the neutral helper state.
-  //
-  // The message comes FROM the parser, so the buyer is told which notation
-  // failed — "12.000 is ambiguous" rather than a generic retry prompt. Only the
-  // empty case is re-voiced, because the parser's wording there addresses a
-  // seller entering an asking price.
-  const invalidOffer = offer.trim() !== "" && !parsed.ok;
-  const showOfferError = fieldError !== null || invalidOffer;
-  const parserMessage = parsed.ok
-    ? null
-    : parsed.reason === "empty"
-      ? "Enter your offer."
-      : parsed.message;
-  const offerErrorText = fieldError ?? parserMessage ?? "Enter your offer.";
-
-  // Restore a draft preserved across a sign-in round-trip (session-expired
-  // flow). This is a one-time hydration from an external store (sessionStorage),
-  // which is only readable on the client — the exact "synchronise from an
-  // external system" case the set-state-in-effect rule is meant to allow.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(draftKey);
-      if (raw) {
-        const d = JSON.parse(raw) as { offer?: string; message?: string };
-        if (d.offer) setOffer(d.offer);
-        if (d.message) setMessage(d.message);
-        sessionStorage.removeItem(draftKey);
-      }
-    } catch {
-      /* no draft to restore */
-    }
-  }, [draftKey]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  /* Field-associated validation, the parser's own wording, and the draft
+     round-trip all come from the shared controller now — the buyer is still
+     told which notation failed ("12.000 is ambiguous") rather than getting a
+     generic retry prompt, because that message comes FROM the parser. */
 
   // Neutral difference-from-asking, shown without any persuasion language.
   let comparison: string | null = null;
@@ -128,99 +111,9 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
     comparison = `${fmt(Math.abs(diff))} ${dir} asking · ${pct.toFixed(1)}% ${dir} asking`;
   }
 
-  function persistDraft() {
-    try {
-      sessionStorage.setItem(draftKey, JSON.stringify({ offer, message }));
-    } catch {
-      /* preservation is best-effort */
-    }
-  }
-
-  async function submit() {
-    setFieldError(null);
-    setFormError(null);
-    const p = parsePrice(offer, listing.askingCurrency);
-    if (!p.ok) {
-      setFieldError(p.reason === "empty" ? "Enter your offer." : p.message);
-      offerRef.current?.focus();
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/purchase-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId: listing.id,
-          proposedPurchasePrice: p.amount,
-          notes: message.trim() || undefined,
-          // Non-authoritative: lets the server detect a mid-session asking change.
-          displayedAskingPrice: listing.askingPrice,
-        }),
-      });
-
-      // No false success after 401 — preserve the draft and show the expired state.
-      if (res.status === 401) {
-        persistDraft();
-        setView("expired");
-        return;
-      }
-
-      const data = await res.json().catch(() => null);
-
-      if (res.ok) {
-        setSubmittedOffer(
-          typeof data?.proposedPurchasePrice === "number" ? data.proposedPurchasePrice : p.amount
-        );
-        setView("success");
-        return;
-      }
-
-      const err = data?.error as string | undefined;
-      if (res.status === 409 && err === "listing_changed") {
-        setChanged({ old: Number(data.old), current: Number(data.current) });
-        setView("changed");
-        return;
-      }
-      // Unavailable at submit: either the listing is explicitly non-published
-      // (409) or it is no longer readable by this buyer at all (404) — once
-      // reserved, RLS hides the row from a non-owner, non-accepted buyer, so a
-      // listing that was open at load and is gone at submit reads as a 404.
-      // Both mean the same truthful outcome for the buyer.
-      if (res.status === 404 || (res.status === 409 && err === "listing_unavailable")) {
-        setView("unavailable");
-        return;
-      }
-      if (res.status === 409 && err === "duplicate_request") {
-        setFormError(data?.detail ?? "You already have a pending request on this listing.");
-        return;
-      }
-      if (res.status === 403) {
-        setFormError(data?.detail ?? "You can't request your own listing.");
-        return;
-      }
-      // Currency absent at submission. The panel below already covers the load-
-      // time case; this is the mid-session race, and it is a form-level truth
-      // rather than a fault with the amount the buyer typed.
-      if (res.status === 409 && err === "listing_currency_unset") {
-        setFormError(
-          data?.detail ??
-            "This listing's currency has not been recorded yet, so it can't receive an offer."
-        );
-        return;
-      }
-      if (res.status === 400 && err === "invalid_amount") {
-        setFieldError(data?.detail ?? "Enter your offer using numbers only.");
-        offerRef.current?.focus();
-        return;
-      }
-      setFormError("Something went wrong sending your request. Please try again.");
-    } catch {
-      setFormError("Something went wrong sending your request. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  /* Submission, the 401 draft handoff and the full error taxonomy live in
+     the shared controller. This route no longer owns a second copy of any
+     of it — one contract, three surfaces. */
 
   /* ── read-only seller facts (derived server-side from the live listing) ── */
   const truthRows: Array<{ label: string; value: string }> = [];
@@ -476,8 +369,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     type="button"
                     className={tertiaryBtn}
                     onClick={() => {
-                      setChanged(null);
-                      setView("form");
+                      keepEditing();
                     }}
                   >
                     Keep editing my offer

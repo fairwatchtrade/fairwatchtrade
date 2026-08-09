@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InlinePurchaseRequest from "@/components/InlinePurchaseRequest";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING ACTION RAIL — components/ListingActionRail.tsx  (v2.11)
@@ -48,6 +49,9 @@ export default function ListingActionRail({
   isOwner,
   requestStatus,
   listingStatus,
+  askingPrice,
+  askingCurrency,
+  canRequestInline = false,
 }: {
   /* "bar" is the compact dressing used inside the mobile Listing Detail fixed
      action bar. It renders ONLY the offer action — no price, no dealer card. */
@@ -64,6 +68,14 @@ export default function ListingActionRail({
      completion. Only authorized viewers (seller / accepted buyer) ever reach a
      reserved listing detail page; RLS denies the row to everyone else. */
   listingStatus?: string | null;
+  /* Offer context for the in-page form. The dedicated route still derives its
+     own copy server-side; these are the same facts, not a second source. */
+  askingPrice?: number;
+  askingCurrency?: string | null;
+  /* Only a signed-in non-owner composes the request in place. A signed-out
+     visitor keeps the link, so the route's server-side auth gate can send
+     them to sign in and bring them back — identity is never decided here. */
+  canRequestInline?: boolean;
 }) {
   const isReserved = listingStatus === "reserved";
 
@@ -168,6 +180,16 @@ export default function ListingActionRail({
         <div className="inline-block border border-[var(--success)] bg-[rgba(120,200,140,0.05)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--success)]">
           Your request was accepted
         </div>
+      ) : canRequestInline && typeof askingPrice === "number" ? (
+        /* The collector composes the request without leaving the watch. Same
+           controller, same validation, same POST and same error semantics as
+           the dedicated route — only the place it is drawn differs. */
+        <InlinePurchaseRequest
+          listingId={listingId}
+          askingPrice={askingPrice}
+          askingCurrency={askingCurrency ?? null}
+          variant={variant}
+        />
       ) : (
         <Link
           href={`/listings/${listingId}/purchase-request`}

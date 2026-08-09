@@ -1,0 +1,284 @@
+"use client";
+
+import { useId, useRef, useState } from "react";
+import Link from "next/link";
+import { formatMoney } from "@/lib/formatMoney";
+import { currencyMeta } from "@/lib/supportedCurrencies";
+import { usePurchaseRequest } from "@/components/usePurchaseRequest";
+
+/* ────────────────────────────────────────────────────────────────────────
+   INLINE PURCHASE REQUEST — the listing page's own offer form.
+
+   The collector never leaves the watch to make an offer on it. In the
+   desktop right rail the card expands downward in place; below the rail's
+   breakpoint the same component renders as one deliberate full-width
+   section of the listing page. Gallery, thumbnails, identity, seller
+   context, surrounding navigation and the Collector's Drawer all stay
+   exactly where they were — nothing here is a modal, an overlay, or a
+   layer above the page, so nothing can cover the Drawer or take focus
+   away from it.
+
+   This draws a form. It does not own one: state, validation, the POST and
+   the entire error taxonomy live in usePurchaseRequest, shared with the
+   dedicated /listings/[id]/purchase-request route that mobile keeps. There
+   is one submission contract and one set of error semantics.
+
+   Draft text follows the collector: close the form, open the Drawer, study
+   the caseback, come back — the amount and message are still there. It is
+   session-scoped and listing-scoped, so it never leaks into another watch.
+   ──────────────────────────────────────────────────────────────────────── */
+
+const BAD = "#d8a171"; // approved soft-amber validation colour (not alarm red)
+const BAD_BORDER = "rgba(216,161,113,0.65)";
+
+export default function InlinePurchaseRequest({
+  listingId,
+  askingPrice,
+  askingCurrency,
+  variant,
+}: {
+  listingId: string;
+  askingPrice: number;
+  askingCurrency: string | null;
+  variant: "rail" | "inline";
+}) {
+  const [open, setOpen] = useState(false);
+  const startRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+
+  /* Destructured, not held as an object: the controller hands back a ref,
+     and reading fields off the returned object would look like a ref access
+     during render. */
+  const {
+    offer, setOffer, message, setMessage, busy, view,
+    formError, changed, submittedOffer, offerRef, parsed,
+    showOfferError, offerErrorText, submit, keepEditing,
+  } = usePurchaseRequest({ id: listingId, askingPrice, askingCurrency }, "live");
+  const currency = currencyMeta(askingCurrency);
+  const fmt = (n: number) => formatMoney(n, askingCurrency);
+
+  const isRail = variant === "rail";
+  const backToListing = `/listings/${listingId}`;
+
+  function close() {
+    setOpen(false);
+    // The control that opened the form takes focus back, never the document.
+    startRef.current?.focus();
+  }
+
+  const startButton = (
+    <button
+      ref={startRef}
+      type="button"
+      aria-expanded={open}
+      aria-controls={panelId}
+      onClick={() => setOpen((v) => !v)}
+      className={[
+        "bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
+        "text-[var(--ink)] transition hover:opacity-90",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        "focus-visible:outline-[var(--platinum)]",
+        isRail ? "block w-full text-center" : "inline-block",
+      ].join(" ")}
+    >
+      {open ? "Close Purchase Request" : "Start Purchase Request"}
+    </button>
+  );
+
+  /* A resolved state replaces the form but never the page — the watch, the
+     gallery and the Drawer are all still right there behind this card. */
+  if (view !== "form") {
+    return (
+      <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
+        <div className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+          <div className="text-[9px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+            {view === "success"
+              ? "Request sent"
+              : view === "changed"
+                ? "Listing updated"
+                : view === "expired"
+                  ? "Session ended"
+                  : "Listing status changed"}
+          </div>
+          <p className="mt-2 text-[12px] leading-[1.55] text-[var(--platinum-dim)]">
+            {view === "success" ? (
+              <>
+                Your purchase request for {submittedOffer !== null ? fmt(submittedOffer) : "—"} was
+                sent to the seller. The seller may accept or decline it — this does not mean the watch is
+                reserved or that any payment has occurred.
+              </>
+            ) : view === "changed" && changed ? (
+              <>
+                The asking price changed from {fmt(changed.old)} to {fmt(changed.current)} after
+                this page was opened. Your offer and message are kept. Nothing was sent to the seller.
+              </>
+            ) : view === "expired" ? (
+              <>
+                Your session ended before the request was sent. Your offer and message are preserved.
+                Nothing was sent to the seller.
+              </>
+            ) : (
+              <>
+                This watch is no longer available for a new purchase request. No request was sent.
+              </>
+            )}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {view === "success" && (
+              <Link href="/catalogue" className={linkAction}>
+                View My Offers
+              </Link>
+            )}
+            {view === "expired" && (
+              <Link
+                href={`/login?callbackUrl=/listings/${listingId}/purchase-request`}
+                className={linkAction}
+              >
+                Sign in to continue
+              </Link>
+            )}
+            {view === "changed" && (
+              <button type="button" onClick={keepEditing} className={linkAction}>
+                Keep editing my offer
+              </button>
+            )}
+            {view === "unavailable" && (
+              <Link href="/browse" className={linkAction}>
+                Browse other watches
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* No recorded currency: an amount without one is a number, not a price.
+     Said plainly rather than inviting an offer that could never be sent. */
+  if (!currency) {
+    return (
+      <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
+        <div className="border border-[var(--border-mid)] px-4 py-3 text-[11px] leading-[1.55] text-[var(--muted)]">
+          <div className="uppercase tracking-[2px] text-[var(--slate)]">Currency not recorded</div>
+          <div className="mt-1">
+            This listing can&apos;t take an offer until its currency is on the record.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
+      {startButton}
+
+      {open && (
+        <div
+          id={panelId}
+          className={[
+            "border border-[var(--border-gold)] bg-[rgba(201,168,76,0.03)] px-4 py-4",
+            isRail ? "" : "max-w-[560px]",
+          ].join(" ")}
+        >
+          {/* offer amount */}
+          <label
+            htmlFor={`${panelId}-offer`}
+            className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
+          >
+            Your offer
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-display text-[18px] text-[var(--gold)]">
+              {currency.displayPrefix.trim()}
+            </span>
+            <input
+              id={`${panelId}-offer`}
+              ref={offerRef}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder={currency.exponent > 0 ? "0.00" : "0"}
+              value={offer}
+              onChange={(e) => setOffer(e.target.value)}
+              aria-describedby={`${panelId}-help`}
+              aria-label={`Your offer in ${currency.displayName}`}
+              aria-invalid={showOfferError ? true : undefined}
+              className="h-[46px] w-full border bg-[#10131a] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+              style={{
+                borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
+                paddingLeft: `calc(0.75rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
+              }}
+            />
+          </div>
+          <div
+            id={`${panelId}-help`}
+            className="mt-2 text-[9px] leading-[1.5]"
+            style={{ color: showOfferError ? BAD : "var(--ghost)" }}
+          >
+            {showOfferError
+              ? offerErrorText
+              : `Asking ${fmt(askingPrice)} · offers are made in ${currency.code}.`}
+          </div>
+
+          {/* optional message */}
+          <label
+            htmlFor={`${panelId}-message`}
+            className="mb-2 mt-4 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
+          >
+            Message{" "}
+            <span className="text-[8px] normal-case tracking-normal text-[var(--ghost)]">
+              — optional
+            </span>
+          </label>
+          <textarea
+            id={`${panelId}-message`}
+            value={message}
+            maxLength={2000}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Share a concise note with the seller."
+            spellCheck={false}
+            className="h-[86px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-3 py-2.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+          />
+
+          {formError && (
+            <div className="mt-3 text-[11px] leading-[1.45]" style={{ color: BAD }}>
+              {formError}
+            </div>
+          )}
+
+          <p className="mt-4 text-[9px] leading-[1.55] text-[var(--muted)]">
+            No payment is collected at this step. Sending a purchase request does not complete the
+            purchase — the seller may accept or decline it.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={busy || !parsed.ok}
+              className="min-h-[40px] border border-[var(--gold)] bg-transparent px-4 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {busy ? "Sending…" : "Send Purchase Request"}
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              className="min-h-[40px] px-2 text-[9px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)]"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <Link
+            href={`${backToListing}/purchase-request`}
+            className="mt-3 inline-block text-[9px] uppercase tracking-[1.2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+          >
+            Open the full request page →
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const linkAction =
+  "inline-flex min-h-[36px] items-center justify-center border border-[var(--gold)] bg-transparent px-3 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]";
