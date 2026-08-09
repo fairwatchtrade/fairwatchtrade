@@ -1,10 +1,14 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
 import { usePurchaseRequest } from "@/components/usePurchaseRequest";
+import {
+  OPEN_PURCHASE_REQUEST,
+  type OpenPurchaseRequestDetail,
+} from "@/lib/purchaseRequestOpen";
 
 /* ────────────────────────────────────────────────────────────────────────
    INLINE PURCHASE REQUEST — the listing page's own offer form.
@@ -64,6 +68,24 @@ export default function InlinePurchaseRequest({
     // The control that opened the form takes focus back, never the document.
     startRef.current?.focus();
   }
+
+  /* The fixed bottom bar's offer action reaches the form through this.
+     Both in-page surfaces are mounted at once with the breakpoint hiding
+     one, so both hear the request — only the surface actually on screen
+     scrolls and takes focus. getClientRects() is empty for a display:none
+     element, which is exactly how the hidden one stays quiet. */
+  useEffect(() => {
+    function onAsk(e: Event) {
+      const detail = (e as CustomEvent<OpenPurchaseRequestDetail>).detail;
+      if (detail?.listingId !== listingId) return;
+      if (!startRef.current || startRef.current.getClientRects().length === 0) return;
+      restoreDraft();
+      setOpen(true);
+      startRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    window.addEventListener(OPEN_PURCHASE_REQUEST, onAsk);
+    return () => window.removeEventListener(OPEN_PURCHASE_REQUEST, onAsk);
+  }, [listingId, restoreDraft]);
 
   const startButton = (
     <button

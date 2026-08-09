@@ -1,5 +1,6 @@
 import Link from "next/link";
 import InlinePurchaseRequest from "@/components/InlinePurchaseRequest";
+import OpenPurchaseRequestButton from "@/components/OpenPurchaseRequestButton";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING ACTION RAIL — components/ListingActionRail.tsx  (v2.11)
@@ -118,11 +119,35 @@ export default function ListingActionRail({
   if (variant === "bar") {
     if (ctaState === "owner") return null;
     if (ctaState === "open") {
+      const barCta =
+        "shrink-0 bg-[var(--gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90";
+
+      /* Where the form is already on the page, this bar opens it instead of
+         navigating away — leaving the listing to make an offer on it is the
+         exact break the in-page form exists to end. Below that breakpoint,
+         and for a signed-out visitor at any width, the ordinary link stands
+         so the dedicated route keeps its auth gate and its direct entry.
+         `hidden` is display:none, so only one is ever in the accessibility
+         tree — the same rule the rest of this component follows. */
+      if (canRequestInline) {
+        return (
+          <>
+            <OpenPurchaseRequestButton
+              listingId={listingId}
+              className={`hidden lg:inline-flex ${barCta}`}
+            />
+            <Link
+              href={`/listings/${listingId}/purchase-request`}
+              className={`lg:hidden ${barCta}`}
+            >
+              Make Offer
+            </Link>
+          </>
+        );
+      }
+
       return (
-        <Link
-          href={`/listings/${listingId}/purchase-request`}
-          className="shrink-0 bg-[var(--gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90"
-        >
+        <Link href={`/listings/${listingId}/purchase-request`} className={barCta}>
           Make Offer
         </Link>
       );

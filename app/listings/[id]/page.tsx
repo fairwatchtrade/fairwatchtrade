@@ -793,6 +793,10 @@ export default async function ListingDetailPage({
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
               listingStatus={listing.status}
+              /* Above the in-page form's breakpoint this bar opens that form
+                 rather than navigating away. No offer context is passed: the
+                 bar never draws a form, it only asks for the one on screen. */
+              canRequestInline={!!user}
             />
           }
         />

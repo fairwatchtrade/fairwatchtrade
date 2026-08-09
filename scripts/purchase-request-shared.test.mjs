@@ -149,10 +149,44 @@ check("the in-page form is hidden below the desktop boundary", () => {
   assert.ok(page.includes('className="lg:hidden"'));
 });
 
-check("mobile's rail invocations never receive inline offer context", () => {
+check("only the two form-drawing surfaces receive offer context", () => {
   const page = read("app/listings/[id]/page.tsx");
-  // canRequestInline is granted exactly twice: the xl rail and the lg inline.
-  assert.equal(page.split("canRequestInline").length - 1, 2);
+  /* askingPrice goes to exactly two invocations — the xl rail and the lg
+     inline section. The mobile inline block and the fixed bar draw no form,
+     so they must never be handed the offer context. */
+  assert.equal(page.split("askingPrice={listing.asking_price}").length - 1, 2);
+  /* canRequestInline reaches three: those two plus the bar, which uses it
+     only to decide whether to open the page's form or keep the route link. */
+  assert.equal(page.split("canRequestInline").length - 1, 3);
+});
+
+check("the fixed bar opens the page's form instead of navigating", () => {
+  const rail = read("components/ListingActionRail.tsx");
+  assert.ok(rail.includes("OpenPurchaseRequestButton"));
+  // Above the breakpoint the button; below it, and signed out, the route.
+  assert.match(rail, /hidden lg:inline-flex/);
+  assert.match(rail, /lg:hidden \$\{barCta\}/);
+
+  const btn = read("components/OpenPurchaseRequestButton.tsx");
+  // It asks. It does not submit, validate, navigate, or hold form state.
+  assert.equal(btn.includes("fetch("), false);
+  assert.equal(btn.includes("useState"), false);
+  assert.equal(btn.includes("href"), false);
+  assert.match(btn, /askToOpenPurchaseRequest/);
+});
+
+check("the form answers only for its own listing, and only when visible", () => {
+  const src = read("components/InlinePurchaseRequest.tsx");
+  assert.match(src, /detail\?\.listingId !== listingId\) return/);
+  // A display:none surface has no client rects, which is how it stays quiet.
+  assert.match(src, /getClientRects\(\)\.length === 0\) return/);
+  assert.match(src, /removeEventListener\(OPEN_PURCHASE_REQUEST/);
+});
+
+check("the signal carries no money and no form state", () => {
+  const mod = read("lib/purchaseRequestOpen.ts");
+  assert.equal(/price|amount|offer|notes/i.test(mod.split("*/")[1] ?? mod), false);
+  assert.match(mod, /listingId/);
 });
 
 check("no fee language on any inline Purchase Request state", () => {
