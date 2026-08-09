@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { railCard, railHeading, railBody } from "@/components/rail/catalogueCardStyles";
 import {
   bumpAndHref,
   fetchRankedSavedSearches,
@@ -98,18 +99,18 @@ export default function SavedSearchesCard() {
     <div
       ref={cardRef}
       id="saved-searches"
-      className={`border px-4 py-5 transition-shadow duration-500 ${
+      // Same rail family as the three cards beneath it. The arrival
+      // highlight is preserved exactly — it only overrides the border.
+      className={`${railCard} transition-shadow duration-500 ${
         arrived
           ? "border-[var(--border-gold)] shadow-[0_0_0_1px_rgba(201,168,76,0.25)]"
-          : "border-[var(--border-subtle)]"
+          : ""
       }`}
     >
-      <div className="mb-3 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-        Saved Searches
-      </div>
+      <div className={`mb-3 ${railHeading}`}>Saved Searches</div>
 
       {!loaded || rows.length === 0 ? (
-        <div className="font-display text-[12px] italic leading-[1.6] text-[var(--ghost)]">
+        <div className={railBody}>
           Save a search on Browse and it will live here.
         </div>
       ) : (

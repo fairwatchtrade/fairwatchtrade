@@ -5,6 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CatalogueRail from "@/components/CatalogueRail";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
+import {
+  railCard,
+  railHeading,
+  railBody,
+  railAction,
+  railInactive,
+} from "@/components/rail/catalogueCardStyles";
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
@@ -1116,18 +1123,14 @@ export default function CatalogueClient({
               above (v2.25a rail-first placement preserved at lg+; separation
               law intact — still never merged into the watch-imagery column). */}
           <div className="hidden lg:col-start-2 lg:row-start-2 lg:block">
-            {/* My Catalogue — shell (Phase 2, catalogue table doesn't exist) */}
-            <div className="mt-4 border border-[var(--border-subtle)] px-4 py-5">
-              <div className="mb-3 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-                My Catalogue
-              </div>
-              <div className="mb-4 font-display text-[12px] italic text-[var(--ghost)]">
-                Add your first reference.
-              </div>
-              <button
-                disabled
-                className="cursor-not-allowed border border-[var(--border-subtle)] px-3 py-1.5 text-[9px] uppercase tracking-[2px] text-[var(--ghost)] opacity-40"
-              >
+            {/* My Catalogue — shell (Phase 2, catalogue table doesn't exist).
+                The control stays genuinely disabled because the feature does
+                not exist; only its legibility changes, so it now reads as
+                deliberately not-yet rather than as a broken button. */}
+            <div className={`mt-4 ${railCard}`}>
+              <div className={`mb-3 ${railHeading}`}>My Catalogue</div>
+              <div className={`mb-4 ${railBody}`}>Add your first reference.</div>
+              <button disabled className={railInactive}>
                 + Add reference
               </button>
             </div>
@@ -1135,35 +1138,29 @@ export default function CatalogueClient({
             {/* Watch DNA — LIVE (v3.21, v3 order §6.3). The module works and
                 has a real door; this card stops claiming Soon and links it.
                 Existing card treatment kept — text-and-link change only. */}
+            {/* Watch DNA — LIVE (v3.21, v3 order §6.3). "Craft / Presence /
+                Heritage" are gone: they were never part of the quiz, which
+                scores the archetypes in lib/watchDna.ts, so three invented
+                words sat where a collector's real result would go and made a
+                working door look like a preview of an unfinished one. The
+                card now says what the module does and offers one plainly
+                actionable way in. */}
             <Link
               href="/watch-dna"
-              className="mt-4 block border border-[var(--border-subtle)] px-4 py-5 transition hover:bg-[rgba(255,255,255,0.02)]"
+              className={`mt-4 block ${railCard} transition-colors hover:border-[var(--border-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]`}
             >
-              <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-                Watch DNA
+              <div className={`mb-3 ${railHeading}`}>Watch DNA</div>
+              <div className={`mb-4 ${railBody}`}>
+                Discover what draws you to a watch.
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {["Craft", "Presence", "Heritage"].map((bucket) => (
-                  <div key={bucket} className="text-center">
-                    <div className="mb-1 text-[10px] text-[var(--slate)]">
-                      {bucket}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
-                Discover your Watch DNA →
-              </div>
+              <span className={railAction}>Create yours →</span>
             </Link>
 
-            {/* Recent activity — shell */}
-            <div className="mt-4">
-              <div className="mb-3 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
-                Recent Activity
-              </div>
-              <div className="font-display text-[11px] italic text-[var(--ghost)]">
-                No recent activity.
-              </div>
+            {/* Recent activity — shell. Given the family's card surface so it
+                stops floating unbounded beside two bordered neighbours. */}
+            <div className={`mt-4 ${railCard}`}>
+              <div className={`mb-3 ${railHeading}`}>Recent Activity</div>
+              <div className={railBody}>No recent activity.</div>
             </div>
           </div>
         </div>
