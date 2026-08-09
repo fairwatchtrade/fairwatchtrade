@@ -167,6 +167,44 @@ function missingFacts(l: ImportedListing): string[] {
   return missing;
 }
 
+/* ── Attention, read live ──────────────────────────────────────────────
+   missingFacts() above reads the SAVED row: it is what the queue sorts and
+   badges on, and it stays that way. The workbench needs something different —
+   the fields blocking submission RIGHT NOW — so that a field stops being
+   flagged the moment the dealer fixes it rather than at the next save.
+
+   Same rules, read from the edit buffer, plus reference: the column is NOT
+   NULL so it cannot currently be empty, but the mechanism is generic and will
+   flag it the instant it is. One list drives both the summary at the top and
+   the fields themselves, so the two can never disagree about what is wrong. */
+type AttentionKey =
+  | "price"
+  | "condition"
+  | "availability"
+  | "reference"
+  | "description"
+  | "photographs";
+
+const ATTENTION_LABEL: Record<AttentionKey, string> = {
+  price: "price",
+  condition: "condition",
+  availability: "availability",
+  reference: "reference number",
+  description: "description",
+  photographs: "photographs",
+};
+
+function attentionFromBuffer(b: Buffer, currency: string | null): AttentionKey[] {
+  const out: AttentionKey[] = [];
+  if (!parsePrice(b.askingPrice, currency).ok) out.push("price");
+  if (!b.condition) out.push("condition");
+  if (!b.availability) out.push("availability");
+  if (!b.reference.trim()) out.push("reference");
+  if (!b.description.trim()) out.push("description");
+  if (b.photos.filter((p) => p?.photo?.url).length === 0) out.push("photographs");
+  return out;
+}
+
 type RoomStatus = "attention" | "draft" | "submitted" | "approved" | "rejected";
 
 function roomStatus(l: ImportedListing): RoomStatus {
@@ -178,7 +216,9 @@ function roomStatus(l: ImportedListing): RoomStatus {
 
 const STATUS_META: Record<RoomStatus, { label: string; cls: string; order: number }> = {
   rejected: { label: "Rejected", cls: "text-[var(--danger)]", order: 0 },
-  attention: { label: "Needs Attention", cls: "text-[var(--gold-dim)]", order: 1 },
+  /* Same words as the Admin Dashboard's queue, so the same colour: an item
+     needing attention reads as needing attention everywhere in the product. */
+  attention: { label: "Needs Attention", cls: "text-[var(--danger)]", order: 1 },
   draft: { label: "Draft", cls: "text-[var(--muted)]", order: 2 },
   submitted: { label: "Submitted", cls: "text-[var(--gold)]", order: 3 },
   approved: { label: "Approved", cls: "text-[var(--success)]", order: 4 },
@@ -545,7 +585,14 @@ export default function ImportedDraftsWorkspace() {
   }
 
   const meta = selected ? STATUS_META[roomStatus(selected)] : null;
-  const missing = selected ? missingFacts(selected) : [];
+  /* The live blocking set. Computed only while the draft is the dealer's to
+     fix — a submitted or published listing is not, and colouring its fields red
+     would be telling them off for something they cannot act on. One list feeds
+     the summary AND the fields, so the top can never name something the fields
+     do not show, or vice versa. */
+  const attention: AttentionKey[] =
+    editable && buffer ? attentionFromBuffer(buffer, selected?.asking_currency ?? null) : [];
+  const flagged = (k: AttentionKey) => attention.includes(k);
   // Governs both the amount control and its foot label.
   const priceCurrency = currencyMeta(selected?.asking_currency);
   const photoUrls = (buffer?.photos ?? []).map((p) => p?.photo?.url).filter(Boolean) as string[];
@@ -692,14 +739,20 @@ export default function ImportedDraftsWorkspace() {
               </span>
             </div>
 
-            {/* State message */}
+            {/* State message.
+                The attention case borrows the Admin Dashboard's Zone 1
+                treatment verbatim — a danger left rule over a danger tint —
+                because it means the same thing there and should not have to be
+                learned twice. */}
             <div
               className={`mt-4 border-l-2 px-4 py-3 text-[12px] leading-relaxed text-[var(--platinum-dim)] ${
                 selected.status === "rejected"
                   ? "border-[var(--danger)] bg-[rgba(166,106,112,0.06)]"
                   : selected.status === "published"
                     ? "border-[var(--success)] bg-[rgba(111,154,125,0.05)]"
-                    : "border-[var(--gold)] bg-[rgba(201,168,76,0.04)]"
+                    : attention.length > 0
+                      ? "border-[var(--danger)] bg-[var(--danger)]/[0.06]"
+                      : "border-[var(--gold)] bg-[rgba(201,168,76,0.04)]"
               }`}
             >
               {selected.status === "pending_review" ? (
@@ -748,11 +801,11 @@ export default function ImportedDraftsWorkspace() {
                     </span>
                   )}
                 </>
-              ) : missing.length > 0 ? (
+              ) : attention.length > 0 ? (
                 <>
-                  <strong className="block text-[var(--platinum)]">Needs your attention</strong>
-                  Missing: {missing.join(", ")}. Complete these, confirm each imported value, and
-                  submit when the listing is ready.
+                  <strong className="block text-[var(--danger)]">Needs your attention</strong>
+                  Missing: {attention.map((k) => ATTENTION_LABEL[k]).join(", ")}. Complete these,
+                  confirm each imported value, and submit when the listing is ready.
                 </>
               ) : (
                 <>
@@ -823,8 +876,22 @@ export default function ImportedDraftsWorkspace() {
               submission.
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
-              <label className="flex items-center gap-2.5 text-[12px] text-[var(--platinum-dim)]">
+            {/* Photographs carry the same flagged-row treatment as any other
+                blocking field — same tint, same danger label, same padding. */}
+            <div
+              className={`mt-3 flex flex-wrap items-center justify-between gap-3 border px-4 py-3 ${
+                flagged("photographs")
+                  ? "border-[var(--danger)] bg-[var(--danger)]/[0.06]"
+                  : "border-[var(--border-faint)] bg-[var(--surface-2)]"
+              }`}
+            >
+              <label
+                className={`flex items-center gap-2.5 text-[12px] ${
+                  flagged("photographs")
+                    ? "font-semibold text-[var(--danger)]"
+                    : "text-[var(--platinum-dim)]"
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={shownCeremony(ceremony.photos)}
@@ -866,6 +933,7 @@ export default function ImportedDraftsWorkspace() {
                 {/* Asking Price */}
                 <Field
                   label="Asking Price"
+                  attention={flagged("price")}
                   confirmed={shownCeremony(ceremony.price)}
                   onConfirm={(v) => setCeremony({ ...ceremony, price: v })}
                   editable={editable}
@@ -898,6 +966,7 @@ export default function ImportedDraftsWorkspace() {
                 {/* Condition */}
                 <Field
                   label="Condition"
+                  attention={flagged("condition")}
                   confirmed={shownCeremony(ceremony.condition)}
                   onConfirm={(v) => setCeremony({ ...ceremony, condition: v })}
                   editable={editable}
@@ -924,6 +993,7 @@ export default function ImportedDraftsWorkspace() {
                 {/* Availability */}
                 <Field
                   label="Availability"
+                  attention={flagged("availability")}
                   confirmed={shownCeremony(ceremony.availability)}
                   onConfirm={(v) => setCeremony({ ...ceremony, availability: v })}
                   editable={editable}
@@ -954,6 +1024,7 @@ export default function ImportedDraftsWorkspace() {
                 {/* Reference */}
                 <Field
                   label="Reference Number"
+                  attention={flagged("reference")}
                   confirmed={shownCeremony(ceremony.reference)}
                   onConfirm={(v) => setCeremony({ ...ceremony, reference: v })}
                   editable={editable}
@@ -1032,7 +1103,11 @@ export default function ImportedDraftsWorkspace() {
             {/* Description */}
             <div className="mt-6 border-t border-[var(--border-faint)] pt-5">
               <div className="mb-3 flex items-baseline justify-between">
-                <h4 className="font-display text-[16px] font-light text-[var(--platinum)]">
+                <h4
+                  className={`font-display text-[16px] font-light ${
+                    flagged("description") ? "text-[var(--danger)]" : "text-[var(--platinum)]"
+                  }`}
+                >
                   Description
                 </h4>
                 <span className="text-[10px] text-[var(--muted)]">
@@ -1047,7 +1122,11 @@ export default function ImportedDraftsWorkspace() {
                   setCeremony((c) => ({ ...c, description: false }));
                 }}
                 rows={5}
-                className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] leading-[1.7] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60"
+                className={`w-full border px-3 py-2 text-[13px] leading-[1.7] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60 ${
+                  flagged("description")
+                    ? "border-[var(--danger)] bg-[var(--danger)]/[0.06]"
+                    : "border-[var(--border-subtle)] bg-transparent"
+                }`}
               />
               <label className="mt-2 flex items-center gap-2.5 text-[12px] text-[var(--platinum-dim)]">
                 <input
@@ -1152,6 +1231,7 @@ function Field({
   onConfirm,
   editable,
   foot,
+  attention = false,
   children,
 }: {
   label: string;
@@ -1159,14 +1239,31 @@ function Field({
   onConfirm: (v: boolean) => void;
   editable: boolean;
   foot: string;
+  /** This field is one of the ones currently blocking submission. */
+  attention?: boolean;
   children: React.ReactNode;
 }) {
   return (
     /* Imported truth and dealer confirmation stay visibly distinct: the card
-       lifts off the workbench panel rather than dissolving into it. */
-    <div className="border border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
+       lifts off the workbench panel rather than dissolving into it.
+
+       When the field is blocking submission it takes the Admin Dashboard's
+       flagged-row treatment exactly — the same danger tint over the same
+       danger label. Padding is untouched, so nothing moves and nothing
+       resizes; the card only changes colour. */
+    <div
+      className={`border px-4 py-3 ${
+        attention
+          ? "border-[var(--danger)] bg-[var(--danger)]/[0.06]"
+          : "border-[var(--border-faint)] bg-[var(--surface-2)]"
+      }`}
+    >
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)]">
+        <span
+          className={`text-[10px] uppercase tracking-[1.5px] ${
+            attention ? "font-semibold text-[var(--danger)]" : "text-[var(--platinum-dim)]"
+          }`}
+        >
           {label}
         </span>
         <span className="border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 text-[8px] uppercase tracking-[1px] text-[var(--gold-dim)]">
