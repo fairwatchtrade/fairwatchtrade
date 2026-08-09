@@ -447,8 +447,13 @@ export default function CollectorsDrawer({
             onClick={() => setExpanded(false)}
             tabIndex={expanded ? 0 : -1}
             className={[
-              "absolute right-[28px] top-[42px] inline-flex items-center gap-2",
-              "border border-[var(--border-mid)] px-3 py-2",
+              /* Sits in the panel's 42px head band, ABOVE the title — not
+                 beside it. "Collector's Drawer" at 25px fills 339px of a
+                 340px content column at xl and wraps at lg, so there was
+                 never a beside-the-title slot: the first attempt landed
+                 directly on top of the word DRAWER. */
+              "absolute right-[28px] top-[10px] inline-flex items-center gap-2",
+              "border border-[var(--border-mid)] px-3 py-1.5",
               "text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)]",
               "transition-colors duration-[160ms]",
               "hover:border-[var(--border-gold)] hover:text-[var(--gold)]",
