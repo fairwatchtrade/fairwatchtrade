@@ -2,39 +2,41 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WATCH_BRANDS } from "@/lib/brands";
+import { createClient } from "@/lib/supabase/client";
+import {
+  buildBrandIndex,
+  matchBrands,
+  normalizeBrand,
+  resolveTypedBrand,
+  MIN_BRAND_CHARS,
+  type VaultBrandRow,
+} from "@/lib/brandIndex";
 
 /* ────────────────────────────────────────────────────────────────────────
-   BRAND COMBOBOX — type-ahead over the verified WATCH_BRANDS list.
+   BRAND COMBOBOX — type-ahead over the platform's brand corpus.
 
-   Permissive-with-nudge: filtering steers hard toward the curated list, but
-   a seller may still submit an off-list brand (e.g. an obscure/historic piece
-   not yet catalogued). When the current value doesn't exactly match a known
-   brand, onChange reports isCustom=true so the listing can be flagged for
-   review (custom_brand_flag) rather than silently fragmenting brand data.
+   The corpus is composed at read time by lib/brandIndex.ts from the curated
+   static list AND the live Vault brand table — the same table the phone
+   wizard and the Galaxy read. The static list renders immediately and is
+   the floor: if the Vault query fails, the field degrades to exactly the
+   list it has always had, never to an empty one.
 
-   Matching is normalized: case-insensitive, accent-stripped, and punctuation/
-   space-insensitive — so "moser" → "H. Moser & Cie.", "fp journe" →
-   "F.P. Journe", "girard perregaux" → "Girard-Perregaux". Verified 12/12
-   against the real list before this component was written.
+   Permissive-with-nudge, unchanged: filtering steers hard toward the
+   corpus, but a seller may still submit an off-corpus brand. When the text
+   doesn't resolve to a known brand, onChange reports isCustom=true so the
+   listing is flagged for review (custom_brand_flag) rather than silently
+   fragmenting brand data. This field recognizes brands; it never decides
+   admission.
+
+   Matching is normalized — case-insensitive, accent-stripped, and
+   punctuation/space-insensitive — and widened by the Vault's aliases, so
+   "moser" → "H. Moser & Cie.", "fp journe" → "F.P. Journe", and "jlc" →
+   "Jaeger-LeCoultre". An alias never appears as its own row, and a name
+   that is itself a brand is never rewritten into another one.
 
    Custom (not native <select>) so the open list can be filtered and styled —
    the whole reason native couldn't do this.
    ──────────────────────────────────────────────────────────────────────── */
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents
-    .replace(/[^a-z0-9]/g, ""); // drop spaces & punctuation
-}
-
-const NORMALIZED_BRANDS = WATCH_BRANDS.map((b) => ({ name: b, norm: normalize(b) }));
-
-function isKnownBrand(value: string): boolean {
-  const n = normalize(value);
-  return NORMALIZED_BRANDS.some((b) => b.norm === n);
-}
 
 export default function BrandCombobox({
   value,
@@ -43,7 +45,7 @@ export default function BrandCombobox({
   inputClassName = "",
 }: {
   value: string;
-  /** Reports the chosen text and whether it's off the verified list. */
+  /** Reports the chosen text and whether it's off the corpus. */
   onChange: (value: string, isCustom: boolean) => void;
   placeholder?: string;
   inputClassName?: string;
@@ -51,6 +53,7 @@ export default function BrandCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [vaultRows, setVaultRows] = useState<VaultBrandRow[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Keep the visible text in sync if the parent value changes externally.
@@ -58,26 +61,42 @@ export default function BrandCombobox({
     setQuery(value);
   }, [value]);
 
-  const MIN_CHARS = 2;
+  /* Widen the corpus from the Vault once. Composed, never copied — and a
+     failure here is silent by design: the static list already stands. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("vault_brands")
+          .select("name, search_aliases")
+          .order("name");
+        if (!cancelled && Array.isArray(data)) {
+          setVaultRows(data as VaultBrandRow[]);
+        }
+      } catch {
+        /* the static list is the floor — a failed widen is never a broken field */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const matches = useMemo(() => {
-    const q = normalize(query);
-    if (q.length < MIN_CHARS) return [];
+  const index = useMemo(
+    () => buildBrandIndex(WATCH_BRANDS, vaultRows),
+    [vaultRows]
+  );
 
-    const prefix = NORMALIZED_BRANDS.filter((b) => b.norm.startsWith(q));
-    const sub = NORMALIZED_BRANDS.filter((b) => b.norm.includes(q) && !b.norm.startsWith(q));
-
-    return [...prefix.sort((a,b) => a.name.localeCompare(b.name)), 
-            ...sub.sort((a,b) => a.name.localeCompare(b.name))]
-      .map((b) => b.name)
-      .slice(0, 8);
-  }, [query]);
+  const matches = useMemo(() => matchBrands(query, index), [query, index]);
 
   // Centralized selection update function
   function commit(selectedName: string) {
-    setQuery(selectedName);
+    const resolved = resolveTypedBrand(selectedName, index);
+    setQuery(resolved.name);
     setOpen(false);
-    onChange(selectedName, !isKnownBrand(selectedName));
+    onChange(resolved.name, resolved.isCustom);
   }
 
   // Handle outside click + auto-correct snap fill logic
@@ -94,13 +113,15 @@ export default function BrandCombobox({
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [matches, activeIdx]);
+  }, [matches, activeIdx, index]);
 
   function onInput(text: string) {
     setQuery(text);
     setActiveIdx(0);
     setOpen(true);
-    onChange(text, text.trim() !== "" && !isKnownBrand(text));
+    // Report the text exactly as typed — resolution happens on commit, so the
+    // caret is never fought mid-keystroke.
+    onChange(text, resolveTypedBrand(text, index).isCustom);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -125,10 +146,13 @@ export default function BrandCombobox({
     }
   }
 
-  const normLen = normalize(query).length;
-  const needsMoreChars = query.trim() !== "" && normLen > 0 && normLen < MIN_CHARS;
+  const resolved = resolveTypedBrand(query, index);
+  const isKnown = !resolved.isCustom && normalizeBrand(query) !== "";
+  const normLen = normalizeBrand(query).length;
+  const needsMoreChars =
+    query.trim() !== "" && normLen > 0 && normLen < MIN_BRAND_CHARS;
   const showCustomHint =
-    normLen >= MIN_CHARS && matches.length === 0 && !isKnownBrand(query);
+    normLen >= MIN_BRAND_CHARS && matches.length === 0 && !isKnown;
 
   return (
     <div ref={wrapRef} className="relative">
@@ -139,14 +163,14 @@ export default function BrandCombobox({
         onChange={(e) => onInput(e.target.value)}
         onFocus={(e) => {
           setOpen(true);
-          if (isKnownBrand(query)) {
+          if (isKnown) {
             e.target.select();
           }
         }}
         onBlur={() => {
           if (matches.length === 1) {
             commit(matches[0]);
-          } else if (isKnownBrand(query)) {
+          } else if (isKnown) {
             commit(query);
           }
         }}
