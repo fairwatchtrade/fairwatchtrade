@@ -58,7 +58,6 @@ export default function InlinePurchaseRequest({
   const fmt = (n: number) => formatMoney(n, askingCurrency);
 
   const isRail = variant === "rail";
-  const backToListing = `/listings/${listingId}`;
 
   function close() {
     setOpen(false);
@@ -225,7 +224,9 @@ export default function InlinePurchaseRequest({
             className="mb-2 mt-4 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
           >
             Message{" "}
-            <span className="text-[8px] normal-case tracking-normal text-[var(--ghost)]">
+            {/* Readable at arm's length: the 8px ghost whisper this replaces
+                was metadata-coloured and effectively unreadable in sunlight. */}
+            <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
               — optional
             </span>
           </label>
@@ -267,13 +268,6 @@ export default function InlinePurchaseRequest({
               Cancel
             </button>
           </div>
-
-          <Link
-            href={`${backToListing}/purchase-request`}
-            className="mt-3 inline-block text-[9px] uppercase tracking-[1.2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
-          >
-            Open the full request page →
-          </Link>
         </div>
       )}
     </div>

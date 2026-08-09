@@ -282,7 +282,10 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   {/* optional message */}
                   <div className="mb-5">
                     <label htmlFor="message" className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
-                      Message to the seller <span className="text-[8px] normal-case tracking-normal text-[var(--ghost)]">— optional</span>
+                      Message to the seller{" "}
+                      <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
+                        — optional
+                      </span>
                     </label>
                     <textarea
                       id="message"

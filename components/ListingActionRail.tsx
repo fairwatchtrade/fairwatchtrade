@@ -212,7 +212,7 @@ export default function ListingActionRail({
         <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
           <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
           <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
-            Asking Price · 5% platform fee applies
+            Asking Price
           </p>
         </div>
         {purchaseBlock}
@@ -245,7 +245,7 @@ export default function ListingActionRail({
           {priceText}
         </p>
         <p className="mt-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-          Asking Price · 5% fee applies
+          Asking Price
         </p>
         {purchaseBlock && <div className="mt-4">{purchaseBlock}</div>}
       </section>

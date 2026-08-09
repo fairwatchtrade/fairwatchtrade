@@ -371,8 +371,12 @@ export default function CollectorsDrawer({
         <span
           className={[
             "group/cue absolute bottom-[18px] left-[9px] right-[9px] grid h-[42px] place-items-center",
-            "border-t border-[rgba(232,226,214,0.10)] text-[rgba(201,168,76,0.68)]",
+            "border-t border-[rgba(232,226,214,0.10)]",
             "transition-colors duration-[180ms] hover:text-[var(--gold)] group-focus-visible:text-[var(--gold)]",
+            /* Open, the handle stops whispering: full gold says this rail is
+               the thing that closes it, without adding permanent text to a
+               48px spine. */
+            expanded ? "text-[var(--gold)]" : "text-[rgba(201,168,76,0.68)]",
           ].join(" ")}
         >
           <span
@@ -395,7 +399,10 @@ export default function CollectorsDrawer({
               "group-focus-visible:visible group-focus-visible:translate-x-0 group-focus-visible:opacity-100",
             ].join(" ")}
           >
-            Collector&rsquo;s Drawer
+            {/* State-aware: the label used to read "Collector's Drawer" in
+                both states, which told an open Drawer's user nothing about
+                how to shut it. */}
+            {expanded ? "Close Collector’s Drawer" : "Collector’s Drawer"}
           </span>
         </span>
       </button>
@@ -428,6 +435,32 @@ export default function CollectorsDrawer({
           <h2 className={`font-display text-[25px] font-normal uppercase leading-[1.15] tracking-[0.08em] text-[var(--gold)] ${glassText}`}>
             Collector&rsquo;s Drawer
           </h2>
+
+          {/* Explicit close. The spine has always been the toggle, but a
+              collector who opened the Drawer had no NAMED way to shut it —
+              only an unlabelled rail and a chevron. This says the word.
+              Sits inside the panel, so it is never a nested interactive
+              inside the spine button; when the panel is collapsed it is
+              visibility:hidden and therefore out of the tab order too. */}
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            tabIndex={expanded ? 0 : -1}
+            className={[
+              "absolute right-[28px] top-[42px] inline-flex items-center gap-2",
+              "border border-[var(--border-mid)] px-3 py-2",
+              "text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)]",
+              "transition-colors duration-[160ms]",
+              "hover:border-[var(--border-gold)] hover:text-[var(--gold)]",
+              "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]",
+              glassText,
+            ].join(" ")}
+          >
+            <span aria-hidden="true" className="text-[13px] leading-none">
+              ✕
+            </span>
+            Close
+          </button>
 
           {/* the SAME items[], as rows — anchored at the SAME top:119px, on
               the SAME 88px rhythm as the icon cells. IMMOVABLE: this block

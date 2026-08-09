@@ -68,8 +68,8 @@ import { formatMoney } from "@/lib/formatMoney";
    (facets, view mode, grid width, page size) previously lost all of it the
    moment they opened a listing — there was no way back to that exact state.
    This adds a minimal, standalone `← Browse` link near the top of the page,
-   independent of the future Collector's Drawer (Ducky 3's, separately owned
-   — this does NOT authorize any of that work). Reads `returnTo` from the
+   independent of the future Collector's Drawer (separately owned — this
+   does NOT authorize any of that work). Reads `returnTo` from the
    query string, TREATED AS UNTRUSTED INPUT: it must be validated as an
    internal `/browse` path before use, exactly the same open-redirect
    discipline already named for the parked Session Expiry `next` param.
@@ -265,16 +265,25 @@ export default async function ListingDetailPage({
   const details = (listing.details ?? {}) as ListingDetails;
   const similarHref = buildSimilarHref(listing.brand, details);
 
-  // Seller display name — same profiles/display_name/id-join pattern already
-  // confirmed working in app/sellers/[id]/page.tsx. Fails open to a generic
-  // label rather than erroring if the profile row is missing.
+  /* Seller display name, read through public_seller_profiles — the same view
+     the seller's own profile page uses. Reading `profiles` directly could
+     never work here: its only SELECT policy is profiles_select_own, so a
+     BUYER looking at someone else's listing is denied the row and every
+     seller silently rendered as the generic label. The view exposes id,
+     display_name and created_at and nothing else, so no email, phone or
+     strike count is widened to reach a name. A blank name is treated as
+     absent, so whitespace never publishes as a seller identity. */
   const { data: sellerProfile } = await supabase
-    .from("profiles")
+    .from("public_seller_profiles")
     .select("display_name")
     .eq("id", listing.seller_id)
     .single();
 
-  const sellerName = sellerProfile?.display_name ?? "FairWatchTrade Seller";
+  const resolvedSellerName = sellerProfile?.display_name?.trim();
+  const sellerName =
+    resolvedSellerName && resolvedSellerName !== ""
+      ? resolvedSellerName
+      : "FairWatchTrade Seller";
 
   // Owner-aware button visibility — the seller shouldn't see their own
   // listing's "Start Purchase Request" action.
@@ -404,7 +413,7 @@ export default async function ListingDetailPage({
           renders narrower than the Gate ever approved (at 1280 the primary
           column still gets ~816px). iPad landscape (1024) reads as tablet;
           iPad Pro landscape (1366) reads as desktop. */}
-      {/* v2.90 — WS3 staged container growth (Design Duck ruling, 2026-07-28).
+      {/* v2.90 — WS3 staged container growth (design ruling, 2026-07-28).
           The old single jump (768 → 1438 at one pixel) forced the gallery,
           title, and thumbnails through a binary reflow the instant the rail
           mounted. The container now grows in deliberate single-column steps:

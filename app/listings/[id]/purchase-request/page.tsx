@@ -107,13 +107,19 @@ export default async function PurchaseRequestPage({
     redirect(`/listings/${listing.id}`);
   }
 
+  /* Read through public_seller_profiles for the same reason the listing page
+     does: profiles_select_own denies a buyer the seller's row, so reading
+     `profiles` here always fell through to the generic label. The view
+     exposes only id, display_name and created_at. */
   const { data: sellerProfile } = await supabase
-    .from("profiles")
+    .from("public_seller_profiles")
     .select("display_name")
     .eq("id", listing.seller_id)
     .single();
 
-  const sellerName = sellerProfile?.display_name ?? "Private Collector";
+  const resolvedSellerName = sellerProfile?.display_name?.trim();
+  const sellerName =
+    resolvedSellerName && resolvedSellerName !== "" ? resolvedSellerName : "Private Collector";
 
   const photos = Array.isArray(listing.photos) ? listing.photos : [];
   const dial = photos.find((p) => p?.category === "Dial");

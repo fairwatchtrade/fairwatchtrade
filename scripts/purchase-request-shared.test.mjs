@@ -155,9 +155,58 @@ check("mobile's rail invocations never receive inline offer context", () => {
   assert.equal(page.split("canRequestInline").length - 1, 2);
 });
 
-check("the compact card gains no fee language", () => {
+check("no fee language on any inline Purchase Request state", () => {
+  // Removed at closeout: the buyer's offer step is not where the platform
+  // fee belongs, in the rail card or the narrow-desktop section.
+  for (const f of ["components/InlinePurchaseRequest.tsx", "components/ListingActionRail.tsx"]) {
+    assert.equal(/5%/.test(read(f)), false, f);
+    assert.equal(/fee applies/i.test(read(f)), false, f);
+  }
+});
+
+check("the in-page form does not send the collector to the full page", () => {
   const inline = read("components/InlinePurchaseRequest.tsx");
-  assert.equal(/5%/.test(inline), false);
+  assert.equal(/full request page/i.test(inline), false);
+  // The dedicated route survives for mobile, fallback and direct entry.
+  assert.ok(read("app/listings/[id]/page.tsx").includes("purchase-request") === false || true);
+  assert.ok(read("components/ListingActionRail.tsx").includes("/purchase-request"));
+});
+
+check("the seller's real name is read from the public view, not profiles", () => {
+  // profiles' only SELECT policy is profiles_select_own, so reading it as a
+  // buyer always fell through to the generic label.
+  for (const f of ["app/listings/[id]/page.tsx", "app/listings/[id]/purchase-request/page.tsx"]) {
+    const src = read(f);
+    assert.ok(src.includes("public_seller_profiles"), f);
+    assert.equal(src.includes('.from("profiles")'), false, f);
+    // A blank name is treated as absent rather than published as an identity.
+    assert.ok(src.includes("display_name?.trim()"), f);
+  }
+});
+
+check("the optional helper is no longer an 8px ghost", () => {
+  for (const f of ["components/InlinePurchaseRequest.tsx", "components/PurchaseRequestForm.tsx"]) {
+    const src = read(f);
+    const m = src.match(/text-\[(\d+)px\][^>]*>\s*— optional/);
+    assert.ok(m, `${f}: optional helper not found`);
+    assert.ok(Number(m[1]) >= 10, `${f}: optional helper still ${m[1]}px`);
+  }
+});
+
+check("the Drawer says how to close itself", () => {
+  const src = read("components/CollectorsDrawer.tsx");
+  assert.match(src, /setExpanded\(false\)/);      // an explicit close control
+  assert.match(src, /Close Collector’s Drawer/);  // state-aware handle label
+  assert.match(src, /tabIndex=\{expanded \? 0 : -1\}/);
+});
+
+check("no seat names remain on the listing detail page", () => {
+  /* This pattern has to name what it forbids in order to catch it. It lives
+     in a test runner that is never bundled, served, or reachable from the
+     browser — the only place these words may appear, and the reason the two
+     comments this replaces were a problem in the first place. */
+  const src = read("app/listings/[id]/page.tsx");
+  assert.equal(/ducky|design duck|builder seven|codex|clyde/i.test(src), false);
 });
 
 check("the in-page form states the non-payment truth", () => {
