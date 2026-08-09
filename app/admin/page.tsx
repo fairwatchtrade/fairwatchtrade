@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import AdminDashboard, { type AdminListing } from "@/components/AdminDashboard";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -33,8 +34,27 @@ export default async function AdminPage() {
     redirect("/");
   }
 
+  /* ── Founder gate passed. Read with the trusted client. ─────────────────
+     The session client is bound by listings_select_public_or_own, which has
+     no founder exception — correctly, because it is the canonical PUBLIC
+     predicate and must not be widened. Reading /admin through it meant the
+     operator control room silently showed a fraction of the truth: only the
+     founder's own listings, only the founder's own profile row, and a
+     notification count scoped the same way. A second seller's submission
+     could sit in pending_review and never appear in the attention queue at
+     all.
+
+     Same shape the adjudication page already uses one level down
+     (app/admin/listings/[id]/page.tsx), for the same reason and with the same
+     ordering: identity is proved by the session client above, and only past
+     that redirect does the trusted client read. Server component — the
+     service key never reaches a bundle. Ordinary seller and anon RLS is
+     untouched; nothing about who may READ the table changed, only which
+     client this already-founder-only page asks with. ── */
+  const db = createServiceClient();
+
   // Full inventory, newest first — powers the attention queue, stat cards, and table.
-  const { data: listingsData } = await supabase
+  const { data: listingsData } = await db
     .from("listings")
     .select(
       "id, brand, model, reference, condition, asking_price, asking_currency, status, created_at, seller_id, completeness_score, significance_score, description_passed_ai, custom_brand_flag"
@@ -42,12 +62,12 @@ export default async function AdminPage() {
     .order("created_at", { ascending: false });
 
   // Seller display-name lookup.
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from("profiles")
     .select("id, display_name");
 
   // Total notifications sent (count only).
-  const { count: notificationCount } = await supabase
+  const { count: notificationCount } = await db
     .from("notifications")
     .select("*", { count: "exact", head: true });
 
