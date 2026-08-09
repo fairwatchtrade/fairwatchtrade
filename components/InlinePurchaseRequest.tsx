@@ -52,7 +52,7 @@ export default function InlinePurchaseRequest({
   const {
     offer, setOffer, message, setMessage, busy, view,
     formError, changed, submittedOffer, offerRef, parsed,
-    showOfferError, offerErrorText, submit, keepEditing,
+    showOfferError, offerErrorText, submit, keepEditing, restoreDraft,
   } = usePurchaseRequest({ id: listingId, askingPrice, askingCurrency }, "live");
   const currency = currencyMeta(askingCurrency);
   const fmt = (n: number) => formatMoney(n, askingCurrency);
@@ -71,7 +71,12 @@ export default function InlinePurchaseRequest({
       type="button"
       aria-expanded={open}
       aria-controls={panelId}
-      onClick={() => setOpen((v) => !v)}
+      onClick={() => {
+        // Opening asks for the stored draft, so the surface the collector
+        // opens carries what they typed into the other one.
+        if (!open) restoreDraft();
+        setOpen((v) => !v);
+      }}
       className={[
         "bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
         "text-[var(--ink)] transition hover:opacity-90",

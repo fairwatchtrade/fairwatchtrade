@@ -216,6 +216,19 @@ check("the in-page form states the non-payment truth", () => {
   assert.match(inline, /does not complete the\s+purchase/i);
 });
 
+check("opening a surface re-reads the shared draft", () => {
+  /* The listing page mounts both in-page surfaces and hides one, so the
+     hidden one's mount-time restore runs while storage is still empty.
+     Without a restore on open, typing in the rail and then narrowing the
+     window showed an empty field. */
+  const hook = read("components/usePurchaseRequest.ts");
+  assert.match(hook, /restoreDraft/);
+  // Never overwrites text already in hand.
+  assert.match(hook, /cur === "" && d\.offer \? d\.offer : cur/);
+  const inline = read("components/InlinePurchaseRequest.tsx");
+  assert.match(inline, /if \(!open\) restoreDraft\(\)/);
+});
+
 check("open and close are keyboard-reachable and return focus", () => {
   const src = read("components/InlinePurchaseRequest.tsx");
   assert.match(src, /aria-expanded=\{open\}/);

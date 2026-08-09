@@ -104,6 +104,21 @@ export function usePurchaseRequest(
     }
   }, [draftKey]);
 
+  /* Re-read the stored draft on demand.
+     The listing page mounts BOTH in-page surfaces at once and lets the
+     breakpoint hide one, so the hidden instance runs its mount-time restore
+     while storage is still empty and would otherwise never look again — a
+     collector who typed an offer in the rail and then narrowed the window
+     met an empty field, even though their text was safely stored. Opening a
+     surface asks for the draft again. It never overwrites text already in
+     hand: only empty fields are filled. */
+  const restoreDraft = useCallback(() => {
+    const d = readDraft(draftKey);
+    if (!d) return;
+    setOffer((cur) => (cur === "" && d.offer ? d.offer : cur));
+    setMessage((cur) => (cur === "" && d.message ? d.message : cur));
+  }, [draftKey]);
+
   /* Live mode: the draft trails what has been typed, so closing the form —
      or losing it to an unmount — never costs the collector their work. */
   useEffect(() => {
@@ -208,5 +223,6 @@ export function usePurchaseRequest(
     keepEditing,
     persistDraft,
     clearDraft,
+    restoreDraft,
   };
 }
