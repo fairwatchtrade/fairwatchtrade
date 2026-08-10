@@ -318,7 +318,7 @@ export default function ListingCorrespondence({
               onChange={(e) => setBody(e.target.value.slice(0, 2000))}
               placeholder="Ask about condition, provenance, or request additional photos..."
               rows={3}
-              className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+              className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
             />
             <div className="mt-2 flex items-center justify-between">
               <span className="text-[9px] text-[var(--muted)]">{body.length}/2000</span>
@@ -375,7 +375,7 @@ export default function ListingCorrespondence({
                 onChange={(e) => setBody(e.target.value.slice(0, 2000))}
                 onFocus={() => openHome()}
                 placeholder={threadId ? "Continue the conversation…" : "Message seller…"}
-                className="min-w-0 flex-1 border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+                className="min-w-0 flex-1 border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
               />
               {/* The offer action. This slot previously held a second
                   messaging control labelled "Message Seller" — the same

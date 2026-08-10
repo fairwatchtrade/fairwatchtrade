@@ -624,7 +624,7 @@ export default function ImportedDraftsWorkspace() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search brand, model, or reference…"
-            className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+            className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
           />
           <div className="mt-2 flex items-baseline justify-between gap-2 text-[10px] tracking-[0.5px] text-[var(--muted)]">
             <span>
@@ -1108,7 +1108,7 @@ export default function ImportedDraftsWorkspace() {
                   onChange={(e) => edit({ includedNotes: e.target.value.slice(0, 300) })}
                   rows={2}
                   placeholder="Anything not covered above — a specific extra strap, a manufacturer letter, spare parts…"
-                  className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[12px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60"
+                  className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[12px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60"
                 />
               </div>
             </div>

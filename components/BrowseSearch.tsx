@@ -204,7 +204,7 @@ export default function BrowseSearch({
             aria-label="Search FairWatchTrade"
             placeholder="Search watches, references, or listing codes"
             autoComplete="off"
-            className="w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--ghost)] focus-visible:outline-none sm:text-[16px]"
+            className="w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none sm:text-[16px]"
           />
           <button
             ref={helpBtnRef}

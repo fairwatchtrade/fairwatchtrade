@@ -1028,7 +1028,14 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
               Discover
             </h1>
-            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--muted)]">
+            {/* This line carries catalogue status and a trust claim, not
+                decoration — how many watches are actually below, and that
+                they were curated and verified. At 10px in --muted it was
+                the smallest text on the page saying one of the most
+                important things on it. 12px in --slate (7.4:1) reads
+                immediately; the weight and casing stay ordinary so it
+                remains a sentence beneath the heading, never a second one. */}
+            <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
               {filtered.length} watches · curated and verified
             </p>
           </div>

@@ -1407,7 +1407,7 @@ function CurationStep({
   }
 
   const input =
-    "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--ghost)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
+    "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--muted)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
   const label = "mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]";
 
   return (

@@ -174,7 +174,7 @@ export default function SaveSearchControl({
           disabled={phase === "saving"}
           maxLength={NAME_MAX}
           placeholder="Name this search…"
-          className="w-[190px] rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-[12px] text-[#E8E4DC] placeholder:italic placeholder:text-[var(--ghost)] focus:border-[#C9A84C]/40 focus:outline-none"
+          className="w-[190px] rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-[12px] text-[#E8E4DC] placeholder:italic placeholder:text-[var(--muted)] focus:border-[#C9A84C]/40 focus:outline-none"
         />
         <button
           type="button"

@@ -260,7 +260,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                         aria-describedby="offerHelp offerError"
                         aria-label={`Your offer in ${currency.displayName}`}
                         aria-invalid={showOfferError ? true : undefined}
-                        className="h-[54px] w-full border bg-[#10131a] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+                        className="h-[54px] w-full border bg-[#10131a] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
                         style={{
                           borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
                           paddingLeft: `calc(0.875rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
@@ -297,7 +297,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       // WS4 (2026-07-28) — Jason's ruled 1px increase to the
                       // ENTERED message text at normal zoom; the placeholder
                       // shares the size by inheritance, so no state jump.
-                      className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+                      className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
                     />
                     <div className="mt-1.5 text-[9px] leading-[1.5] text-[var(--muted)]">
                       Ask a concise question or share a short note with the seller.

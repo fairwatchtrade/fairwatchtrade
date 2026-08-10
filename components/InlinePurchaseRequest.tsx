@@ -228,7 +228,7 @@ export default function InlinePurchaseRequest({
               aria-describedby={`${panelId}-help`}
               aria-label={`Your offer in ${currency.displayName}`}
               aria-invalid={showOfferError ? true : undefined}
-              className="h-[46px] w-full border bg-[#10131a] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+              className="h-[46px] w-full border bg-[#10131a] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
               style={{
                 borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
                 paddingLeft: `calc(0.75rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
@@ -264,7 +264,7 @@ export default function InlinePurchaseRequest({
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Share a concise note with the seller."
             spellCheck={false}
-            className="h-[86px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-3 py-2.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
+            className="h-[86px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-3 py-2.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
           />
 
           {formError && (

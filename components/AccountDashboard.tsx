@@ -728,7 +728,7 @@ function MessagesView({
             onChange={(e) => setReply(e.target.value.slice(0, 2000))}
             placeholder="Write your reply…"
             rows={3}
-            className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+            className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-[9px] text-[var(--muted)]">{reply.length}/2000</span>
@@ -1316,7 +1316,7 @@ export default function AccountDashboard({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search your listings…"
-                  className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
+                  className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
                 />
               </div>
               <Link
