@@ -15,7 +15,12 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 import { sha256HexOfBytes } from "./hash.ts";
-import type { AnalysisRecord, ReviewState, WorkItem } from "./types.ts";
+import type {
+  AnalysisRecord,
+  CompletionRecord,
+  ReviewState,
+  WorkItem,
+} from "./types.ts";
 
 const DB_NAME = "fwt-vault-upgrade";
 const DB_VERSION = 1;
@@ -118,6 +123,7 @@ export async function intakeFile(
     operator,
     duplicateUploads: [],
     analysis: null,
+    completion: null,
     candidateBytes: null,
     reviewState: "NONE",
     staging: null,
@@ -140,8 +146,36 @@ export async function saveAnalysis(
     throw new Error(`No work item exists for source ${sourceSha256}.`);
   }
   item.analysis = analysis;
+  /* A fresh deterministic analysis supersedes any earlier completion — the
+     two must never disagree about the same source bytes. */
+  item.completion = null;
   item.candidateBytes = candidateBytes;
   item.lastAction = `Analyzed — ${analysis.status}.`;
+  item.updatedAtIso = nowIso;
+  await db.put(item);
+  return item;
+}
+
+/**
+ * Persist the result of a completion pass. The completion candidate becomes
+ * the artifact delivery verifies and staging records; the deterministic
+ * analysis is kept alongside it as the record of what the engine could
+ * establish without research.
+ */
+export async function saveCompletion(
+  db: VaultUpgradeDb,
+  sourceSha256: string,
+  completion: CompletionRecord,
+  candidateBytes: ArrayBuffer | null,
+  nowIso: string
+): Promise<WorkItem> {
+  const item = await db.get(sourceSha256);
+  if (!item) {
+    throw new Error(`No work item exists for source ${sourceSha256}.`);
+  }
+  item.completion = completion;
+  item.candidateBytes = candidateBytes;
+  item.lastAction = `Upgrade completed — ${completion.status}.`;
   item.updatedAtIso = nowIso;
   await db.put(item);
   return item;
@@ -169,7 +203,11 @@ export async function verifyCandidateForDelivery(
   if (!item) {
     throw new Error(`No work item exists for source ${sourceSha256}.`);
   }
-  const candidate = item.analysis?.candidate ?? null;
+  /* A completed candidate supersedes the structural-only one: it is built
+     from the same source bytes with researched facts applied, and it is
+     what the operator asked for. */
+  const candidate =
+    item.completion?.candidate ?? item.analysis?.candidate ?? null;
   if (!candidate || !item.candidateBytes) {
     throw new Error(
       `Work item ${sourceSha256} has no stored candidate to deliver.`
@@ -238,6 +276,7 @@ export async function stageCandidate(
   if (!item || !item.analysis) {
     throw new Error(`No analyzed work item exists for source ${sourceSha256}.`);
   }
+  const completion = item.completion;
   item.staging = {
     stagedAtIso: nowIso,
     operator,
@@ -245,9 +284,17 @@ export async function stageCandidate(
     sourceSha256: item.sourceSha256,
     candidateSha256: verified.sha256,
     candidateFilename: verified.filename,
-    ledgerSha256: item.analysis.candidate?.ledgerSha256 ?? null,
+    ledgerSha256:
+      completion?.candidate?.ledgerSha256 ??
+      item.analysis.candidate?.ledgerSha256 ??
+      null,
     statusAtStaging: item.analysis.status,
-    unresolvedAtStaging: item.analysis.counts.unresolved,
+    /* Staging records what was still open at the moment it was staged —
+       after completion that is the open decision count, not the raw
+       finding count the deterministic pass started with. */
+    unresolvedAtStaging: completion
+      ? completion.counts.humanDecisions
+      : item.analysis.counts.unresolved,
   };
   item.lastAction = "Candidate saved to local staging.";
   item.updatedAtIso = nowIso;
@@ -271,6 +318,7 @@ export async function removeCandidate(
     );
   }
   item.analysis = null;
+  item.completion = null;
   item.candidateBytes = null;
   item.lastAction = "Candidate removed; original preserved. Re-analyze to regenerate.";
   item.updatedAtIso = nowIso;

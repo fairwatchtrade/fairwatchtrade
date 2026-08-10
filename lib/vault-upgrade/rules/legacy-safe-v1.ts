@@ -12,7 +12,11 @@
    never infer lifecycle from age, wording, or outside knowledge.
    ──────────────────────────────────────────────────────────────────────── */
 
-export const UPGRADE_RULE_VERSION = "legacy-safe-v1";
+/* Registry version. v2 adds the governed legacy-field dispositions below;
+   the rename, lifecycle, container, and reference rules are unchanged from
+   v1. The filename keeps its original name — this constant, not the file
+   name, is the authority on which rule set produced a candidate. */
+export const UPGRADE_RULE_VERSION = "legacy-safe-v2";
 
 /* ── Registered exact key renames ─────────────────────────────────────────
    Applied only when the source format is deterministically recognized as
@@ -101,6 +105,72 @@ export const LEGACY_LIFECYCLE_MOVES: readonly LifecycleMoveRule[] = [
       "v3.2 moved the lifecycle answer \"revived\" from independent_status to revival_status with identical meaning.",
   },
 ] as const;
+
+/* ── Governed legacy-field dispositions ───────────────────────────────────
+   The v3.2 specification closes the field set at every level. For these
+   exact fields the specification itself already decided the disposition, so
+   omitting them is deterministic conversion — not a judgement the engine is
+   making on its own.
+
+   Two things this registry is careful about:
+
+   - It is an allowlist of named fields, never "drop anything unrecognized".
+     A legacy field that is NOT registered here still stops the upgrade as
+     UNSUPPORTED_SCHEMA_FIELD, because nothing has decided its fate.
+   - Omission is never silent. Every disposition writes a ledger row
+     carrying the exact removed value, so the change report retains the
+     legacy material even though the candidate does not.
+
+   Variant.id is deliberately absent: v3.2 §7 lists "id" as an allowed
+   optional Variant field, so it is preserved, not disposed of. */
+
+export type DispositionRule = {
+  rule: string;
+  level: "brand" | "collection" | "family";
+  field: string;
+  /** Clause of the active specification that decides this disposition. */
+  specClause: string;
+  reason: string;
+};
+
+export const GOVERNED_LEGACY_DISPOSITIONS: readonly DispositionRule[] = [
+  {
+    rule: "LSV2-DISPOSE-BRAND-ID",
+    level: "brand",
+    field: "id",
+    specClause: "v3.2 §4 — \"No other Brand-level fields may be added.\"",
+    reason:
+      "The v3.2 Brand schema is closed and does not include \"id\"; the specification lists \"id\" as permitted only on a Variant (§7). The legacy brand identifier is omitted from the candidate and its exact value is retained in the change report.",
+  },
+  {
+    rule: "LSV2-DISPOSE-COLLECTION-ID",
+    level: "collection",
+    field: "id",
+    specClause: "v3.2 §5 — \"No other fields may be added.\"",
+    reason:
+      "The v3.2 Collection schema is closed to name, Families, and optional search_aliases; \"id\" is permitted only on a Variant (§7). The legacy identifier is omitted from the candidate and retained in the change report.",
+  },
+  {
+    rule: "LSV2-DISPOSE-FAMILY-ID",
+    level: "family",
+    field: "id",
+    specClause: "v3.2 §6 — \"No other fields may be added.\"",
+    reason:
+      "The v3.2 Family schema is closed to name, Variants, and optional search_aliases; \"id\" is permitted only on a Variant (§7). The legacy identifier is omitted from the candidate and retained in the change report.",
+  },
+  {
+    rule: "LSV2-DISPOSE-ARCHITECTURAL-REVIEW",
+    level: "brand",
+    field: "architectural_review",
+    specClause:
+      "v3.2 §18 — \"Do not use: architectural_review [] unless explicitly requested by FairWatchTrade in a separate review workflow.\"",
+    reason:
+      "The specification names this field directly and directs that it not be carried in Vault output. It is omitted from the candidate and its exact value is retained in the change report.",
+  },
+] as const;
+
+/** Omit a registered legacy field; the ledger keeps the exact value. */
+export const RULE_OMIT_LEGACY_FIELD = "V32-OMIT-LEGACY-FIELD";
 
 /* ── Core v3.2 structural rules (not legacy-specific) ──────────────────── */
 

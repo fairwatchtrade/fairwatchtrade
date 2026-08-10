@@ -135,17 +135,55 @@ const run = (name) =>
   ok("no candidate", r.candidate === null);
 }
 
-// Unsupported fields remain visible and block conversion (legacy root id).
+// A legacy root id has a disposition the specification itself decides: v3.2
+// permits "id" only on a Variant, so the field is omitted from the candidate
+// rather than stopping the upgrade — and the exact value it carried survives
+// in the ledger, so the change report still accounts for it.
 {
   const r = await run("legacy-lowercase-with-id.json");
-  ok("legacy root id → BLOCKED", r.status === "BLOCKED");
-  const idIssue = r.issues.find((i) => i.path === "/id");
+  ok("legacy root id no longer blocks", r.status !== "BLOCKED");
   ok(
-    "root id visible with exact preserved value",
-    idIssue?.code === "UNSUPPORTED_SCHEMA_FIELD" &&
-      idIssue?.value === "fixture-horlogerie"
+    "no unsupported-field finding remains for the disposed id",
+    !r.issues.some((i) => i.path === "/id")
   );
-  ok("blocked legacy file has no candidate", r.candidate === null);
+  const row = r.ledger.find((l) => l.path === "/id");
+  ok(
+    "disposition recorded with the exact removed value",
+    row?.action === "omit-legacy-field" &&
+      row?.before === "fixture-horlogerie" &&
+      row?.rule === "LSV2-DISPOSE-BRAND-ID"
+  );
+  ok(
+    "the governing specification clause is stated in the reason",
+    typeof row?.reason === "string" && row.reason.includes("v3.2 §4")
+  );
+}
+
+// The disposition registry is an allowlist, never "drop what I don't know".
+// An unregistered unknown field still stops the upgrade for a human.
+{
+  const r = await run("unsupported-fields.json");
+  ok(
+    "unregistered unknown fields still block",
+    r.issues.some((i) => i.code === "UNSUPPORTED_SCHEMA_FIELD")
+  );
+  ok(
+    "nothing unregistered was silently omitted",
+    !r.ledger.some(
+      (l) => l.action === "omit-legacy-field" && !String(l.rule).startsWith("LSV2-DISPOSE-")
+    )
+  );
+}
+
+// Variant.id is explicitly allowed by v3.2 §7 and must survive untouched.
+{
+  const r = await run("legacy-lowercase-with-id.json");
+  ok(
+    "no disposition was applied at variant level",
+    !r.ledger.some(
+      (l) => l.action === "omit-legacy-field" && String(l.path).includes("/Variants/")
+    )
+  );
 }
 
 // Dangerous Reference-like numbers are never promoted.

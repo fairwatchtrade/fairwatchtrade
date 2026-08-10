@@ -8,11 +8,24 @@
 
 import type { AnalysisStatus, WorkItem } from "./types.ts";
 
-export type RowStatus = AnalysisStatus | "UPLOADED";
+/**
+ * What a queue row shows. A completed file reports its completion outcome;
+ * an analyzed-but-not-completed file reports its deterministic status.
+ */
+export type RowStatus =
+  | AnalysisStatus
+  | "UPLOADED"
+  | "CANDIDATE_READY"
+  | "READY_WITH_HUMAN_DECISIONS"
+  | "HUMAN_DECISION_REQUIRED"
+  | "BLOCKED_PROVIDER_AUTHORIZATION"
+  | "FAILED_RETRYABLE";
 
 export type FilterKey =
   | "all"
   | "nochange"
+  | "complete"
+  | "decisions"
   | "ready"
   | "research"
   | "decision"
@@ -24,8 +37,10 @@ export type FilterKey =
 
 export const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "All" },
+  { key: "complete", label: "Candidate ready" },
+  { key: "decisions", label: "Needs a decision" },
   { key: "nochange", label: "No change" },
-  { key: "ready", label: "Ready" },
+  { key: "ready", label: "Structural only" },
   { key: "research", label: "Research required" },
   { key: "decision", label: "Decision required" },
   { key: "invalid", label: "Invalid" },
@@ -36,6 +51,14 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export function rowStatus(item: WorkItem): RowStatus {
+  if (item.completion) {
+    const status = item.completion.status;
+    /* The completion pass and the analyzer name the unchanged case
+       differently; the room shows one label for it. */
+    return status === "CURRENT_V3_2_NO_CHANGE"
+      ? "CURRENT_SPEC_NO_CHANGE"
+      : status;
+  }
   return item.analysis ? item.analysis.status : "UPLOADED";
 }
 
@@ -46,6 +69,16 @@ export function matchesFilter(item: WorkItem, filter: FilterKey): boolean {
       return true;
     case "nochange":
       return status === "CURRENT_SPEC_NO_CHANGE";
+    case "complete":
+      return (
+        status === "CANDIDATE_READY" ||
+        status === "READY_WITH_HUMAN_DECISIONS"
+      );
+    case "decisions":
+      return (
+        status === "HUMAN_DECISION_REQUIRED" ||
+        status === "READY_WITH_HUMAN_DECISIONS"
+      );
     case "ready":
       return status === "STRUCTURAL_UPGRADE_READY";
     case "research":
@@ -60,7 +93,12 @@ export function matchesFilter(item: WorkItem, filter: FilterKey): boolean {
         status === "AMBIGUOUS_SOURCE_FORMAT"
       );
     case "blocked":
-      return status === "BLOCKED" || status === "ACTIVE_CONTRACT_MISMATCH";
+      return (
+        status === "BLOCKED" ||
+        status === "ACTIVE_CONTRACT_MISMATCH" ||
+        status === "BLOCKED_PROVIDER_AUTHORIZATION" ||
+        status === "FAILED_RETRYABLE"
+      );
     case "duplicate":
       return item.duplicateUploads.length > 0;
     case "staged":
@@ -96,6 +134,8 @@ export function filterCounts(items: WorkItem[]): Map<FilterKey, number> {
 export const UNRESOLVED_STATUSES: RowStatus[] = [
   "RESEARCH_REQUIRED",
   "DECISION_REQUIRED",
+  "HUMAN_DECISION_REQUIRED",
+  "READY_WITH_HUMAN_DECISIONS",
 ];
 
 export const BLOCKED_STATUSES: RowStatus[] = [
@@ -104,4 +144,16 @@ export const BLOCKED_STATUSES: RowStatus[] = [
   "UNSUPPORTED_SOURCE_FORMAT",
   "AMBIGUOUS_SOURCE_FORMAT",
   "ACTIVE_CONTRACT_MISMATCH",
+  "BLOCKED_PROVIDER_AUTHORIZATION",
+  "FAILED_RETRYABLE",
+];
+
+/** Statuses whose files still have supportable work the room can perform. */
+export const COMPLETABLE_STATUSES: RowStatus[] = [
+  "RESEARCH_REQUIRED",
+  "STRUCTURAL_UPGRADE_READY",
+  "DECISION_REQUIRED",
+  "BLOCKED",
+  "FAILED_RETRYABLE",
+  "BLOCKED_PROVIDER_AUTHORIZATION",
 ];

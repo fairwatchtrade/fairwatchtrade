@@ -9,7 +9,11 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 import JSZipImport from "jszip";
-import type { AnalysisRecord, ContractIdentity } from "./types.ts";
+import type {
+  AnalysisRecord,
+  CompletionRecord,
+  ContractIdentity,
+} from "./types.ts";
 
 const JSZip = ((JSZipImport as unknown as { default?: unknown }).default ??
   JSZipImport) as typeof JSZipImport;
@@ -79,6 +83,64 @@ export function reportFilename(report: ChangeReport): string {
     ""
   );
   return `${base}.change-report.json`;
+}
+
+/* ── Completion reports ────────────────────────────────────────────────── */
+
+/**
+ * The record of a completed upgrade: every structural transform, every
+ * researched fact with the sources that established it, every fact research
+ * refused to guess, and every decision left for a person.
+ *
+ * Provenance lives here and never inside the candidate — the active
+ * specification closes every object in the file, so there is no legal place
+ * to put it there.
+ */
+export type CompletionReport = {
+  reportType: "vault-specification-upgrade-completion-report";
+  contract: ContractIdentity;
+  source: { filename: string; sha256: string; byteLength: number };
+  completion: Omit<CompletionRecord, "candidate">;
+  candidate: {
+    filename: string;
+    sha256: string;
+    ledgerSha256: string;
+    byteLength: number;
+  } | null;
+};
+
+export function buildCompletionReport(
+  contract: ContractIdentity,
+  source: { filename: string; sha256: string; byteLength: number },
+  completion: CompletionRecord
+): CompletionReport {
+  const { candidate, ...rest } = completion;
+  return {
+    reportType: "vault-specification-upgrade-completion-report",
+    contract,
+    source,
+    completion: rest,
+    candidate: candidate
+      ? {
+          filename: candidate.filename,
+          sha256: candidate.sha256,
+          ledgerSha256: candidate.ledgerSha256,
+          byteLength: candidate.byteLength,
+        }
+      : null,
+  };
+}
+
+export function serializeCompletionReport(report: CompletionReport): string {
+  return JSON.stringify(report, null, 2) + "\n";
+}
+
+export function completionReportFilename(report: CompletionReport): string {
+  const base = (report.candidate?.filename ?? report.source.filename).replace(
+    /\.json$/i,
+    ""
+  );
+  return `${base}.completion-report.json`;
 }
 
 /* ── Batch archives ────────────────────────────────────────────────────── */

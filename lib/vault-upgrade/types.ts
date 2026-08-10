@@ -77,6 +77,8 @@ export type LedgerAction =
   | "move-value"
   | "add-empty-container"
   | "convert-reference-string"
+  | "omit-legacy-field"
+  | "apply-researched-fact"
   | "canonical-serialize";
 
 export type LedgerSeverity = "structural" | "format";
@@ -118,6 +120,7 @@ export type AnalysisRecord = {
     movedValues: number;
     addedContainers: number;
     convertedReferences: number;
+    omittedLegacyFields: number;
     unresolved: number;
   };
   sourceSha256: string;
@@ -170,6 +173,8 @@ export type WorkItem = {
   /** Re-uploads of identical bytes resolve here — never a second job. */
   duplicateUploads: DuplicateUpload[];
   analysis: AnalysisRecord | null;
+  /** Result of the completion pass, when one has been run. */
+  completion: CompletionRecord | null;
   /** Candidate bytes stored separately so downloads re-verify exact storage. */
   candidateBytes: ArrayBuffer | null;
   reviewState: ReviewState;
@@ -190,3 +195,177 @@ export type ContractIdentity = {
 export type ContractVerification =
   | { ok: true; identity: ContractIdentity }
   | { ok: false; code: "ACTIVE_CONTRACT_MISMATCH"; detail: string };
+
+/* ════════════════════════════════════════════════════════════════════════
+   COMPLETION — researched facts, provenance, and the finished candidate
+
+   The analyzer above is deterministic and never researches. Everything
+   below describes the completion pass that turns an analyzed file into a
+   finished current-spec candidate: what was asked, what evidence answered
+   it, and what a human still has to decide.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Evidence strength for one requested fact.
+ *
+ * VERIFIED     — evidence is sufficient; the fact may enter the candidate.
+ * UNRESOLVED   — evidence exists but cannot choose safely; withhold this
+ *                exact fact and show the decision to a human.
+ * UNSUPPORTED  — no qualifying evidence; omit rather than invent.
+ */
+export type ResearchOutcome = "VERIFIED" | "UNRESOLVED" | "UNSUPPORTED";
+
+export type ResearchSource = {
+  title: string;
+  publisher: string | null;
+  url: string;
+};
+
+/** One plausible answer the evidence supports but cannot decide between. */
+export type ResearchOption = {
+  value: string;
+  evidence: string;
+  sources: ResearchSource[];
+};
+
+/** Which bounded pass produced a result. */
+export type ResearchPass = "hierarchy" | "reference";
+
+/** What class of fact is being requested. Drives prompt and validation. */
+export type ResearchKind =
+  | "brand-fact"
+  | "variant-description"
+  | "variant-notes"
+  | "variant-references";
+
+/**
+ * One bounded question, built from the source file and its exact unresolved
+ * paths. Never a general "research this brand" instruction.
+ */
+export type ResearchRequest = {
+  /** Exact JSON pointer the answer belongs at. */
+  path: string;
+  /** Leaf field name, e.g. "cluster" or "description". */
+  field: string;
+  kind: ResearchKind;
+  /** Closed vocabulary where the contract defines one. */
+  allowedValues?: readonly string[];
+  /** Inclusive word range where the contract defines one. */
+  wordRange?: readonly [number, number];
+  /** Exact hierarchy context preserved from the source — never invented. */
+  context: Record<string, unknown>;
+};
+
+/** One answer, as returned by the server and validated before use. */
+export type ResearchResult = {
+  path: string;
+  outcome: ResearchOutcome;
+  /** Present only when outcome is VERIFIED. */
+  value?: unknown;
+  sources: ResearchSource[];
+  evidence: string;
+  confidence: "high" | "moderate" | "low";
+  /** Present only when outcome is UNRESOLVED. */
+  options?: ResearchOption[];
+};
+
+/**
+ * Exact record of one researched fact's disposition. Lives in the change
+ * report, never inside the strict candidate — the active specification
+ * closes every object, so provenance has no legal home in the file itself.
+ */
+export type ProvenanceEntry = {
+  path: string;
+  field: string;
+  pass: ResearchPass;
+  outcome: ResearchOutcome;
+  previousValue: unknown;
+  finalValue: unknown;
+  sources: ResearchSource[];
+  evidence: string;
+  confidence: "high" | "moderate" | "low";
+  options?: ResearchOption[];
+};
+
+/**
+ * A genuine human decision. Field-level decisions never hold the whole
+ * candidate; structural ones do.
+ *
+ * FIELD      — one uncertain fact; candidate continues without it.
+ * STRUCTURAL — identity, hierarchy, duplicate-vs-sibling, deletion or
+ *              relocation of hierarchy, or anything that would make the
+ *              candidate structurally dishonest. Holds the candidate.
+ */
+export type DecisionScope = "FIELD" | "STRUCTURAL";
+
+export type HumanDecision = {
+  path: string;
+  field: string;
+  scope: DecisionScope;
+  /** Exactly what is undecided. */
+  issue: string;
+  /** Why the updater cannot safely choose. */
+  whyNotAutomatic: string;
+  options: ResearchOption[];
+  /** Whether omitting the field keeps the candidate contract-valid. */
+  omittable: boolean;
+};
+
+/** Live phase of a completion run, for per-file progress. */
+export type CompletionPhase =
+  | "ANALYZING"
+  | "STRUCTURAL_UPGRADE"
+  | "RESEARCHING"
+  | "REFERENCE_PASS"
+  | "VALIDATING"
+  | "FREEZING"
+  | "DONE";
+
+/** Terminal outcome of a completion run. */
+export type CompletionStatus =
+  | "CANDIDATE_READY"
+  | "READY_WITH_HUMAN_DECISIONS"
+  | "CURRENT_V3_2_NO_CHANGE"
+  | "HUMAN_DECISION_REQUIRED"
+  | "BLOCKED"
+  | "FAILED_RETRYABLE"
+  | "BLOCKED_PROVIDER_AUTHORIZATION";
+
+export type CompletionCounts = {
+  /** Findings closed by deterministic structural conversion. */
+  completedStructurally: number;
+  /** Findings closed by sourced research. */
+  completedByResearch: number;
+  /** References added by the dedicated Reference pass. */
+  referencesAdded: number;
+  /** Variants that correctly kept an empty references array. */
+  emptyReferencesRetained: number;
+  /** Genuine human decisions still open. */
+  humanDecisions: number;
+  /** Research rounds executed. */
+  researchRounds: number;
+};
+
+/**
+ * Result of one completion run. The candidate is present only when the
+ * acceptance gate passed; decisions are always reported in full.
+ */
+export type CompletionRecord = {
+  status: CompletionStatus;
+  counts: CompletionCounts;
+  /** Every structural transform plus every applied researched fact. */
+  ledger: LedgerRow[];
+  provenance: ProvenanceEntry[];
+  decisions: HumanDecision[];
+  /** Unresolved contract findings that are not human decisions. */
+  issues: AnalysisIssue[];
+  candidate: CandidateArtifact | null;
+  sourceSha256: string;
+  specificationSha256: string;
+  contractId: string;
+  engineVersion: string;
+  upgradeRuleVersion: string;
+  normalizationVersion: string;
+  /** Exact single blocker when one prevented completion. */
+  blocker: string | null;
+};

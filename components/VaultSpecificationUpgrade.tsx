@@ -13,6 +13,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createUpgradeEngine, type UpgradeEngine } from "@/lib/vault-upgrade/analyze.ts";
+import {
+  completeUpgrade,
+  CompletionCancelled,
+} from "@/lib/vault-upgrade/complete.ts";
+import { createBrowserResearchTransport } from "@/lib/vault-upgrade/researchClient.ts";
 import { verifySchemaCompanion } from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.manifest.ts";
 import schemaJson from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.schema.json";
 import { utf8Bytes, utf8Text } from "@/lib/vault-upgrade/hash.ts";
@@ -22,6 +27,7 @@ import {
   removeCandidate,
   removeWorkItem,
   saveAnalysis,
+  saveCompletion,
   setReviewState,
   stageCandidate,
   verifyCandidateForDelivery,
@@ -29,13 +35,17 @@ import {
 } from "@/lib/vault-upgrade/indexedDb.ts";
 import {
   buildChangeReport,
+  buildCompletionReport,
   buildZip,
+  completionReportFilename,
   reportFilename,
+  serializeCompletionReport,
   serializeReport,
   type ZipEntry,
 } from "@/lib/vault-upgrade/reports.ts";
 import {
   BLOCKED_STATUSES,
+  COMPLETABLE_STATUSES,
   FILTERS,
   filterCounts as computeFilterCounts,
   filterWorkItems,
@@ -45,6 +55,7 @@ import {
   type RowStatus,
 } from "@/lib/vault-upgrade/filters.ts";
 import type {
+  CompletionPhase,
   ContractIdentity,
   ContractVerification,
   WorkItem,
@@ -115,11 +126,49 @@ const STATUS_META: Record<
     label: "Blocked",
     className: "text-[var(--danger)]",
   },
+  CANDIDATE_READY: {
+    glyph: "✦",
+    label: "Candidate ready",
+    className: "text-[var(--gold)]",
+  },
+  READY_WITH_HUMAN_DECISIONS: {
+    glyph: "✦",
+    label: "Ready — decisions noted",
+    className: "text-[var(--gold)]",
+  },
+  HUMAN_DECISION_REQUIRED: {
+    glyph: "⚑",
+    label: "Needs your decision",
+    className: "text-[#779ec8]",
+  },
+  BLOCKED_PROVIDER_AUTHORIZATION: {
+    glyph: "■",
+    label: "Research not configured",
+    className: "text-[var(--danger)]",
+  },
+  FAILED_RETRYABLE: {
+    glyph: "↻",
+    label: "Failed — retry safe",
+    className: "text-[#d8b36d]",
+  },
+};
+
+/** Operator-facing phase labels for a running completion. */
+const PHASE_LABEL: Record<CompletionPhase, string> = {
+  ANALYZING: "Analyzing",
+  STRUCTURAL_UPGRADE: "Converting structure",
+  RESEARCHING: "Researching",
+  REFERENCE_PASS: "Checking references",
+  VALIDATING: "Validating",
+  FREEZING: "Freezing candidate",
+  DONE: "Done",
 };
 
 type ReviewTab =
   | "summary"
   | "changes"
+  | "decisions"
+  | "sources"
   | "unresolved"
   | "original"
   | "candidate"
@@ -128,6 +177,8 @@ type ReviewTab =
 const REVIEW_TABS: { key: ReviewTab; label: string }[] = [
   { key: "summary", label: "Summary" },
   { key: "changes", label: "Exact Changes" },
+  { key: "decisions", label: "Your Decisions" },
+  { key: "sources", label: "Sources" },
   { key: "unresolved", label: "Unresolved Items" },
   { key: "original", label: "Original JSON" },
   { key: "candidate", label: "Candidate JSON" },
@@ -195,6 +246,10 @@ export default function VaultSpecificationUpgrade({
   const [activeHash, setActiveHash] = useState<string | null>(null);
   const [reviewTab, setReviewTab] = useState<ReviewTab>("summary");
   const [analyzing, setAnalyzing] = useState<Set<string>>(new Set());
+  /** hash → operator-facing progress line while a completion is running. */
+  const [completing, setCompleting] = useState<Map<string, string>>(new Map());
+  const cancelRef = useRef<Map<string, { aborted: boolean }>>(new Map());
+  const transportRef = useRef(createBrowserResearchTransport());
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [prettyOriginal, setPrettyOriginal] = useState(true);
@@ -348,6 +403,150 @@ export default function VaultSpecificationUpgrade({
     setBusy(false);
   }
 
+  /* ── Completion: the room actually finishes the file ─────────────────── */
+
+  /**
+   * Run the full completion pass over each selected file: deterministic
+   * conversion, sourced research for the gaps, a dedicated reference pass,
+   * then validation until a candidate is strict-valid or only genuine
+   * decisions remain.
+   *
+   * Each file is independent. One file's failure never touches another's
+   * work, and cancelling leaves the original bytes exactly as uploaded.
+   */
+  async function runCompletion(hashes: string[]): Promise<void> {
+    const db = dbRef.current;
+    const engine = engineRef.current;
+    if (!db || !engine || hashes.length === 0) return;
+    if (!contract?.ok) {
+      setNotice({
+        kind: "error",
+        text: "The active contract is not verified — completion is blocked.",
+      });
+      return;
+    }
+
+    setBusy(true);
+    let completed = 0;
+    let withDecisions = 0;
+    let failed = 0;
+
+    for (const hash of hashes) {
+      const signal = { aborted: false };
+      cancelRef.current.set(hash, signal);
+      setCompleting((prev) => new Map(prev).set(hash, "Starting…"));
+      try {
+        const item = await db.get(hash);
+        if (!item) continue;
+
+        const record = await completeUpgrade({
+          engine,
+          schema: schemaJson as Record<string, unknown>,
+          contract,
+          filename: item.sourceFilename,
+          bytes: item.sourceBytes,
+          transport: transportRef.current,
+          signal,
+          onPhase: (phase, detail) => {
+            setCompleting((prev) =>
+              new Map(prev).set(
+                hash,
+                detail
+                  ? `${PHASE_LABEL[phase]} — ${detail}`
+                  : PHASE_LABEL[phase]
+              )
+            );
+          },
+        });
+
+        const candidateBytes = record.candidate
+          ? (utf8Bytes(record.candidate.text).buffer as ArrayBuffer)
+          : null;
+        await saveCompletion(
+          db,
+          hash,
+          record,
+          candidateBytes,
+          new Date().toISOString()
+        );
+        await refresh();
+
+        if (record.status === "CANDIDATE_READY") completed++;
+        else if (record.status === "READY_WITH_HUMAN_DECISIONS") {
+          completed++;
+          withDecisions += record.counts.humanDecisions;
+        } else if (
+          record.status === "HUMAN_DECISION_REQUIRED" ||
+          record.status === "CURRENT_V3_2_NO_CHANGE"
+        ) {
+          withDecisions += record.counts.humanDecisions;
+        } else {
+          failed++;
+          setNotice({
+            kind: "error",
+            text:
+              record.status === "BLOCKED_PROVIDER_AUTHORIZATION"
+                ? `Research is not configured on the server: ${record.blocker ?? ""}`
+                : `"${item.sourceFilename}" could not be completed: ${
+                    record.blocker ?? record.status
+                  }. The original is unchanged — retry is safe.`,
+          });
+        }
+      } catch (err) {
+        if (err instanceof CompletionCancelled) {
+          setNotice({
+            kind: "info",
+            text: "Completion cancelled. The original file and all other work items are unchanged.",
+          });
+        } else {
+          failed++;
+          setNotice({
+            kind: "error",
+            text: `Completion failed for one file: ${
+              err instanceof Error ? err.message : String(err)
+            }. The original is unchanged — retry is safe.`,
+          });
+        }
+      } finally {
+        cancelRef.current.delete(hash);
+        setCompleting((prev) => {
+          const next = new Map(prev);
+          next.delete(hash);
+          return next;
+        });
+      }
+    }
+
+    setBusy(false);
+    if (completed > 0 && failed === 0) {
+      setNotice({
+        kind: "info",
+        text: `${completed} candidate${completed === 1 ? "" : "s"} completed${
+          withDecisions > 0
+            ? ` · ${withDecisions} decision${
+                withDecisions === 1 ? "" : "s"
+              } noted for you`
+            : ""
+        }.`,
+      });
+    }
+  }
+
+  function cancelCompletion(hash?: string): void {
+    if (hash) {
+      const signal = cancelRef.current.get(hash);
+      if (signal) signal.aborted = true;
+      return;
+    }
+    for (const signal of cancelRef.current.values()) signal.aborted = true;
+  }
+
+  /** Files with supportable work left that the room can complete. */
+  const completable = useMemo(
+    () => items.filter((i) => COMPLETABLE_STATUSES.includes(rowStatus(i))),
+    [items]
+  );
+
   /* ── Downloads (always re-verified from exact stored bytes) ──────────── */
 
   async function downloadOriginal(item: WorkItem): Promise<void> {
@@ -382,6 +581,27 @@ export default function VaultSpecificationUpgrade({
   }
 
   async function downloadReport(item: WorkItem): Promise<void> {
+    const source = {
+      filename: item.sourceFilename,
+      sha256: item.sourceSha256,
+      byteLength: item.sourceByteLength,
+    };
+    /* After a completion the operative record is the completion report —
+       it carries the researched facts and their sources, which the
+       structural change report has no place for. */
+    if (contract?.ok && item.completion) {
+      const report = buildCompletionReport(
+        contract.identity,
+        source,
+        item.completion
+      );
+      downloadBlob(
+        completionReportFilename(report),
+        serializeCompletionReport(report),
+        "application/json"
+      );
+      return;
+    }
     const report = reportFor(item);
     if (!report) {
       setNotice({
@@ -607,7 +827,8 @@ export default function VaultSpecificationUpgrade({
   );
 
   const candidates = useMemo(
-    () => filtered.filter((i) => i.analysis?.candidate),
+    () =>
+      filtered.filter((i) => i.completion?.candidate ?? i.analysis?.candidate),
     [filtered]
   );
 
@@ -872,6 +1093,7 @@ export default function VaultSpecificationUpgrade({
                     const meta = STATUS_META[status];
                     const isActive = activeHash === item.sourceSha256;
                     const isAnalyzing = analyzing.has(item.sourceSha256);
+                    const progress = completing.get(item.sourceSha256) ?? null;
                     return (
                       <tr
                         key={item.sourceSha256}
@@ -921,18 +1143,44 @@ export default function VaultSpecificationUpgrade({
                         </td>
                         <td className="px-2 py-2.5 align-top">
                           <span
-                            className={`text-[10px] uppercase tracking-[1px] ${meta.className}`}
+                            className={`text-[10px] uppercase tracking-[1px] ${
+                              progress ? "text-[var(--gold)]" : meta.className
+                            }`}
                           >
-                            {isAnalyzing
-                              ? "… Analyzing"
-                              : `${meta.glyph} ${meta.label}`}
+                            {progress
+                              ? `… ${progress}`
+                              : isAnalyzing
+                                ? "… Analyzing"
+                                : `${meta.glyph} ${meta.label}`}
                           </span>
-                          {item.analysis &&
+                          {progress ? (
+                            <button
+                              type="button"
+                              className="mt-0.5 block text-[10px] uppercase tracking-[1px] text-[var(--muted)] underline hover:text-[var(--platinum)]"
+                              onClick={() =>
+                                cancelCompletion(item.sourceSha256)
+                              }
+                            >
+                              Cancel this file
+                            </button>
+                          ) : item.completion ? (
+                            item.completion.counts.humanDecisions > 0 && (
+                              <div className="mt-0.5 text-[10px] text-[#779ec8]">
+                                {item.completion.counts.humanDecisions} decision
+                                {item.completion.counts.humanDecisions === 1
+                                  ? ""
+                                  : "s"}{" "}
+                                for you
+                              </div>
+                            )
+                          ) : (
+                            item.analysis &&
                             item.analysis.counts.unresolved > 0 && (
                               <div className="mt-0.5 text-[10px] text-[var(--muted)]">
                                 {item.analysis.counts.unresolved} unresolved
                               </div>
-                            )}
+                            )
+                          )}
                         </td>
                       </tr>
                     );
@@ -941,30 +1189,75 @@ export default function VaultSpecificationUpgrade({
               </table>
             )}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-4 py-3">
-            <div className="text-[11px] text-[var(--muted)]">
-              {unanalyzed > 0
-                ? `${unanalyzed} awaiting analysis`
-                : "All files analyzed"}
+          <div className="border-t border-[var(--border-subtle)] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[11px] text-[var(--muted)]">
+                {completing.size > 0
+                  ? `${completing.size} file${
+                      completing.size === 1 ? "" : "s"
+                    } in progress`
+                  : unanalyzed > 0
+                    ? `${unanalyzed} awaiting analysis`
+                    : `All files analyzed · ${completable.length} with work remaining`}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {completing.size > 0 && (
+                  <button
+                    type="button"
+                    className={BTN}
+                    onClick={() => cancelCompletion()}
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={BTN}
+                  disabled={busy || selection.size === 0}
+                  onClick={() => void analyze([...selection])}
+                >
+                  Analyze selected
+                </button>
+                <button
+                  type="button"
+                  className={BTN}
+                  disabled={busy || items.length === 0 || !contract?.ok}
+                  onClick={() => void analyze(items.map((i) => i.sourceSha256))}
+                >
+                  {busy && completing.size === 0 ? "Analyzing…" : "Analyze all"}
+                </button>
+                <button
+                  type="button"
+                  className={BTN}
+                  disabled={busy || selection.size === 0 || !contract?.ok}
+                  onClick={() => void runCompletion([...selection])}
+                >
+                  Complete upgrade
+                </button>
+                <button
+                  type="button"
+                  className={BTN_GOLD}
+                  disabled={
+                    busy || completable.length === 0 || !contract?.ok
+                  }
+                  onClick={() =>
+                    void runCompletion(
+                      completable.map((i) => i.sourceSha256)
+                    )
+                  }
+                >
+                  {completing.size > 0
+                    ? "Completing…"
+                    : "Complete all researchable"}
+                </button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={BTN}
-                disabled={busy || selection.size === 0}
-                onClick={() => void analyze([...selection])}
-              >
-                Analyze selected
-              </button>
-              <button
-                type="button"
-                className={BTN_GOLD}
-                disabled={busy || items.length === 0 || !contract?.ok}
-                onClick={() => void analyze(items.map((i) => i.sourceSha256))}
-              >
-                {busy ? "Analyzing…" : "Analyze all"}
-              </button>
-            </div>
+            <p className="mt-2 text-[10px] italic leading-relaxed text-[var(--muted)]">
+              Completing researches the facts the specification requires and
+              fills them in with their sources recorded. Facts that cannot be
+              sourced are left empty and shown to you &mdash; nothing is
+              guessed.
+            </p>
           </div>
         </div>
 
@@ -1011,7 +1304,9 @@ export default function VaultSpecificationUpgrade({
                 </thead>
                 <tbody className="divide-y divide-[var(--border-faint)]">
                   {candidates.map((item) => {
-                    const cand = item.analysis!.candidate!;
+                    const cand = (item.completion?.candidate ??
+                      item.analysis?.candidate)!;
+                    const meta = STATUS_META[rowStatus(item)];
                     const isActive = activeHash === item.sourceSha256;
                     return (
                       <tr
@@ -1037,9 +1332,21 @@ export default function VaultSpecificationUpgrade({
                           </button>
                         </td>
                         <td className="px-2 py-2.5 align-top">
-                          <span className="text-[10px] uppercase tracking-[1px] text-[var(--gold)]">
-                            &#10022; Upgrade ready
+                          <span
+                            className={`text-[10px] uppercase tracking-[1px] ${meta.className}`}
+                          >
+                            {meta.glyph} {meta.label}
                           </span>
+                          {item.completion &&
+                            item.completion.counts.humanDecisions > 0 && (
+                              <div className="mt-0.5 text-[10px] text-[#779ec8]">
+                                {item.completion.counts.humanDecisions} decision
+                                {item.completion.counts.humanDecisions === 1
+                                  ? ""
+                                  : "s"}{" "}
+                                for you
+                              </div>
+                            )}
                           {item.staging && (
                             <div className="mt-0.5 text-[10px] text-[var(--gold-dim)]">
                               &#9635; staged
@@ -1148,6 +1455,8 @@ export default function VaultSpecificationUpgrade({
             }
             onRemoveCandidate={() => void removeCandidateFor(activeItem)}
             onDismiss={() => void dismissItem(activeItem)}
+            onComplete={() => void runCompletion([activeItem.sourceSha256])}
+            completing={completing.get(activeItem.sourceSha256) ?? null}
           />
         )}
       </section>
@@ -1181,6 +1490,8 @@ function ReviewSurface({
   onHoldForDecision,
   onRemoveCandidate,
   onDismiss,
+  onComplete,
+  completing,
 }: {
   item: WorkItem;
   tab: ReviewTab;
@@ -1195,11 +1506,20 @@ function ReviewSurface({
   onHoldForDecision: () => void;
   onRemoveCandidate: () => void;
   onDismiss: () => void;
+  onComplete: () => void;
+  completing: string | null;
 }) {
   const analysis = item.analysis;
+  const completion = item.completion;
   const status = rowStatus(item);
   const meta = STATUS_META[status];
-  const hasCandidate = Boolean(analysis?.candidate);
+  const hasCandidate = Boolean(completion?.candidate ?? analysis?.candidate);
+  const canComplete = COMPLETABLE_STATUSES.includes(status);
+  /* After completion the full ledger — structural transforms plus every
+     applied researched fact — lives on the completion record. */
+  const ledgerRows = completion?.ledger ?? analysis?.ledger ?? [];
+  const activeCandidate = completion?.candidate ?? analysis?.candidate ?? null;
+  const openIssues = completion?.issues ?? analysis?.issues ?? [];
 
   const originalText = useMemo(
     () => utf8Text(item.sourceBytes),
@@ -1271,6 +1591,21 @@ function ReviewSurface({
         <button type="button" className={BTN} onClick={onDownloadOriginal}>
           Download Original
         </button>
+        {canComplete && (
+          <button
+            type="button"
+            className={BTN_GOLD}
+            disabled={completing !== null}
+            onClick={onComplete}
+          >
+            {completing !== null
+              ? completing
+              : status === "FAILED_RETRYABLE" ||
+                  status === "BLOCKED_PROVIDER_AUTHORIZATION"
+                ? "Retry Completion"
+                : "Complete Upgrade"}
+          </button>
+        )}
         {hasCandidate && (
           <>
             <button
@@ -1287,7 +1622,7 @@ function ReviewSurface({
         )}
         {analysis && (
           <button type="button" className={BTN} onClick={onDownloadReport}>
-            Download Change Report
+            {completion ? "Download Completion Report" : "Download Change Report"}
           </button>
         )}
         {hasCandidate && !item.staging && (
@@ -1343,7 +1678,41 @@ function ReviewSurface({
       <div className="px-5 py-5">
         {tab === "summary" && (
           <div>
-            {analysis ? (
+            {completion ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <SummaryCard
+                    label="Completed structurally"
+                    value={completion.counts.completedStructurally}
+                    detail="Closed by the specification's own rules."
+                  />
+                  <SummaryCard
+                    label="Completed by research"
+                    value={completion.counts.completedByResearch}
+                    detail="Each one has its sources under Sources."
+                  />
+                  <SummaryCard
+                    label="References added"
+                    value={completion.counts.referencesAdded}
+                    detail={`${completion.counts.emptyReferencesRetained} variant(s) correctly kept an empty list.`}
+                  />
+                  <SummaryCard
+                    label="Your decisions"
+                    value={completion.counts.humanDecisions}
+                    detail="Listed under Your Decisions."
+                  />
+                </div>
+                <p className="mt-4 text-[12px] text-[var(--muted)]">
+                  {completion.candidate
+                    ? "The candidate passed every applicable v3.2 check. Totals alone never authorize staging."
+                    : "No candidate was frozen — the items under Your Decisions must be settled first."}
+                  {completion.counts.researchRounds > 0 &&
+                    ` Research ran in ${completion.counts.researchRounds} round${
+                      completion.counts.researchRounds === 1 ? "" : "s"
+                    }.`}
+                </p>
+              </>
+            ) : analysis ? (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <SummaryCard
@@ -1352,9 +1721,9 @@ function ReviewSurface({
                     detail="Every one appears in Exact Changes."
                   />
                   <SummaryCard
-                    label="Containers added"
-                    value={analysis.counts.addedContainers}
-                    detail="Required empty arrays only — no values invented."
+                    label="Legacy fields disposed"
+                    value={analysis.counts.omittedLegacyFields}
+                    detail="Exact values retained in the change report."
                   />
                   <SummaryCard
                     label="References converted"
@@ -1380,9 +1749,163 @@ function ReviewSurface({
           </div>
         )}
 
+        {tab === "decisions" && (
+          <div>
+            {!completion ? (
+              <p className="text-[12px] italic text-[var(--muted)]">
+                Run Complete Upgrade to see what genuinely needs you.
+              </p>
+            ) : completion.decisions.length === 0 ? (
+              <p className="text-[12px] text-[var(--platinum-dim)]">
+                Nothing needs a decision. Every supportable fact was
+                established and recorded with its sources.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-[12px] text-[var(--muted)]">
+                  These are the only items research could not settle safely.
+                  Everything else is already done.
+                </p>
+                {completion.decisions.map((d, i) => (
+                  <div
+                    key={`${d.path}-${i}`}
+                    className="border border-[var(--border-mid)] px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="break-all font-mono text-[11px] text-[var(--platinum)]">
+                        {d.path}
+                      </div>
+                      <div
+                        className={`text-[9px] uppercase tracking-[1.5px] ${
+                          d.scope === "STRUCTURAL"
+                            ? "text-[var(--danger)]"
+                            : "text-[#779ec8]"
+                        }`}
+                      >
+                        {d.scope === "STRUCTURAL"
+                          ? "Holds the candidate"
+                          : "Field only"}
+                      </div>
+                    </div>
+                    <div className="mt-1.5 text-[12px] text-[var(--platinum-dim)]">
+                      {d.issue}
+                    </div>
+                    <div className="mt-1 text-[11px] italic text-[var(--muted)]">
+                      {d.whyNotAutomatic}
+                    </div>
+                    {d.options.length > 0 && (
+                      <div className="mt-2.5 space-y-1.5">
+                        <div className="text-[9px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                          Evidence supports
+                        </div>
+                        {d.options.map((o, oi) => (
+                          <div
+                            key={oi}
+                            className="border-l border-[var(--border-mid)] pl-3"
+                          >
+                            <div className="text-[12px] text-[var(--platinum)]">
+                              {o.value}
+                            </div>
+                            <div className="text-[11px] text-[var(--muted)]">
+                              {o.evidence}
+                            </div>
+                            {o.sources.map((s, si) => (
+                              <a
+                                key={si}
+                                href={s.url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="block break-all text-[10px] text-[var(--gold-dim)] underline"
+                              >
+                                {s.title}
+                              </a>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "sources" && (
+          <div className="overflow-x-auto">
+            {!completion || completion.provenance.length === 0 ? (
+              <p className="text-[12px] italic text-[var(--muted)]">
+                No researched facts yet. Run Complete Upgrade.
+              </p>
+            ) : (
+              <table className="w-full min-w-[640px] border-collapse text-[11px]">
+                <thead>
+                  <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                    <th className="px-2 py-2">Path</th>
+                    <th className="px-2 py-2">Outcome</th>
+                    <th className="px-2 py-2">Value applied</th>
+                    <th className="px-2 py-2">Evidence</th>
+                    <th className="px-2 py-2">Sources</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-faint)]">
+                  {completion.provenance.map((p, i) => (
+                    <tr key={`${p.path}-${i}`} className="align-top">
+                      <td className="break-all px-2 py-2 font-mono text-[10px] text-[var(--platinum-dim)]">
+                        {p.path}
+                      </td>
+                      <td
+                        className={`px-2 py-2 ${
+                          p.outcome === "VERIFIED"
+                            ? "text-[#78b58a]"
+                            : p.outcome === "UNRESOLVED"
+                              ? "text-[#779ec8]"
+                              : "text-[var(--muted)]"
+                        }`}
+                      >
+                        {p.outcome}
+                        <div className="text-[9px] uppercase tracking-[1px] text-[var(--slate)]">
+                          {p.pass} pass
+                        </div>
+                      </td>
+                      <td
+                        className="px-2 py-2 font-mono text-[10px] text-[var(--muted)]"
+                        title={shortValue(p.finalValue, 2000)}
+                      >
+                        {shortValue(p.finalValue)}
+                      </td>
+                      <td className="px-2 py-2 text-[var(--muted)]">
+                        {p.evidence}
+                      </td>
+                      <td className="px-2 py-2">
+                        {p.sources.length === 0 ? (
+                          <span className="text-[var(--slate)]">—</span>
+                        ) : (
+                          p.sources.map((s, si) => (
+                            <a
+                              key={si}
+                              href={s.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="block break-all text-[10px] text-[var(--gold-dim)] underline"
+                            >
+                              {s.publisher ? `${s.publisher} — ` : ""}
+                              {s.title}
+                            </a>
+                          ))
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
         {tab === "changes" && (
           <div className="overflow-x-auto">
-            {analysis && analysis.ledger.length > 0 ? (
+            {ledgerRows.length > 0 ? (
               <table className="w-full min-w-[640px] border-collapse text-[11px]">
                 <thead>
                   <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
@@ -1396,7 +1919,7 @@ function ReviewSurface({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-faint)]">
-                  {analysis.ledger.map((row, i) => (
+                  {ledgerRows.map((row, i) => (
                     <tr key={i} className="align-top">
                       <td className="break-all px-2 py-2 font-mono text-[10px] text-[var(--platinum-dim)]">
                         {row.path}
@@ -1441,9 +1964,9 @@ function ReviewSurface({
 
         {tab === "unresolved" && (
           <div>
-            {analysis && analysis.issues.length > 0 ? (
+            {openIssues.length > 0 ? (
               <ul className="space-y-3">
-                {analysis.issues.map((issue, i) => (
+                {openIssues.map((issue, i) => (
                   <li
                     key={i}
                     className="border border-[var(--border-faint)] px-4 py-3"
@@ -1472,7 +1995,11 @@ function ReviewSurface({
               </ul>
             ) : (
               <p className="text-[12px] italic text-[var(--muted)]">
-                {analysis ? "No unresolved items." : "Not analyzed yet."}
+                {completion
+                  ? "No unresolved contract findings remain."
+                  : analysis
+                    ? "No unresolved items."
+                    : "Not analyzed yet."}
               </p>
             )}
           </div>
@@ -1497,16 +2024,16 @@ function ReviewSurface({
 
         {tab === "candidate" && (
           <div>
-            {analysis?.candidate ? (
+            {activeCandidate ? (
               <>
                 <div className="mb-2 break-all text-[11px] text-[var(--muted)]">
-                  {analysis.candidate.filename} &middot; SHA-256{" "}
+                  {activeCandidate.filename} &middot; SHA-256{" "}
                   <span className="font-mono text-[10px]">
-                    {analysis.candidate.sha256}
+                    {activeCandidate.sha256}
                   </span>
                 </div>
                 <pre className="max-h-[420px] overflow-auto border border-[var(--border-faint)] bg-[var(--ink)] p-4 font-mono text-[11px] leading-relaxed text-[var(--platinum-dim)]">
-                  {analysis.candidate.text}
+                  {activeCandidate.text}
                 </pre>
               </>
             ) : (

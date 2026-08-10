@@ -19,6 +19,7 @@ import { serializeCandidate, stableStringify } from "./canonicalize.ts";
 import { sha256HexOfBytes, sha256HexOfText, utf8Bytes, utf8Text } from "./hash.ts";
 import {
   ADDABLE_EMPTY_CONTAINERS,
+  GOVERNED_LEGACY_DISPOSITIONS,
   LEGACY_LIFECYCLE_MOVES,
   LEGACY_RENAMES,
   RULE_ADD_REQUIRED_EMPTY,
@@ -54,11 +55,27 @@ function wordCount(text: string): number {
 
 /* ── Engine factory ────────────────────────────────────────────────────── */
 
+/**
+ * The transformed working document alongside its analysis. The completion
+ * pass needs the document itself to continue working on; ordinary analysis
+ * discards it. `document` is null when the source never reached the
+ * transform stage (unparseable, unsupported, or ambiguous input).
+ */
+export type PreparedSource = {
+  record: AnalysisRecord;
+  document: Record<string, unknown> | null;
+};
+
 export type UpgradeEngine = {
   analyzeSource: (input: {
     filename: string;
     bytes: ArrayBuffer | Uint8Array;
   }) => Promise<AnalysisRecord>;
+  /** Same deterministic pass, keeping the transformed document. */
+  prepareSource: (input: {
+    filename: string;
+    bytes: ArrayBuffer | Uint8Array;
+  }) => Promise<PreparedSource>;
 };
 
 export function createUpgradeEngine(
@@ -74,10 +91,10 @@ export function createUpgradeEngine(
     return validator;
   }
 
-  async function analyzeSource(input: {
-    filename: string;
-    bytes: ArrayBuffer | Uint8Array;
-  }): Promise<AnalysisRecord> {
+  async function runAnalysis(
+    input: { filename: string; bytes: ArrayBuffer | Uint8Array },
+    holder: { doc: PlainObject | null }
+  ): Promise<AnalysisRecord> {
     const sourceSha256 = await sha256HexOfBytes(input.bytes);
     const specificationSha256 = contract.ok
       ? contract.identity.specificationSha256
@@ -94,6 +111,7 @@ export function createUpgradeEngine(
         movedValues: 0,
         addedContainers: 0,
         convertedReferences: 0,
+        omittedLegacyFields: 0,
         unresolved: 0,
       },
       sourceSha256,
@@ -143,12 +161,14 @@ export function createUpgradeEngine(
 
     /* 4 — apply registered transforms to a working copy. */
     const doc = JSON.parse(text) as PlainObject;
+    holder.doc = doc;
     const ledger: LedgerRow[] = [];
     const issues: AnalysisIssue[] = [];
 
     if (detection.mappingSelected.includes("legacy-lowercase")) {
       applyLegacyRenames(doc, ledger);
     }
+    applyGovernedDispositions(doc, ledger);
     applyLifecycleMoves(doc, ledger, issues);
     addRequiredEmptyContainers(doc, ledger);
     convertReferenceStrings(doc, ledger, issues);
@@ -178,6 +198,9 @@ export function createUpgradeEngine(
         .length,
       convertedReferences: ledger.filter(
         (r) => r.action === "convert-reference-string"
+      ).length,
+      omittedLegacyFields: ledger.filter(
+        (r) => r.action === "omit-legacy-field"
       ).length,
       unresolved: issues.length,
     };
@@ -242,7 +265,23 @@ export function createUpgradeEngine(
     return record;
   }
 
-  return { analyzeSource };
+  async function prepareSource(input: {
+    filename: string;
+    bytes: ArrayBuffer | Uint8Array;
+  }): Promise<PreparedSource> {
+    const holder: { doc: PlainObject | null } = { doc: null };
+    const record = await runAnalysis(input, holder);
+    return { record, document: holder.doc };
+  }
+
+  async function analyzeSource(input: {
+    filename: string;
+    bytes: ArrayBuffer | Uint8Array;
+  }): Promise<AnalysisRecord> {
+    return (await prepareSource(input)).record;
+  }
+
+  return { analyzeSource, prepareSource };
 }
 
 /* ── Source-format detection ───────────────────────────────────────────── */
@@ -451,6 +490,54 @@ function applyLegacyRenames(doc: PlainObject, ledger: LedgerRow[]): void {
           });
         }
       }
+    });
+  });
+}
+
+/**
+ * Omit registered legacy fields whose disposition the specification itself
+ * decides. Only the exact fields in the registry are touched; anything else
+ * outside the closed schema still stops the upgrade for a human. The exact
+ * removed value is written to the ledger so the change report retains the
+ * legacy material the candidate no longer carries.
+ */
+function applyGovernedDispositions(
+  doc: PlainObject,
+  ledger: LedgerRow[]
+): void {
+  function dispose(
+    obj: PlainObject,
+    level: "brand" | "collection" | "family",
+    basePath: string
+  ): void {
+    for (const rule of GOVERNED_LEGACY_DISPOSITIONS) {
+      if (rule.level !== level) continue;
+      if (!Object.prototype.hasOwnProperty.call(obj, rule.field)) continue;
+      const removed = obj[rule.field];
+      delete obj[rule.field];
+      ledger.push({
+        path: `${basePath}/${rule.field}`,
+        action: "omit-legacy-field",
+        before: removed,
+        after: null,
+        reason: `${rule.reason} Governing clause: ${rule.specClause}`,
+        rule: rule.rule,
+        severity: "structural",
+      });
+    }
+  }
+
+  dispose(doc, "brand", "");
+  const collections = Array.isArray(doc.Collections) ? doc.Collections : [];
+  collections.forEach((collection, ci) => {
+    if (!isPlainObject(collection)) return;
+    dispose(collection, "collection", `/Collections/${ci}`);
+    const families = Array.isArray(collection.Families)
+      ? collection.Families
+      : [];
+    families.forEach((family, fi) => {
+      if (!isPlainObject(family)) return;
+      dispose(family, "family", `/Collections/${ci}/Families/${fi}`);
     });
   });
 }
