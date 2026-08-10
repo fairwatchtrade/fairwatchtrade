@@ -553,7 +553,7 @@ async function complete(fixture, transport, extra = {}) {
   const unauthorized = async () => ({
     ok: false,
     code: "VAULT_UPGRADE_RESEARCH_PROVIDER_AUTHORIZATION_REQUIRED",
-    detail: "ANTHROPIC_API_KEY is not configured.",
+    detail: "The research provider credential is not configured.",
   });
   const blocked = await complete(GAPS, unauthorized);
   ok(
@@ -664,6 +664,17 @@ async function complete(fixture, transport, extra = {}) {
   ok(
     "the credential never reaches the browser bundle",
     !engineSources.some((s) => /ANTHROPIC_API_KEY/.test(s))
+  );
+  /* Provider identity is configuration, not a result. The model identifier
+     belongs in the outbound call and nowhere else — a second occurrence means
+     it has been put back into a response body the room's browser can read. */
+  ok(
+    "the model identifier appears only in the outbound provider call",
+    (route.match(/model:\s*MODEL/g) ?? []).length === 1
+  );
+  ok(
+    "no message returned to the room names the credential",
+    !/"[^"\n]*ANTHROPIC[^"\n]*"/.test(route)
   );
   ok(
     "an unauthenticated caller is refused before any work",

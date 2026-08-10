@@ -8,7 +8,10 @@
    - it never reads or writes Vault taxonomy, never reconciles, never
      applies, never touches Galaxy state, never persists anything;
    - the provider credential is read from the server environment and never
-     leaves it — no key, no header, and no request body is ever logged.
+     leaves it — no key, no header, and no request body is ever logged;
+   - no response this route returns ever names the provider, the model, or
+     the credential. Configuration stays server-side. The room is told what
+     happened, never who did it — do not add an identifying field back.
 
    The room is Machine 1 (Specification Upgrade). Producing a candidate is
    the whole job; a candidate is still only a candidate.
@@ -142,7 +145,7 @@ export async function POST(req: Request) {
   if (!apiKey) {
     return bad(
       "VAULT_UPGRADE_RESEARCH_PROVIDER_AUTHORIZATION_REQUIRED",
-      "ANTHROPIC_API_KEY is not configured in this server environment, so bounded research cannot run.",
+      "The research provider credential is not configured in this server environment, so bounded research cannot run.",
       503
     );
   }
@@ -264,7 +267,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     pass,
-    model: MODEL,
     sourceSha256: body.sourceSha256,
     results: validated.results,
     unanswered: validated.unanswered,
