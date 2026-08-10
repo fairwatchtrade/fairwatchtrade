@@ -1284,9 +1284,16 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         {row.model ?? row.brand}
                       </div>
 
-                      {/* Reference / meta */}
+                      {/* Reference / meta — THE SCANNING LINE. A collector
+                          reads down a grid looking for "Champagne" or
+                          "Stainless Steel" to decide whether to stop, so this
+                          is the text doing the most work per pixel on the
+                          card, and it was 10px in the palette's second-dimmest
+                          tone. 13px in --slate, with room to breathe when it
+                          wraps. Still plainly secondary: the model is 15px
+                          display in --platinum and the price 17px above it. */}
                       {meta && (
-                        <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                        <div className="mb-3 text-[13px] leading-[1.5] tracking-[0.2px] text-[var(--slate)]">
                           {attrs ? `${meta} · ${attrs}` : meta}
                         </div>
                       )}

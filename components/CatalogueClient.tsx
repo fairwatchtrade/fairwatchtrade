@@ -295,8 +295,11 @@ function ListingCard({ row }: { row: ListingRow }) {
       <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
         {row.model ?? row.brand}
       </div>
+      {/* Same scanning line as the Browse card, kept identical on purpose:
+          the two grids are read the same way and must not drift. See the note
+          in BrowseClient for why this is 13px rather than 10px. */}
       {meta && (
-        <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+        <div className="mb-3 text-[13px] leading-[1.5] tracking-[0.2px] text-[var(--slate)]">
           {attrs ? `${meta} · ${attrs}` : meta}
         </div>
       )}
