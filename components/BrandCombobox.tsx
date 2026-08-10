@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { WATCH_BRANDS } from "@/lib/brands";
-import { createClient } from "@/lib/supabase/client";
 import {
-  buildBrandIndex,
   matchBrands,
   normalizeBrand,
   resolveTypedBrand,
   MIN_BRAND_CHARS,
-  type VaultBrandRow,
 } from "@/lib/brandIndex";
+import { useBrandIndex } from "@/components/useBrandIndex";
 
 /* ────────────────────────────────────────────────────────────────────────
    BRAND COMBOBOX — type-ahead over the platform's brand corpus.
@@ -53,7 +50,6 @@ export default function BrandCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [activeIdx, setActiveIdx] = useState(0);
-  const [vaultRows, setVaultRows] = useState<VaultBrandRow[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Keep the visible text in sync if the parent value changes externally.
@@ -61,33 +57,9 @@ export default function BrandCombobox({
     setQuery(value);
   }, [value]);
 
-  /* Widen the corpus from the Vault once. Composed, never copied — and a
-     failure here is silent by design: the static list already stands. */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("vault_brands")
-          .select("name, search_aliases")
-          .order("name");
-        if (!cancelled && Array.isArray(data)) {
-          setVaultRows(data as VaultBrandRow[]);
-        }
-      } catch {
-        /* the static list is the floor — a failed widen is never a broken field */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const index = useMemo(
-    () => buildBrandIndex(WATCH_BRANDS, vaultRows),
-    [vaultRows]
-  );
+  /* The shared index — the same object the model field beside this one
+     reads, so the two can never disagree about what a brand is. */
+  const index = useBrandIndex();
 
   const matches = useMemo(() => matchBrands(query, index), [query, index]);
 

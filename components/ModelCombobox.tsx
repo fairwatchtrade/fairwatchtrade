@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BRANDS_MODELS, type BrandModels } from "@/lib/brandsModels";
+import { normalizeBrand, resolveTypedBrand } from "@/lib/brandIndex";
+import { useBrandIndex } from "@/components/useBrandIndex";
 
 /* ────────────────────────────────────────────────────────────────────────
    MODEL COMBOBOX — type-ahead over a brand's models from BRANDS_MODELS.
@@ -17,19 +19,8 @@ import { BRANDS_MODELS, type BrandModels } from "@/lib/brandsModels";
    Enter commits the active match and advances focus to the Reference field.
    ──────────────────────────────────────────────────────────────────────── */
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents
-    .replace(/[^a-z0-9]/g, ""); // drop spaces & punctuation
-}
-
-// Normalized brand-name → brand entry, built once.
-const BRAND_INDEX = new Map<string, BrandModels>();
-for (const b of BRANDS_MODELS) {
-  BRAND_INDEX.set(normalize(b.name), b);
-}
+/* One normalization, shared with the brand field — never a second copy. */
+const normalize = normalizeBrand;
 
 export default function ModelCombobox({
   value,
@@ -58,11 +49,35 @@ export default function ModelCombobox({
     setQuery(value);
   }, [value]);
 
-  // Resolve the brand entry from the JSON by normalized name.
+  /* The same authoritative, alias-aware index the brand field uses. */
+  const index = useBrandIndex();
+
+  /* Model arrays keyed by the CANONICAL brand each entry resolves to, rather
+     than by whatever string this legacy corpus happens to store. That is the
+     whole repair: "Victorinox Swiss Army" and "Sarpaneva Watches" are the
+     Vault's own declared aliases for brands a seller can pick, so their
+     models were unreachable purely because two fields disagreed about the
+     name. Entries that resolve to nothing keep their own name as the key, so
+     nothing is silently re-pointed; where two entries land on one canonical,
+     the richer array wins rather than whichever was parsed last. */
+  const modelsByBrand = useMemo(() => {
+    const map = new Map<string, BrandModels>();
+    for (const b of BRANDS_MODELS) {
+      const resolved = resolveTypedBrand(b.name, index);
+      const key = normalize(resolved.isCustom ? b.name : resolved.name);
+      const held = map.get(key);
+      if (!held || b.models.length > held.models.length) map.set(key, b);
+    }
+    return map;
+  }, [index]);
+
   const brandEntry = useMemo(() => {
-    const n = normalize(brandName ?? "");
-    return n ? BRAND_INDEX.get(n) : undefined;
-  }, [brandName]);
+    const typed = normalize(brandName ?? "");
+    if (!typed) return undefined;
+    const canonical = normalize(resolveTypedBrand(brandName, index).name);
+    // Canonical first; the raw name still resolves an off-corpus entry.
+    return modelsByBrand.get(canonical) ?? modelsByBrand.get(typed);
+  }, [brandName, index, modelsByBrand]);
 
   const hasModels = !!brandEntry && brandEntry.models.length > 0;
   // Disabled only when no brand has been entered. A brand that's present but
