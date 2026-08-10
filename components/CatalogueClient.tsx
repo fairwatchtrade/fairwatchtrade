@@ -940,15 +940,21 @@ export default function CatalogueClient({
         {/* Catalogue Match hero — State 2 (the honest state for v1.90).
             The gold border/background are present in BOTH states so the hero
             stays dominant even when empty. It is the promise, not the result. */}
-        <div className="mt-6 border border-[rgba(201,168,76,0.28)] bg-[var(--gold-whisper)] px-8 py-8">
+        {/* Density correction (2026-08-09): measured at 153px tall for 89px
+            of content — 64px of padding, 72% of what it was wrapping — which
+            pushed Correspondence, My Offers and Discovery down the page for
+            three short lines. Padding tightened, nothing else: the gold
+            border and wash, the eyebrow, the heading, the sentence and the
+            hero's dominance over the sections beneath it are unchanged. */}
+        <div className="mt-6 border border-[rgba(201,168,76,0.28)] bg-[var(--gold-whisper)] px-7 py-5">
           {/* TODO: Phase 2 — State 1 (a real catalogue match exists): same gold
               border/background, headline "Did your watch finally appear?", a
               match card with listing details and a "View listing →" button.
               Requires the catalogue table (Phase 2). Not implemented in v1.90. */}
-          <div className="mb-3 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-2 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             Catalogue Match
           </div>
-          <div className="mb-2 font-display text-[22px] font-light text-[var(--platinum)]">
+          <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
             We&apos;re watching for you.
           </div>
           <div className="text-[13px] leading-relaxed text-[var(--muted)]">
