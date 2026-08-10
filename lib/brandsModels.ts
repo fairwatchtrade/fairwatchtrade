@@ -1634,7 +1634,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_037",
-    "name": "Fears Watch Company",
+    "name": "Fears",
     "founding_snippet": "Originally founded in Bristol, England, in 1846 by Edwin Fears, the historic British house was brilliantly revived in 2016 by his great-great-great-grandson Nicholas Bowman-Scargill. The independent brand focuses on flawless, elegant dress watches characterized by traditional British cushion cases and bespoke custom dial typography.",
     "models": [
       {
@@ -1871,7 +1871,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_043",
-    "name": "Gallet & Co.",
+    "name": "Gallet",
     "founding_snippet": "Tracing an unbroken watchmaking lineage back to Humbertus Gallet in 1466, it represents the oldest clock and watch house in existence. The historic firm became the definitive mid-century standard for professional military, naval, and aviation timing, immortalized by their legendary 'Flying Officer' and 'MultiChron' chronograph configurations.",
     "models": [
       {
@@ -3228,7 +3228,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_085",
-    "name": "MB&F (Maximilian Büsser & Friends)",
+    "name": "MB&F",
     "founding_snippet": "Founded in 2005 by Maximilian Büsser. MB&F is not a traditional watch brand, but a creative laboratory that collaborates with elite independent watchmakers ('Friends') to create three-dimensional 'Horological Machines' and 'Legacy Machines' that defy traditional watchmaking norms.",
     "models": [
       {
@@ -3299,7 +3299,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_087",
-    "name": "Marathon Watch Company",
+    "name": "Marathon",
     "founding_snippet": "Founded in 1939 by Morris Wein and currently based in Canada. Marathon has been a long-term contract supplier of precision timepieces for the U.S. military and Canadian forces, specializing in ultra-rugged, Tritium-illuminated 'Search and Rescue' (SAR) divers and pilot watches.",
     "models": [
       {
@@ -4553,7 +4553,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_125",
-    "name": "Romain Jerome (RJ)",
+    "name": "Romain Jerome",
     "founding_snippet": "Founded in 2004 in Geneva, the brand gained notoriety for 'DNA-based' concepts, incorporating materials like Titanic steel, lunar dust, and volcanic ash into their watches. While the original iteration ceased, it persists in the collector market as a prime example of provocative, narrative-driven horological design.",
     "models": [
       {
@@ -4696,7 +4696,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_129",
-    "name": "Sinn Spezialuhren",
+    "name": "Sinn",
     "founding_snippet": "Founded in 1961 by pilot and flight instructor Helmut Sinn in Frankfurt, Germany. Sinn is the definitive German tool-watch brand, engineering timepieces to DIN standards for diving and aviation. They are famous for extreme-use technologies like Tegimented (scratch-proof) steel, Ar-Dehumidifying, and oil-filled housings.",
     "models": [
       {
@@ -5822,7 +5822,7 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_164",
-    "name": "Wempe Glashütte i/SA",
+    "name": "Wempe",
     "founding_snippet": "Founded in 1878 by Gerhard D. Wempe. Originally a prestigious German retailer, Wempe evolved into a formidable manufacturer, reviving the historic Glashütte Observatory to test chronometers and producing highly refined, in-house mechanical timepieces in the Saxon tradition.",
     "models": [
       {
@@ -5889,24 +5889,6 @@ export const BRANDS_MODELS: BrandModels[] = [
     "models": []
   },
   {
-    "id": "brand_171",
-    "name": "Voutilainen",
-    "founding_snippet": null,
-    "models": []
-  },
-  {
-    "id": "brand_172",
-    "name": "Vulcain",
-    "founding_snippet": null,
-    "models": []
-  },
-  {
-    "id": "brand_173",
-    "name": "William Massena (Massena LAB)",
-    "founding_snippet": null,
-    "models": []
-  },
-  {
     "id": "brand_174",
     "name": "Xhevdet Rexhepi",
     "founding_snippet": null,
@@ -5919,12 +5901,6 @@ export const BRANDS_MODELS: BrandModels[] = [
     "models": []
   },
   {
-    "id": "brand_176",
-    "name": "Zodiac",
-    "founding_snippet": null,
-    "models": []
-  },
-  {
     "id": "brand_177",
     "name": "Vyntage Horology",
     "founding_snippet": null,
@@ -5932,19 +5908,13 @@ export const BRANDS_MODELS: BrandModels[] = [
   },
   {
     "id": "brand_178",
-    "name": "Waltham Watch Company",
+    "name": "Waltham",
     "founding_snippet": null,
     "models": []
   },
   {
     "id": "brand_179",
     "name": "Weis",
-    "founding_snippet": null,
-    "models": []
-  },
-  {
-    "id": "brand_180",
-    "name": "Wempe Glashütte",
     "founding_snippet": null,
     "models": []
   },
