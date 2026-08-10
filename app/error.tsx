@@ -25,7 +25,7 @@ export default function ErrorBoundary({
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 text-center">
       {/* Breadcrumb */}
       <div className="absolute left-6 top-6 z-[1] flex items-center gap-1.5 text-[9px] tracking-[0.5px] text-[var(--void)] sm:left-8">
-        <Link href="/" className="text-[var(--ghost)] transition-colors hover:text-[var(--muted)]">
+        <Link href="/" className="text-[var(--muted)] transition-colors hover:text-[var(--muted)]">
           Home
         </Link>
       </div>

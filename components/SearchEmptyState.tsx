@@ -177,7 +177,7 @@ export default function SearchEmptyState({
           <h3 className="mb-1 text-[10px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
             Related references
           </h3>
-          <p className="mb-3 text-[12px] text-[var(--ghost)]">
+          <p className="mb-3 text-[12px] text-[var(--muted)]">
             Nearby alternatives — not the exact identifier you searched.
           </p>
           <ul className="divide-y divide-[var(--border-faint)]">

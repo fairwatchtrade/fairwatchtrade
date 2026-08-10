@@ -185,7 +185,7 @@ export default function BrowseSearch({
       <div className="mx-auto w-full max-w-[940px]">
         {/* ── Search field ───────────────────────────────────────────────── */}
         <div className="relative flex min-h-[46px] items-center border border-[#343c49] bg-[#0a0d12] transition-colors focus-within:border-[#596473] sm:min-h-[50px]">
-          <div aria-hidden="true" className="w-10 text-center text-[18px] text-[var(--ghost)] sm:w-[46px]">
+          <div aria-hidden="true" className="w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]">
             ⌕
           </div>
           <input
@@ -320,7 +320,7 @@ export default function BrowseSearch({
           </div>
 
           {chips.length === 0 ? (
-            <span className="text-[12px] text-[var(--ghost)]">No search details yet</span>
+            <span className="text-[12px] text-[var(--muted)]">No search details yet</span>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {chips.map((chip) => (
@@ -331,7 +331,7 @@ export default function BrowseSearch({
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-[7px]">
-                    <small className="flex-none text-[9px] uppercase tracking-[0.1em] text-[var(--ghost)]">
+                    <small className="flex-none text-[9px] uppercase tracking-[0.1em] text-[var(--muted)]">
                       {chip.source === "filter" ? "Filter" : "Search"}
                     </small>
                     <b className="font-normal">{chip.label}</b>

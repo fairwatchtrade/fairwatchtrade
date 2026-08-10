@@ -245,7 +245,7 @@ export default function MobileNav({
             type="button"
             aria-label="Close menu"
             onClick={onClose}
-            className="text-[20px] leading-none text-[var(--ghost)] transition-colors hover:text-[var(--slate)]"
+            className="text-[20px] leading-none text-[var(--muted)] transition-colors hover:text-[var(--slate)]"
           >
             ×
           </button>
@@ -407,7 +407,7 @@ export default function MobileNav({
             {/* Pivot cap */}
             <circle cx="19" cy="20" r="2" fill="#C9A84C" />
           </svg>
-          <span className="text-[7px] uppercase tracking-[3px] text-[var(--ghost)]">
+          <span className="text-[7px] uppercase tracking-[3px] text-[var(--muted)]">
             Close
           </span>
         </div>

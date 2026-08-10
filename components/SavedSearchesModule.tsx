@@ -348,7 +348,7 @@ export default function SavedSearchesModule() {
                         {matchCountLabel(counts)}
                       </span>
                     </div>
-                    <div className="mt-2 text-[11px] text-[var(--ghost)]">
+                    <div className="mt-2 text-[11px] text-[var(--muted)]">
                       {contextLine(entry.row, counts, newest)}
                     </div>
                     {/* §12 — a condition the watcher doesn't evaluate is said
@@ -404,7 +404,7 @@ export default function SavedSearchesModule() {
                       onClick={() => {
                         setConfirmingId(entry.row.id);
                       }}
-                      className="min-h-[44px] px-2 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--danger)] sm:min-h-[40px]"
+                      className="min-h-[44px] px-2 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--danger)] sm:min-h-[40px]"
                     >
                       Delete
                     </button>
@@ -465,7 +465,7 @@ export default function SavedSearchesModule() {
                             </div>
                             <div
                               className={`mt-1 text-[9px] uppercase tracking-[1.5px] ${
-                                m.available ? "text-[var(--success)]" : "text-[var(--ghost)]"
+                                m.available ? "text-[var(--success)]" : "text-[var(--muted)]"
                               }`}
                             >
                               {m.availabilityLabel}

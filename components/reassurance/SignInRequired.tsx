@@ -13,7 +13,7 @@ export default function SignInRequired() {
     <section className="relative flex min-h-[260px] flex-col items-center justify-center overflow-hidden px-6 py-12 text-center sm:px-8">
       {/* Breadcrumb */}
       <div className="absolute left-6 top-5 z-[1] flex items-center gap-1.5 text-[9px] tracking-[0.5px] text-[var(--void)] sm:left-8">
-        <Link href="/" className="text-[var(--ghost)] transition-colors hover:text-[var(--muted)]">
+        <Link href="/" className="text-[var(--muted)] transition-colors hover:text-[var(--muted)]">
           Home
         </Link>
       </div>
@@ -58,7 +58,7 @@ export default function SignInRequired() {
           </Link>
           <Link
             href="/signup"
-            className="font-[Inter] text-[9px] uppercase tracking-[1.5px] text-[var(--ghost)]"
+            className="font-[Inter] text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]"
           >
             Create an Account
           </Link>

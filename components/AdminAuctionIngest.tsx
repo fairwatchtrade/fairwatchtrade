@@ -334,7 +334,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
           auction_events · {rows.length} row{rows.length === 1 ? "" : "s"}
         </div>
         {rows.length === 0 ? (
-          <p className="text-[13px] italic text-[var(--ghost)]">
+          <p className="text-[13px] italic text-[var(--muted)]">
             Empty. The first paste starts the archive.
           </p>
         ) : (

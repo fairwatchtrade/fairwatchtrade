@@ -330,7 +330,7 @@ function ListingRow({
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px] text-[var(--ghost)]"
+            className="h-[18px] w-[18px] text-[var(--muted)]"
             role="img"
             aria-label="No photo"
           >
@@ -675,7 +675,7 @@ function MessagesView({
                 {title}
               </div>
               {threadMeta.listing && (
-                <div className="text-[9px] tracking-[0.3px] text-[var(--ghost)]">
+                <div className="text-[9px] tracking-[0.3px] text-[var(--muted)]">
                   Ref. {threadMeta.listing.reference} · with {threadMeta.otherName}
                 </div>
               )}
@@ -684,7 +684,7 @@ function MessagesView({
           <button
             type="button"
             onClick={() => archiveThread(threadMeta)}
-            className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+            className="text-[9px] uppercase tracking-[2px] text-[var(--muted)] transition hover:text-[var(--muted)]"
           >
             Archive
           </button>
@@ -692,11 +692,11 @@ function MessagesView({
 
         {/* History — chronological, no bubbles */}
         {loadingThread ? (
-          <div className="py-8 text-center font-display text-[12px] italic text-[var(--ghost)]">
+          <div className="py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
             Opening correspondence…
           </div>
         ) : threadMessages.length === 0 ? (
-          <div className="py-8 text-center font-display text-[12px] italic text-[var(--ghost)]">
+          <div className="py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
             No messages yet.
           </div>
         ) : (
@@ -711,7 +711,7 @@ function MessagesView({
                   >
                     {m.isMine ? "You" : m.senderName}
                   </span>
-                  <span className="text-[9px] text-[var(--ghost)]">{timeAgo(m.createdAt)}</span>
+                  <span className="text-[9px] text-[var(--muted)]">{timeAgo(m.createdAt)}</span>
                 </div>
                 <p className="whitespace-pre-line text-[13px] leading-[1.7] text-[var(--platinum-dim)]">
                   {m.body}
@@ -731,7 +731,7 @@ function MessagesView({
             className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-[9px] text-[var(--ghost)]">{reply.length}/2000</span>
+            <span className="text-[9px] text-[var(--muted)]">{reply.length}/2000</span>
             <div className="flex items-center gap-3">
               {sendError && <span className="text-[11px] text-[var(--danger)]">{sendError}</span>}
               <button
@@ -763,7 +763,7 @@ function MessagesView({
         <button
           type="button"
           onClick={() => setShowArchived((v) => !v)}
-          className="text-[9px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+          className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--muted)]"
         >
           {showArchived ? "Show active" : "Show archived"}
         </button>
@@ -802,14 +802,14 @@ function MessagesView({
                     </span>
                   </div>
                   {t.lastMessage && (
-                    <div className="mt-[3px] truncate font-display text-[12px] font-light italic text-[var(--ghost)]">
+                    <div className="mt-[3px] truncate font-display text-[12px] font-light italic text-[var(--muted)]">
                       &ldquo;{t.lastMessage.body.slice(0, 90)}
                       {t.lastMessage.body.length > 90 ? "…" : ""}&rdquo;
                     </div>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[9px] text-[var(--ghost)]">{timeAgo(t.updatedAt)}</span>
+                  <span className="text-[9px] text-[var(--muted)]">{timeAgo(t.updatedAt)}</span>
                   {/* Account Status Colorway Parity — Correspondence carries
                       only the two states the repository actually supports:
                       unread (published/green family) and read (neutral, the
@@ -924,7 +924,7 @@ function RequestsView({
         <button
           type="button"
           onClick={() => setShowResolved((v) => !v)}
-          className="text-[9px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+          className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--muted)]"
         >
           {showResolved ? "Show pending" : "Show resolved"}
         </button>
@@ -996,7 +996,7 @@ function RequestsView({
                       </span>
                     </div>
                     {listing && (
-                      <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--ghost)]">
+                      <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--muted)]">
                         Ref. {listing.reference}
                       </div>
                     )}
@@ -1005,7 +1005,7 @@ function RequestsView({
                       <span className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
                         {proposed}
                       </span>
-                      <span className="text-[10px] text-[var(--ghost)]">
+                      <span className="text-[10px] text-[var(--muted)]">
                         vs. {asking} asking{deltaLabel ? ` · ${deltaLabel}` : ""}
                       </span>
                     </div>
@@ -1014,19 +1014,19 @@ function RequestsView({
                       <div className="mt-2 space-y-1">
                         {r.shipping_terms && (
                           <div className="text-[11px] text-[var(--muted)]">
-                            <span className="text-[var(--ghost)]">Shipping: </span>
+                            <span className="text-[var(--muted)]">Shipping: </span>
                             {r.shipping_terms}
                           </div>
                         )}
                         {r.included_items && (
                           <div className="text-[11px] text-[var(--muted)]">
-                            <span className="text-[var(--ghost)]">Included: </span>
+                            <span className="text-[var(--muted)]">Included: </span>
                             {r.included_items}
                           </div>
                         )}
                         {r.notes && (
                           <div className="text-[11px] text-[var(--muted)]">
-                            <span className="text-[var(--ghost)]">Note: </span>
+                            <span className="text-[var(--muted)]">Note: </span>
                             {r.notes}
                           </div>
                         )}

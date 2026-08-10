@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Capital Efficiency
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   Minimize the friction between collections.
                 </div>
               </div>
@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Collector-First Discovery
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   We match watches to your DNA, not your search history.
                 </div>
               </div>
@@ -132,7 +132,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Authenticity-First
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   If the photo is stock, it doesn&apos;t get listed.
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function ResetPasswordPage() {
 
       {/* ── RIGHT PANEL — New Password ── */}
       <div className="flex flex-1 flex-col">
-        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[8px] uppercase tracking-[3px] text-[var(--ghost)]">
+        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
           New Password
         </div>
 

@@ -102,7 +102,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={`border px-2 py-0.5 text-[9px] uppercase tracking-[1.5px] ${
-        colors[status] ?? "border-[var(--border-subtle)] text-[var(--ghost)]"
+        colors[status] ?? "border-[var(--border-subtle)] text-[var(--muted)]"
       }`}
     >
       {status}
@@ -375,7 +375,7 @@ export default function AdminDashboard({
                               ? "text-[var(--danger)]"
                               : l.description_passed_ai === true
                               ? "text-[var(--platinum-dim)]"
-                              : "text-[var(--ghost)]"
+                              : "text-[var(--muted)]"
                           }`}
                         >
                           {aiFail
@@ -388,7 +388,7 @@ export default function AdminDashboard({
                           className={`px-4 py-3 text-[11px] uppercase tracking-[1px] ${
                             custom
                               ? "font-semibold text-[var(--gold)]"
-                              : "text-[var(--ghost)]"
+                              : "text-[var(--muted)]"
                           }`}
                         >
                           {custom ? "Flag" : "—"}

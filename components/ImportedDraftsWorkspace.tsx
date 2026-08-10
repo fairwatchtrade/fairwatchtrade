@@ -663,7 +663,7 @@ export default function ImportedDraftsWorkspace() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-[9px] text-[var(--ghost)]">—</span>
+                    <span className="text-[9px] text-[var(--muted)]">—</span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">

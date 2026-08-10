@@ -660,7 +660,7 @@ export default async function ListingDetailPage({
                 <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
                   In Hand Verified
                   {listing.verified_at && (
-                    <span className="ml-2 text-[var(--ghost)]">
+                    <span className="ml-2 text-[var(--muted)]">
                       · {new Date(listing.verified_at).toLocaleDateString("en-US", {
                         month: "long", day: "numeric", year: "numeric"
                       })}
@@ -669,7 +669,7 @@ export default async function ListingDetailPage({
                 </div>
                 <div className="mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
                   Photos captured live at time of listing.{" "}
-                  <span className="text-[var(--ghost)]">
+                  <span className="text-[var(--muted)]">
                     FairWatchTrade verifies possession, not authenticity.
                   </span>
                 </div>

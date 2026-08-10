@@ -129,7 +129,7 @@ export default function LoginPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Capital Efficiency
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   Minimize the friction between collections.
                 </div>
               </div>
@@ -140,7 +140,7 @@ export default function LoginPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Collector-First Discovery
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   We match watches to your DNA, not your search history.
                 </div>
               </div>
@@ -151,7 +151,7 @@ export default function LoginPage() {
                 <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
                   Authenticity-First
                 </div>
-                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--ghost)]">
+                <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
                   If the photo is stock, it doesn&apos;t get listed.
                 </div>
               </div>

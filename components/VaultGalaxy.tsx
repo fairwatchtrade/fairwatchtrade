@@ -2232,7 +2232,7 @@ export default function VaultGalaxy({
         </div>
 
         {/* Quiet disclosure line */}
-        <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[9px] italic text-[var(--ghost)]">
+        <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[9px] italic text-[var(--muted)]">
           {brands.length} manufacturers. A living catalogue of independent and
           heritage watchmaking.
         </div>

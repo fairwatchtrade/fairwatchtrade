@@ -162,7 +162,7 @@ export default function AboutPage() {
       </div>
 
       {/* Tagline — intentional whisper at --ghost (decorative, not instructional) */}
-      <div className="mt-12 text-[10px] uppercase tracking-[4px] text-[var(--ghost)]">
+      <div className="mt-12 text-[10px] uppercase tracking-[4px] text-[var(--muted)]">
         Collect with confidence
       </div>
     </main>

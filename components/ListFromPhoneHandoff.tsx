@@ -158,7 +158,7 @@ export default function ListFromPhoneHandoff({
           >
             {copied ? "Link copied" : "Copy link"}
           </button>
-          <p className="mt-2 break-all text-[10px] leading-[1.4] text-[var(--ghost)]">
+          <p className="mt-2 break-all text-[10px] leading-[1.4] text-[var(--muted)]">
             {url}
           </p>
         </>

@@ -133,7 +133,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
           >
             ← Return to listing
           </Link>
-          <span className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)]">
+          <span className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
             Purchase Request
           </span>
         </div>
@@ -180,7 +180,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 </div>
                 <div className="mt-2 font-display text-[22px] font-light text-[var(--platinum)]">
                   {askingText}
-                  <span className="mt-1 block text-[7px] font-medium uppercase tracking-[1.3px] text-[var(--ghost)]">
+                  <span className="mt-1 block text-[7px] font-medium uppercase tracking-[1.3px] text-[var(--muted)]">
                     Seller&apos;s asking price
                   </span>
                 </div>
@@ -193,7 +193,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
             <details open className="border border-[var(--border-faint)] bg-[var(--surface)] lg:border-t-0">
               <summary className="flex cursor-pointer items-end justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
                 <h2 className="font-display text-[19px] font-light text-[var(--platinum)]">Listing details</h2>
-                <span className="text-[7px] uppercase tracking-[1.5px] text-[var(--ghost)]">From the seller&apos;s listing</span>
+                <span className="text-[7px] uppercase tracking-[1.5px] text-[var(--muted)]">From the seller&apos;s listing</span>
               </summary>
               <div className="px-5 pb-5">
                 <div className="grid">
@@ -272,7 +272,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                         {offerErrorText}
                       </div>
                     ) : (
-                      <div id="offerHelp" className="mt-2 text-[9px] leading-[1.5] text-[var(--ghost)]">
+                      <div id="offerHelp" className="mt-2 text-[9px] leading-[1.5] text-[var(--muted)]">
                         {comparison ??
                           `Offers are made in the listing's currency — ${currency.displayName} (${currency.code}).`}
                       </div>
@@ -299,7 +299,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       // shares the size by inheritance, so no state jump.
                       className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--ghost)] focus:bg-[#11151c]"
                     />
-                    <div className="mt-1.5 text-[9px] leading-[1.5] text-[var(--ghost)]">
+                    <div className="mt-1.5 text-[9px] leading-[1.5] text-[var(--muted)]">
                       Ask a concise question or share a short note with the seller.
                     </div>
                   </div>
@@ -432,12 +432,12 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[var(--border-faint)] py-4 sm:grid-cols-[1fr_auto]">
                   <div className="font-display text-[16px] font-light text-[var(--platinum)]">
                     {title}
-                    <small className="mt-1 block font-sans text-[10px] not-italic text-[var(--ghost)]">
+                    <small className="mt-1 block font-sans text-[10px] not-italic text-[var(--muted)]">
                       Reference {listing.reference} · {listing.sellerName}
                     </small>
                   </div>
                   <div className="sm:text-right">
-                    <small className="block font-sans text-[8px] uppercase tracking-[1.3px] text-[var(--ghost)]">Submitted offer</small>
+                    <small className="block font-sans text-[8px] uppercase tracking-[1.3px] text-[var(--muted)]">Submitted offer</small>
                     <span className="mt-1 block font-display text-[18px] font-light text-[var(--platinum)]">
                       {submittedOffer !== null ? fmt(submittedOffer) : "—"}
                     </span>
@@ -509,13 +509,13 @@ function Preserved({
   return (
     <div className="mt-5 grid grid-cols-1 gap-4 border-y border-[var(--border-faint)] py-4 sm:grid-cols-2">
       <div>
-        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--ghost)]">Preserved offer</b>
+        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--muted)]">Preserved offer</b>
         <span className="mt-1.5 block break-words font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {shown.ok ? formatMoney(shown.amount, currency) : "—"}
         </span>
       </div>
       <div>
-        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--ghost)]">Preserved message</b>
+        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--muted)]">Preserved message</b>
         <span className="mt-1.5 block break-words font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {message.trim() !== "" ? message : "—"}
         </span>

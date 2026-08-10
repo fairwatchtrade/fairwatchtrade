@@ -274,14 +274,14 @@ export default function ListingCorrespondence({
             <div className="mt-1 font-display text-[14px] font-light text-[var(--platinum)]">
               {title}
             </div>
-            <div className="text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+            <div className="text-[10px] tracking-[0.3px] text-[var(--muted)]">
               Reference {reference}
             </div>
           </div>
 
           {/* History — chronological, no bubbles */}
           {loading ? (
-            <div className="py-6 text-center font-display text-[12px] italic text-[var(--ghost)]">
+            <div className="py-6 text-center font-display text-[12px] italic text-[var(--muted)]">
               Opening correspondence…
             </div>
           ) : (
@@ -297,7 +297,7 @@ export default function ListingCorrespondence({
                       >
                         {m.isMine ? "You" : m.senderName}
                       </span>
-                      <span className="text-[9px] text-[var(--ghost)]">
+                      <span className="text-[9px] text-[var(--muted)]">
                         {timeAgo(m.createdAt)}
                       </span>
                     </div>
@@ -321,7 +321,7 @@ export default function ListingCorrespondence({
               className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--ghost)] focus:border-[var(--border-gold)] focus:outline-none"
             />
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-[9px] text-[var(--ghost)]">{body.length}/2000</span>
+              <span className="text-[9px] text-[var(--muted)]">{body.length}/2000</span>
               <div className="flex items-center gap-3">
                 {confirmation && (
                   <span className="font-display text-[12px] italic text-[var(--success)]">

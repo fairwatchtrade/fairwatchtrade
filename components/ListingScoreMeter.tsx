@@ -63,7 +63,7 @@ export default function ListingScoreMeter({
           }}
         />
       </div>
-      <div className="mt-1 text-[10px] text-[var(--ghost)]">
+      <div className="mt-1 text-[10px] text-[var(--muted)]">
         {score.completeness} / {COMPLETENESS_MAX} effort points
       </div>
 
@@ -87,9 +87,9 @@ export default function ListingScoreMeter({
                 {item.label}
               </span>
               {!item.done && (
-                <span className="text-[var(--ghost)]"> — {item.hint}</span>
+                <span className="text-[var(--muted)]"> — {item.hint}</span>
               )}
-              <span className="ml-1 text-[11px] text-[var(--ghost)] tabular-nums">
+              <span className="ml-1 text-[11px] text-[var(--muted)] tabular-nums">
                 ({item.earned}/{item.max})
               </span>
             </span>

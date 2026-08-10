@@ -160,7 +160,7 @@ export default function NotificationsBell({
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface)]">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
-            <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+            <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
               Notifications
             </span>
             {hasUnread && (
@@ -176,7 +176,7 @@ export default function NotificationsBell({
 
           <div className="max-h-[360px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center font-display text-[13px] italic text-[var(--ghost)]">
+              <div className="px-4 py-6 text-center font-display text-[13px] italic text-[var(--muted)]">
                 No notifications yet.
               </div>
             ) : (
@@ -196,7 +196,7 @@ export default function NotificationsBell({
                       >
                         {n.message}
                       </div>
-                      <div className="mt-0.5 text-[10px] text-[var(--ghost)]">
+                      <div className="mt-0.5 text-[10px] text-[var(--muted)]">
                         {formatRelativeTime(n.created_at)}
                       </div>
                     </div>

@@ -238,7 +238,7 @@ export default function InlinePurchaseRequest({
           <div
             id={`${panelId}-help`}
             className="mt-2 text-[9px] leading-[1.5]"
-            style={{ color: showOfferError ? BAD : "var(--ghost)" }}
+            style={{ color: showOfferError ? BAD : "var(--muted)" }}
           >
             {showOfferError
               ? offerErrorText

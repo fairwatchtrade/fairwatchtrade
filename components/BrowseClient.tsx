@@ -352,7 +352,7 @@ function FacetGroup({
   if (facets.length === 0) return null;
   return (
     <div className="mb-[22px] px-[18px]">
-      <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+      <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
         {title}
       </div>
       <div>
@@ -391,7 +391,7 @@ function FacetGroup({
               >
                 {value}
               </span>
-              <span className="text-[10px] tabular-nums text-[var(--ghost)]">
+              <span className="text-[10px] tabular-nums text-[var(--muted)]">
                 {count}
               </span>
             </label>
@@ -410,7 +410,7 @@ function SpecRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
     <div className="flex items-baseline justify-between gap-2 border-b border-[var(--border-faint)] py-1 text-[10px] tracking-[0.3px]">
-      <span className="text-[var(--ghost)]">{label}</span>
+      <span className="text-[var(--muted)]">{label}</span>
       <span className="text-[var(--slate)]">{value}</span>
     </div>
   );
@@ -1028,7 +1028,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
               Discover
             </h1>
-            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--ghost)]">
+            <p className="mt-[3px] text-[10px] tracking-[0.5px] text-[var(--muted)]">
               {filtered.length} watches · curated and verified
             </p>
           </div>
@@ -1247,7 +1247,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                             </picture>
                           )
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+                          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
                             No photo
                           </div>
                         )}
@@ -1335,7 +1335,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={hero} alt="" style={heroStyle} className="h-full w-full" />
                       ) : (
-                        <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--ghost)]">
+                        <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--muted)]">
                           No photo
                         </div>
                       )}
@@ -1476,7 +1476,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                             type="button"
                             onClick={() => toggleSnapshot(row.id)}
                             aria-label="Close snapshot"
-                            className="text-[10px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--slate)]"
+                            className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
                           >
                             Close
                           </button>
@@ -1487,7 +1487,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                               key={s.label}
                               className="flex items-baseline justify-between gap-3 border-b border-[var(--border-faint)] py-1 text-[11px] tracking-[0.3px]"
                             >
-                              <span className="shrink-0 text-[var(--ghost)]">{s.label}</span>
+                              <span className="shrink-0 text-[var(--muted)]">{s.label}</span>
                               <span className="text-right text-[var(--slate)]">{s.value}</span>
                             </div>
                           ))}

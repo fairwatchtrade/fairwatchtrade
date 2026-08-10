@@ -67,7 +67,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
             No photo
           </div>
         )}
@@ -200,7 +200,7 @@ export default function HomepageClient({ listings }: { listings: ListingRow[] })
       <div className="relative z-[1] mx-auto w-full max-w-7xl px-6 pb-16 sm:px-8">
         {listings.length === 0 ? (
           <div className="py-16 text-center">
-            <div className="font-display text-[14px] font-light italic text-[var(--ghost)]">
+            <div className="font-display text-[14px] font-light italic text-[var(--muted)]">
               The marketplace is quiet today.
             </div>
           </div>

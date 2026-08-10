@@ -206,12 +206,12 @@ export default function VaultClusterReview({
                     </div>
                     <div className="mt-0.5 text-[12px] text-[var(--slate)]">
                       {b.country_of_origin || (
-                        <span className="italic text-[var(--ghost)]">
+                        <span className="italic text-[var(--muted)]">
                           unknown
                         </span>
                       )}
                       {b.independent_status && (
-                        <span className="text-[var(--ghost)]">
+                        <span className="text-[var(--muted)]">
                           {" \u00b7 "}
                           {b.independent_status}
                         </span>
@@ -223,7 +223,7 @@ export default function VaultClusterReview({
                   {isReviewed ? (
                     <div className="text-[13px] text-[var(--platinum-dim)]">
                       {b.region || (
-                        <span className="italic text-[var(--ghost)]">&mdash;</span>
+                        <span className="italic text-[var(--muted)]">&mdash;</span>
                       )}
                     </div>
                   ) : (
@@ -247,7 +247,7 @@ export default function VaultClusterReview({
                   {isReviewed ? (
                     <div className="text-[13px] text-[var(--platinum-dim)]">
                       {b.cluster || (
-                        <span className="italic text-[var(--ghost)]">none</span>
+                        <span className="italic text-[var(--muted)]">none</span>
                       )}
                     </div>
                   ) : (
@@ -300,7 +300,7 @@ export default function VaultClusterReview({
                       </p>
                     )}
                     {aliases.length > 0 && (
-                      <p className="mt-1 text-[11px] text-[var(--ghost)]">
+                      <p className="mt-1 text-[11px] text-[var(--muted)]">
                         aliases: {aliases.join(", ")}
                       </p>
                     )}

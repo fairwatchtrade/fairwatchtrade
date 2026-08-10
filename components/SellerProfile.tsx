@@ -114,7 +114,7 @@ export default function SellerProfile({
           <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold)] opacity-50" />
           Pt <span className="text-[var(--muted)]">$1,625</span>
         </div>
-        <div className="ml-auto text-[9px] text-[var(--ghost)]">
+        <div className="ml-auto text-[9px] text-[var(--muted)]">
           Phillips Geneva &ensp;·&ensp; <span className="text-[var(--slate)]">4d 16h</span>
         </div>
       </div>
@@ -139,13 +139,13 @@ export default function SellerProfile({
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 border-b border-[var(--border-faint)] px-8 py-3">
-        <Link href="/browse" className="text-[9px] tracking-[0.5px] text-[var(--ghost)] hover:text-[var(--muted)]">
+        <Link href="/browse" className="text-[9px] tracking-[0.5px] text-[var(--muted)] hover:text-[var(--muted)]">
           Browse
         </Link>
         <span className="text-[9px] text-[var(--void)]">›</span>
-        <span className="text-[9px] tracking-[0.5px] text-[var(--ghost)]">Sellers</span>
+        <span className="text-[9px] tracking-[0.5px] text-[var(--muted)]">Sellers</span>
         <span className="text-[9px] text-[var(--void)]">›</span>
-        <span className="text-[9px] tracking-[0.5px] text-[var(--ghost)]">{seller.displayName}</span>
+        <span className="text-[9px] tracking-[0.5px] text-[var(--muted)]">{seller.displayName}</span>
       </div>
 
       {/* Body — two columns */}
@@ -240,7 +240,7 @@ export default function SellerProfile({
             ) : (
               <span className="fw-btn-secondary inline-block opacity-40">Contact via listing</span>
             )}
-            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[8px] uppercase tracking-[2px] text-[var(--ghost)]">
+            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
               Private correspondence · Public standards
             </div>
           </div>
@@ -288,7 +288,7 @@ export default function SellerProfile({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={hero} alt="" className="h-full w-full object-contain" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+                        <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
                           No photo
                         </div>
                       )}

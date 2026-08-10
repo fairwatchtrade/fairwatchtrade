@@ -263,7 +263,7 @@ export default function SellerListingsRoom({
                 className={`shrink-0 border-b-2 px-4 py-[10px] text-[10px] uppercase tracking-[1.5px] transition ${
                   isActive
                     ? "border-[var(--gold)] text-[var(--platinum)]"
-                    : "border-transparent text-[var(--ghost)] hover:text-[var(--slate)]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--slate)]"
                 }`}
               >
                 {tab.label}
@@ -309,7 +309,7 @@ export default function SellerListingsRoom({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={thumb} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-[9px] text-[var(--ghost)]">—</span>
+                      <span className="text-[9px] text-[var(--muted)]">—</span>
                     )}
                   </div>
 
@@ -426,7 +426,7 @@ export default function SellerListingsRoom({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="font-display text-[12px] italic text-[var(--ghost)]">
+                  <span className="font-display text-[12px] italic text-[var(--muted)]">
                     No photograph
                   </span>
                 )}
@@ -580,7 +580,7 @@ export default function SellerListingsRoom({
                     and then rejected still shows that both happened. */}
                 {priorDecisions(selected.id).length > 0 && (
                   <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
-                    <span className="block text-[var(--ghost)]">Earlier in this review</span>
+                    <span className="block text-[var(--muted)]">Earlier in this review</span>
                     {priorDecisions(selected.id).map((d, i) => (
                       <span key={i} className="mt-1 block">
                         <span className="text-[var(--platinum-dim)]">
@@ -636,7 +636,7 @@ export default function SellerListingsRoom({
             </div>
           </div>
         ) : (
-          <div className="border border-[var(--border-faint)] px-4 py-8 text-center font-display text-[12px] italic text-[var(--ghost)]">
+          <div className="border border-[var(--border-faint)] px-4 py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
             No listing selected.
           </div>
         )}

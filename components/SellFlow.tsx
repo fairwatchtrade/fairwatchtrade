@@ -967,10 +967,10 @@ export default function SellFlow() {
             <ListingScoreMeter listing={toScoringState(draft)} />
           ) : (
             <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-              <div className="text-[9px] uppercase tracking-[2px] text-[var(--ghost)]">
+              <div className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
                 Listing Score
               </div>
-              <div className="mt-2 font-display text-[11px] italic text-[var(--ghost)]">
+              <div className="mt-2 font-display text-[11px] italic text-[var(--muted)]">
                 Appears after curation passes.
               </div>
             </div>
@@ -1076,7 +1076,7 @@ function ProgressBar({
                     ? "text-[var(--gold)]"
                     : i < step
                       ? "text-[var(--gold-subtle)]"
-                      : "text-[var(--ghost)]"
+                      : "text-[var(--muted)]"
                 }`}
               >
                 {ROMAN[i]}
@@ -1086,8 +1086,8 @@ function ProgressBar({
                   i === step
                     ? "text-[var(--platinum)]"
                     : i < step
-                      ? "text-[var(--ghost)]"
-                      : "text-[var(--ghost)]"
+                      ? "text-[var(--muted)]"
+                      : "text-[var(--muted)]"
                 }`}
               >
                 {label}
@@ -1775,7 +1775,7 @@ function PhotosStep({
                 >
                   <span
                     aria-hidden="true"
-                    className={done ? "text-[var(--gold)]" : "text-[var(--ghost)]"}
+                    className={done ? "text-[var(--gold)]" : "text-[var(--muted)]"}
                   >
                     {done ? "✓" : "·"}
                   </span>

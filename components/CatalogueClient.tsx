@@ -278,7 +278,7 @@ function ListingCard({ row }: { row: ListingRow }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--ghost)]">
+          <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
             No photo
           </div>
         )}
@@ -397,7 +397,7 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
   const price = offerPrice(offer);
   const when = relativeTime(offer.created_at);
   return (
-    <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+    <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--muted)]">
       <span className="min-w-0 truncate">
         {price != null ? formatPrice(Number(price), offer.proposed_currency) : "Offer"}
         <span className="mx-1.5 opacity-40">•</span>
@@ -447,7 +447,7 @@ function WatchOfferGroup({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
         ) : (
-          <div className="text-[8px] tracking-[0.3px] text-[var(--ghost)]">No photo</div>
+          <div className="text-[8px] tracking-[0.3px] text-[var(--muted)]">No photo</div>
         )}
       </div>
 
@@ -457,7 +457,7 @@ function WatchOfferGroup({
           <div className="min-w-0">
             <div className="truncate text-[13px] text-[var(--platinum)]">{title}</div>
             {reference && (
-              <div className="mt-0.5 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+              <div className="mt-0.5 text-[10px] tracking-[0.3px] text-[var(--muted)]">
                 Ref. {reference}
               </div>
             )}
@@ -481,13 +481,13 @@ function WatchOfferGroup({
             )}
           </div>
           {currentWhen && (
-            <div className="shrink-0 text-[10px] tracking-[0.3px] text-[var(--ghost)]">
+            <div className="shrink-0 text-[10px] tracking-[0.3px] text-[var(--muted)]">
               Submitted {currentWhen}
             </div>
           )}
         </div>
         {note && (
-          <div className="mt-0.5 text-[10px] leading-snug text-[var(--ghost)]">{note}</div>
+          <div className="mt-0.5 text-[10px] leading-snug text-[var(--muted)]">{note}</div>
         )}
 
         {/* v2.86 — Withdraw Offer: pending requests only. A deliberate text
@@ -511,7 +511,7 @@ function WatchOfferGroup({
         {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
         {history.length > 0 && (
           <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
-            <div className="mb-1 text-[8px] uppercase tracking-[2px] text-[var(--ghost)] opacity-70">
+            <div className="mb-1 text-[8px] uppercase tracking-[2px] text-[var(--muted)] opacity-70">
               Previous requests
             </div>
             {history.map((h) => (
@@ -618,7 +618,7 @@ function MyOffersSection({
     // v2.84-capped two-column grid, so on ultrawide screens its rows stretched
     // status to the viewport cliff. The cap binds only beyond 1100px.
     <div className="mt-8 max-w-[1100px]">
-      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
         My Offers
       </div>
 
@@ -626,7 +626,7 @@ function MyOffersSection({
         // Quiet loading placeholder — deliberately NOT the empty-state copy, so
         // the buyer is never told "no offers" before the query resolves.
         <div className="border border-[var(--border-subtle)] px-4 py-6 text-center">
-          <div className="font-display text-[11px] italic text-[var(--ghost)]">
+          <div className="font-display text-[11px] italic text-[var(--muted)]">
             Loading your offers…
           </div>
         </div>
@@ -634,7 +634,7 @@ function MyOffersSection({
         // Fail honestly and non-destructively — the rest of Catalogue is
         // unaffected; we simply say this one section is unavailable.
         <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-          <div className="font-display text-[11px] italic text-[var(--ghost)]">
+          <div className="font-display text-[11px] italic text-[var(--muted)]">
             Your offers are unavailable right now. Please try again shortly.
           </div>
         </div>
@@ -644,7 +644,7 @@ function MyOffersSection({
           <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
             You haven&apos;t made any offers yet.
           </div>
-          <div className="mb-6 font-display text-[11px] italic text-[var(--ghost)]">
+          <div className="mb-6 font-display text-[11px] italic text-[var(--muted)]">
             When you start a purchase request, it will appear here — every offer,
             across every listing, in one place.
           </div>
@@ -970,7 +970,7 @@ export default function CatalogueClient({
           // WS1 (2026-07-28) — bounded: keeps each thread's timestamp attached
           // to its conversation instead of the far viewport edge on ultrawide.
           <div className="mt-8 max-w-[1100px]">
-            <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+            <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
               Correspondence
             </div>
             <div className="border border-[var(--border-subtle)]">
@@ -993,7 +993,7 @@ export default function CatalogueClient({
                       {title}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="text-[10px] text-[var(--ghost)]">
+                      <span className="text-[10px] text-[var(--muted)]">
                         {unread
                           ? t.unreadCount === 1
                             ? "New reply"
@@ -1053,7 +1053,7 @@ export default function CatalogueClient({
           <div className="mt-8 min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:mt-0">
             <div>
               <div className="mb-4 flex items-center justify-between">
-                <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+                <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
                   Discovery
                 </div>
                 <Link
@@ -1066,7 +1066,7 @@ export default function CatalogueClient({
 
               {recentListings.length === 0 ? (
                 <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-                  <div className="font-display text-[11px] italic text-[var(--ghost)]">
+                  <div className="font-display text-[11px] italic text-[var(--muted)]">
                     No published listings yet.
                   </div>
                 </div>
@@ -1084,7 +1084,7 @@ export default function CatalogueClient({
                 preserved verbatim for the true empty case AND the loading
                 case, so there's no flash between "loading" and "0 saved". */}
             <div className="mt-8">
-              <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--ghost)]">
+              <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
                 Saved Watches
               </div>
               {savedListings.length > 0 ? (
@@ -1098,7 +1098,7 @@ export default function CatalogueClient({
                   <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
                     Every great library begins with a single volume.
                   </div>
-                  <div className="mb-6 font-display text-[11px] italic text-[var(--ghost)]">
+                  <div className="mb-6 font-display text-[11px] italic text-[var(--muted)]">
                     Save a watch that speaks to you, and your Catalogue will begin to take shape.
                   </div>
                   <div className="flex flex-col items-center gap-3">

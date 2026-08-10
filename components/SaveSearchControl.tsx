@@ -188,7 +188,7 @@ export default function SaveSearchControl({
           type="button"
           onClick={cancel}
           disabled={phase === "saving"}
-          className="text-[11px] uppercase tracking-[1.5px] text-[var(--ghost)] transition hover:text-[var(--muted)]"
+          className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--muted)]"
         >
           Cancel
         </button>
