@@ -871,9 +871,12 @@ export default function VaultGalaxy({
       }
 
       if ((v === "collections" || v === "models" || v === "detail") && sb) {
+        const selectedBrandIndex = positioned.findIndex(
+          (brand) => brand.id === sb.id,
+        );
         objs.push({
           type: "brandCore",
-          refIndex: positioned.indexOf(sb),
+          refIndex: selectedBrandIndex >= 0 ? selectedBrandIndex : undefined,
           x: sb.x,
           y: sb.y,
           z: sb.z,
