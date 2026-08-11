@@ -93,6 +93,31 @@ ok(
   "cancelling a single file is still offered during a run",
   room.includes("Cancel this file")
 );
+// Runs are sequential, so the queue must be visible or a batch looks like it
+// gave up after the first file.
+ok(
+  "files committed to a run are shown as queued",
+  room.includes("queuedHashes") && /Queued/.test(room)
+);
+ok(
+  "the count separates what is running from what is waiting",
+  room.includes("active · ") && room.includes("queued")
+);
+ok(
+  "the bulk completing control carries the activity indicator too",
+  /completing\.size > 0 && <WatchSpinner/.test(room)
+);
+/* A visible queue that keeps marching after Cancel would be a worse lie
+   than showing no queue at all. */
+ok(
+  "cancelling the run stops the queue, not just the file in flight",
+  room.includes("cancelAllRef") &&
+    /cancelAllRef\.current = true;[\s\S]{0,80}setQueuedHashes\(new Set\(\)\)/.test(
+      room
+    ) &&
+    /if \(cancelAllRef\.current\) break;/.test(room)
+);
+
 /* The room cannot know how long a research round will take, so it must not
    imply otherwise. No share-of-total, no bar, no arrival time.
 

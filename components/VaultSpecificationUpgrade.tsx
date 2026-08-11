@@ -268,6 +268,14 @@ export default function VaultSpecificationUpgrade({
      started over when it has not. */
   const [startedAt, setStartedAt] = useState<Map<string, number>>(new Map());
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  /* Files committed to the current run but not yet started. Runs are
+     sequential, so without this a batch looks like it gave up after the
+     first file — every other row still showing the status it had before. */
+  const [queuedHashes, setQueuedHashes] = useState<Set<string>>(new Set());
+  /* Cancelling the run must stop the queue too. Aborting only the file in
+     flight would leave a visible queue marching on after Cancel, which is a
+     worse lie than showing no queue at all. */
+  const cancelAllRef = useRef(false);
   const cancelRef = useRef<Map<string, { aborted: boolean }>>(new Map());
   const transportRef = useRef(createBrowserResearchTransport());
   const [busy, setBusy] = useState(false);
@@ -456,13 +464,21 @@ export default function VaultSpecificationUpgrade({
     }
 
     setBusy(true);
+    cancelAllRef.current = false;
+    setQueuedHashes(new Set(hashes));
     let completed = 0;
     let withDecisions = 0;
     let failed = 0;
 
     for (const hash of hashes) {
+      if (cancelAllRef.current) break;
       const signal = { aborted: false };
       cancelRef.current.set(hash, signal);
+      setQueuedHashes((prev) => {
+        const next = new Set(prev);
+        next.delete(hash);
+        return next;
+      });
       setCompleting((prev) => new Map(prev).set(hash, "Starting…"));
       setStartedAt((prev) => new Map(prev).set(hash, Date.now()));
       try {
@@ -560,6 +576,7 @@ export default function VaultSpecificationUpgrade({
       }
     }
 
+    setQueuedHashes(new Set());
     setBusy(false);
     if (completed > 0 && failed === 0) {
       setNotice({
@@ -581,6 +598,10 @@ export default function VaultSpecificationUpgrade({
       if (signal) signal.aborted = true;
       return;
     }
+    /* Whole run: stop the file in flight AND drop everything still waiting,
+       so Cancel means what it says on a batch. */
+    cancelAllRef.current = true;
+    setQueuedHashes(new Set());
     for (const signal of cancelRef.current.values()) signal.aborted = true;
   }
 
@@ -1231,6 +1252,7 @@ export default function VaultSpecificationUpgrade({
                     const isActive = activeHash === item.sourceSha256;
                     const isAnalyzing = analyzing.has(item.sourceSha256);
                     const progress = completing.get(item.sourceSha256) ?? null;
+                    const isQueued = queuedHashes.has(item.sourceSha256);
                     return (
                       <tr
                         key={item.sourceSha256}
@@ -1283,9 +1305,14 @@ export default function VaultSpecificationUpgrade({
                             className={`flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-[1px] ${
                               progress || isAnalyzing
                                 ? "text-[var(--gold)]"
-                                : meta.className
+                                : isQueued
+                                  ? "text-[var(--gold-dim)]"
+                                  : meta.className
                             }`}
                           >
+                            {/* The spinner means working. A queued file is
+                                waiting, not working, so it gets none — the
+                                distinction has to survive a glance. */}
                             {(progress || isAnalyzing) && (
                               <WatchSpinner size={12} />
                             )}
@@ -1293,7 +1320,9 @@ export default function VaultSpecificationUpgrade({
                               ? progress
                               : isAnalyzing
                                 ? "Analyzing"
-                                : `${meta.glyph} ${meta.label}`}
+                                : isQueued
+                                  ? "○ Queued"
+                                  : `${meta.glyph} ${meta.label}`}
                             {/* Measured, not estimated. No percentage, no bar,
                                 no arrival time — the room does not know how
                                 long a research round will take and does not
@@ -1348,9 +1377,7 @@ export default function VaultSpecificationUpgrade({
               <div className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
                 {completing.size > 0 && <WatchSpinner size={13} />}
                 {completing.size > 0
-                  ? `${completing.size} file${
-                      completing.size === 1 ? "" : "s"
-                    } in progress`
+                  ? `${completing.size} active · ${queuedHashes.size} queued`
                   : unanalyzed > 0
                     ? `${unanalyzed} awaiting analysis`
                     : `All files analyzed · ${completable.length} with work remaining`}
@@ -1391,7 +1418,7 @@ export default function VaultSpecificationUpgrade({
                 </button>
                 <button
                   type="button"
-                  className={BTN_GOLD}
+                  className={`${BTN_GOLD} inline-flex items-center gap-2`}
                   disabled={
                     busy || completable.length === 0 || !contract?.ok
                   }
@@ -1401,6 +1428,7 @@ export default function VaultSpecificationUpgrade({
                     )
                   }
                 >
+                  {completing.size > 0 && <WatchSpinner size={13} />}
                   {completing.size > 0
                     ? "Completing…"
                     : "Complete all researchable"}
