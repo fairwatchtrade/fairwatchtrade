@@ -6,7 +6,7 @@
    exact code the room runs.
    ──────────────────────────────────────────────────────────────────────── */
 
-import type { AnalysisStatus, WorkItem } from "./types.ts";
+import type { AnalysisStatus, CompletionRecord, WorkItem } from "./types.ts";
 
 /**
  * What a queue row shows. A completed file reports its completion outcome;
@@ -49,6 +49,32 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "duplicate", label: "Duplicate" },
   { key: "staged", label: "Staged" },
 ];
+
+/**
+ * Whether saving this result would throw away work a previous run finished.
+ *
+ * A retry that fails has not undone the earlier success — the file is still
+ * exactly as complete as it was. Writing the failure over it discards the
+ * candidate or held work product and then reports the file as failed, which
+ * is both a loss and a lie. The failure is still reported to the operator;
+ * it simply no longer destroys what it failed to improve on.
+ */
+export function wouldDiscardCompletedWork(
+  existing: CompletionRecord | null,
+  incoming: CompletionRecord
+): boolean {
+  const priorArtifact =
+    existing?.candidate ?? existing?.provisionalCandidate ?? null;
+  if (!priorArtifact) return false;
+  if (incoming.candidate !== null || incoming.provisionalCandidate !== null) {
+    return false;
+  }
+  return (
+    incoming.status === "FAILED_RETRYABLE" ||
+    incoming.status === "BLOCKED" ||
+    incoming.status === "BLOCKED_PROVIDER_AUTHORIZATION"
+  );
+}
 
 export function rowStatus(item: WorkItem): RowStatus {
   if (item.completion) {

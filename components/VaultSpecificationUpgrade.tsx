@@ -54,6 +54,7 @@ import {
   filterWorkItems,
   rowStatus,
   UNRESOLVED_STATUSES,
+  wouldDiscardCompletedWork,
   type FilterKey,
   type RowStatus,
 } from "@/lib/vault-upgrade/filters.ts";
@@ -513,14 +514,27 @@ export default function VaultSpecificationUpgrade({
         const provisionalBytes = record.provisionalCandidate
           ? (utf8Bytes(record.provisionalCandidate.text).buffer as ArrayBuffer)
           : null;
-        await saveCompletion(
-          db,
-          hash,
-          record,
-          candidateBytes,
-          provisionalBytes,
-          new Date().toISOString()
+        /* A failed retry has not undone the previous success. Overwriting a
+           completion that produced a candidate or a held work product with a
+           failure record discards that artifact and reports the file as
+           failed when it is still exactly as finished as it was before. The
+           failure is reported below either way — it just no longer destroys
+           the work it failed to improve on. */
+        const wouldDiscardWork = wouldDiscardCompletedWork(
+          item.completion,
+          record
         );
+
+        if (!wouldDiscardWork) {
+          await saveCompletion(
+            db,
+            hash,
+            record,
+            candidateBytes,
+            provisionalBytes,
+            new Date().toISOString()
+          );
+        }
         await refresh();
 
         if (record.status === "CANDIDATE_READY") completed++;
@@ -541,7 +555,11 @@ export default function VaultSpecificationUpgrade({
                 ? `Research is not configured on the server: ${record.blocker ?? ""}`
                 : `"${item.sourceFilename}" could not be completed: ${
                     record.blocker ?? record.status
-                  }. The original is unchanged — retry is safe.`,
+                  }. The original is unchanged — retry is safe.${
+                    wouldDiscardWork
+                      ? " Its previous result was kept."
+                      : ""
+                  }`,
           });
         }
       } catch (err) {
@@ -1721,6 +1739,48 @@ function ReviewSurface({
   const hasDeliverable = Boolean(activeCandidate);
   const openIssues = completion?.issues ?? analysis?.issues ?? [];
 
+  /**
+   * Hand the open items over in one piece.
+   *
+   * Every finding already carries the exact pointer, the rule it broke, the
+   * offending value, and the governing clause — everything needed to repair
+   * the source. Making the operator hunt through tabs and reassemble that by
+   * hand is the room hoarding what it already knows. One button, one paste.
+   */
+  const [copyState, setCopyState] = useState<"idle" | "done" | "failed">("idle");
+  async function copyOpenItems(): Promise<void> {
+    const lines: string[] = [
+      `Vault Upgrade — ${item.sourceFilename}${
+        analysis?.brandName ? ` (${analysis.brandName})` : ""
+      }`,
+      "Specification: VAULT-LOCK v3.2",
+      "",
+      `${openIssues.length} item${
+        openIssues.length === 1 ? "" : "s"
+      } must be resolved in the source file before it can be finalised.`,
+      "",
+    ];
+    openIssues.forEach((issue, i) => {
+      lines.push(`${i + 1}. ${issue.path}`);
+      lines.push(`   rule: ${issue.code}`);
+      if (issue.value !== undefined) {
+        lines.push(`   current value: ${JSON.stringify(issue.value)}`);
+      }
+      if (issue.allowedValues && issue.allowedValues.length > 0) {
+        lines.push(`   permitted values: ${issue.allowedValues.join(", ")}`);
+      }
+      lines.push(`   ${issue.reason}`);
+      lines.push("");
+    });
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopyState("done");
+    } catch {
+      setCopyState("failed");
+    }
+    window.setTimeout(() => setCopyState("idle"), 2500);
+  }
+
   const originalText = useMemo(
     () => utf8Text(item.sourceBytes),
     [item.sourceBytes]
@@ -1830,6 +1890,23 @@ function ReviewSurface({
         {analysis && (
           <button type="button" className={BTN} onClick={onDownloadReport}>
             {completion ? "Download Completion Report" : "Download Change Report"}
+          </button>
+        )}
+        {openIssues.length > 0 && (
+          <button
+            type="button"
+            className={BTN_GOLD}
+            onClick={() => void copyOpenItems()}
+          >
+            {copyState === "done"
+              ? `Copied ${openIssues.length} item${
+                  openIssues.length === 1 ? "" : "s"
+                }`
+              : copyState === "failed"
+                ? "Copy failed — use Unresolved Items"
+                : `Copy ${openIssues.length} unresolved item${
+                    openIssues.length === 1 ? "" : "s"
+                  }`}
           </button>
         )}
         {hasCandidate && !item.staging && (

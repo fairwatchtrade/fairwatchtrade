@@ -177,4 +177,56 @@ ok("count: staged", counts.get("staged") === 1);
   );
 }
 
+// A failed retry must not destroy what an earlier run finished.
+{
+  const { wouldDiscardCompletedWork } = await import(
+    "../lib/vault-upgrade/filters.ts"
+  );
+  const artifact = { filename: "x.json", text: "{}", sha256: "a", ledgerSha256: "b", byteLength: 2 };
+  const done = { status: "CANDIDATE_READY", candidate: artifact, provisionalCandidate: null };
+  const held = { status: "HUMAN_DECISION_REQUIRED", candidate: null, provisionalCandidate: artifact };
+  const failure = { status: "FAILED_RETRYABLE", candidate: null, provisionalCandidate: null };
+
+  ok(
+    "a failed retry never overwrites a finished candidate",
+    wouldDiscardCompletedWork(done, failure) === true
+  );
+  ok(
+    "a failed retry never overwrites a held work product either",
+    wouldDiscardCompletedWork(held, failure) === true
+  );
+  ok(
+    "a provider-authorization failure is treated the same way",
+    wouldDiscardCompletedWork(done, {
+      ...failure,
+      status: "BLOCKED_PROVIDER_AUTHORIZATION",
+    }) === true
+  );
+  /* Only a failure that produced nothing is refused. Real results always
+     supersede, or a file could never be improved by a second run. */
+  ok(
+    "a successful rerun still supersedes the previous result",
+    wouldDiscardCompletedWork(done, done) === false
+  );
+  ok(
+    "a rerun that yields a held work product still supersedes",
+    wouldDiscardCompletedWork(done, held) === false
+  );
+  ok(
+    "a first run has nothing to protect",
+    wouldDiscardCompletedWork(null, failure) === false
+  );
+  ok(
+    "a previous run that produced nothing is not worth protecting",
+    wouldDiscardCompletedWork(failure, failure) === false
+  );
+  ok(
+    "a decision-required result carrying no artifact does not block a rerun",
+    wouldDiscardCompletedWork(
+      { status: "HUMAN_DECISION_REQUIRED", candidate: null, provisionalCandidate: null },
+      failure
+    ) === false
+  );
+}
+
 console.log(`vault-upgrade-persistence: ${pass} assertions PASS`);
