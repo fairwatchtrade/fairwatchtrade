@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
 import { formatMoney } from "@/lib/formatMoney";
 import { parseBrowseSort, sortListings } from "@/lib/browseSort";
+import { facetKey, foldFacets } from "@/lib/browseFacets";
 import {
   defaultFrame,
   frameFor,
@@ -280,6 +281,15 @@ function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [stri
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
+/* Free-text facet counter — dial colour and case material are typed through a
+   typeahead that only SUGGESTS, so one real attribute reaches the database in
+   several spellings and used to render as several tiles AND several filters.
+   The folding rule and the reason it is presentation-only live in
+   lib/browseFacets. */
+function countByFolded(listings: ListingRow[], pick: (l: ListingRow) => string): [string, number][] {
+  return foldFacets(listings.map(pick));
+}
+
 // Case size facet/filter key: append "mm" unless already present, so the
 // displayed label and the value matched against the selection are identical.
 function sizeLabel(value?: string): string {
@@ -350,6 +360,10 @@ function FacetGroup({
   implied?: Set<string>;
   onImpliedToggle?: (value: string) => void;
 }) {
+  const selectedFolded = useMemo(
+    () => new Set([...selected].map(facetKey)),
+    [selected]
+  );
   if (facets.length === 0) return null;
   return (
     <div className="mb-[22px] px-[18px]">
@@ -358,7 +372,11 @@ function FacetGroup({
       </div>
       <div>
         {facets.map(([value, count]) => {
-          const isSelected = selected.has(value);
+          // Case-folded so a tile still reads as chosen when the URL carries a
+          // different spelling of the same value. A no-op for the facets whose
+          // vocabulary is already controlled.
+          const isSelected =
+            selected.has(value) || selectedFolded.has(facetKey(value));
           const isImplied = !isSelected && (implied?.has(value) ?? false);
           const isActive = isSelected || isImplied;
           return (
@@ -616,6 +634,18 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     [searchParams]
   );
   const selectedDials = useMemo(() => new Set(searchParams.getAll("dialColor")), [searchParams]);
+
+  /* Free-text facets are matched case-folded, so a link carrying the older
+     lowercase spelling still selects the same watches instead of quietly
+     returning a short set. */
+  const selectedMaterialsFolded = useMemo(
+    () => new Set([...selectedMaterials].map(facetKey)),
+    [selectedMaterials]
+  );
+  const selectedDialsFolded = useMemo(
+    () => new Set([...selectedDials].map(facetKey)),
+    [selectedDials]
+  );
   const selectedDocs = useMemo(() => new Set(searchParams.getAll("docs")), [searchParams]);
 
   /* ── SEARCH ──────────────────────────────────────────────────────────────
@@ -743,11 +773,11 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     [listings]
   );
   const materialFacets = useMemo(
-    () => countBy(listings, (l) => l.details?.caseMaterial ?? ""),
+    () => countByFolded(listings, (l) => l.details?.caseMaterial ?? ""),
     [listings]
   );
   const dialFacets = useMemo(
-    () => countBy(listings, (l) => l.details?.dialColorType ?? ""),
+    () => countByFolded(listings, (l) => l.details?.dialColorType ?? ""),
     [listings]
   );
 
@@ -799,11 +829,11 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           selectedPowerReserves.size === 0 ||
           selectedPowerReserves.has(powerReserveLabel(l.details?.powerReserve));
         const materialOk =
-          selectedMaterials.size === 0 ||
-          selectedMaterials.has(l.details?.caseMaterial ?? "");
+          selectedMaterialsFolded.size === 0 ||
+          selectedMaterialsFolded.has(facetKey(l.details?.caseMaterial ?? ""));
         const dialOk =
-          selectedDials.size === 0 ||
-          selectedDials.has(l.details?.dialColorType ?? "");
+          selectedDialsFolded.size === 0 ||
+          selectedDialsFolded.has(facetKey(l.details?.dialColorType ?? ""));
         const docOk =
           selectedDocs.size === 0 ||
           selectedDocs.has(l.details?.documentation ?? "");
@@ -830,8 +860,8 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       selectedMovements,
       selectedBeatRates,
       selectedPowerReserves,
-      selectedMaterials,
-      selectedDials,
+      selectedMaterialsFolded,
+      selectedDialsFolded,
       selectedDocs,
       searchActive,
       activeSearch,
