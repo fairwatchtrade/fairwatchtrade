@@ -16,6 +16,7 @@ const {
   saveCompletion,
   verifyCandidateForDelivery,
   stageCandidate,
+  unstageCandidate,
   removeWorkItem,
 } = await import("../lib/vault-upgrade/indexedDb.ts");
 const { engine, schema, contract } = await loadEngine();
@@ -270,6 +271,64 @@ const malformedIntake = await intakeFile(
   ok(
     "bulk download does not pre-gate on the analysis candidate",
     !/analysis\?\.candidate/.test(body)
+  );
+}
+
+// Staging must be reversible.
+//
+// Both removal paths refuse a staged item and tell the operator to clear
+// staging first. Until unstaging existed, that instruction named an action
+// the room could not perform, so a staged work item was stuck in the local
+// queue permanently and the queue could never be cleaned.
+{
+  const before = await db.get(legacyIntake.item.sourceSha256);
+  ok("the item is staged going in", before.staging !== null);
+
+  await unstageCandidate(db, legacyIntake.item.sourceSha256, T0);
+  const after = await db.get(legacyIntake.item.sourceSha256);
+  ok("staging is cleared", after.staging === null);
+  ok(
+    "unstaging destroys nothing — candidate and analysis survive",
+    after.candidateBytes !== null && after.analysis !== null
+  );
+  ok(
+    "unstaging leaves the original bytes untouched",
+    Buffer.compare(Buffer.from(after.sourceBytes), legacyBytes) === 0
+  );
+
+  await removeWorkItem(db, legacyIntake.item.sourceSha256);
+  ok(
+    "an unstaged item can finally be removed",
+    (await db.get(legacyIntake.item.sourceSha256)) === undefined
+  );
+}
+
+// Selection lifecycle. A refused removal must not cost the operator their
+// selection — on a large batch, re-ticking every box was the only way to
+// discover which file blocked — and a dismissed row must not linger in the
+// count as a file that no longer exists.
+{
+  const room = readFileSync(
+    new URL("../components/VaultSpecificationUpgrade.tsx", import.meta.url),
+    "utf8"
+  );
+  const sliceOf = (name) => {
+    const start = room.indexOf(`async function ${name}`);
+    return start < 0 ? "" : room.slice(start, room.indexOf("\n  async function", start + 1));
+  };
+
+  const removeBody = sliceOf("removeSelected");
+  ok(
+    "a refused removal keeps the files that could not be removed selected",
+    removeBody.length > 0 &&
+      !/setSelection\(new Set\(\)\)/.test(removeBody) &&
+      /setSelection\(stillSelected\)/.test(removeBody)
+  );
+
+  const dismissBody = sliceOf("dismissItem");
+  ok(
+    "dismiss drops its own hash from the selection",
+    dismissBody.length > 0 && /\.delete\(item\.sourceSha256\)/.test(dismissBody)
   );
 }
 

@@ -30,6 +30,7 @@ import {
   saveCompletion,
   setReviewState,
   stageCandidate,
+  unstageCandidate,
   verifyCandidateForDelivery,
   type VaultUpgradeDb,
 } from "@/lib/vault-upgrade/indexedDb.ts";
@@ -734,6 +735,45 @@ export default function VaultSpecificationUpgrade({
     });
   }
 
+  /**
+   * The way back out of staging. Both removal paths refuse a staged item and
+   * say to clear staging first, so until this existed that instruction named
+   * an action the room could not perform.
+   */
+  async function unstageSelected(): Promise<void> {
+    const db = dbRef.current;
+    if (!db) return;
+    const staged = items.filter(
+      (i) => selection.has(i.sourceSha256) && i.staging !== null
+    );
+    if (staged.length === 0) {
+      setNotice({
+        kind: "info",
+        text: "None of the selected work items is in local staging.",
+      });
+      return;
+    }
+    let cleared = 0;
+    const failed: string[] = [];
+    for (const item of staged) {
+      try {
+        await unstageCandidate(db, item.sourceSha256, new Date().toISOString());
+        cleared++;
+      } catch {
+        failed.push(item.sourceFilename);
+      }
+    }
+    await refresh();
+    setNotice({
+      kind: failed.length ? "error" : "info",
+      text: `${cleared} candidate${
+        cleared === 1 ? "" : "s"
+      } removed from local staging — the candidate and the original file are untouched${
+        failed.length ? ` · could not clear: ${failed.join(", ")}` : ""
+      }.`,
+    });
+  }
+
   async function removeSelected(): Promise<void> {
     const db = dbRef.current;
     if (!db) return;
@@ -750,6 +790,7 @@ export default function VaultSpecificationUpgrade({
     }
     let removed = 0;
     const protectedItems: string[] = [];
+    const stillSelected = new Set<string>();
     for (const item of chosen) {
       try {
         await removeWorkItem(db, item.sourceSha256);
@@ -757,9 +798,14 @@ export default function VaultSpecificationUpgrade({
         if (activeHash === item.sourceSha256) setActiveHash(null);
       } catch {
         protectedItems.push(item.sourceFilename);
+        stillSelected.add(item.sourceSha256);
       }
     }
-    setSelection(new Set());
+    /* Keep exactly what could not be removed. Clearing the whole selection
+       here meant a refused batch cost the operator every checkbox — on a
+       large selection, re-ticking them was the only way to find out which
+       file blocked. What survives is what still needs attention. */
+    setSelection(stillSelected);
     await refresh();
     setNotice({
       kind: protectedItems.length ? "error" : "info",
@@ -784,6 +830,13 @@ export default function VaultSpecificationUpgrade({
     try {
       await removeWorkItem(db, item.sourceSha256);
       if (activeHash === item.sourceSha256) setActiveHash(null);
+      /* The row is gone; its hash must not linger in the selection, or the
+         count reports files that no longer exist. */
+      setSelection((prev) => {
+        const next = new Set(prev);
+        next.delete(item.sourceSha256);
+        return next;
+      });
       await refresh();
     } catch (err) {
       setNotice({
@@ -1391,6 +1444,14 @@ export default function VaultSpecificationUpgrade({
                 onClick={() => void stageSelected()}
               >
                 Save to local staging
+              </button>
+              <button
+                type="button"
+                className={BTN}
+                disabled={selection.size === 0}
+                onClick={() => void unstageSelected()}
+              >
+                Remove from staging
               </button>
             </div>
           </div>

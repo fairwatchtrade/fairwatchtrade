@@ -302,6 +302,31 @@ export async function stageCandidate(
   return item;
 }
 
+/**
+ * Take a candidate back out of local staging.
+ *
+ * Both removal paths refuse a staged item and tell the operator to clear
+ * staging first, so without this the instruction named an action the room
+ * could not perform and a staged work item was stuck in the queue forever.
+ * Nothing is destroyed here: the candidate, its bytes, and the original
+ * source all survive — only the staging record is cleared.
+ */
+export async function unstageCandidate(
+  db: VaultUpgradeDb,
+  sourceSha256: string,
+  nowIso: string
+): Promise<WorkItem> {
+  const item = await db.get(sourceSha256);
+  if (!item) {
+    throw new Error(`No work item exists for source ${sourceSha256}.`);
+  }
+  item.staging = null;
+  item.lastAction = "Candidate removed from local staging.";
+  item.updatedAtIso = nowIso;
+  await db.put(item);
+  return item;
+}
+
 /** Discard a generated candidate. The original bytes remain untouched. */
 export async function removeCandidate(
   db: VaultUpgradeDb,
