@@ -17,6 +17,7 @@ import {
   completeUpgrade,
   CompletionCancelled,
 } from "@/lib/vault-upgrade/complete.ts";
+import WatchSpinner from "@/components/WatchSpinner";
 import { createBrowserResearchTransport } from "@/lib/vault-upgrade/researchClient.ts";
 import { verifySchemaCompanion } from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.manifest.ts";
 import schemaJson from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.schema.json";
@@ -198,6 +199,17 @@ function formatBytes(n: number): string {
   return `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
+/**
+ * Elapsed wall-clock time for a run in progress. Measured, never estimated:
+ * this room has no idea how long a research round will take, so it reports
+ * how long the work has actually been running and claims nothing further.
+ */
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function downloadBlob(
   filename: string,
   content: ArrayBuffer | Uint8Array | string,
@@ -250,6 +262,12 @@ export default function VaultSpecificationUpgrade({
   const [analyzing, setAnalyzing] = useState<Set<string>>(new Set());
   /** hash → operator-facing progress line while a completion is running. */
   const [completing, setCompleting] = useState<Map<string, string>>(new Map());
+  /* When each active run began, so the room can show real elapsed time. A
+     run is timed from the moment it starts and keeps counting across
+     research rounds — resetting per round would suggest the work had
+     started over when it has not. */
+  const [startedAt, setStartedAt] = useState<Map<string, number>>(new Map());
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const cancelRef = useRef<Map<string, { aborted: boolean }>>(new Map());
   const transportRef = useRef(createBrowserResearchTransport());
   const [busy, setBusy] = useState(false);
@@ -258,6 +276,15 @@ export default function VaultSpecificationUpgrade({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   /* ── Initialization: contract binding, engine, local queue resume ────── */
+  /* Ticks only while something is actually running, and the cleanup stops it
+     the moment the last run reaches a terminal state — so the clock can
+     never keep counting against work that has already finished. */
+  useEffect(() => {
+    if (completing.size === 0) return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [completing.size]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -437,6 +464,7 @@ export default function VaultSpecificationUpgrade({
       const signal = { aborted: false };
       cancelRef.current.set(hash, signal);
       setCompleting((prev) => new Map(prev).set(hash, "Starting…"));
+      setStartedAt((prev) => new Map(prev).set(hash, Date.now()));
       try {
         const item = await db.get(hash);
         if (!item) continue;
@@ -517,7 +545,14 @@ export default function VaultSpecificationUpgrade({
         }
       } finally {
         cancelRef.current.delete(hash);
+        /* Terminal — done, failed, or cancelled. The clock stops here, in
+           the one place every outcome passes through. */
         setCompleting((prev) => {
+          const next = new Map(prev);
+          next.delete(hash);
+          return next;
+        });
+        setStartedAt((prev) => {
           const next = new Map(prev);
           next.delete(hash);
           return next;
@@ -1245,15 +1280,32 @@ export default function VaultSpecificationUpgrade({
                         </td>
                         <td className="px-2 py-2.5 align-top">
                           <span
-                            className={`text-[10px] uppercase tracking-[1px] ${
-                              progress ? "text-[var(--gold)]" : meta.className
+                            className={`flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-[1px] ${
+                              progress || isAnalyzing
+                                ? "text-[var(--gold)]"
+                                : meta.className
                             }`}
                           >
+                            {(progress || isAnalyzing) && (
+                              <WatchSpinner size={12} />
+                            )}
                             {progress
-                              ? `… ${progress}`
+                              ? progress
                               : isAnalyzing
-                                ? "… Analyzing"
+                                ? "Analyzing"
                                 : `${meta.glyph} ${meta.label}`}
+                            {/* Measured, not estimated. No percentage, no bar,
+                                no arrival time — the room does not know how
+                                long a research round will take and does not
+                                pretend to. */}
+                            {progress && startedAt.has(item.sourceSha256) && (
+                              <span className="tabular-nums text-[var(--muted)]">
+                                {formatElapsed(
+                                  nowTick -
+                                    (startedAt.get(item.sourceSha256) ?? nowTick)
+                                )}
+                              </span>
+                            )}
                           </span>
                           {progress ? (
                             <button
@@ -1293,7 +1345,8 @@ export default function VaultSpecificationUpgrade({
           </div>
           <div className="border-t border-[var(--border-subtle)] px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-[11px] text-[var(--muted)]">
+              <div className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
+                {completing.size > 0 && <WatchSpinner size={13} />}
                 {completing.size > 0
                   ? `${completing.size} file${
                       completing.size === 1 ? "" : "s"
@@ -1717,10 +1770,11 @@ function ReviewSurface({
         {canComplete && (
           <button
             type="button"
-            className={BTN_GOLD}
+            className={`${BTN_GOLD} inline-flex items-center gap-2`}
             disabled={completing !== null}
             onClick={onComplete}
           >
+            {completing !== null && <WatchSpinner size={14} />}
             {completing !== null
               ? completing
               : status === "FAILED_RETRYABLE" ||

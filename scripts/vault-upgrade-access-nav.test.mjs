@@ -75,4 +75,41 @@ ok(
 );
 ok("no folder-intake claim", !/entire folder/i.test(room));
 
+// Active-run feedback: the established house treatment, and nothing invented.
+ok(
+  "the shared watch spinner is reused rather than a new one invented",
+  room.includes('from "@/components/WatchSpinner"') &&
+    room.includes("<WatchSpinner")
+);
+ok(
+  "elapsed time is measured from a recorded start",
+  room.includes("formatElapsed") && room.includes("setStartedAt")
+);
+ok(
+  "the clock stops wherever a run reaches a terminal state",
+  /setStartedAt\(\(prev\) => \{[\s\S]{0,120}next\.delete\(hash\)/.test(room)
+);
+ok(
+  "cancelling a single file is still offered during a run",
+  room.includes("Cancel this file")
+);
+/* The room cannot know how long a research round will take, so it must not
+   imply otherwise. No share-of-total, no bar, no arrival time.
+
+   Scanned with comments stripped: prose explaining that there is no
+   percentage is not a percentage, and an assertion that cannot tell the
+   difference would fail on its own documentation. */
+const roomCode = room.replace(/\/\*[\s\S]*?\*\//g, " ");
+ok("no fake percentage", !/\b\d+\s*%|percent(age)?\b/i.test(roomCode));
+ok(
+  "no fake progress bar",
+  !/progress-?bar|role="progressbar"|<progress\b/i.test(roomCode)
+);
+ok(
+  "no estimated time of arrival",
+  !/\bETA\b|estimated (time|completion)|time remaining|remaining time/i.test(
+    roomCode
+  )
+);
+
 console.log(`vault-upgrade-access-nav: ${pass} assertions PASS`);
