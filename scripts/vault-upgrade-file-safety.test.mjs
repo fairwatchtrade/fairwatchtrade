@@ -2,6 +2,7 @@
    work-queue wrapper with a stub IndexedDB backing.
    Run: node scripts/vault-upgrade-file-safety.test.mjs */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createStubIndexedDb } from "./vault-upgrade-fixtures/idb-stub.mjs";
 import {
   fixtureBytes,
@@ -12,11 +13,12 @@ const {
   openVaultUpgradeDb,
   intakeFile,
   saveAnalysis,
+  saveCompletion,
   verifyCandidateForDelivery,
   stageCandidate,
   removeWorkItem,
 } = await import("../lib/vault-upgrade/indexedDb.ts");
-const { engine } = await loadEngine();
+const { engine, schema, contract } = await loadEngine();
 
 let pass = 0;
 const ok = (name, condition) => {
@@ -161,6 +163,113 @@ const malformedIntake = await intakeFile(
   ok(
     "unstaged item removed",
     (await db.get(malformedIntake.item.sourceSha256)) === undefined
+  );
+}
+
+// A researched file's candidate must be deliverable.
+//
+// The analyzer only produces a candidate for a purely structural upgrade, so
+// any file that needed research has analysis.candidate === null and carries
+// its candidate on the completion record instead. Delivery therefore has to
+// read the completion candidate. A pre-check against the analysis candidate
+// silently refuses every file the room actually did work on — which is the
+// entire point of the room.
+{
+  const { completeUpgrade } = await import("../lib/vault-upgrade/complete.ts");
+
+  const offlineTransport = async ({ requests }) => ({
+    ok: true,
+    unanswered: [],
+    results: requests.map((r) => ({
+      path: r.path,
+      outcome: "VERIFIED",
+      value:
+        r.kind === "variant-references"
+          ? [{ reference: "FH-100-BL" }]
+          : r.kind === "variant-description"
+            ? "Time-only model recognised by its lacquered blue dial and slim case, produced in limited annual numbers and valued by collectors for its hand-finished movement and legible layout."
+            : r.kind === "variant-notes"
+              ? "38 mm steel case; manual-wind; 42h power reserve."
+              : Array.isArray(r.allowedValues) && r.allowedValues.length > 0
+                ? r.allowedValues[0]
+                : r.field === "cluster_rationale"
+                  ? "Small independent maker whose collectors follow contemporary independent watchmaking rather than heritage Swiss houses."
+                  : r.field === "description"
+                    ? "Independent Swiss workshop producing mechanical wristwatches in small annual series, known among collectors for hand-finished movements and a restrained house style maintained since its founding."
+                    : "Switzerland",
+      sources: [
+        {
+          title: "Fixture source",
+          publisher: "Test",
+          url: "https://example.org/source",
+        },
+      ],
+      evidence: "Established by the cited source.",
+      confidence: "high",
+    })),
+  });
+
+  const name = "legacy-lowercase-research-gaps.json";
+  const gapsBytes = fixtureBytes(name);
+  const gapsIntake = await intakeFile(
+    db,
+    { filename: name, bytes: toArrayBuffer(gapsBytes) },
+    "operator@test",
+    T0
+  );
+
+  const analysis = await engine.analyzeSource({ filename: name, bytes: gapsBytes });
+  ok(
+    "a researched file has no analysis candidate — the precondition that broke delivery",
+    analysis.candidate === null
+  );
+  await saveAnalysis(db, gapsIntake.item.sourceSha256, analysis, null, T0);
+
+  const completion = await completeUpgrade({
+    engine,
+    schema,
+    contract,
+    filename: name,
+    bytes: gapsBytes,
+    transport: offlineTransport,
+  });
+  ok(
+    "completion produced a candidate for the researched file",
+    completion.status === "CANDIDATE_READY" && completion.candidate !== null
+  );
+  await saveCompletion(
+    db,
+    gapsIntake.item.sourceSha256,
+    completion,
+    new TextEncoder().encode(completion.candidate.text).buffer,
+    T0
+  );
+
+  const verified = await verifyCandidateForDelivery(db, gapsIntake.item.sourceSha256);
+  ok(
+    "a completion-sourced candidate is deliverable",
+    verified.filename === completion.candidate.filename &&
+      verified.sha256 === completion.candidate.sha256
+  );
+}
+
+// The room must not second-guess the verifier. This exact pre-check shipped in
+// v3.90 and made every researched file undownloadable in bulk while the panel
+// beside it displayed the candidate — two places deciding, one of them wrong.
+{
+  const room = readFileSync(
+    new URL("../components/VaultSpecificationUpgrade.tsx", import.meta.url),
+    "utf8"
+  );
+  const start = room.indexOf("async function downloadSelectedCandidates");
+  const body = room.slice(start, room.indexOf("\n  async function", start + 1));
+  ok(
+    "bulk download found in the room",
+    start > 0 && body.includes("verifyCandidateForDelivery")
+  );
+  ok(
+    "bulk download does not pre-gate on the analysis candidate",
+    !/analysis\?\.candidate/.test(body)
   );
 }
 

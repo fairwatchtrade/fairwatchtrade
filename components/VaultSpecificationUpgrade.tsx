@@ -624,10 +624,13 @@ export default function VaultSpecificationUpgrade({
     const entries: ZipEntry[] = [];
     const skipped: string[] = [];
     for (const item of chosen) {
-      if (!item.analysis?.candidate) {
-        skipped.push(item.sourceFilename);
-        continue;
-      }
+      /* No pre-check here. verifyCandidateForDelivery is the single authority
+         on whether a candidate can be delivered: it prefers the completion
+         candidate over the structural one and re-verifies the stored bytes
+         before releasing them. A second opinion in this loop is exactly how a
+         completed file that HAD a candidate was reported as having none —
+         the analyzer only produces a candidate for a purely structural
+         upgrade, so every researched file failed that test. */
       try {
         const verified = await verifyCandidateForDelivery(
           db,
