@@ -75,6 +75,30 @@ ok(
 );
 ok("no folder-intake claim", !/entire folder/i.test(room));
 
+// Repeated context is cached rather than re-bought. The placement logic is
+// proven behaviorally in the completion suite; these confirm the route
+// actually wires it up.
+const researchRoute = read("app/api/admin/vault-upgrade/research/route.ts");
+ok(
+  "the static instructions are sent as a cacheable block",
+  /system:\s*\[[\s\S]{0,300}cache_control/.test(researchRoute)
+);
+ok(
+  "the shared prefix is held long enough to outlive a single file",
+  /cache_control:\s*\{\s*type:\s*"ephemeral",\s*ttl:\s*"1h"\s*\}/.test(
+    researchRoute
+  )
+);
+ok(
+  "a resumed search re-anchors its breakpoints rather than re-buying context",
+  researchRoute.includes("applyMessageCacheBreakpoints(messages)")
+);
+ok(
+  "what the call consumed is returned to the room",
+  /usage,\s*\n\s*\}\);/.test(researchRoute) &&
+    researchRoute.includes("usageOfTurn(data)")
+);
+
 // Active-run feedback: the established house treatment, and nothing invented.
 ok(
   "the shared watch spinner is reused rather than a new one invented",

@@ -22,6 +22,7 @@
 
 import type {
   AnalysisIssue,
+  ProviderUsage,
   ResearchOption,
   ResearchPass,
   ResearchRequest,
@@ -365,7 +366,127 @@ export function buildReferenceRequests(doc: PlainObject): ResearchRequest[] {
 export type ProviderTurn = {
   content?: { type: string; text?: string }[];
   stop_reason?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+    server_tool_use?: { web_search_requests?: number };
+  };
 };
+
+/* ── Provider usage ───────────────────────────────────────────────────────
+   The ProviderUsage shape lives in ./types.ts so the completion record can
+   carry it. These are the helpers that read and fold it. */
+
+export const EMPTY_USAGE: ProviderUsage = {
+  inputTokens: 0,
+  cacheCreationInputTokens: 0,
+  cacheReadInputTokens: 0,
+  outputTokens: 0,
+  requests: 0,
+  continuations: 0,
+  webSearches: 0,
+  model: "",
+};
+
+/** Read one turn's usage. Absent fields count as zero, never as unknown. */
+export function usageOfTurn(turn: ProviderTurn): Omit<ProviderUsage, "model"> {
+  const u = turn.usage ?? {};
+  return {
+    inputTokens: u.input_tokens ?? 0,
+    cacheCreationInputTokens: u.cache_creation_input_tokens ?? 0,
+    cacheReadInputTokens: u.cache_read_input_tokens ?? 0,
+    outputTokens: u.output_tokens ?? 0,
+    requests: 1,
+    continuations: turn.stop_reason === "pause_turn" ? 1 : 0,
+    webSearches: u.server_tool_use?.web_search_requests ?? 0,
+    model: "",
+  } as Omit<ProviderUsage, "model">;
+}
+
+/** Add usage together. Every call and every file folds through this. */
+export function addUsage(
+  a: ProviderUsage,
+  b: Partial<ProviderUsage>
+): ProviderUsage {
+  return {
+    inputTokens: a.inputTokens + (b.inputTokens ?? 0),
+    cacheCreationInputTokens:
+      a.cacheCreationInputTokens + (b.cacheCreationInputTokens ?? 0),
+    cacheReadInputTokens:
+      a.cacheReadInputTokens + (b.cacheReadInputTokens ?? 0),
+    outputTokens: a.outputTokens + (b.outputTokens ?? 0),
+    requests: a.requests + (b.requests ?? 0),
+    continuations: a.continuations + (b.continuations ?? 0),
+    webSearches: a.webSearches + (b.webSearches ?? 0),
+    model: b.model || a.model,
+  };
+}
+
+/* ── Cache breakpoints ─────────────────────────────────────────────────────
+   Caching is a prefix match, so the only thing that can be reused is content
+   that is byte-identical and comes first. Two prefixes qualify here.
+
+   The tools and the system instructions are the same on every request this
+   room ever makes — for every question, every round, every file. They render
+   ahead of the conversation, so one breakpoint on the system block covers
+   both.
+
+   Within a call, a paused search loop resumes by re-sending the whole
+   conversation, and the accumulated search results are in it. Marking the
+   most recent assistant turns lets each resume read that back instead of
+   paying full price for it again.
+
+   The provider allows four breakpoints and walks back at most twenty content
+   blocks to find a previous entry. A search-heavy turn can add more blocks
+   than that on its own, so several recent turns are marked rather than only
+   the latest — otherwise a long turn silently steps over the anchor and the
+   cache misses with no error, just a bill. */
+
+/** Breakpoints reserved for the conversation; one is kept for the system. */
+export const MAX_MESSAGE_BREAKPOINTS = 3;
+
+type CacheControl = { type: "ephemeral"; ttl?: string };
+type MessageLike = { role: string; content: unknown };
+
+/**
+ * Mark the last content block of each of the most recent assistant turns.
+ *
+ * Mutates in place and is idempotent: existing marks are cleared first, so
+ * calling it again after another turn moves the window forward rather than
+ * accumulating marks past the provider's limit.
+ */
+export function applyMessageCacheBreakpoints(
+  messages: MessageLike[],
+  maxBreakpoints: number = MAX_MESSAGE_BREAKPOINTS
+): number {
+  const blocksOf = (m: MessageLike): Record<string, unknown>[] =>
+    Array.isArray(m.content)
+      ? (m.content as unknown[]).filter(
+          (b): b is Record<string, unknown> =>
+            typeof b === "object" && b !== null
+        )
+      : [];
+
+  for (const message of messages) {
+    for (const block of blocksOf(message)) delete block.cache_control;
+  }
+
+  if (maxBreakpoints <= 0) return 0;
+
+  const markable = messages.filter(
+    (m) => m.role === "assistant" && blocksOf(m).length > 0
+  );
+  const chosen = markable.slice(-maxBreakpoints);
+  for (const message of chosen) {
+    const blocks = blocksOf(message);
+    blocks[blocks.length - 1].cache_control = {
+      type: "ephemeral",
+    } satisfies CacheControl;
+  }
+  return chosen.length;
+}
 
 /**
  * Assemble one answer from every turn of a research call.

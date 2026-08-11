@@ -318,6 +318,36 @@ export type HumanDecision = {
   omittable: boolean;
 };
 
+/**
+ * What a run actually consumed at the provider.
+ *
+ * Token classes are reported exactly as the provider returns them and are
+ * never converted to money here: prices are not in the response, and a dollar
+ * figure derived from a rate this file guessed at would look authoritative
+ * and be wrong the moment pricing moved.
+ *
+ * `cacheReadInputTokens` is the number that matters most — it is the only
+ * direct evidence that repeated context is being reused rather than bought
+ * again on every request.
+ */
+export type ProviderUsage = {
+  /** Input tokens billed at the full rate — nothing reused. */
+  inputTokens: number;
+  /** Input tokens written into the cache, billed at a premium once. */
+  cacheCreationInputTokens: number;
+  /** Input tokens served from the cache. */
+  cacheReadInputTokens: number;
+  outputTokens: number;
+  /** Provider requests issued, including every continuation. */
+  requests: number;
+  /** Turns spent resuming a paused search loop. */
+  continuations: number;
+  /** Searches the provider ran on our behalf. */
+  webSearches: number;
+  /** The exact model asked for, so one run can be compared with another. */
+  model: string;
+};
+
 /** Live phase of a completion run, for per-file progress. */
 export type CompletionPhase =
   | "ANALYZING"
@@ -394,4 +424,10 @@ export type CompletionRecord = {
   normalizationVersion: string;
   /** Exact single blocker when one prevented completion. */
   blocker: string | null;
+  /**
+   * Everything this file cost at the provider, summed across every research
+   * call and every continuation — including the calls that failed, because a
+   * run that spent tokens and then errored still spent them.
+   */
+  usage: ProviderUsage;
 };

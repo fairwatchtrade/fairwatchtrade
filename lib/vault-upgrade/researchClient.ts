@@ -46,7 +46,15 @@ export function createBrowserResearchTransport(): ResearchTransport {
       detail?: string;
       results?: unknown;
       unanswered?: unknown;
+      usage?: unknown;
     };
+
+    /* Carried on both paths: a call that failed still consumed tokens, and
+       the room's accounting is only honest if it sees them. */
+    const usage =
+      typeof parsed.usage === "object" && parsed.usage !== null
+        ? (parsed.usage as Record<string, never>)
+        : undefined;
 
     if (!res.ok || !parsed.ok) {
       return {
@@ -54,6 +62,7 @@ export function createBrowserResearchTransport(): ResearchTransport {
         code: parsed.code ?? "RETRYABLE",
         detail:
           parsed.detail ?? `The research route returned HTTP ${res.status}.`,
+        usage,
       };
     }
 
@@ -63,6 +72,7 @@ export function createBrowserResearchTransport(): ResearchTransport {
       unanswered: Array.isArray(parsed.unanswered)
         ? (parsed.unanswered as string[])
         : [],
+      usage,
     };
   };
 }

@@ -28,6 +28,11 @@ const {
   MAX_REQUESTS_PER_CALL,
   extractJsonObject,
   assembleAnswer,
+  applyMessageCacheBreakpoints,
+  usageOfTurn,
+  addUsage,
+  EMPTY_USAGE,
+  MAX_MESSAGE_BREAKPOINTS,
 } =
   await import("../lib/vault-upgrade/research.ts");
 const { buildCompletionReport, serializeCompletionReport } = await import(
@@ -717,12 +722,22 @@ async function complete(fixture, transport, extra = {}) {
     "the credential never reaches the browser bundle",
     !engineSources.some((s) => /ANTHROPIC_API_KEY/.test(s))
   );
-  /* Provider identity is configuration, not a result. The model identifier
-     belongs in the outbound call and nowhere else — a second occurrence means
-     it has been put back into a response body the room's browser can read. */
+  /* Provider identity is configuration, not a result — with one deliberate
+     exception, narrowed here rather than dropped.
+
+     The usage accounting records which model a run used, because a stored run
+     that cannot say what produced it cannot be compared against another. That
+     payload is returned only from this founder-gated route to the operator's
+     own screen; it never reaches a public surface. So exactly two occurrences
+     are permitted — the outbound call and the usage record — and a third
+     means the identifier has leaked somewhere new. */
   ok(
-    "the model identifier appears only in the outbound provider call",
-    (route.match(/model:\s*MODEL/g) ?? []).length === 1
+    "the model identifier appears only in the outbound call and the usage record",
+    (route.match(/model:\s*MODEL/g) ?? []).length === 2
+  );
+  ok(
+    "provider identity never appears in a message shown to the operator",
+    !/detail:[^\n]*MODEL/.test(route)
   );
   ok(
     "no message returned to the room names the credential",
@@ -747,6 +762,150 @@ async function complete(fixture, transport, extra = {}) {
   ok(
     "an unfinished answer is reported as retryable, not as bad JSON",
     /stillSearching\)[\s\S]{0,400}"RETRYABLE"/.test(route)
+  );
+}
+
+/* ── Cache breakpoints ────────────────────────────────────────────────────
+   Caching is a prefix match, so what matters is that the marks land on the
+   most recent assistant turns and that re-marking moves the window rather
+   than accumulating past the provider's four-breakpoint limit. */
+{
+  const turn = (role, blocks) => ({ role, content: blocks });
+  const block = (text) => ({ type: "text", text });
+  const marked = (m) =>
+    (Array.isArray(m.content) ? m.content : []).filter((b) => b?.cache_control)
+      .length;
+
+  const messages = [
+    turn("user", [block("q")]),
+    turn("assistant", [block("a1"), block("a1b")]),
+    turn("assistant", [block("a2")]),
+  ];
+  const count = applyMessageCacheBreakpoints(messages);
+  ok("a breakpoint is placed on each recent assistant turn", count === 2);
+  ok("the user turn is never marked", marked(messages[0]) === 0);
+  ok(
+    "only the last block of a turn carries the mark",
+    marked(messages[1]) === 1 && messages[1].content[1].cache_control
+  );
+
+  /* Idempotence is what keeps a long run inside the provider's limit. */
+  applyMessageCacheBreakpoints(messages);
+  const total = messages.reduce((n, m) => n + marked(m), 0);
+  ok("re-marking does not accumulate marks", total === 2);
+
+  /* Past the window, the oldest turns are released so the newest are
+     anchored — the reverse would leave every recent turn uncacheable. */
+  const many = [turn("user", [block("q")])];
+  for (let i = 0; i < 6; i++) many.push(turn("assistant", [block(`a${i}`)]));
+  applyMessageCacheBreakpoints(many);
+  const markedTurns = many.filter((m) => marked(m) > 0);
+  ok(
+    "never more breakpoints than the reserved budget",
+    markedTurns.length === MAX_MESSAGE_BREAKPOINTS
+  );
+  ok(
+    "the most recent turns are the ones anchored",
+    markedTurns[markedTurns.length - 1] === many[many.length - 1]
+  );
+  ok(
+    "a turn with no content blocks is skipped rather than crashing",
+    applyMessageCacheBreakpoints([
+      turn("assistant", []),
+      turn("assistant", null),
+    ]) === 0
+  );
+}
+
+/* ── Usage accounting ─────────────────────────────────────────────────────
+   The numbers have to be true even when the provider omits fields and even
+   when the call fails, or the accounting quietly under-reports what a run
+   actually cost. */
+{
+  const full = usageOfTurn({
+    stop_reason: "end_turn",
+    usage: {
+      input_tokens: 100,
+      output_tokens: 20,
+      cache_creation_input_tokens: 900,
+      cache_read_input_tokens: 4000,
+      server_tool_use: { web_search_requests: 3 },
+    },
+  });
+  ok(
+    "every token class is read from the provider's own fields",
+    full.inputTokens === 100 &&
+      full.outputTokens === 20 &&
+      full.cacheCreationInputTokens === 900 &&
+      full.cacheReadInputTokens === 4000 &&
+      full.webSearches === 3
+  );
+  ok("each turn counts as one request", full.requests === 1);
+  ok("a completed turn is not a continuation", full.continuations === 0);
+
+  const paused = usageOfTurn({ stop_reason: "pause_turn", usage: {} });
+  ok("a paused turn is counted as a continuation", paused.continuations === 1);
+
+  const bare = usageOfTurn({});
+  ok(
+    "a turn with no usage block counts as zero, not as unknown",
+    bare.inputTokens === 0 &&
+      bare.cacheReadInputTokens === 0 &&
+      bare.requests === 1
+  );
+
+  const summed = addUsage(addUsage({ ...EMPTY_USAGE }, full), paused);
+  ok(
+    "usage folds across turns",
+    summed.inputTokens === 100 && summed.requests === 2 && summed.continuations === 1
+  );
+  ok(
+    "the model carries through the fold",
+    addUsage({ ...EMPTY_USAGE }, { model: "x" }).model === "x"
+  );
+}
+
+/* ── Usage survives the whole run, including the calls that failed ──────── */
+{
+  const spendingTransport = async ({ requests }) => ({
+    ...(await goodTransport()({ requests })),
+    usage: {
+      inputTokens: 10,
+      cacheReadInputTokens: 500,
+      cacheCreationInputTokens: 5,
+      outputTokens: 7,
+      requests: 1,
+      webSearches: 2,
+      model: "test-model",
+    },
+  });
+  const r = await complete(GAPS, spendingTransport);
+  ok(
+    "the run reports what it consumed",
+    r.usage.requests > 0 && r.usage.inputTokens > 0
+  );
+  ok(
+    "cache reads are carried through to the record",
+    r.usage.cacheReadInputTokens >= 500
+  );
+  ok("the model that produced the run is recorded", r.usage.model === "test-model");
+  ok(
+    "usage accumulates across every research call, not just the last",
+    r.usage.requests === r.counts.researchRounds + 1 ||
+      r.usage.requests > 1
+  );
+
+  /* A failure that reports no spend makes the accounting lie. */
+  const failingTransport = async () => ({
+    ok: false,
+    code: "RETRYABLE",
+    detail: "provider unreachable",
+    usage: { inputTokens: 42, requests: 1, model: "test-model" },
+  });
+  const failed = await complete(GAPS, failingTransport);
+  ok(
+    "a failed run still reports the tokens it spent",
+    failed.status === "FAILED_RETRYABLE" && failed.usage.inputTokens === 42
   );
 }
 

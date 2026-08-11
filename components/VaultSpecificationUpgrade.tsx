@@ -200,6 +200,14 @@ function formatBytes(n: number): string {
   return `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
+/** Thousands separators without locale drift. */
+function formatCount(n: number): string {
+  return String(Math.max(0, Math.round(n))).replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ","
+  );
+}
+
 /**
  * Elapsed wall-clock time for a run in progress. Measured, never estimated:
  * this room has no idea how long a research round will take, so it reports
@@ -1846,6 +1854,41 @@ function ReviewSurface({
               : " · no candidate"}
         </div>
       </div>
+
+      {/* What the run consumed. Token classes exactly as the provider
+          reported them — no money is invented here, because the price is not
+          in the response and a made-up figure would read as fact. */}
+      {completion?.usage && completion.usage.requests > 0 && (
+        <div className="border-b border-[var(--border-subtle)] px-5 py-2.5 text-[11px] leading-relaxed text-[var(--muted)]">
+          <span className="uppercase tracking-[1px] text-[var(--platinum-dim)]">
+            Provider usage
+          </span>{" "}
+          &middot; {formatCount(completion.usage.inputTokens)} input &middot;{" "}
+          <span
+            className={
+              completion.usage.cacheReadInputTokens > 0
+                ? "text-[var(--gold)]"
+                : "text-[var(--muted)]"
+            }
+          >
+            {formatCount(completion.usage.cacheReadInputTokens)} read from cache
+          </span>{" "}
+          &middot; {formatCount(completion.usage.cacheCreationInputTokens)}{" "}
+          written to cache &middot;{" "}
+          {formatCount(completion.usage.outputTokens)} output &middot;{" "}
+          {completion.usage.requests} request
+          {completion.usage.requests === 1 ? "" : "s"}
+          {completion.usage.continuations > 0 &&
+            ` · ${completion.usage.continuations} continuation${
+              completion.usage.continuations === 1 ? "" : "s"
+            }`}
+          {completion.usage.webSearches > 0 &&
+            ` · ${completion.usage.webSearches} web search${
+              completion.usage.webSearches === 1 ? "" : "es"
+            }`}
+          {completion.usage.model ? ` · ${completion.usage.model}` : ""}
+        </div>
+      )}
 
       {/* Actions — status-aware */}
       <div className="flex flex-wrap gap-2 border-b border-[var(--border-subtle)] px-5 py-3">

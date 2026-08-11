@@ -29,13 +29,16 @@ import type { UpgradeEngine } from "./analyze.ts";
 import { serializeCandidate, stableStringify } from "./canonicalize.ts";
 import { sha256HexOfText, utf8Bytes } from "./hash.ts";
 import {
+  addUsage,
   buildHierarchyRequests,
   buildReferenceRequests,
+  EMPTY_USAGE,
   MAX_REQUESTS_PER_CALL,
   MAX_RESEARCH_ROUNDS,
 } from "./research.ts";
 import type {
   AnalysisIssue,
+  ProviderUsage,
   CompletionCounts,
   CompletionPhase,
   CompletionRecord,
@@ -64,8 +67,20 @@ export class CompletionCancelled extends Error {
 }
 
 export type ResearchTransportResult =
-  | { ok: true; results: ResearchResult[]; unanswered: string[] }
-  | { ok: false; code: string; detail: string };
+  | {
+      ok: true;
+      results: ResearchResult[];
+      unanswered: string[];
+      /** What the call consumed. Absent from an injected test transport. */
+      usage?: Partial<ProviderUsage>;
+    }
+  | {
+      ok: false;
+      code: string;
+      detail: string;
+      /** A failed call still spent tokens; they are counted all the same. */
+      usage?: Partial<ProviderUsage>;
+    };
 
 /**
  * Executes one bounded research call. Injected so the loop can be proven
@@ -500,6 +515,11 @@ export async function completeUpgrade(
   const first = await engine.prepareSource({ filename, bytes });
   const analysis = first.record;
 
+  /* Every provider call folds into this, including the ones that fail —
+     a run that spent tokens and then errored still spent them, and an
+     accounting that quietly drops those is worse than none. */
+  let usage: ProviderUsage = { ...EMPTY_USAGE };
+
   const counts: CompletionCounts = {
     completedStructurally: 0,
     completedByResearch: 0,
@@ -529,6 +549,7 @@ export async function completeUpgrade(
     upgradeRuleVersion: analysis.upgradeRuleVersion,
     normalizationVersion: analysis.normalizationVersion,
     blocker,
+    usage,
     ...extra,
   });
 
@@ -584,6 +605,9 @@ export async function completeUpgrade(
         pass,
         requests: batch,
       });
+      /* Counted before the outcome is inspected, so a failure cannot slip
+         its spend past the accounting. */
+      usage = addUsage(usage, response.usage ?? {});
       if (!response.ok) {
         const providerAuth =
           response.code ===
@@ -687,6 +711,7 @@ export async function completeUpgrade(
     upgradeRuleVersion: analysis.upgradeRuleVersion,
     normalizationVersion: analysis.normalizationVersion,
     blocker,
+    usage,
   });
 
   /* The acceptance gate. A candidate exists only when the document passes

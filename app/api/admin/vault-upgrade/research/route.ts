@@ -23,9 +23,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { VAULT_LOCK_V3_2_MANIFEST } from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.manifest.ts";
 import {
+  addUsage,
+  applyMessageCacheBreakpoints,
   assembleAnswer,
   buildResearchUserContent,
+  EMPTY_USAGE,
   extractJsonObject,
+  usageOfTurn,
   type ProviderTurn,
   MAX_REQUESTS_PER_CALL,
   MAX_REQUEST_BYTES,
@@ -174,6 +178,7 @@ export async function POST(req: Request) {
      not return parseable JSON", blaming the provider for this route's own
      bookkeeping. */
   const turns: ProviderTurn[] = [];
+  let usage = { ...EMPTY_USAGE, model: MODEL };
   try {
     for (let attempt = 0; attempt <= MAX_CONTINUATIONS; attempt++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -190,7 +195,20 @@ export async function POST(req: Request) {
              reasoning problem — medium effort keeps the thinking spend
              proportionate and leaves the budget for the answer. */
           output_config: { effort: "medium" },
-          system: RESEARCH_SYSTEM_PROMPT,
+          /* The instructions below are byte-identical on every request this
+             room makes — every question, every round, every brand — and they
+             render after the tools, so one breakpoint here covers both. The
+             longer window is deliberate: a batch runs for hours, and an entry
+             that expires between two files is a premium paid for nothing.
+             It is a window, not a promise — a long enough gap still lets it
+             lapse, and the next write pays again. */
+          system: [
+            {
+              type: "text",
+              text: RESEARCH_SYSTEM_PROMPT,
+              cache_control: { type: "ephemeral", ttl: "1h" },
+            },
+          ],
           tools: [{ type: "web_search_20260209", name: "web_search" }],
           messages,
         }),
@@ -230,6 +248,7 @@ export async function POST(req: Request) {
 
       const data = (await res.json()) as ProviderTurn;
       turns.push(data);
+      usage = addUsage(usage, usageOfTurn(data));
 
       /* The server-side search loop paused; resume it rather than accepting
          a partial answer. Running out of resumes is not an error here — the
@@ -237,6 +256,10 @@ export async function POST(req: Request) {
       if (data.stop_reason === "pause_turn") {
         if (attempt < MAX_CONTINUATIONS) {
           messages.push({ role: "assistant", content: data.content ?? [] });
+          /* The resume re-sends this whole conversation, search results and
+             all. Marking the most recent turns lets it be read back rather
+             than paid for again at full price. */
+          applyMessageCacheBreakpoints(messages);
           continue;
         }
         break;
@@ -285,6 +308,9 @@ export async function POST(req: Request) {
         code: "RETRYABLE",
         detail:
           "The research pass was still searching when it reached this route's continuation limit, so its answer is unfinished. Retry; if it persists, the batch is too large for one call.",
+        /* Tokens were spent getting this far. A failure that reports no
+           usage makes the accounting lie about what a run cost. */
+        usage,
       },
       { status: 503 }
     );
@@ -293,16 +319,23 @@ export async function POST(req: Request) {
   /* 6 — strict validation before anything is returned to the room. */
   const parsed = extractJsonObject(text);
   if (parsed === undefined) {
-    return bad(
-      "INVALID_PROVIDER_OUTPUT",
-      "The research provider did not return parseable JSON.",
-      502
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "INVALID_PROVIDER_OUTPUT",
+        detail: "The research provider did not return parseable JSON.",
+        usage,
+      },
+      { status: 502 }
     );
   }
 
   const validated = validateResearchPayload(parsed, requests);
   if (!validated.ok) {
-    return bad("INVALID_PROVIDER_OUTPUT", validated.detail, 502);
+    return NextResponse.json(
+      { ok: false, code: "INVALID_PROVIDER_OUTPUT", detail: validated.detail, usage },
+      { status: 502 }
+    );
   }
 
   return NextResponse.json({
@@ -311,5 +344,6 @@ export async function POST(req: Request) {
     sourceSha256: body.sourceSha256,
     results: validated.results,
     unanswered: validated.unanswered,
+    usage,
   });
 }
