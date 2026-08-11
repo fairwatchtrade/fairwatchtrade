@@ -243,6 +243,7 @@ const malformedIntake = await intakeFile(
     gapsIntake.item.sourceSha256,
     completion,
     new TextEncoder().encode(completion.candidate.text).buffer,
+    null,
     T0
   );
 
@@ -329,6 +330,153 @@ const malformedIntake = await intakeFile(
   ok(
     "dismiss drops its own hash from the selection",
     dismissBody.length > 0 && /\.delete\(item\.sourceSha256\)/.test(dismissBody)
+  );
+}
+
+// A held run's work product is deliverable, and the two artifact kinds
+// cannot be served through each other's door.
+{
+  const { completeUpgrade } = await import("../lib/vault-upgrade/complete.ts");
+  const { verifyProvisionalForDelivery } = await import(
+    "../lib/vault-upgrade/indexedDb.ts"
+  );
+
+  const held = async ({ requests }) => ({
+    ok: true,
+    unanswered: [],
+    results: requests.map((r) => ({
+      path: r.path,
+      outcome: "VERIFIED",
+      value:
+        r.kind === "variant-references"
+          ? [{ reference: "FH-200-XX" }]
+          : r.kind === "variant-description"
+            ? "Time-only model recognised by its lacquered blue dial and slim case, produced in limited annual numbers and valued by collectors for its hand-finished movement and legible layout."
+            : r.kind === "variant-notes"
+              ? "40 mm case; manual-wind."
+              : Array.isArray(r.allowedValues) && r.allowedValues.length > 0
+                ? r.allowedValues[0]
+                : r.field === "cluster_rationale"
+                  ? "Small independent maker whose collectors follow contemporary independent watchmaking rather than heritage Swiss houses."
+                  : r.field === "description"
+                    ? "Independent Swiss workshop producing mechanical wristwatches in small annual series, known among collectors for hand-finished movements and a restrained house style maintained since its founding."
+                    : "Switzerland",
+      sources: [
+        { title: "Fixture source", publisher: "Test", url: "https://example.org/s" },
+      ],
+      evidence: "Established by the cited source.",
+      confidence: "high",
+    })),
+  });
+
+  const name = "taxonomy-with-research-gaps.json";
+  const bytes = fixtureBytes(name);
+  const intake = await intakeFile(
+    db,
+    { filename: name, bytes: toArrayBuffer(bytes) },
+    "operator@test",
+    T0
+  );
+  const record = await completeUpgrade({
+    engine,
+    schema,
+    contract,
+    filename: name,
+    bytes,
+    transport: held,
+  });
+  ok(
+    "the fixture is genuinely held",
+    record.status === "HUMAN_DECISION_REQUIRED" &&
+      record.candidate === null &&
+      record.provisionalCandidate !== null
+  );
+  await saveCompletion(
+    db,
+    intake.item.sourceSha256,
+    record,
+    null,
+    new TextEncoder().encode(record.provisionalCandidate.text).buffer,
+    T0
+  );
+
+  const delivered = await verifyProvisionalForDelivery(db, intake.item.sourceSha256);
+  ok(
+    "the held work product is deliverable",
+    delivered.filename === record.provisionalCandidate.filename &&
+      delivered.sha256 === record.provisionalCandidate.sha256
+  );
+  ok(
+    "what is delivered is marked provisional",
+    /\.PROVISIONAL\./.test(delivered.filename)
+  );
+
+  await assert.rejects(
+    () => verifyCandidateForDelivery(db, intake.item.sourceSha256),
+    /no stored candidate/,
+    "a held item must not deliver through the final-candidate door"
+  );
+  pass++;
+
+  const stored = await db.get(intake.item.sourceSha256);
+  ok(
+    "the original bytes are untouched by any of it",
+    Buffer.compare(Buffer.from(stored.sourceBytes), bytes) === 0
+  );
+
+  // The reverse door: an item holding a final candidate refuses provisional
+  // delivery outright, so the two states are mutually exclusive by code.
+  const finalName = "legacy-empty-structures.json";
+  const finalBytes = fixtureBytes(finalName);
+  const finalIntake = await intakeFile(
+    db,
+    { filename: finalName, bytes: toArrayBuffer(finalBytes) },
+    "operator@test",
+    T0
+  );
+  const finalRecord = await engine.analyzeSource({
+    filename: finalName,
+    bytes: finalBytes,
+  });
+  ok("the control fixture has a final candidate", finalRecord.candidate !== null);
+  await saveAnalysis(
+    db,
+    finalIntake.item.sourceSha256,
+    finalRecord,
+    new TextEncoder().encode(finalRecord.candidate.text).buffer,
+    T0
+  );
+  await assert.rejects(
+    () => verifyProvisionalForDelivery(db, finalIntake.item.sourceSha256),
+    /holds a final candidate/,
+    "a final candidate must not deliver through the provisional door"
+  );
+  pass++;
+}
+
+// The bulk path must deliver both classes in one operation, separated.
+{
+  const room = readFileSync(
+    new URL("../components/VaultSpecificationUpgrade.tsx", import.meta.url),
+    "utf8"
+  );
+  const start = room.indexOf("async function downloadSelectedCandidates");
+  const body = room.slice(start, room.indexOf("\n  async function", start + 1));
+  ok(
+    "bulk download files final candidates under ready/",
+    /ready\/\$\{/.test(body)
+  );
+  ok(
+    "bulk download files held work under decision-required/",
+    /decision-required\/\$\{/.test(body)
+  );
+  ok(
+    "bulk download still delivers held work rather than skipping it",
+    body.includes("verifyProvisionalForDelivery")
+  );
+  ok(
+    "reports travel with the files in the same archive",
+    /reports\/\$\{/.test(body)
   );
 }
 

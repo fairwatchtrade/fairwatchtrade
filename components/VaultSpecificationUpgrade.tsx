@@ -32,6 +32,7 @@ import {
   stageCandidate,
   unstageCandidate,
   verifyCandidateForDelivery,
+  verifyProvisionalForDelivery,
   type VaultUpgradeDb,
 } from "@/lib/vault-upgrade/indexedDb.ts";
 import {
@@ -463,11 +464,17 @@ export default function VaultSpecificationUpgrade({
         const candidateBytes = record.candidate
           ? (utf8Bytes(record.candidate.text).buffer as ArrayBuffer)
           : null;
+        /* A held run still produced work. Keep its bytes so the operator can
+           take the upgraded file away with the decision still open. */
+        const provisionalBytes = record.provisionalCandidate
+          ? (utf8Bytes(record.provisionalCandidate.text).buffer as ArrayBuffer)
+          : null;
         await saveCompletion(
           db,
           hash,
           record,
           candidateBytes,
+          provisionalBytes,
           new Date().toISOString()
         );
         await refresh();
@@ -557,8 +564,16 @@ export default function VaultSpecificationUpgrade({
   async function downloadCandidate(item: WorkItem): Promise<void> {
     const db = dbRef.current;
     if (!db) return;
+    /* Which artifact this item has is decided by its run, not guessed here:
+       a held run produces a provisional and no candidate, and the verifier
+       for each refuses the other outright. Choosing the path up front keeps
+       the failure message precise instead of reporting the wrong absence. */
+    const held =
+      !item.completion?.candidate && item.completion?.provisionalCandidate;
     try {
-      const verified = await verifyCandidateForDelivery(db, item.sourceSha256);
+      const verified = held
+        ? await verifyProvisionalForDelivery(db, item.sourceSha256)
+        : await verifyCandidateForDelivery(db, item.sourceSha256);
       downloadBlob(verified.filename, verified.bytes, "application/json");
     } catch (err) {
       setNotice({
@@ -624,32 +639,59 @@ export default function VaultSpecificationUpgrade({
     const chosen = items.filter((i) => selection.has(i.sourceSha256));
     const entries: ZipEntry[] = [];
     const skipped: string[] = [];
+    let ready = 0;
+    let provisional = 0;
+
     for (const item of chosen) {
-      /* No pre-check here. verifyCandidateForDelivery is the single authority
-         on whether a candidate can be delivered: it prefers the completion
-         candidate over the structural one and re-verifies the stored bytes
-         before releasing them. A second opinion in this loop is exactly how a
-         completed file that HAD a candidate was reported as having none —
-         the analyzer only produces a candidate for a purely structural
-         upgrade, so every researched file failed that test. */
+      /* No pre-check here. The verifiers are the single authority on whether
+         an artifact can be delivered; they re-verify the stored bytes before
+         releasing them. A second opinion in this loop is exactly how a
+         completed file that HAD a candidate was reported as having none.
+
+         Final first, then held work. The two can never both exist for one
+         item — verifyProvisionalForDelivery refuses outright if a final
+         candidate is present — so the folder a file lands in is decided by
+         the run itself, not by the order of these calls. */
       try {
-        const verified = await verifyCandidateForDelivery(
-          db,
-          item.sourceSha256
-        );
-        entries.push({ filename: verified.filename, content: verified.bytes });
-      } catch (err) {
-        skipped.push(
-          `${item.sourceFilename} (${
-            err instanceof Error ? err.message : "verification failed"
-          })`
-        );
+        const verified = await verifyCandidateForDelivery(db, item.sourceSha256);
+        entries.push({
+          filename: `ready/${verified.filename}`,
+          content: verified.bytes,
+        });
+        ready++;
+      } catch {
+        try {
+          const held = await verifyProvisionalForDelivery(db, item.sourceSha256);
+          entries.push({
+            filename: `decision-required/${held.filename}`,
+            content: held.bytes,
+          });
+          provisional++;
+        } catch (err) {
+          skipped.push(
+            `${item.sourceFilename} (${
+              err instanceof Error ? err.message : "verification failed"
+            })`
+          );
+          continue;
+        }
+      }
+      /* The report travels with its file. For a held file it carries the
+         exact decision that held it, so the reason arrives in the same
+         operation as the work — never a second trip. */
+      const report = reportFor(item);
+      if (report) {
+        entries.push({
+          filename: `reports/${reportFilename(report)}`,
+          content: serializeReport(report),
+        });
       }
     }
+
     if (entries.length === 0) {
       setNotice({
         kind: "error",
-        text: "None of the selected work items has a verified candidate to download.",
+        text: "None of the selected work items has a verified candidate or provisional work product to download.",
       });
       return;
     }
@@ -658,13 +700,17 @@ export default function VaultSpecificationUpgrade({
       await buildZip(entries),
       "application/zip"
     );
+    const parts = [
+      `${ready} final candidate${ready === 1 ? "" : "s"} in ready/`,
+      `${provisional} provisional file${
+        provisional === 1 ? "" : "s"
+      } in decision-required/`,
+    ];
     setNotice({
       kind: skipped.length ? "error" : "info",
-      text: `${entries.length} candidate${
-        entries.length === 1 ? "" : "s"
-      } downloaded${
-        skipped.length ? ` · skipped (no candidate): ${skipped.join(", ")}` : ""
-      }`,
+      text: `${parts.join(" · ")}${
+        skipped.length ? ` · skipped: ${skipped.join(", ")}` : ""
+      }. Provisional files are not final — one decision remains on each.`,
     });
   }
 
@@ -1577,12 +1623,21 @@ function ReviewSurface({
   const completion = item.completion;
   const status = rowStatus(item);
   const meta = STATUS_META[status];
+  /* hasCandidate means FINAL, and only a final candidate may be staged.
+     A held run's work product is deliverable but never final, so it is kept
+     in its own name — the two must not collapse into one boolean. */
   const hasCandidate = Boolean(completion?.candidate ?? analysis?.candidate);
+  const heldCandidate = completion?.candidate
+    ? null
+    : (completion?.provisionalCandidate ?? null);
+  const isProvisional = Boolean(heldCandidate);
   const canComplete = COMPLETABLE_STATUSES.includes(status);
   /* After completion the full ledger — structural transforms plus every
      applied researched fact — lives on the completion record. */
   const ledgerRows = completion?.ledger ?? analysis?.ledger ?? [];
-  const activeCandidate = completion?.candidate ?? analysis?.candidate ?? null;
+  const activeCandidate =
+    completion?.candidate ?? analysis?.candidate ?? heldCandidate;
+  const hasDeliverable = Boolean(activeCandidate);
   const openIssues = completion?.issues ?? analysis?.issues ?? [];
 
   const originalText = useMemo(
@@ -1643,7 +1698,11 @@ function ReviewSurface({
         </div>
         <div className="text-right text-[11px] text-[var(--muted)]">
           Original preserved
-          {hasCandidate ? " · candidate generated" : " · no candidate"}
+          {hasCandidate
+            ? " · candidate generated"
+            : isProvisional
+              ? " · provisional file generated — one decision remains"
+              : " · no candidate"}
         </div>
       </div>
 
@@ -1670,17 +1729,19 @@ function ReviewSurface({
                 : "Complete Upgrade"}
           </button>
         )}
-        {hasCandidate && (
+        {hasDeliverable && (
           <>
             <button
               type="button"
               className={BTN}
               onClick={() => onTab("candidate")}
             >
-              View Candidate
+              {isProvisional ? "View Provisional File" : "View Candidate"}
             </button>
             <button type="button" className={BTN} onClick={onDownloadCandidate}>
-              Download Candidate
+              {isProvisional
+                ? "Download Provisional File"
+                : "Download Candidate"}
             </button>
           </>
         )}

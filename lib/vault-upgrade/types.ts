@@ -181,6 +181,9 @@ export type WorkItem = {
   completion: CompletionRecord | null;
   /** Candidate bytes stored separately so downloads re-verify exact storage. */
   candidateBytes: ArrayBuffer | null;
+  /** Provisional bytes, kept apart from candidateBytes so a held run's work
+      product can never be delivered through the final-candidate path. */
+  provisionalBytes: ArrayBuffer | null;
   reviewState: ReviewState;
   staging: StagingRecord | null;
 };
@@ -363,7 +366,26 @@ export type CompletionRecord = {
   decisions: HumanDecision[];
   /** Unresolved contract findings that are not human decisions. */
   issues: AnalysisIssue[];
+  /**
+   * The finished article. Present only when the acceptance gate passed, so
+   * its existence is itself the claim that nothing is left open.
+   */
   candidate: CandidateArtifact | null;
+  /**
+   * The accumulated work product of a run that is still held.
+   *
+   * A held run used to return nothing at all, which meant one open taxonomy
+   * decision threw away every researched fact with it and the operator had
+   * to rebuild the file by hand. This carries that work instead: every
+   * transform applied, every sourced fact written, the disputed hierarchy
+   * preserved exactly as it arrived.
+   *
+   * It is deliberately a separate field from `candidate` rather than a flag
+   * on it. Nothing that reads `candidate` can serve this by accident, and
+   * its filename says PROVISIONAL. It is never final, never verified, and
+   * the decision that held it is still recorded in full.
+   */
+  provisionalCandidate: CandidateArtifact | null;
   sourceSha256: string;
   specificationSha256: string;
   contractId: string;

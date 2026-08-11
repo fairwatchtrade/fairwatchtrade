@@ -125,6 +125,7 @@ export async function intakeFile(
     analysis: null,
     completion: null,
     candidateBytes: null,
+    provisionalBytes: null,
     reviewState: "NONE",
     staging: null,
   };
@@ -150,6 +151,8 @@ export async function saveAnalysis(
      two must never disagree about the same source bytes. */
   item.completion = null;
   item.candidateBytes = candidateBytes;
+  /* A fresh analysis supersedes any earlier held work product too. */
+  item.provisionalBytes = null;
   item.lastAction = `Analyzed — ${analysis.status}.`;
   item.updatedAtIso = nowIso;
   await db.put(item);
@@ -167,6 +170,7 @@ export async function saveCompletion(
   sourceSha256: string,
   completion: CompletionRecord,
   candidateBytes: ArrayBuffer | null,
+  provisionalBytes: ArrayBuffer | null,
   nowIso: string
 ): Promise<WorkItem> {
   const item = await db.get(sourceSha256);
@@ -175,6 +179,7 @@ export async function saveCompletion(
   }
   item.completion = completion;
   item.candidateBytes = candidateBytes;
+  item.provisionalBytes = provisionalBytes;
   item.lastAction = `Upgrade completed — ${completion.status}.`;
   item.updatedAtIso = nowIso;
   await db.put(item);
@@ -232,6 +237,56 @@ export async function verifyCandidateForDelivery(
   return {
     filename: candidate.filename,
     bytes: item.candidateBytes,
+    sha256: actualSha,
+  };
+}
+
+/**
+ * Verify a held run's work product for delivery.
+ *
+ * Deliberately its own function rather than a flag on the one above. The two
+ * artifacts assert different things — one that nothing is left open, one that
+ * something is — and separating them means no caller can reach for a final
+ * candidate and be handed a provisional file. The same byte-length and
+ * SHA-256 re-verification applies; a mismatch refuses delivery either way.
+ */
+export async function verifyProvisionalForDelivery(
+  db: VaultUpgradeDb,
+  sourceSha256: string
+): Promise<VerifiedCandidate> {
+  const item = await db.get(sourceSha256);
+  if (!item) {
+    throw new Error(`No work item exists for source ${sourceSha256}.`);
+  }
+  /* Mutually exclusive by construction: a run that produced a final
+     candidate has nothing held, and a held run produced no candidate. Either
+     source of a final candidate disqualifies provisional delivery — a
+     structural-only upgrade is just as final as a completed one. */
+  if (item.completion?.candidate ?? item.analysis?.candidate) {
+    throw new Error(
+      `Work item ${sourceSha256} holds a final candidate — provisional delivery refused.`
+    );
+  }
+  const provisional = item.completion?.provisionalCandidate ?? null;
+  if (!provisional || !item.provisionalBytes) {
+    throw new Error(
+      `Work item ${sourceSha256} has no provisional work product to deliver.`
+    );
+  }
+  if (item.provisionalBytes.byteLength !== provisional.byteLength) {
+    throw new Error(
+      `Stored provisional byte length ${item.provisionalBytes.byteLength} does not match the recorded ${provisional.byteLength} — delivery refused.`
+    );
+  }
+  const actualSha = await sha256HexOfBytes(item.provisionalBytes);
+  if (actualSha !== provisional.sha256) {
+    throw new Error(
+      `Stored provisional SHA-256 ${actualSha} does not match the recorded ${provisional.sha256} — delivery refused.`
+    );
+  }
+  return {
+    filename: provisional.filename,
+    bytes: item.provisionalBytes,
     sha256: actualSha,
   };
 }
@@ -345,6 +400,7 @@ export async function removeCandidate(
   item.analysis = null;
   item.completion = null;
   item.candidateBytes = null;
+  item.provisionalBytes = null;
   item.lastAction = "Candidate removed; original preserved. Re-analyze to regenerate.";
   item.updatedAtIso = nowIso;
   await db.put(item);

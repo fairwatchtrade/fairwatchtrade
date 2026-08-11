@@ -521,6 +521,7 @@ export async function completeUpgrade(
     decisions: [],
     issues: analysis.issues,
     candidate: null,
+    provisionalCandidate: null,
     sourceSha256: analysis.sourceSha256,
     specificationSha256,
     contractId,
@@ -689,9 +690,42 @@ export async function completeUpgrade(
   });
 
   /* The acceptance gate. A candidate exists only when the document passes
-     the same closed-contract validation an already-current file would. */
+     the same closed-contract validation an already-current file would.
+
+     A held run is not an empty one. Everything established up to this point
+     is real: the structural conversions, every sourced fact that survived
+     validation, the provenance behind each one. Returning nothing threw all
+     of that away over a single open question and left the operator to
+     rebuild the file by hand — which is the one outcome this room exists to
+     prevent.
+
+     So the work product is handed back as an explicitly provisional
+     artifact. The disputed hierarchy is preserved exactly as it arrived;
+     nothing is merged, collapsed, or invented to make the file passable.
+     The decision that held it stays open and stays recorded. It travels in
+     its own field under its own PROVISIONAL filename so that nothing which
+     reads `candidate` can mistake it for a finished one. */
   if (issues.length > 0) {
-    return { ...base("HUMAN_DECISION_REQUIRED", null), candidate: null };
+    phase("FREEZING");
+    const provisionalText = serializeCandidate(doc);
+    const provisionalSha = await sha256HexOfText(provisionalText);
+    const provisionalLedgerSha = await sha256HexOfText(stableStringify(ledger));
+    const heldBaseName = filename.replace(/\.json$/i, "");
+    phase("DONE");
+    return {
+      ...base("HUMAN_DECISION_REQUIRED", null),
+      candidate: null,
+      provisionalCandidate: {
+        filename: `${heldBaseName}.vault-lock-v3.2.PROVISIONAL.${provisionalSha.slice(
+          0,
+          8
+        )}.json`,
+        text: provisionalText,
+        sha256: provisionalSha,
+        ledgerSha256: provisionalLedgerSha,
+        byteLength: utf8Bytes(provisionalText).length,
+      },
+    };
   }
 
   phase("FREEZING");
@@ -717,6 +751,7 @@ export async function completeUpgrade(
       decisions.length > 0 ? "READY_WITH_HUMAN_DECISIONS" : "CANDIDATE_READY",
       null
     ),
+    provisionalCandidate: null,
     candidate: {
       filename: `${baseName}.vault-lock-v3.2.${candidateSha.slice(0, 8)}.json`,
       text: candidateText,

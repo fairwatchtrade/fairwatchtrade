@@ -145,7 +145,11 @@ export function completionReportFilename(report: CompletionReport): string {
 
 /* ── Batch archives ────────────────────────────────────────────────────── */
 
-const FIXED_ZIP_DATE = new Date(0);
+/* Pinned so identical inputs produce identical archives. It must also be a
+   date the ZIP format can actually store: DOS timestamps begin at 1980, and
+   the Unix epoch underflows that field — which is how entries were arriving
+   dated 2097. This is the earliest representable instant. */
+const FIXED_ZIP_DATE = new Date(Date.UTC(1980, 0, 1, 0, 0, 0));
 
 export type ZipEntry = {
   filename: string;

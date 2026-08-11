@@ -1,0 +1,24 @@
+{
+  "name": "Fixture Horlogerie",
+  "search_aliases": ["Fixture"],
+  "collections": [
+    {
+      "name": "Proof",
+      "families": [
+        {
+          "name": "Proof Classic",
+          "variants": [
+            {
+              "name": "Proof Classic Steel Black Dial",
+              "references": ["FH-200-BK"]
+            },
+            {
+              "name": "Proof Classic Platinum Salmon Dial",
+              "references": ["FH-200-SA"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

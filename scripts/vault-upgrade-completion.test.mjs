@@ -686,6 +686,92 @@ async function complete(fixture, transport, extra = {}) {
   );
 }
 
+/* ── A held run hands back its work instead of nothing ────────────────────
+   One open taxonomy decision used to discard every researched fact with it,
+   leaving the operator to rebuild the file by hand. The decision still holds
+   finalisation; it no longer withholds the work product. */
+{
+  const HELD = "taxonomy-with-research-gaps.json";
+  const r = await complete(HELD, goodTransport());
+
+  ok("a taxonomy finding still holds the run", r.status === "HUMAN_DECISION_REQUIRED");
+  ok("no final candidate is produced", r.candidate === null);
+  ok("the accumulated work product is returned anyway", r.provisionalCandidate !== null);
+
+  /* Final and provisional must never be mistakable for one another. */
+  ok(
+    "the provisional filename says what it is",
+    /\.PROVISIONAL\.[0-9a-f]{8}\.json$/.test(r.provisionalCandidate.filename)
+  );
+  ok(
+    "the provisional carries its own hash and ledger linkage",
+    /^[0-9a-f]{64}$/.test(r.provisionalCandidate.sha256) &&
+      /^[0-9a-f]{64}$/.test(r.provisionalCandidate.ledgerSha256)
+  );
+  ok(
+    "a held run is never reported as ready",
+    r.status !== "CANDIDATE_READY" && r.status !== "READY_WITH_HUMAN_DECISIONS"
+  );
+
+  /* The finding is not softened to buy the delivery. */
+  const taxonomy = r.issues.filter((i) => i.code === "TAXONOMY_HIERARCHY_VIOLATION");
+  ok("both taxonomy findings are still raised", taxonomy.length === 2);
+  ok(
+    "they are still STRUCTURAL decisions",
+    r.decisions.filter((d) => d.scope === "STRUCTURAL").length >= 2
+  );
+
+  const provisional = JSON.parse(r.provisionalCandidate.text);
+  const source = JSON.parse(fixtureBytes(HELD).toString("utf8"));
+
+  /* The work that was nearly thrown away. */
+  ok(
+    "researched brand facts survive being held",
+    provisional.description === ANSWERS.description &&
+      provisional.country_of_origin === ANSWERS.country_of_origin &&
+      provisional.cluster === ANSWERS.cluster
+  );
+  ok(
+    "researched variant prose survives being held",
+    provisional.Collections[0].Families[0].Variants[0].description ===
+      VARIANT_DESCRIPTION
+  );
+  ok("the provenance behind those facts is recorded", r.provenance.length > 0);
+  ok(
+    "deterministic structural conversion still happened",
+    provisional.Brand === source.name && Array.isArray(provisional.Collections)
+  );
+
+  /* Nothing was merged, collapsed, or invented to make it passable. */
+  const srcFam = source.collections[0].families[0];
+  const outFam = provisional.Collections[0].Families[0];
+  ok(
+    "no Family or Variant was merged away",
+    provisional.Collections.length === source.collections.length &&
+      outFam.Variants.length === srcFam.variants.length
+  );
+  ok(
+    "the disputed Variant names are preserved exactly",
+    outFam.Variants.map((v) => v.name).join("|") ===
+      srcFam.variants.map((v) => v.name).join("|")
+  );
+  ok(
+    "the exact references survive untouched",
+    outFam.Variants[0].references[0].reference === "FH-200-BK" &&
+      outFam.Variants[1].references[0].reference === "FH-200-SA"
+  );
+}
+
+/* The clean path is unchanged by any of the above. */
+{
+  const r = await complete(GAPS, goodTransport());
+  ok(
+    "a clean run still produces a final candidate",
+    r.status === "CANDIDATE_READY" && r.candidate !== null
+  );
+  ok("a clean run carries no provisional artifact", r.provisionalCandidate === null);
+}
+
 if (failures.length) {
   console.error("vault-upgrade-completion FAILURES:");
   for (const f of failures) console.error(`  ✕ ${f}`);
