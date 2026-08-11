@@ -453,7 +453,8 @@ function isStructural(issue: AnalysisIssue): boolean {
     issue.code === "UNSUPPORTED_SCHEMA_FIELD" ||
     issue.code === "LIFECYCLE_CONFLICT" ||
     issue.code === "CONDITIONAL_VIOLATION" ||
-    issue.code === "VALUE_DECISION_REQUIRED"
+    issue.code === "VALUE_DECISION_REQUIRED" ||
+    issue.code === "TAXONOMY_HIERARCHY_VIOLATION"
   );
 }
 

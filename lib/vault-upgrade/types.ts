@@ -55,6 +55,10 @@ export type IssueCode =
   | "VALUE_DECISION_REQUIRED"
   | "LIFECYCLE_CONFLICT"
   | "CONDITIONAL_VIOLATION"
+  /* A Variant whose only distinction from its siblings or its parent Family
+     is material or dial execution. The closed schema cannot express this —
+     it is a rule about what a name may encode, not about shape. */
+  | "TAXONOMY_HIERARCHY_VIOLATION"
   /* → RESEARCH_REQUIRED */
   | "MISSING_REQUIRED_FACT"
   | "EMPTY_REQUIRED_PROSE"

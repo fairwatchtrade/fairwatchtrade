@@ -1,0 +1,91 @@
+{
+  "Brand": "Fixture Horlogerie",
+  "description": "Independent Saxon workshop founded for fixture purposes, producing a small number of hand-finished test pieces that exercise the specification upgrade engine with realistic collector-facing prose.",
+  "country_of_origin": "Germany",
+  "region": "Europe",
+  "independent_status": "independent",
+  "revival_status": "active",
+  "cluster": "German",
+  "cluster_rationale": "Fixture brand used to prove deterministic structural upgrades without inventing collector truth.",
+  "search_aliases": ["Fixture", "FH"],
+  "Collections": [
+    {
+      "name": "Proof",
+      "search_aliases": [],
+      "Families": [
+        {
+          "name": "Proof Classic",
+          "search_aliases": [],
+          "Variants": [
+            {
+              "name": "Proof Classic Steel Black Dial",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "40 mm steel case, manual wind, black dial.",
+              "references": [{ "reference": "FH-200-BK" }]
+            },
+            {
+              "name": "Proof Classic Platinum Salmon Dial",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "40 mm platinum case, manual wind, salmon dial.",
+              "references": [{ "reference": "FH-200-SA" }]
+            }
+          ]
+        },
+        {
+          "name": "Proof Reserve",
+          "search_aliases": [],
+          "Variants": [
+            {
+              "name": "Proof Réserve White Gold",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "39 mm white gold case, manual wind, power reserve indication.",
+              "references": [{ "reference": "FH-300-WG" }]
+            }
+          ]
+        },
+        {
+          "name": "Proof Zeitwerk",
+          "search_aliases": [],
+          "Variants": [
+            {
+              "name": "Proof Zeitwerk Honeygold Lumen",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "41 mm honeygold case, jumping numerals, semi-transparent dial.",
+              "references": [{ "reference": "FH-400-HL" }]
+            }
+          ]
+        },
+        {
+          "name": "Proof Datograph",
+          "search_aliases": [],
+          "Variants": [
+            {
+              "name": "Proof Datograph Up/Down Platinum",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "41 mm platinum case, flyback chronograph, power reserve indication.",
+              "references": [{ "reference": "FH-500-PT" }]
+            }
+          ]
+        },
+        {
+          "name": "Proof Saxonia",
+          "search_aliases": [],
+          "Variants": [
+            {
+              "name": "Proof Saxonia",
+              "description": "A fixture variant with a known dial and case combination, described in enough words to satisfy the specification's twenty-word minimum for collector-recognizable variant descriptions.",
+              "search_aliases": [],
+              "notes": "38 mm steel case, manual wind, two-hand layout.",
+              "references": [{ "reference": "FH-600-ST" }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -27,6 +27,11 @@ import {
   RULE_REF_STRING_TO_OBJECT,
   UPGRADE_RULE_VERSION,
 } from "./rules/legacy-safe-v1.ts";
+import {
+  isExecutionToken,
+  nameTokens,
+  TAXONOMY_SPEC_CLAUSE,
+} from "./rules/taxonomy-v1.ts";
 import type {
   AnalysisIssue,
   AnalysisRecord,
@@ -186,7 +191,10 @@ export function createUpgradeEngine(
     /* 7 — content completeness (never auto-filled — reported only). */
     checkContentCompleteness(doc, issues);
 
-    /* 8 — status and candidate. */
+    /* 8 — taxonomy meaning the closed schema cannot express (§12/§13). */
+    checkTaxonomyHierarchy(doc, issues);
+
+    /* 9 — status and candidate. */
     dedupeAndSortIssues(issues);
     record.issues = issues;
     record.ledger = ledger;
@@ -210,7 +218,8 @@ export function createUpgradeEngine(
       (i) =>
         i.code === "VALUE_DECISION_REQUIRED" ||
         i.code === "LIFECYCLE_CONFLICT" ||
-        i.code === "CONDITIONAL_VIOLATION"
+        i.code === "CONDITIONAL_VIOLATION" ||
+        i.code === "TAXONOMY_HIERARCHY_VIOLATION"
     );
     const hasResearch = issues.some(
       (i) =>
@@ -952,6 +961,87 @@ function checkContentCompleteness(
             null,
             null
           );
+        });
+      });
+    });
+  });
+}
+
+/* ── Taxonomy: what a name is allowed to encode (v3.2 §12/§13) ─────────── */
+
+/**
+ * Materials and dial colours say how a watch was executed, not which watch
+ * it is, so they may never be the thing that earns a Variant its own node.
+ * The closed schema cannot express that: it is a rule about meaning, and a
+ * file can satisfy every structural check while breaking it.
+ *
+ * The test is comparative, never a banned-word scan. A Variant's identity is
+ * whatever its name says that its siblings' names do not — or, when it is an
+ * only child and has no siblings to define it, whatever it says that its
+ * parent Family does not. Subtract that shared ground and judge the rest:
+ *
+ *   nothing left           → the name restates its parent; nothing claimed
+ *   only execution words   → material and dial are doing the dividing → raise
+ *   anything else remains  → a real identity is present; leave it alone,
+ *                            even when a material word sits beside it
+ *
+ * That last line is the whole point. "Datograph Up/Down Platinum" survives on
+ * "Up/Down" while "Saxonia Thin White Gold" does not, and a Honeygold piece
+ * survives on "Lumen" exactly as Handwerkskunst and anniversary pieces do.
+ *
+ * The finding is raised and never acted on. Whether two entries are separate
+ * watches or one watch in two executions is a judgement about what these
+ * objects ARE, and restructuring on a guess would destroy the distinction it
+ * was trying to record.
+ */
+function checkTaxonomyHierarchy(
+  doc: PlainObject,
+  issues: AnalysisIssue[]
+): void {
+  const collections = Array.isArray(doc.Collections) ? doc.Collections : [];
+  collections.forEach((collection, ci) => {
+    if (!isPlainObject(collection)) return;
+    const families = Array.isArray(collection.Families)
+      ? collection.Families
+      : [];
+    families.forEach((family, fi) => {
+      if (!isPlainObject(family)) return;
+      const variants = Array.isArray(family.Variants) ? family.Variants : [];
+      if (variants.length === 0) return;
+
+      const siblingTokens = variants.map(
+        (v) => new Set(isPlainObject(v) ? nameTokens(v.name) : [])
+      );
+      const familyTokens = new Set(nameTokens(family.name));
+      const hasSiblings = variants.length > 1;
+
+      variants.forEach((variant, vi) => {
+        if (!isPlainObject(variant)) return;
+        const own = nameTokens(variant.name);
+        if (own.length === 0) return;
+
+        const shared = hasSiblings
+          ? new Set(
+              own.filter((token) =>
+                siblingTokens.every((set, i) => i === vi || set.has(token))
+              )
+            )
+          : familyTokens;
+
+        const residual = own.filter((token) => !shared.has(token));
+        if (residual.length === 0) return;
+        if (!residual.every(isExecutionToken)) return;
+
+        const against = hasSiblings
+          ? "the other Variants in its Family"
+          : "its parent Family";
+        issues.push({
+          path: `/Collections/${ci}/Families/${fi}/Variants/${vi}/name`,
+          code: "TAXONOMY_HIERARCHY_VIOLATION",
+          reason: `This Variant is distinguished from ${against} only by ${residual.join(
+            ", "
+          )} — material and dial execution, which the specification does not permit to create hierarchy. Whether these are genuinely separate watches, or executions of one watch whose references belong together, is a decision about the taxonomy: the engine reports it and restructures nothing. Governing clause: ${TAXONOMY_SPEC_CLAUSE}`,
+          value: variant.name,
         });
       });
     });

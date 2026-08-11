@@ -223,4 +223,76 @@ const run = (name) =>
   );
 }
 
+// ── v3.2 §12/§13: material and dial never create hierarchy ───────────────
+// The closed schema cannot express this rule, so it is checked separately.
+// The fixture carries one example of every branch the detector has.
+{
+  const r = await run("taxonomy-material-split.json");
+  const taxonomy = r.issues.filter(
+    (i) => i.code === "TAXONOMY_HIERARCHY_VIOLATION"
+  );
+  const flagged = new Set(taxonomy.map((i) => i.path));
+  const V = (f, v) => `/Collections/0/Families/${f}/Variants/${v}/name`;
+
+  ok(
+    "a material/dial split is a decision, not a research gap",
+    r.status === "DECISION_REQUIRED"
+  );
+  ok("the taxonomy finding holds the candidate", r.candidate === null);
+  ok("exactly the three violating Variants are raised", taxonomy.length === 3);
+
+  // Siblings separated by nothing but case material and dial colour.
+  ok("sibling split on material/dial is raised", flagged.has(V(0, 0)));
+  ok("both sides of a sibling split are raised", flagged.has(V(0, 1)));
+
+  // An only child has no sibling to define it, so it is read against its
+  // parent Family. This also proves diacritics fold: the Family is spelled
+  // "Reserve" and the Variant "Réserve", and they must compare as equal.
+  ok("only-child falls back to the parent Family", flagged.has(V(1, 0)));
+
+  // The three that must survive — each for a different reason.
+  ok(
+    "a collector identity beside a material word survives",
+    !flagged.has(V(2, 0))
+  );
+  ok("a model designation beside a material word survives", !flagged.has(V(3, 0)));
+  ok("a Variant that claims nothing extra is left alone", !flagged.has(V(4, 0)));
+
+  // The point of the rule: the presence of a material word proves nothing.
+  // Both Variants that survive on identity carry one anyway, so neither was
+  // spared by a word-level scan finding nothing to object to.
+  const fam = fixtureJson("taxonomy-material-split.json").Collections[0].Families;
+  const survivorsWithMaterial = [fam[2].Variants[0].name, fam[3].Variants[0].name];
+  ok(
+    "surviving Variants were not spared for lacking a material word",
+    survivorsWithMaterial.every((n) => /Honeygold|Platinum/.test(n))
+  );
+
+  ok(
+    "the finding cites the governing specification clause",
+    taxonomy.every((i) => i.reason.includes("§13") && i.reason.includes("§12"))
+  );
+  ok(
+    "the finding names the exact distinction it objected to",
+    taxonomy.some((i) => /steel|black/.test(i.reason))
+  );
+
+  // The detector reports; it never rewrites what it found.
+  ok(
+    "no hierarchy was restructured by the detector",
+    !r.ledger.some(
+      (l) => l.action === "move-value" || String(l.path).includes("/Variants/")
+    )
+  );
+}
+
+// A file whose Variants carry real identity raises nothing at all.
+{
+  const r = await run("current-v3.2.json");
+  ok(
+    "a clean current-spec file stays clean under the taxonomy rule",
+    r.status === "CURRENT_SPEC_NO_CHANGE" && r.issues.length === 0
+  );
+}
+
 console.log(`vault-upgrade-rules: ${pass} assertions PASS`);
