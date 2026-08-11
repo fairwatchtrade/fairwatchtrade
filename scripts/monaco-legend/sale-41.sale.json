@@ -1,0 +1,18 @@
+{
+  "manifest_version": 1,
+  "semantic_digest_version": "monaco-landing-semantic-v1",
+  "sale": {
+    "id": "41", "name": "Exclusive Timepieces 41", "date": "2026-06-04",
+    "location": "Villa Principe Leopoldo, Lugano", "currency": "CHF",
+    "landing_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-41",
+    "sessions": [[1, 66], [67, 166]]
+  },
+  "artifacts": {
+    "catalog_pdf": { "url": "https://cdn2.monacolegendauctions.com/auction_catalogs/102302-41_catalog.pdf", "sha256": "0595bb24b85df1fc7d22fe7ad1c198371c12cdafa09e377fd1d4535dae39f3f6" },
+    "results_pdf": { "url": "https://www.monacolegendauctions.com/storage/media/auctions/41/41_results.pdf", "sha256": "fbe250cc80f9f97f9dd558b01b605aff736951c77db984113df9c932ce8238f9" }
+  },
+  "expected": {
+    "range": [1, 166], "landing_lot_count": 166, "landing_absent": [], "no_reserve_count": 5,
+    "passed": [125, 127], "withdrawn": []
+  }
+}

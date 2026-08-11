@@ -1,0 +1,21 @@
+{
+  "manifest_version": 1,
+  "semantic_digest_version": "monaco-landing-semantic-v1",
+  "sale": {
+    "id": "40", "name": "Exclusive Timepieces 40", "date": "2026-04-26",
+    "location": "Hôtel Méridien Beach Plaza, Monaco", "currency": "EUR",
+    "landing_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-40",
+    "sessions": [[1, 110], [111, 189], [190, 288]]
+  },
+  "artifacts": {
+    "catalog_pdf": { "url": "https://cdn2.monacolegendauctions.com/auction_catalogs/97520-40_catalog.pdf", "sha256": "a248a661ccca1885c1292948cb7e0d81f2fdc5fc1673ff7e4b26b6e601136471" },
+    "results_pdf": { "url": "https://www.monacolegendauctions.com/storage/media/auctions/40/40_results.pdf", "sha256": "19fbb80d089861dd527df7bdf885ff97644c6743f01044130b17e43a90142cd5" },
+    "founder_capture": { "url": "founder-supplied://monacoLegend_catalong_04-25-26.md", "sha256": "18ef887e2254ec308360c91c8481b4b0c427db1e963a3854429196d2cf629ecf" }
+  },
+  "expected": {
+    "range": [1, 288], "landing_lot_count": 288, "landing_absent": [], "no_reserve_count": 29,
+    "passed": [127, 178, 247, 265, 269], "withdrawn": [174, 204],
+    "canary": { "lot": 193, "brand": "A. Lange & Söhne", "model": "Lange 1 Time Zones", "reference": "116.032", "landing_price": 26250, "pdf_price": 27300 }
+  },
+  "model_overrides": { "193": "Lange 1 Time Zones" }
+}

@@ -1,0 +1,20 @@
+{
+  "manifest_version": 1,
+  "semantic_digest_version": "monaco-landing-semantic-v1",
+  "sale": {
+    "id": "38", "name": "Exclusive Timepieces 38", "date": "2025-10-19",
+    "location": "Hôtel Méridien Beach Plaza, Monaco", "currency": "EUR",
+    "landing_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-38",
+    "sessions": [[1, 111], [112, 170], [171, 270]]
+  },
+  "artifacts": {
+    "catalog_pdf": { "url": "https://cdn2.monacolegendauctions.com/auction_catalogs/67714-38_catalog.pdf", "sha256": "48bc282db865e527a9b728ffbdb495d51bdf2e713c5cd161ec1aea06dab8231f" },
+    "results_pdf": { "url": "https://www.monacolegendauctions.com/storage/media/auctions/38/38_results.pdf", "sha256": "8626be9b6c3bf45256c9f88674d832efdac048d8f031dbead3f0235286d4de3a" }
+  },
+  "expected": {
+    "range": [1, 270], "landing_lot_count": 269, "landing_absent": [49], "no_reserve_count": 38,
+    "passed": [63, 109, 116, 183, 202, 224, 255], "withdrawn": [],
+    "pdf_only_outcomes": { "49": "unsold" },
+    "pdf_contradictions": { "63": "unsold", "109": "unsold", "116": "unsold", "183": "unsold", "202": "unsold", "224": "unsold", "255": "unsold" }
+  }
+}

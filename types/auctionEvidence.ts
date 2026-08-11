@@ -37,7 +37,9 @@ export type ArtifactRetentionScope =
 
 // ── Result ──
 export type PriceBasis = "hammer" | "hammer_plus_premium" | "other";
-export type SaleOutcome = "sold" | "passed" | "withdrawn";
+// `unsold` is intentionally distinct from `passed`: the house may use both
+// words for different source surfaces, and evidence must not erase that fact.
+export type SaleOutcome = "sold" | "passed" | "withdrawn" | "unsold";
 
 // ── Rights events — locked four-value vocabulary (mirror of DB CHECK) ──
 export type RightsEventType =
