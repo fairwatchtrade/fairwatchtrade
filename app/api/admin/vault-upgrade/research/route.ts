@@ -198,12 +198,31 @@ export async function POST(req: Request) {
 
       if (!res.ok) {
         const status = res.status;
-        /* Never surface provider bodies — they can echo request content. */
+        /* A bare status code is not an answer. When the provider refuses the
+           call it is describing THIS REQUEST — a field it would not accept,
+           a limit, a billing state — and nobody can act on "HTTP 400" alone.
+
+           Only the error envelope's own message is surfaced, never the body
+           we sent, and it is bounded so a long reply cannot become the UI.
+           Withholding an answer's contents was always the right instinct; it
+           was never a reason to keep the reason for a refusal secret. */
+        let reason = "";
+        try {
+          const envelope = (await res.json()) as {
+            error?: { type?: string; message?: string };
+          };
+          const message = envelope.error?.message;
+          if (typeof message === "string" && message.trim().length > 0) {
+            reason = ` ${message.trim().slice(0, 300)}`;
+          }
+        } catch {
+          /* No readable envelope — the status has to stand on its own. */
+        }
         return NextResponse.json(
           {
             ok: false,
             code: status === 429 || status >= 500 ? "RETRYABLE" : "PROVIDER_ERROR",
-            detail: `The research provider returned HTTP ${status}.`,
+            detail: `The research provider returned HTTP ${status}.${reason}`,
           },
           { status: status === 429 || status >= 500 ? 503 : 502 }
         );
