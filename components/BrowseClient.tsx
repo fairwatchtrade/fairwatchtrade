@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
 import { formatMoney } from "@/lib/formatMoney";
+import { parseBrowseSort, sortListings } from "@/lib/browseSort";
 import {
   defaultFrame,
   frameFor,
@@ -518,6 +519,16 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
   const setPageSize = (value: 20 | 40 | "all") =>
     setSingleParam("pageSize", String(value), "20");
 
+  // Price sort. Held in the URL exactly like viewMode/gridCols/pageSize, which
+  // is what makes it survive Back-to-Browse for free: currentBrowseUrl below
+  // is built from the whole query string, so the returnTo every listing link
+  // carries already contains the sort. No separate persistence mechanism, and
+  // no way for the sort to reset while the filters beside it survive — which
+  // would read as a data defect rather than a state defect.
+  const sort = parseBrowseSort(searchParams.get("sort"));
+  const setSort = (value: "default" | "priceAsc" | "priceDesc") =>
+    setSingleParam("sort", value, "default");
+
   // The current Browse reality, as a single encoded value — used to build
   // every listing link's returnTo. Built via URLSearchParams (never manual
   // template-literal concatenation), so nested repeated params and the
@@ -827,7 +838,15 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     ]
   );
 
-  const paginated = pageSize === "all" ? filtered : filtered.slice(0, pageSize);
+  /* Sort spans the WHOLE filtered set, then the page size is applied to the
+     sorted result — never the reverse. With 20 selected, Price: Low to High
+     returns the twenty lowest-priced listings in the entire filtered set, not
+     the twenty that happened to already be on the page reordered among
+     themselves. This ordering of the two lines IS the guarantee; keep them
+     adjacent and never slice `filtered` directly again. */
+  const sorted = useMemo(() => sortListings(filtered, sort), [filtered, sort]);
+
+  const paginated = pageSize === "all" ? sorted : sorted.slice(0, pageSize);
 
   /* ── Exact Identifier Search Law — presentation truth ────────────────────
      When the Search IS one exact identifier (a listing code or a
@@ -1124,21 +1143,57 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
-          {([20, 40, "all"] as const).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setPageSize(n)}
-              className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
-                pageSize === n
-                  ? "border-[var(--border-gold)] text-[var(--gold)]"
-                  : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
-              }`}
-            >
-              {n === "all" ? "All" : n}
-            </button>
-          ))}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          {/* Price sort — borrows the page-size control's exact language
+              (same border, padding, type size and gold active state) rather
+              than introducing a second one, and sits beside it because both
+              govern the same result set. Shown in both views for that reason:
+              a sort that stayed active while its control disappeared behind a
+              view switch would be a silently reordered room.
+
+              Pressing the active direction returns to the default order — the
+              way back is the control itself, so no third "none" button has to
+              sit on screen permanently explaining that nothing is selected. */}
+          <div className="flex items-center gap-1">
+            <span className="mr-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]">
+              Price
+            </span>
+            {([
+              { key: "priceAsc", label: "Low to High" },
+              { key: "priceDesc", label: "High to Low" },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSort(sort === key ? "default" : key)}
+                aria-pressed={sort === key}
+                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                  sort === key
+                    ? "border-[var(--border-gold)] text-[var(--gold)]"
+                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1">
+            {([20, 40, "all"] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setPageSize(n)}
+                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                  pageSize === n
+                    ? "border-[var(--border-gold)] text-[var(--gold)]"
+                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                }`}
+              >
+                {n === "all" ? "All" : n}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1356,39 +1411,59 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                     </Link>
 
                     {/* Middle — identity (links to detail), capped spec plate,
-                        Snapshot trigger. */}
-                    <div className="min-w-0 flex-1">
-                      <Link href={listingHref(row.id)} className="block">
-                        <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
-                          {row.brand}
-                        </div>
-                        <div className="mb-[2px] flex items-center gap-2">
-                          <span className="truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">
-                            {row.model ?? row.brand}
-                          </span>
-                          {row.in_hand_verified && (
-                            <span
-                              title="In Hand Verified"
-                              aria-label="In Hand Verified"
-                              className="shrink-0 text-[var(--gold)] opacity-70"
-                            >
-                              🛡️
-                            </span>
-                          )}
-                        </div>
-                        <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
-                          {row.reference}
-                        </div>
-                      </Link>
+                        Snapshot trigger.
 
-                      {/* Spec plate — width-pinned so each label↔value pair
-                          stays close and never stretches across the row (brief
-                          §1). v1.63: the utility cap (max-w-[380px]) was being
-                          ignored in the live build, letting values drift toward
-                          the price column — so the width is pinned with an
-                          inline style here, which the browser honors
-                          unconditionally. Fields/normalizers unchanged. */}
+                        v4.2 — identity and the spec plate now share ONE
+                        width-capped column, and the price rides the model line
+                        inside it. That is what un-strands the price: the cap is
+                        the plate's own width, so the price's right edge lands
+                        exactly on the spec-value edge every value already
+                        right-aligns to, on every row. The anchor is the plate,
+                        not a measured offset — a listing that renders six or
+                        seven specs cannot drift it, because the plate width
+                        does not vary with spec count. */}
+                    <div className="min-w-0 flex-1">
                       <div style={{ maxWidth: 420 }}>
+                        <Link href={listingHref(row.id)} className="block">
+                          <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                            {row.brand}
+                          </div>
+                          <div className="mb-[2px] flex items-center gap-2">
+                            <span className="min-w-0 truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">
+                              {row.model ?? row.brand}
+                            </span>
+                            {row.in_hand_verified && (
+                              <span
+                                title="In Hand Verified"
+                                aria-label="In Hand Verified"
+                                className="shrink-0 text-[var(--gold)] opacity-70"
+                              >
+                                🛡️
+                              </span>
+                            )}
+                            {/* Price, desktop. ml-auto keeps the shield beside
+                                the name and sends only the price to the edge.
+                                Below md it stays in the action rail exactly
+                                where it has always been — at that width the
+                                420 cap is inert and the two positions are the
+                                same pixel column anyway, so the phone layout is
+                                deliberately left untouched. */}
+                            <span className="ml-auto hidden shrink-0 pl-3 font-display text-[16px] font-light text-[var(--platinum-dim)] md:inline">
+                              {formatPrice(row.asking_price, row.asking_currency)}
+                            </span>
+                          </div>
+                          <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                            {row.reference}
+                          </div>
+                        </Link>
+
+                        {/* Spec plate — each label↔value pair stays close and
+                            never stretches across the row (brief §1). v1.63:
+                            the utility cap (max-w-[380px]) was ignored in the
+                            live build, so the width is pinned with an inline
+                            style, which the browser honors unconditionally.
+                            v4.2 moved that pin up one level to the shared
+                            column above. Fields/normalizers unchanged. */}
                         <SpecRow label="Case Size" value={sizeLabel(row.details?.caseSizeMm) || null} />
                         <SpecRow label="Movement" value={row.details?.movementType ?? null} />
                         <SpecRow label="Beat Rate" value={beatRateLabel(row.details?.movementFrequency) || null} />
@@ -1413,9 +1488,18 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                       )}
                     </div>
 
-                    {/* Right — price + workflow actions. */}
-                    <div className="col-start-2 flex w-full flex-col items-end justify-between gap-4 md:w-[190px] md:shrink-0">
-                      <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
+                    {/* Right — workflow actions, and the phone's price.
+
+                        v4.2: at md+ the price has moved to the model line and
+                        this copy is display:none — which also takes it out of
+                        the flex flow, so `justify-between` would have pulled
+                        the lone button block up to the top of the row. Hence
+                        md:justify-end: Compare and Add to Catalogue stay at the
+                        bottom edge where they have always sat. Only ONE of the
+                        two price nodes is ever rendered, so the figure is
+                        announced once, never twice. */}
+                    <div className="col-start-2 flex w-full flex-col items-end justify-between gap-4 md:w-[190px] md:shrink-0 md:justify-end">
+                      <div className="font-display text-[16px] font-light text-[var(--platinum-dim)] md:hidden">
                         {formatPrice(row.asking_price, row.asking_currency)}
                       </div>
 

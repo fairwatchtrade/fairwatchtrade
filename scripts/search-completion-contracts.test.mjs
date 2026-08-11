@@ -48,11 +48,16 @@ ok(
 );
 ok(
   "related results never enter the canonical result set",
-  // paginated derives ONLY from filtered, and the filtered memo never
-  // consults the related computation — related is presentation-only.
+  // The canonical chain is filtered → sorted → paginated (v4.2 inserted the
+  // price sort between the filtered set and the page slice). Related results
+  // are presentation-only, so NO link in that chain may consult them: not the
+  // filtered memo, not the sort, not the slice.
   browse.includes(
-    'const paginated = pageSize === "all" ? filtered : filtered.slice(0, pageSize);'
+    'const sorted = useMemo(() => sortListings(filtered, sort), [filtered, sort]);'
   ) &&
+    browse.includes(
+      'const paginated = pageSize === "all" ? sorted : sorted.slice(0, pageSize);'
+    ) &&
     !browse
       .slice(browse.indexOf("const filtered = useMemo"), browse.indexOf("const paginated"))
       .includes("relatedToIdentifier")
