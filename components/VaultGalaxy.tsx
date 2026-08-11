@@ -235,43 +235,36 @@ const PROXIMITY_STAR_MULTIPLIER = 3.0;
 const PROXIMITY_FADE_IN_MS = 150;
 const PROXIMITY_FADE_OUT_MS = 280;
 
-/* ── Curated star images (v2.4n) ──────────────────────────────────────────
-   20 hand-picked textures in public/stars/. Every brand gets a STABLE,
-   hash-based assignment — the same star on every load, never reshuffled.
-   star_01 is Parmigiani Fleurier's dedicated star: excluded from the
+/* ── Curated brand-planet images ──────────────────────────────────────────
+   13 approved textures in public/stars/. Every brand gets a STABLE,
+   hash-based assignment — the same planet on every load, never reshuffled.
+   planet_v1_09 is Parmigiani Fleurier's dedicated planet: excluded from the
    general pool, unreachable by hash coincidence. The glow gradient stays;
    images layer over it. Verified against the real folder + Supabase slug.
    ──────────────────────────────────────────────────────────────────────── */
 
-// Reserved stars — permanently excluded from the general hash pool.
-// star_01 is Parmigiani Fleurier's dedicated star. No other brand may
+// Reserved planets — permanently excluded from the general hash pool.
+// planet_v1_09 is Parmigiani Fleurier's dedicated planet. No other brand may
 // ever receive it, even by hash coincidence.
 const STAR_EXCEPTIONS: Record<string, string> = {
-  "parmigiani-fleurier": "/stars/star_01.png",
+  "parmigiani-fleurier": "/stars/planet_v1_09.png",
 };
 
 // The general pool — every non-exception brand gets a stable, hash-based
-// assignment from this list. star_01 is deliberately NOT in this array.
+// assignment from this list. planet_v1_09 is deliberately NOT in this array.
 const STAR_POOL: string[] = [
-  "/stars/star_02.png",
-  "/stars/star_03.png",
-  "/stars/star_05.png",
-  "/stars/star_06.png",
-  "/stars/star_07.png",
-  "/stars/star_08.png",
-  "/stars/star_09.png",
-  "/stars/star_11.png",
-  "/stars/star_12.png",
-  "/stars/star_14.png",
-  "/stars/star_16.png",
-  "/stars/star_17.png",
-  "/stars/star_18.png",
-  "/stars/star_50.png",
-  "/stars/star_56.png",
-  "/stars/star_58.png",
-  "/stars/star_62.png",
-  "/stars/star_64.png",
-  "/stars/star_66.png",
+  "/stars/planet_v1_01.png",
+  "/stars/planet_v1_02.png",
+  "/stars/planet_v1_03.png",
+  "/stars/planet_v1_04.png",
+  "/stars/planet_v1_05.png",
+  "/stars/planet_v1_06.png",
+  "/stars/planet_v1_07.png",
+  "/stars/planet_v1_08.png",
+  "/stars/planet_v1_10.png",
+  "/stars/planet_v1_11.png",
+  "/stars/planet_v1_12.png",
+  "/stars/planet_v1_13.png",
 ];
 
 // Simple deterministic string hash — same input always produces the same
