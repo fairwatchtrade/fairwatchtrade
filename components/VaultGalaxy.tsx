@@ -293,6 +293,37 @@ function getStarImagePath(slug: string): string {
   return STAR_POOL[index];
 }
 
+// Collection planets have their own texture layer. Brand stars — including
+// Parmigiani Fleurier's dedicated exception — remain on the star pool above.
+const COLLECTION_PLANET_POOL: string[] = Array.from(
+  { length: 13 },
+  (_, index) =>
+    `/planets/collection_planet_v1_${String(index + 1).padStart(2, "0")}.png`,
+);
+
+// Identity-based first choice, followed by deterministic linear probing.
+// The probe guarantees unique textures inside one brand cluster while still
+// allowing the same global pool to be reused by every other brand.
+function getCollectionPlanetAssignments(
+  brandSlug: string,
+  collections: VaultCollection[],
+): Map<string, string> {
+  const assignments = new Map<string, string>();
+  if (collections.length > COLLECTION_PLANET_POOL.length) return assignments;
+
+  const used = new Set<number>();
+  collections.forEach((collection) => {
+    let index =
+      hashSlug(`${brandSlug}:${collection.id}`) % COLLECTION_PLANET_POOL.length;
+    while (used.has(index)) {
+      index = (index + 1) % COLLECTION_PLANET_POOL.length;
+    }
+    used.add(index);
+    assignments.set(collection.id, COLLECTION_PLANET_POOL[index]);
+  });
+  return assignments;
+}
+
 // TODO(vault-galaxy-depth): Give positioned brands deterministic 3–4 depth
 // shelves rather than a smooth random z spread. This will make the interactive
 // brand field feel like a volume without changing authored brand locations.
@@ -374,6 +405,13 @@ export default function VaultGalaxy({
   // A ref, not React state, per the brief.
   const maskedStarsRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
 
+  // Collection textures preload independently from the protected star-image
+  // cache. Each image becomes eligible on its own; failures retain the
+  // existing procedural gold collection body.
+  const collectionPlanetImagesRef = useRef<Map<string, HTMLImageElement>>(
+    new Map(),
+  );
+
   useEffect(() => {
     const allPaths = [
       ...new Set([...Object.values(STAR_EXCEPTIONS), ...STAR_POOL]),
@@ -389,6 +427,16 @@ export default function VaultGalaxy({
       mapAtMount.clear();
       masksAtMount.clear();
     };
+  }, []);
+
+  useEffect(() => {
+    COLLECTION_PLANET_POOL.forEach((path) => {
+      const img = new Image();
+      img.src = path;
+      collectionPlanetImagesRef.current.set(path, img);
+    });
+    const mapAtMount = collectionPlanetImagesRef.current;
+    return () => mapAtMount.clear();
   }, []);
   const [viewportVersion, setViewportVersion] = useState(0);
 
@@ -1191,6 +1239,10 @@ export default function VaultGalaxy({
       const sb = selBrandRef.current;
       const sc = selCollRef.current;
       const detail = detailRef.current;
+      const collectionPlanetAssignments =
+        sb && detail
+          ? getCollectionPlanetAssignments(sb.slug, detail)
+          : new Map<string, string>();
 
       if ((v === "collections" || v === "models" || v === "detail") && sb) {
         const c = screen({ x: sb.x, y: sb.y, z: sb.z });
@@ -1317,8 +1369,36 @@ export default function VaultGalaxy({
             );
             ctx.fill();
           }
+        } else if (o.type === "collection" && o.coll) {
+          const imagePath = collectionPlanetAssignments.get(o.coll.id);
+          const img = imagePath
+            ? collectionPlanetImagesRef.current.get(imagePath)
+            : undefined;
+
+          if (img && img.complete && img.naturalWidth > 0) {
+            const drawSize = Math.max(isMobileViewport() ? 1.6 : 2.2, p.r) * 2;
+            ctx.drawImage(
+              img,
+              p.x - drawSize / 2,
+              p.y - drawSize / 2,
+              drawSize,
+              drawSize,
+            );
+          } else {
+            // Missing/failed texture: preserve the original collection body.
+            ctx.fillStyle = "rgba(201,168,76,.9)";
+            ctx.beginPath();
+            ctx.arc(
+              p.x,
+              p.y,
+              Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
+              0,
+              Math.PI * 2,
+            );
+            ctx.fill();
+          }
         } else {
-          // Models/moons (and collections) — unchanged procedural render.
+          // Models/moons — unchanged procedural render.
           ctx.fillStyle =
             o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
           ctx.beginPath();
