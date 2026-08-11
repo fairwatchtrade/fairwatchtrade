@@ -23,7 +23,12 @@ const { engine, contract, schema } = await loadEngine();
 const { completeUpgrade, CompletionCancelled } = await import(
   "../lib/vault-upgrade/complete.ts"
 );
-const { validateResearchPayload, MAX_REQUESTS_PER_CALL, extractJsonObject } =
+const {
+  validateResearchPayload,
+  MAX_REQUESTS_PER_CALL,
+  extractJsonObject,
+  assembleAnswer,
+} =
   await import("../lib/vault-upgrade/research.ts");
 const { buildCompletionReport, serializeCompletionReport } = await import(
   "../lib/vault-upgrade/reports.ts"
@@ -380,6 +385,53 @@ async function complete(fixture, transport, extra = {}) {
   );
   ok("truncated JSON is still a failure", extractJsonObject('{"results":[{') === undefined);
   ok("prose with no object is a failure", extractJsonObject("no json here") === undefined);
+
+  /* If the model restates its whole answer after resuming rather than
+     continuing, the first complete object still wins and the duplicate is
+     harmless. */
+  ok(
+    "a restated answer still yields one object",
+    JSON.stringify(extractJsonObject(json + json)) === json
+  );
+
+  /* A paused search loop writes one answer across several turns. Each turn
+     alone is a fragment; together they are the answer. Keeping only the last
+     turn is what made a paused run look like provider gibberish. */
+  const turn = (text, stop_reason) => ({
+    content: [{ type: "text", text }],
+    stop_reason,
+  });
+  const head = json.slice(0, 30);
+  const tail = json.slice(30);
+
+  ok(
+    "one turn of a split answer is not an answer",
+    extractJsonObject(assembleAnswer([turn(head, "pause_turn")]).text) === undefined
+  );
+  const resumed = assembleAnswer([
+    turn(head, "pause_turn"),
+    turn(tail, "end_turn"),
+  ]);
+  ok(
+    "turns either side of a pause reassemble into one answer",
+    JSON.stringify(extractJsonObject(resumed.text)) === json
+  );
+  ok("a completed answer is not still searching", resumed.stillSearching === false);
+  ok(
+    "an answer still paused on its last turn reports as unfinished",
+    assembleAnswer([turn(head, "pause_turn"), turn(tail, "pause_turn")])
+      .stillSearching === true
+  );
+  ok(
+    "non-text blocks contribute nothing to the answer",
+    assembleAnswer([
+      { content: [{ type: "tool_use" }, { type: "text", text: json }], stop_reason: "end_turn" },
+    ]).text === json
+  );
+  ok(
+    "no turns at all is an empty answer, not a crash",
+    assembleAnswer([]).text === "" && assembleAnswer([]).stillSearching === false
+  );
 }
 
 /* ── 5. References: empty is a correct answer; names are never references */
@@ -683,6 +735,18 @@ async function complete(fixture, transport, extra = {}) {
   ok(
     "no request body or provider payload is logged",
     !/console\.(log|info|warn|error)/.test(route)
+  );
+
+  /* Behaviour, not source shape: the route hands its turns to assembleAnswer
+     and acts on the result, so the logic is proven below against real inputs
+     rather than by pattern-matching this file. */
+  ok(
+    "the route assembles its answer from every turn it received",
+    /turns\.push\(data\)/.test(route) && /assembleAnswer\(turns\)/.test(route)
+  );
+  ok(
+    "an unfinished answer is reported as retryable, not as bad JSON",
+    /stillSearching\)[\s\S]{0,400}"RETRYABLE"/.test(route)
   );
 }
 

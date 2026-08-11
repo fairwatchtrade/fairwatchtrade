@@ -361,6 +361,40 @@ export function buildReferenceRequests(doc: PlainObject): ResearchRequest[] {
  * is not a reason to throw the whole round away and make the operator run
  * it again. Anything that is not a balanced JSON object still fails.
  */
+/** One turn of a provider response — only the parts this room reads. */
+export type ProviderTurn = {
+  content?: { type: string; text?: string }[];
+  stop_reason?: string;
+};
+
+/**
+ * Assemble one answer from every turn of a research call.
+ *
+ * The provider's search loop pauses and resumes, so a single answer is
+ * written in pieces across several turns. They are one answer: keeping only
+ * the last turn discards everything written before the final pause and
+ * leaves a fragment, which then reads as provider gibberish rather than as
+ * the bookkeeping mistake it is.
+ *
+ * If the last turn is still paused, the answer is genuinely unfinished and
+ * the caller must say so rather than try to parse what it has.
+ */
+export function assembleAnswer(turns: readonly ProviderTurn[]): {
+  text: string;
+  stillSearching: boolean;
+} {
+  const text = turns
+    .map((turn) =>
+      (turn.content ?? [])
+        .map((block) => (block.type === "text" ? (block.text ?? "") : ""))
+        .join("")
+    )
+    .join("")
+    .trim();
+  const last = turns.length > 0 ? turns[turns.length - 1] : undefined;
+  return { text, stillSearching: last?.stop_reason === "pause_turn" };
+}
+
 export function extractJsonObject(text: string): unknown {
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   try {

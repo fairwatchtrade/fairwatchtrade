@@ -23,8 +23,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { VAULT_LOCK_V3_2_MANIFEST } from "@/lib/vault-upgrade/contracts/vault-lock-v3.2.manifest.ts";
 import {
+  assembleAnswer,
   buildResearchUserContent,
   extractJsonObject,
+  type ProviderTurn,
   MAX_REQUESTS_PER_CALL,
   MAX_REQUEST_BYTES,
   RESEARCH_SYSTEM_PROMPT,
@@ -164,7 +166,14 @@ export async function POST(req: Request) {
     { role: "user", content: userContent },
   ];
 
-  let text = "";
+  /* The answer arrives in pieces whenever the server-side search loop
+     pauses: the model writes part of it, pauses to search, then continues.
+     Every piece is kept. Replacing the accumulated text with each new
+     response discards everything written before the last pause, and what
+     survives is half an object — which then surfaces as "the provider did
+     not return parseable JSON", blaming the provider for this route's own
+     bookkeeping. */
+  const turns: ProviderTurn[] = [];
   try {
     for (let attempt = 0; attempt <= MAX_CONTINUATIONS; attempt++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -200,21 +209,18 @@ export async function POST(req: Request) {
         );
       }
 
-      const data = (await res.json()) as {
-        content?: { type: string; text?: string }[];
-        stop_reason?: string;
-      };
-
-      text = (data.content ?? [])
-        .map((b) => (b.type === "text" ? (b.text ?? "") : ""))
-        .join("")
-        .trim();
+      const data = (await res.json()) as ProviderTurn;
+      turns.push(data);
 
       /* The server-side search loop paused; resume it rather than accepting
-         a partial answer. */
-      if (data.stop_reason === "pause_turn" && attempt < MAX_CONTINUATIONS) {
-        messages.push({ role: "assistant", content: data.content ?? [] });
-        continue;
+         a partial answer. Running out of resumes is not an error here — the
+         assembled answer reports that it is still unfinished. */
+      if (data.stop_reason === "pause_turn") {
+        if (attempt < MAX_CONTINUATIONS) {
+          messages.push({ role: "assistant", content: data.content ?? [] });
+          continue;
+        }
+        break;
       }
       if (data.stop_reason === "refusal") {
         return bad(
@@ -244,6 +250,22 @@ export async function POST(req: Request) {
         ok: false,
         code: "RETRYABLE",
         detail: "The research provider could not be reached.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const { text, stillSearching } = assembleAnswer(turns);
+  if (stillSearching) {
+    /* This ceiling is ours. Reporting it as malformed provider output would
+       blame the provider for a limit this route set, and send the operator
+       hunting a fault that is not there. */
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "RETRYABLE",
+        detail:
+          "The research pass was still searching when it reached this route's continuation limit, so its answer is unfinished. Retry; if it persists, the batch is too large for one call.",
       },
       { status: 503 }
     );
