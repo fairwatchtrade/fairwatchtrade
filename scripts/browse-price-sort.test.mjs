@@ -180,23 +180,47 @@ ok("sort lives in the URL, so Back-to-Browse preserves it through the existing r
 
 /* ── 9 · The control, beside the page-size control ───────────────────── */
 assert.ok(collector.length > 0);
-assert.ok(/Low to High/.test(src) && /High to Low/.test(src), "both directions must be offered");
-const sortBlock = src.slice(src.indexOf('{/* Price sort'), src.indexOf('{([20, 40, "all"] as const)'));
+const sortBlock = src.slice(src.indexOf("{/* Sort — a single dropdown"), src.indexOf('{([20, 40, "all"] as const)'));
 assert.ok(sortBlock.length > 0, "the sort control must sit immediately before the page-size control");
+
+/* A dropdown, not a row of toggles — the shape that takes a new ordering as
+   one more <option> rather than another button competing for this bar. */
+assert.ok(sortBlock.includes("<select"), "sort must be a dropdown");
 assert.ok(
-  sortBlock.includes('text-[9px] uppercase tracking-[1px]'),
+  /<option value="default">Default<\/option>/.test(sortBlock) &&
+    /<option value="priceAsc">Price: Low to High<\/option>/.test(sortBlock) &&
+    /<option value="priceDesc">Price: High to Low<\/option>/.test(sortBlock),
+  "all three orderings must be offered as options, default first",
+);
+/* Scoped to the rendered option labels only — the surrounding comment names
+   the rejected words in order to explain why they were rejected. */
+const optionLabels = [...sortBlock.matchAll(/<option value="[^"]*">([^<]*)<\/option>/g)].map((m) => m[1]);
+assert.equal(optionLabels.length, 3);
+assert.ok(
+  !optionLabels.some((l) => /Featured|Newest|Recommended|Popular/i.test(l)),
+  "the default option must not promise an editorial or recency order the query does not provide",
+);
+assert.ok(
+  sortBlock.includes('htmlFor="browse-sort"') && sortBlock.includes('id="browse-sort"'),
+  "the dropdown must be labelled for assistive tech",
+);
+assert.ok(
+  sortBlock.includes("text-[9px] uppercase tracking-[1px]"),
   "the sort control must borrow the existing control typography, not introduce a new one",
 );
 assert.ok(
   sortBlock.includes("border-[var(--border-gold)] text-[var(--gold)]"),
-  "the active state must be the room's existing gold, not a new visual language",
+  "a non-default order must be announced in the room's existing gold",
 );
-assert.ok(sortBlock.includes('aria-pressed={sort === key}'), "selected direction must be exposed to assistive tech");
 assert.ok(
-  sortBlock.includes('setSort(sort === key ? "default" : key)'),
-  "pressing the active direction must return to the default order",
+  sortBlock.includes('setSort(e.target.value as "default" | "priceAsc" | "priceDesc")'),
+  "choosing an option must drive the same sort state",
 );
-ok("one restrained control beside 20/40/ALL, in the room's existing language, with a way back to default");
+assert.ok(
+  sortBlock.includes('value={sort}'),
+  "the dropdown must reflect the URL's sort, so a restored Back-to-Browse shows the right selection",
+);
+ok("one dropdown beside 20/40/ALL, in the room's existing language, extensible to further orderings");
 
 /* ── 10 · Price proximity — anchored to the plate, not to an offset ──── */
 const plateAnchor = /<div style=\{\{ maxWidth: 420 \}\}>\s*<Link/;

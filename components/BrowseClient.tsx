@@ -1144,38 +1144,39 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
         </div>
 
         <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-          {/* Price sort — borrows the page-size control's exact language
-              (same border, padding, type size and gold active state) rather
-              than introducing a second one, and sits beside it because both
-              govern the same result set. Shown in both views for that reason:
-              a sort that stayed active while its control disappeared behind a
-              view switch would be a silently reordered room.
+          {/* Sort — a single dropdown, the control collectors already know
+              from every other marketplace, and the one shape that absorbs a
+              new ordering as one more line instead of another button competing
+              for this bar. It borrows the neighbouring controls' type and
+              border, and turns gold on the same rule they do: the room says
+              plainly when it is no longer in its default order.
 
-              Pressing the active direction returns to the default order — the
-              way back is the control itself, so no third "none" button has to
-              sit on screen permanently explaining that nothing is selected. */}
-          <div className="flex items-center gap-1">
-            <span className="mr-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]">
-              Price
-            </span>
-            {([
-              { key: "priceAsc", label: "Low to High" },
-              { key: "priceDesc", label: "High to Low" },
-            ] as const).map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSort(sort === key ? "default" : key)}
-                aria-pressed={sort === key}
-                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
-                  sort === key
-                    ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+              "Default" is deliberately not "Featured" — nothing is featured
+              here, and the underlying query carries no ORDER BY, so a word
+              promising an editorial or recency order would be a claim the
+              data does not support. */}
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="browse-sort"
+              className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+            >
+              Sort
+            </label>
+            <select
+              id="browse-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "default" | "priceAsc" | "priceDesc")}
+              style={{ colorScheme: "dark" }}
+              className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                sort === "default"
+                  ? "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                  : "border-[var(--border-gold)] text-[var(--gold)]"
+              }`}
+            >
+              <option value="default">Default</option>
+              <option value="priceAsc">Price: Low to High</option>
+              <option value="priceDesc">Price: High to Low</option>
+            </select>
           </div>
 
           <div className="flex items-center gap-1">
