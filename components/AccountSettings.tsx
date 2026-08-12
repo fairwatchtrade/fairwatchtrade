@@ -64,6 +64,16 @@ export default function AccountSettings({
   const [isDealer, setIsDealer] = useState(false);
   const [currencyMsg, setCurrencyMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Dealer Room identity is managed here, never on the public room. The logo
+  // is dealer-selected data; the public seller route only reads the result.
+  const [dealerName, setDealerName] = useState("");
+  const [dealerSlug, setDealerSlug] = useState("");
+  const [dealerLocation, setDealerLocation] = useState("");
+  const [dealerTagline, setDealerTagline] = useState("");
+  const [dealerLogoUrl, setDealerLogoUrl] = useState<string | null>(null);
+  const [dealerBusy, setDealerBusy] = useState(false);
+  const [dealerMsg, setDealerMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   async function savePreferredCurrency(next: string) {
     setCurrencyMsg(null);
     const value = isSupportedCurrency(next) ? next : null;
@@ -126,7 +136,19 @@ export default function AccountSettings({
         .select("id")
         .eq("capture_source", "dealer_import")
         .limit(1);
-      if (active) setIsDealer((dealerMedia ?? []).length > 0);
+      const { data: dealerProfile } = await supabase
+        .from("dealer_profiles")
+        .select("slug,business_name,logo_url,location,tagline")
+        .eq("seller_id", userId)
+        .maybeSingle();
+      if (active) {
+        setIsDealer(Boolean(dealerProfile) || (dealerMedia ?? []).length > 0);
+        setDealerName(dealerProfile?.business_name || profile?.display_name || "");
+        setDealerSlug(dealerProfile?.slug || "");
+        setDealerLocation(dealerProfile?.location || "");
+        setDealerTagline(dealerProfile?.tagline || "");
+        setDealerLogoUrl(dealerProfile?.logo_url || null);
+      }
     })();
     return () => {
       active = false;
@@ -147,6 +169,64 @@ export default function AccountSettings({
       setProfileMsg({ ok: true, text: "Saved." });
     }
     setProfileBusy(false);
+  }
+
+  async function saveDealerIdentity() {
+    setDealerBusy(true);
+    setDealerMsg(null);
+    const response = await fetch("/api/account/dealer-profile", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        businessName: dealerName,
+        slug: dealerSlug,
+        location: dealerLocation,
+        tagline: dealerTagline,
+      }),
+    });
+    const result = (await response.json().catch(() => null)) as {
+      dealer?: {
+        slug?: string;
+        business_name?: string;
+        logo_url?: string | null;
+        location?: string | null;
+        tagline?: string | null;
+      };
+    } | null;
+    if (!response.ok || !result?.dealer) {
+      setDealerMsg({ ok: false, text: "Could not save — try again" });
+    } else {
+      setDealerSlug(result.dealer.slug || "");
+      setDealerName(result.dealer.business_name || dealerName);
+      setDealerLocation(result.dealer.location || "");
+      setDealerTagline(result.dealer.tagline || "");
+      setDealerLogoUrl(result.dealer.logo_url || dealerLogoUrl);
+      setDealerMsg({ ok: true, text: "Dealer identity saved" });
+    }
+    setDealerBusy(false);
+  }
+
+  async function uploadDealerLogo(file: File) {
+    setDealerBusy(true);
+    setDealerMsg(null);
+    const form = new FormData();
+    form.set("logo", file);
+    const response = await fetch("/api/account/dealer-profile", {
+      method: "POST",
+      body: form,
+    });
+    const result = (await response.json().catch(() => null)) as {
+      dealer?: { logo_url?: string | null; slug?: string; business_name?: string };
+    } | null;
+    if (!response.ok || !result?.dealer?.logo_url) {
+      setDealerMsg({ ok: false, text: "Could not upload that logo" });
+    } else {
+      setDealerLogoUrl(result.dealer.logo_url);
+      setDealerSlug(result.dealer.slug || dealerSlug);
+      setDealerName(result.dealer.business_name || dealerName);
+      setDealerMsg({ ok: true, text: "Dealer logo saved" });
+    }
+    setDealerBusy(false);
   }
 
   async function savePassword() {
@@ -434,6 +514,119 @@ export default function AccountSettings({
             Pre-selects the currency when you create a new listing. You confirm it on every
             listing, and changing it here never alters a watch you have already listed.
           </p>
+
+          {isDealer && (
+            <div className="mt-8 border-t border-[var(--border-faint)] pt-8">
+              <div className="mb-1 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                Dealer Room identity
+              </div>
+              <p className="mb-5 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                Choose the public identity shown in your Dealer Room and on your listings.
+                Management stays here; the public room remains buyer-facing.
+              </p>
+
+              <div className="mb-5 flex items-center gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink-deep)] p-2">
+                  {dealerLogoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={dealerLogoUrl}
+                      alt="Current dealer logo"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-center text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                      No logo selected
+                    </span>
+                  )}
+                </div>
+                <label className="fw-btn-secondary cursor-pointer">
+                  {dealerBusy ? "Saving…" : "Choose logo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr-only"
+                    disabled={dealerBusy}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) uploadDealerLogo(file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label>
+                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    Business name
+                  </span>
+                  <input
+                    value={dealerName}
+                    onChange={(event) => setDealerName(event.target.value)}
+                    className="fw-input"
+                    maxLength={120}
+                  />
+                </label>
+                <label>
+                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    Public room address
+                  </span>
+                  <div className="flex items-center border border-[var(--border-subtle)] bg-[var(--surface)] px-3 focus-within:border-[var(--border-gold)]">
+                    <span className="shrink-0 text-[11px] text-[var(--muted)]">/sellers/</span>
+                    <input
+                      value={dealerSlug}
+                      onChange={(event) => setDealerSlug(event.target.value)}
+                      className="min-w-0 flex-1 bg-transparent py-3 text-[13px] text-[var(--platinum)] outline-none"
+                      maxLength={80}
+                    />
+                  </div>
+                </label>
+                <label>
+                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    Location
+                  </span>
+                  <input
+                    value={dealerLocation}
+                    onChange={(event) => setDealerLocation(event.target.value)}
+                    className="fw-input"
+                    maxLength={120}
+                  />
+                </label>
+                <label>
+                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    Positioning line
+                  </span>
+                  <input
+                    value={dealerTagline}
+                    onChange={(event) => setDealerTagline(event.target.value)}
+                    className="fw-input"
+                    maxLength={240}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={saveDealerIdentity}
+                  disabled={dealerBusy || !dealerName.trim()}
+                  className={`fw-btn-primary ${dealerBusy ? "cursor-wait" : ""}`}
+                >
+                  {dealerBusy ? "Saving…" : "Save Dealer Identity"}
+                </button>
+                {dealerMsg && (
+                  <span
+                    className={`text-[11px] ${
+                      dealerMsg.ok ? "text-[var(--success)]" : "text-[var(--danger)]"
+                    }`}
+                  >
+                    {dealerMsg.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         <div className="fw-rule mb-10" />

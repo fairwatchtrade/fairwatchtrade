@@ -156,7 +156,7 @@ type ListingPhoto = {
   isWristShot?: boolean;
 };
 
-type ListingRow = {
+export type ListingRow = {
   id: string;
   brand: string;
   model: string | null;
@@ -206,6 +206,15 @@ type ListingRow = {
   weeks_featured?: number; // optional on the row; defaults 0 if absent
   status: string;
   in_hand_verified?: boolean;
+};
+
+export type DealerBrowseScope = {
+  sellerId: string;
+  slug: string;
+  businessName: string;
+  logoUrl: string | null;
+  location: string | null;
+  tagline: string | null;
 };
 
 /* Null asking price is a truth, not a zero — render the evidence layer's
@@ -469,7 +478,13 @@ function buildSnapshot(details: ListingRow["details"]): { label: string; value: 
   return rows;
 }
 
-export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
+export default function BrowseClient({
+  listings,
+  dealerScope = null,
+}: {
+  listings: ListingRow[];
+  dealerScope?: DealerBrowseScope | null;
+}) {
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -946,7 +961,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      router.push("/login?callbackUrl=/browse");
+      router.push(`/login?callbackUrl=${encodeURIComponent(currentBrowseUrl)}`);
       return;
     }
 
@@ -991,7 +1006,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
       {/* Filter intro */}
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
         <div className="mb-[6px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-          Refine
+          {dealerScope ? `Refine ${dealerScope.businessName}` : "Refine"}
         </div>
         <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
           Collectors think in dials, not dropdowns.
@@ -1067,15 +1082,94 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
     </div>
   );
 
+  const dealerIdentity = dealerScope ? (
+    <section className="-mx-6 -mt-5 flex flex-col gap-4 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink)] p-2">
+          {dealerScope.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={dealerScope.logoUrl}
+              alt={`${dealerScope.businessName} logo`}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <span className="font-display text-[18px] font-light text-[var(--gold)]">
+              {dealerScope.businessName
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 3)
+                .map((word) => word[0])
+                .join("")
+                .toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="mb-1 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+            Browse · Sellers · Dealer Room
+          </div>
+          <h1 className="truncate font-display text-[24px] font-light text-[var(--platinum)]">
+            {dealerScope.businessName}
+          </h1>
+          {(dealerScope.location || dealerScope.tagline) && (
+            <p className="mt-1 text-[12px] text-[var(--slate)]">
+              {[dealerScope.location, dealerScope.tagline].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="shrink-0 text-left sm:text-right">
+        <div className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+          Public inventory
+        </div>
+        <div className="mt-1 font-display text-[18px] font-light text-[var(--platinum-dim)]">
+          {listings.length} {listings.length === 1 ? "watch" : "watches"}
+        </div>
+      </div>
+    </section>
+  ) : null;
+
+  // An empty Dealer Room is an inventory fact, not a failed filter. Suppress
+  // controls that cannot act on anything and say exactly what is true.
+  if (dealerScope && listings.length === 0) {
+    return (
+      <div>
+        {dealerIdentity}
+        <section className="-mx-6 px-6 py-14 sm:py-20">
+          <div className="max-w-xl border-l border-[var(--border-gold)] pl-5">
+            <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+              Dealer inventory
+            </div>
+            <h2 className="font-display text-[24px] font-light text-[var(--platinum)]">
+              No public watches right now.
+            </h2>
+            <p className="mt-3 text-[13px] leading-[1.7] text-[var(--slate)]">
+              This Dealer Room is ready. Published watches from {dealerScope.businessName}{" "}
+              will appear here automatically.
+            </p>
+            <Link href="/browse" className="fw-btn-secondary mt-6 inline-block">
+              Return to Browse
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Dealer identity is data supplied by the canonical public identity
+          record. It never changes the catalogue, cards, shell, or controls. */}
+      {dealerIdentity}
+
       {/* Browse header — the count is the canonical filtered result set, so
           the number always describes exactly the listings rendered below. */}
-      <div className="-mx-6 -mt-5">
+      <div className={`-mx-6 ${dealerScope ? "" : "-mt-5"}`}>
         <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
           <div>
             <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
-              Discover
+              {dealerScope ? `${dealerScope.businessName} Inventory` : "Discover"}
             </h1>
             {/* This line carries catalogue status and a trust claim, not
                 decoration — how many watches are actually below, and that
@@ -1085,7 +1179,7 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
                 immediately; the weight and casing stay ordinary so it
                 remains a sentence beneath the heading, never a second one. */}
             <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
-              {filtered.length} watches · curated and verified
+              {filtered.length} watches · {dealerScope ? "dealer-scoped catalogue" : "curated and verified"}
             </p>
           </div>
         </div>
@@ -1097,6 +1191,16 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
           onCommit={setQuery}
           chips={searchChips}
           onClearAll={clearAll}
+          ariaLabel={
+            dealerScope
+              ? `Search ${dealerScope.businessName} inventory`
+              : "Search FairWatchTrade"
+          }
+          placeholder={
+            dealerScope
+              ? `Search ${dealerScope.businessName} inventory`
+              : "Search watches, references, or listing codes"
+          }
         />
       </div>
 
@@ -1122,7 +1226,9 @@ export default function BrowseClient({ listings }: { listings: ListingRow[] }) {
             When the result set is EMPTY the approved inline "save it" inside
             the empty state is the only save affordance — two save controls on
             one empty screen contradict each other. */}
-        {paginated.length > 0 && <SaveSearchControl searchState={activeSearch} />}
+        {!dealerScope && paginated.length > 0 && (
+          <SaveSearchControl searchState={activeSearch} />
+        )}
       </div>
 
       {/* Layout controls bar — grid width + view mode + page size.

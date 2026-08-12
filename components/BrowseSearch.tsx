@@ -38,11 +38,15 @@ export default function BrowseSearch({
   onCommit,
   chips,
   onClearAll,
+  ariaLabel = "Search FairWatchTrade",
+  placeholder = "Search watches, references, or listing codes",
 }: {
   query: string;
   onCommit: (next: string) => void;
   chips: SearchChip[];
   onClearAll: () => void;
+  ariaLabel?: string;
+  placeholder?: string;
 }) {
   const [text, setText] = useState(query);
   const [mirroredQuery, setMirroredQuery] = useState(query);
@@ -201,8 +205,8 @@ export default function BrowseSearch({
                 e.currentTarget.blur();
               }
             }}
-            aria-label="Search FairWatchTrade"
-            placeholder="Search watches, references, or listing codes"
+            aria-label={ariaLabel}
+            placeholder={placeholder}
             autoComplete="off"
             className="w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none sm:text-[16px]"
           />

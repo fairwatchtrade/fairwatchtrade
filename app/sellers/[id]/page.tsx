@@ -1,34 +1,23 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import BrowseClient, {
+  type DealerBrowseScope,
+  type ListingRow as BrowseListingRow,
+} from "@/components/BrowseClient";
 import SellerProfile, {
   type SellerCardListing,
   type SellerView,
 } from "@/components/SellerProfile";
 
-/* ────────────────────────────────────────────────────────────────────────
-   SELLER PROFILE — app/sellers/[id]/page.tsx   (v1.66)
+type DealerProfile = {
+  seller_id: string;
+  slug: string;
+  business_name: string;
+  logo_url: string | null;
+  location: string | null;
+  tagline: string | null;
+};
 
-   Server component. Fetches the seller's profile + their published listings,
-   computes the quality signal SERVER-SIDE, and passes ONLY display-safe data
-   to the client component. The raw combined_score never crosses into client
-   props — privacy invariant. (See PRIVACY note below.)
-
-   Schema reality (confirmed against live Supabase, option (b) build):
-     profiles: id, email, display_name, strikes, new_listings_paused_until,
-               created_at   — NO location / house_style / collector_statement
-     listings: seller_id (FK), combined_score, status, ...
-   So: name = display_name; location/house_style omitted; collector_statement
-   always renders its fallback; strikes & new_listings_paused_until NEVER read.
-
-   NOTE on the Supabase client import: this assumes `@/lib/supabase/server`
-   exposes `createClient()` (the App Router SSR pattern used elsewhere). If the
-   project's server-client helper is named/located differently, adjust ONLY
-   this import + the `createClient()` call — the rest is schema-correct.
-   ──────────────────────────────────────────────────────────────────────── */
-
-// Quality signal is PROSE ONLY, derived from the average combined_score of the
-// seller's published listings. The number itself is never returned. Low/no
-// data → null (the box is omitted; we never surface a negative signal).
 function qualityTextFor(scores: number[]): string | null {
   if (!scores.length) return null;
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -36,7 +25,13 @@ function qualityTextFor(scores: number[]): string | null {
     return "Consistently detailed listings — thorough documentation and original photography throughout.";
   if (avg >= 40)
     return "Thorough where it counts — documentation and photography above the platform average.";
-  return null; // below 40 → omit, never negative
+  return null;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 }
 
 export default async function SellerProfilePage({
@@ -47,24 +42,70 @@ export default async function SellerProfilePage({
   const { id } = await params;
   const supabase = await createClient();
 
-const { data: seller, error: sellerError } = await supabase
-  .from("public_seller_profiles")
-  .select("id, display_name, created_at")
-  .eq("id", id)
-  .single();
+  // A Dealer Room is the dealer branch of the existing public seller route.
+  // UUID links remain compatible, but resolve to the stable public slug.
+  const dealerQuery = supabase
+    .from("dealer_profiles")
+    .select("seller_id,slug,business_name,logo_url,location,tagline");
+  const { data: dealerData } = isUuid(id)
+    ? await dealerQuery.eq("seller_id", id).maybeSingle()
+    : await dealerQuery.eq("slug", id.toLowerCase()).maybeSingle();
+  const dealer = (dealerData as DealerProfile | null) ?? null;
 
-if (sellerError) {
-  console.error("Seller profile query error:", {
-    code: sellerError.code,
-    message: sellerError.message,
-  });
-}
+  if (dealer) {
+    if (id !== dealer.slug) redirect(`/sellers/${dealer.slug}`);
 
-if (!seller) notFound();
+    // This is the normal public catalogue query with one immutable owner
+    // constraint. BrowseClient owns search, filtering, facets, cards, view
+    // modes, pagination, and listing-return continuity exactly as on /browse.
+    const { data: listingRows, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("seller_id", dealer.seller_id)
+      .eq("status", "published");
+    if (error) {
+      console.error("Dealer Room listing query failed:", {
+        code: error.code,
+        message: error.message,
+      });
+    }
 
-  // Listings — FK is seller_id (confirmed). We select combined_score here ONLY
-  // to compute the quality signal server-side; it is NOT forwarded to the card
-  // data passed to the client.
+    const scope: DealerBrowseScope = {
+      sellerId: dealer.seller_id,
+      slug: dealer.slug,
+      businessName: dealer.business_name,
+      logoUrl: dealer.logo_url,
+      location: dealer.location,
+      tagline: dealer.tagline,
+    };
+
+    return (
+      <main className="min-h-screen bg-[var(--ink)] px-6 py-5 text-[var(--platinum)]">
+        <BrowseClient
+          listings={(!error && Array.isArray(listingRows) ? listingRows : []) as BrowseListingRow[]}
+          dealerScope={scope}
+        />
+      </main>
+    );
+  }
+
+  // Existing individual-seller profile remains intact. A non-dealer has no
+  // slug record, so only its established UUID route resolves here.
+  if (!isUuid(id)) notFound();
+  const { data: seller, error: sellerError } = await supabase
+    .from("public_seller_profiles")
+    .select("id, display_name, created_at")
+    .eq("id", id)
+    .single();
+
+  if (sellerError) {
+    console.error("Seller profile query error:", {
+      code: sellerError.code,
+      message: sellerError.message,
+    });
+  }
+  if (!seller) notFound();
+
   const { data: listingRows } = await supabase
     .from("listings")
     .select(
@@ -72,34 +113,22 @@ if (!seller) notFound();
     )
     .eq("seller_id", id)
     .eq("status", "published");
-
   const rows = listingRows ?? [];
-
-  // Server-side quality computation; only the resulting string leaves the server.
   const qualityText = qualityTextFor(
-    rows
-      .map((r) => Number(r.combined_score))
-      .filter((n) => Number.isFinite(n))
+    rows.map((row) => Number(row.combined_score)).filter((score) => Number.isFinite(score))
   );
-
-  // Strip combined_score before handing listings to the client. The cards never
-  // need it and it must not appear in the serialized props.
-  const cardListings: SellerCardListing[] = rows.map((r) => ({
-    id: r.id,
-    brand: r.brand,
-    model: r.model ?? null,
-    reference: r.reference,
-    year: r.year,
-    condition: r.condition,
-    asking_price: r.asking_price,
-    asking_currency: r.asking_currency ?? null,
-    photos: Array.isArray(r.photos) ? r.photos : [],
-    details: r.details ?? null,
+  const cardListings: SellerCardListing[] = rows.map((row) => ({
+    id: row.id,
+    brand: row.brand,
+    model: row.model ?? null,
+    reference: row.reference,
+    year: row.year,
+    condition: row.condition,
+    asking_price: row.asking_price,
+    asking_currency: row.asking_currency ?? null,
+    photos: Array.isArray(row.photos) ? row.photos : [],
+    details: row.details ?? null,
   }));
-
-  // Completed sales: no transaction system yet → dormant. Pass 0 so the client
-  // renders the "joined recently" note; the left-column stat shows a literal
-  // dash regardless (never a number).
   const sellerView: SellerView = {
     id: seller.id,
     displayName: seller.display_name ?? "Seller",

@@ -285,6 +285,12 @@ export default async function ListingDetailPage({
     resolvedSellerName && resolvedSellerName !== ""
       ? resolvedSellerName
       : "FairWatchTrade Seller";
+  const { data: dealerProfile } = await supabase
+    .from("dealer_profiles")
+    .select("slug")
+    .eq("seller_id", listing.seller_id)
+    .maybeSingle();
+  const sellerHref = `/sellers/${dealerProfile?.slug || listing.seller_id}`;
 
   // Owner-aware button visibility — the seller shouldn't see their own
   // listing's "Start Purchase Request" action.
@@ -666,7 +672,7 @@ export default async function ListingDetailPage({
               lives in the rail's Dealer Information card. Identical treatment,
               one home per viewport. */}
           <Link
-            href={`/sellers/${listing.seller_id}`}
+            href={sellerHref}
             className="mt-1 inline-block text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)] xl:hidden"
           >
             Sold by {sellerName} →
