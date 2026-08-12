@@ -2,12 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
-  isPromotableFinding,
   PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_UPLOAD,
   TRIGGERED_BY_RETRY,
   HOLD_RESULTS_PENDING,
   aggregateIntegrityForListing,
+  buildPromotedEvidenceRows,
   isSystemReleasableHold,
   type IntegrityHoldReason,
 } from "@/lib/integrity";
@@ -556,24 +556,13 @@ async function completePublishOrchestration(params: {
     return allMedia;
   }
 
-  const evidenceRows = (results ?? [])
-    .filter(isPromotableFinding)
-    .map((r) => {
-      // v2.24 · the schema's purpose-built evidence columns, populated from
-      // the Aubrey detail shape when present (null for other providers).
-      const d = (r.detail ?? {}) as Record<string, unknown>;
-      return {
-        listing_id: listingId,
-        provider_result_id: r.id,
-        provider: r.provider,
-        classification: r.classification,
-        reason: r.reason ?? null,
-        detail: r.detail ?? null,
-        matched_source_url:
-          typeof d.matched_source_url === "string" ? d.matched_source_url : null,
-        confidence: typeof d.best_score === "number" ? d.best_score : null,
-      };
-    });
+  // Step 2 · cause identity is assigned inside the shared builder, so the
+  // publish path and the founder recheck path can never drift apart.
+  const evidenceRows = await buildPromotedEvidenceRows({
+    service,
+    listingId,
+    results: results ?? [],
+  });
 
   if (evidenceRows.length > 0) {
     const { error: evErr } = await service

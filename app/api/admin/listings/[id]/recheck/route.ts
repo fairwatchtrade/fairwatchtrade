@@ -5,7 +5,7 @@ import {
   PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_ADMIN_RECHECK,
   aggregateIntegrityForListing,
-  isPromotableFinding,
+  buildPromotedEvidenceRows,
   isSystemReleasableHold,
 } from "@/lib/integrity";
 import {
@@ -221,19 +221,12 @@ export async function POST(
     .select("id, provider, classification, execution_status, is_active, detail, reason")
     .in("media_id", mediaIds);
   if (!resultsErr) {
-    const evidenceRows = (results ?? []).filter(isPromotableFinding).map((r) => {
-      const d = (r.detail ?? {}) as Record<string, unknown>;
-      return {
-        listing_id: id,
-        provider_result_id: r.id,
-        provider: r.provider,
-        classification: r.classification,
-        reason: r.reason ?? null,
-        detail: r.detail ?? null,
-        matched_source_url:
-          typeof d.matched_source_url === "string" ? d.matched_source_url : null,
-        confidence: typeof d.best_score === "number" ? d.best_score : null,
-      };
+    // Step 2 · the same shared builder the publish path uses, so a recheck
+    // promotion carries cause identity exactly as a first publish does.
+    const evidenceRows = await buildPromotedEvidenceRows({
+      service,
+      listingId: id,
+      results: results ?? [],
     });
     if (evidenceRows.length > 0) {
       const { error: evErr } = await service
