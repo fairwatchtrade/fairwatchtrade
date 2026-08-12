@@ -357,6 +357,7 @@ function FacetGroup({
   implied,
   onImpliedToggle,
   showWhenEmpty = false,
+  dealerLegibility = false,
 }: {
   title: string;
   facets: [string, number][];
@@ -370,6 +371,7 @@ function FacetGroup({
   implied?: Set<string>;
   onImpliedToggle?: (value: string) => void;
   showWhenEmpty?: boolean;
+  dealerLegibility?: boolean;
 }) {
   const selectedFolded = useMemo(
     () => new Set([...selected].map(facetKey)),
@@ -378,21 +380,31 @@ function FacetGroup({
   if (facets.length === 0) {
     if (!showWhenEmpty) return null;
     return (
-      <div className="mb-[18px] px-[18px]">
+      <div className="px-[18px]">
         <button
           type="button"
           disabled
           aria-disabled="true"
-          className="w-full cursor-default text-left text-[8px] uppercase tracking-[2.5px] text-[var(--muted)] opacity-50"
+          aria-label={`${title}: unavailable until public inventory exists`}
+          className="flex w-full cursor-default items-center justify-between gap-3 border-b border-[var(--border-faint)] py-3 text-left text-[11px] uppercase tracking-[1.8px] text-[var(--muted)]"
         >
-          {title}
+          <span>{title}</span>
+          <span className="text-[9px] tracking-[0.8px] text-[var(--muted)]">
+            Unavailable
+          </span>
         </button>
       </div>
     );
   }
   return (
     <div className="mb-[22px] px-[18px]">
-      <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+      <div
+        className={
+          dealerLegibility
+            ? "mb-3 text-[10px] uppercase tracking-[1.8px] text-[var(--muted)]"
+            : "mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]"
+        }
+      >
         {title}
       </div>
       <div>
@@ -429,13 +441,25 @@ function FacetGroup({
                 )}
               </div>
               <span
-                className={`min-w-0 flex-1 truncate text-[11px] tracking-[0.3px] ${
-                  isActive ? "text-[var(--slate)]" : "text-[var(--muted)]"
+                className={`min-w-0 flex-1 truncate tracking-[0.3px] ${
+                  dealerLegibility
+                    ? `text-[12px] ${
+                        isActive ? "text-[var(--platinum-dim)]" : "text-[var(--slate)]"
+                      }`
+                    : `text-[11px] ${
+                        isActive ? "text-[var(--slate)]" : "text-[var(--muted)]"
+                      }`
                 }`}
               >
                 {value}
               </span>
-              <span className="text-[10px] tabular-nums text-[var(--muted)]">
+              <span
+                className={`tabular-nums ${
+                  dealerLegibility
+                    ? "text-[11px] text-[var(--slate)]"
+                    : "text-[10px] text-[var(--muted)]"
+                }`}
+              >
                 {count}
               </span>
             </label>
@@ -1104,20 +1128,22 @@ export default function BrowseClient({
   const dealerFacetList = dealerScope ? (
     <div>
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-3 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+        <div className="mb-3 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           Inventory Brands
         </div>
         <button
           type="button"
           onClick={showAllDealerInventory}
-          className={`flex w-full items-center justify-between py-2 text-left text-[11px] tracking-[0.3px] transition ${
+          className={`flex w-full items-center justify-between py-2 text-left text-[12px] tracking-[0.3px] transition ${
             selectedBrands.size === 0
               ? "text-[var(--platinum)]"
-              : "text-[var(--muted)] hover:text-[var(--slate)]"
+              : "text-[var(--slate)] hover:text-[var(--platinum-dim)]"
           }`}
         >
           <span>All inventory</span>
-          <span className="tabular-nums text-[var(--muted)]">{listings.length}</span>
+          <span className="text-[11px] tabular-nums text-[var(--slate)]">
+            {listings.length}
+          </span>
         </button>
         {brandFacets.map(([brand, count]) => {
           const active = selectedBrands.has(brand);
@@ -1126,24 +1152,24 @@ export default function BrowseClient({
               key={brand}
               type="button"
               onClick={() => toggleBrand(brand)}
-              className={`flex w-full items-center justify-between py-2 text-left text-[11px] tracking-[0.3px] transition ${
+              className={`flex w-full items-center justify-between py-2 text-left text-[12px] tracking-[0.3px] transition ${
                 active
                   ? "text-[var(--platinum)]"
-                  : "text-[var(--muted)] hover:text-[var(--slate)]"
+                  : "text-[var(--slate)] hover:text-[var(--platinum-dim)]"
               }`}
             >
               <span className="truncate">{brand}</span>
-              <span className="tabular-nums text-[var(--muted)]">{count}</span>
+              <span className="text-[11px] tabular-nums text-[var(--slate)]">{count}</span>
             </button>
           );
         })}
       </div>
 
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-[6px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+        <div className="mb-[6px] text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           Refine This Dealer
         </div>
-        <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+        <p className="font-display text-[14px] font-light italic leading-[1.6] text-[var(--slate)]">
           Collectors think in dials, not dropdowns.
         </p>
       </div>
@@ -1154,6 +1180,7 @@ export default function BrowseClient({
         selected={selectedMaterials}
         onToggle={toggleMaterial}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Dial Color"
@@ -1163,6 +1190,7 @@ export default function BrowseClient({
         implied={impliedDials}
         onImpliedToggle={removeImpliedDial}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Box & Papers"
@@ -1170,6 +1198,7 @@ export default function BrowseClient({
         selected={selectedDocs}
         onToggle={toggleDoc}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Condition"
@@ -1177,6 +1206,7 @@ export default function BrowseClient({
         selected={selectedConditions}
         onToggle={toggleCondition}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Case Size"
@@ -1184,6 +1214,7 @@ export default function BrowseClient({
         selected={selectedCaseSizes}
         onToggle={toggleCaseSize}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Movement"
@@ -1191,6 +1222,7 @@ export default function BrowseClient({
         selected={selectedMovements}
         onToggle={toggleMovement}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Beat Rate"
@@ -1198,6 +1230,7 @@ export default function BrowseClient({
         selected={selectedBeatRates}
         onToggle={toggleBeatRate}
         showWhenEmpty
+        dealerLegibility
       />
       <FacetGroup
         title="Power Reserve"
@@ -1205,6 +1238,7 @@ export default function BrowseClient({
         selected={selectedPowerReserves}
         onToggle={togglePowerReserve}
         showWhenEmpty
+        dealerLegibility
       />
     </div>
   ) : null;
@@ -1235,7 +1269,7 @@ export default function BrowseClient({
           )}
         </div>
         <div className="min-w-0">
-          <div className="mb-1 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+          <div className="mb-1 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
             Browse · Sellers · Dealer Room
           </div>
           <h1 className="truncate font-display text-[24px] font-light text-[var(--platinum)]">
@@ -1249,7 +1283,7 @@ export default function BrowseClient({
         </div>
       </div>
       <div className="shrink-0 text-left sm:text-right">
-        <div className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+        <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
           Public inventory
         </div>
         <div className="mt-1 font-display text-[18px] font-light text-[var(--platinum-dim)]">
@@ -1303,6 +1337,7 @@ export default function BrowseClient({
               ? `Search ${dealerScope.businessName} inventory`
               : "Search watches, references, or listing codes"
           }
+          legibilityMode={!!dealerScope}
         />
       </div>
 
@@ -1348,10 +1383,14 @@ export default function BrowseClient({
                   key={n}
                   type="button"
                   onClick={() => setGridCols(n)}
-                  className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                  className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
+                    dealerScope ? "text-[11px]" : "text-[9px]"
+                  } ${
                     gridCols === n
                       ? "border-[var(--border-gold)] text-[var(--gold)]"
-                      : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                      : dealerScope
+                        ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                        : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                   }`}
                 >
                   {n}-wide
@@ -1369,10 +1408,14 @@ export default function BrowseClient({
                 key={key}
                 type="button"
                 onClick={() => setViewMode(key)}
-                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
+                  dealerScope ? "text-[11px]" : "text-[9px]"
+                } ${
                   viewMode === key
                     ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                    : dealerScope
+                      ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                      : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                 }`}
               >
                 {label}
@@ -1396,7 +1439,11 @@ export default function BrowseClient({
           <div className="flex items-center gap-2">
             <label
               htmlFor="browse-sort"
-              className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+              className={`uppercase tracking-[1px] ${
+                dealerScope
+                  ? "text-[11px] text-[var(--slate)]"
+                  : "text-[9px] text-[var(--muted)]"
+              }`}
             >
               Sort
             </label>
@@ -1406,8 +1453,12 @@ export default function BrowseClient({
               onChange={(e) => setSort(e.target.value as "default" | "priceAsc" | "priceDesc")}
               style={{ colorScheme: "dark" }}
               className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                dealerScope ? "!text-[11px]" : ""
+              } ${
                 sort === "default"
-                  ? "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                  ? dealerScope
+                    ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                   : "border-[var(--border-gold)] text-[var(--gold)]"
               }`}
             >
@@ -1423,10 +1474,14 @@ export default function BrowseClient({
                 key={n}
                 type="button"
                 onClick={() => setPageSize(n)}
-                className={`border px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+                className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
+                  dealerScope ? "text-[11px]" : "text-[9px]"
+                } ${
                   pageSize === n
                     ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                    : dealerScope
+                      ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                      : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
                 }`}
               >
                 {n === "all" ? "All" : n}
@@ -1440,10 +1495,16 @@ export default function BrowseClient({
         {/* Desktop sidebar — collapses to w-0 */}
         <aside
           className={`hidden shrink-0 flex-col overflow-hidden transition-all duration-300 md:flex ${
-            isFilterOpen ? "w-[168px]" : "w-0"
+            isFilterOpen
+              ? dealerScope
+                ? "w-[220px] border-r border-[var(--border-faint)] bg-[var(--ink-deep)] py-5 xl:w-[250px]"
+                : "w-[168px]"
+              : "w-0"
           }`}
         >
-          <div className="w-[168px]">{facetList}</div>
+          <div className={dealerScope ? "w-[220px] xl:w-[250px]" : "w-[168px]"}>
+            {facetList}
+          </div>
         </aside>
 
         {/* Grid wrapper — expands as the sidebar collapses */}
@@ -1452,13 +1513,13 @@ export default function BrowseClient({
             dealerScope && listings.length === 0 ? (
               <section className="py-8 sm:py-12">
                 <div className="max-w-xl border-l border-[var(--border-gold)] pl-5">
-                  <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                  <div className="mb-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                     Dealer inventory
                   </div>
                   <h2 className="font-display text-[24px] font-light text-[var(--platinum)]">
                     No public watches right now.
                   </h2>
-                  <p className="mt-3 text-[13px] leading-[1.7] text-[var(--slate)]">
+                  <p className="mt-3 text-[14px] leading-[1.7] text-[var(--slate)]">
                     Published watches from {dealerScope.businessName} will appear here automatically.
                   </p>
                 </div>
@@ -1864,7 +1925,7 @@ export default function BrowseClient({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between px-[18px]">
-              <span className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+              <span className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                 Refine
               </span>
               <button

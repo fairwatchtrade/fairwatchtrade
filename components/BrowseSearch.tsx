@@ -40,6 +40,7 @@ export default function BrowseSearch({
   onClearAll,
   ariaLabel = "Search FairWatchTrade",
   placeholder = "Search watches, references, or listing codes",
+  legibilityMode = false,
 }: {
   query: string;
   onCommit: (next: string) => void;
@@ -47,6 +48,10 @@ export default function BrowseSearch({
   onClearAll: () => void;
   ariaLabel?: string;
   placeholder?: string;
+  /** Dealer Rooms use this search as functional catalogue navigation, so its
+      helper labels must meet the readable UI floor rather than the quieter
+      decorative treatment used by the general discovery surface. */
+  legibilityMode?: boolean;
 }) {
   const [text, setText] = useState(query);
   const [mirroredQuery, setMirroredQuery] = useState(query);
@@ -309,7 +314,13 @@ export default function BrowseSearch({
         {/* ── Your Search ────────────────────────────────────────────────── */}
         <div className="mt-[14px]">
           <div className="mb-[9px] flex items-center justify-between gap-3">
-            <span className="text-[10px] uppercase tracking-[0.17em] text-[var(--muted)]">
+            <span
+              className={
+                legibilityMode
+                  ? "text-[11px] uppercase tracking-[0.14em] text-[var(--slate)]"
+                  : "text-[10px] uppercase tracking-[0.17em] text-[var(--muted)]"
+              }
+            >
               Your Search
             </span>
             {chips.length > 0 && (
@@ -324,7 +335,15 @@ export default function BrowseSearch({
           </div>
 
           {chips.length === 0 ? (
-            <span className="text-[12px] text-[var(--muted)]">No search details yet</span>
+            <span
+              className={
+                legibilityMode
+                  ? "text-[13px] text-[var(--slate)]"
+                  : "text-[12px] text-[var(--muted)]"
+              }
+            >
+              No search details yet
+            </span>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {chips.map((chip) => (
@@ -335,7 +354,13 @@ export default function BrowseSearch({
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-[7px]">
-                    <small className="flex-none text-[9px] uppercase tracking-[0.1em] text-[var(--muted)]">
+                    <small
+                      className={`flex-none uppercase tracking-[0.1em] ${
+                        legibilityMode
+                          ? "text-[10px] text-[var(--slate)]"
+                          : "text-[9px] text-[var(--muted)]"
+                      }`}
+                    >
                       {chip.source === "filter" ? "Filter" : "Search"}
                     </small>
                     <b className="font-normal">{chip.label}</b>

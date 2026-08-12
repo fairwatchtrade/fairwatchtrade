@@ -74,3 +74,21 @@ test("zero inventory preserves the Dealer Room composition", () => {
   assert.match(browse, /No public watches right now\./);
   assert.match(browse, /Published watches from \{dealerScope\.businessName\}/);
 });
+
+test("empty Dealer Room rail remains readable and explicitly unavailable", () => {
+  assert.match(browse, /aria-label=\{`\$\{title\}: unavailable until public inventory exists`\}/);
+  assert.match(browse, />\s*Unavailable\s*<\/span>/);
+  assert.match(browse, /text-\[11px\].*text-\[var\(--muted\)\]/);
+  assert.match(browse, /text-\[9px\] tracking-\[0\.8px\] text-\[var\(--muted\)\]/);
+  assert.doesNotMatch(browse, /text-\[8px\].*text-\[var\(--muted\)\] opacity-50/);
+  assert.match(browse, /w-\[220px\].*xl:w-\[250px\]/);
+});
+
+test("Dealer Room functional text uses the readable UI floor", () => {
+  assert.match(browse, /dealerLegibility/);
+  assert.match(browse, /legibilityMode=\{!!dealerScope\}/);
+  assert.match(browse, /dealerScope \? "text-\[11px\]" : "text-\[9px\]"/);
+  assert.match(browse, /Dealer inventory[\s\S]*text-\[14px\]/);
+  assert.match(search, /legibilityMode[\s\S]*text-\[11px\].*text-\[var\(--slate\)\]/);
+  assert.match(search, /legibilityMode[\s\S]*text-\[13px\] text-\[var\(--slate\)\]/);
+});
