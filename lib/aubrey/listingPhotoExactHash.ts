@@ -56,15 +56,40 @@ export type ExactHashMediaRow = {
       is server-only. ── */
 export type ExactHashDeps = {
   blobGet: typeof blobGetReal;
+  fetchImpl: typeof fetch;
   nowIso: () => string;
   timeoutMs: number;
 };
 
 const defaultDeps: ExactHashDeps = {
   blobGet: blobGetReal,
+  fetchImpl: fetch,
   nowIso: () => new Date().toISOString(),
   timeoutMs: AUBREY_EXACT_HASH_TIMEOUT_MS,
 };
+
+/* ── Public-store fallback ─────────────────────────────────────────────────
+
+   PROVEN IN PRODUCTION 2026-08-12: the SDK's get(pathname) requires a store
+   id extracted from token auth, and under this deployment's OIDC-only Blob
+   binding (BLOB_READ_WRITE_TOKEN is deliberately absent — see
+   app/api/upload/route.ts) that extraction fails. Every first-run attempt
+   recorded unavailable/blob_read_failed while put() in the same runtime
+   worked, because put() never constructs the store URL client-side.
+
+   The store is PUBLIC by design — buyers' browsers fetch listing photos
+   directly — so the bytes are reachable with a plain fetch of
+   base + storage_path. The base is a server-side constant (overridable by
+   env for a future store migration), and the path comes from the database
+   row; no client-supplied URL is ever fetched, so the byte-authority law
+   holds. The same guards apply: timeout, declared- and streamed-size caps,
+   and a final-URL pathname check so a redirect can never substitute bytes. */
+const DEFAULT_BLOB_PUBLIC_BASE =
+  "https://ecmtihkajkbp7udl.public.blob.vercel-storage.com";
+
+export function blobPublicBase(): string {
+  return (process.env.BLOB_PUBLIC_BASE_URL || DEFAULT_BLOB_PUBLIC_BASE).replace(/\/+$/, "");
+}
 
 /* ── Storage-path authority: only retained `listings/…` Blob pathnames are
       ever fetched. URLs, traversal, backslashes, absolute paths, empty
@@ -119,22 +144,11 @@ export async function sha256OfStream(
   return { ok: true, digest: hash.digest("hex") };
 }
 
-/** Fetch retained bytes for one authoritative `listings/…` pathname and
-    derive the exact-byte digest. Never consults client-supplied data. */
-export async function hashRetainedBytes(
+/** Fetch retained bytes via the SDK's authenticated path. */
+async function hashViaSdk(
   storagePath: string,
-  deps: ExactHashDeps = defaultDeps
+  deps: ExactHashDeps
 ): Promise<HashSuccess | HashFailure> {
-  const pathText = typeof storagePath === "string" ? storagePath : "";
-  if (!isRetainedListingsPath(pathText)) {
-    return {
-      ok: false,
-      executionStatus: "unavailable",
-      incompleteReason:
-        pathText.length > 0 ? "source_bytes_not_retained" : "storage_path_missing",
-    };
-  }
-
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), deps.timeoutMs);
   try {
@@ -193,6 +207,105 @@ export async function hashRetainedBytes(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Fetch retained bytes from the public store with the same guards. The URL
+    is constructed server-side from the authoritative storage_path — never
+    from client data. */
+async function hashViaPublicStore(
+  storagePath: string,
+  deps: ExactHashDeps
+): Promise<HashSuccess | HashFailure> {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), deps.timeoutMs);
+  try {
+    const url = `${blobPublicBase()}/${encodeURI(storagePath)}`;
+    const response = await deps.fetchImpl(url, {
+      signal: abort.signal,
+      cache: "no-store",
+    });
+    if (response.status === 404) {
+      return {
+        ok: false,
+        executionStatus: "unavailable",
+        incompleteReason: "blob_not_found",
+      };
+    }
+    if (!response.ok || !response.body) {
+      return {
+        ok: false,
+        executionStatus: "unavailable",
+        incompleteReason: "blob_read_failed",
+      };
+    }
+    // A redirect must never substitute bytes: the final URL's pathname has
+    // to be the exact storage path we asked for.
+    const finalPath = decodeURIComponent(new URL(response.url).pathname);
+    if (finalPath !== `/${storagePath}`) {
+      return {
+        ok: false,
+        executionStatus: "invalid_response",
+        incompleteReason: "blob_path_mismatch",
+      };
+    }
+    const declared = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > AUBREY_EXACT_HASH_MAX_BYTES) {
+      // Refused on the declared size — the stream is never consumed.
+      return {
+        ok: false,
+        executionStatus: "unavailable",
+        incompleteReason: "blob_too_large",
+      };
+    }
+    const hashed = await sha256OfStream(
+      response.body as ReadableStream<Uint8Array>,
+      AUBREY_EXACT_HASH_MAX_BYTES
+    );
+    if (!hashed.ok) {
+      return {
+        ok: false,
+        executionStatus: "unavailable",
+        incompleteReason: hashed.tooLarge ? "blob_too_large" : "blob_read_failed",
+      };
+    }
+    return { ok: true, digest: hashed.digest };
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "";
+    return {
+      ok: false,
+      executionStatus: "unavailable",
+      incompleteReason: name === "AbortError" ? "blob_fetch_timeout" : "blob_read_failed",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Fetch retained bytes for one authoritative `listings/…` pathname and
+    derive the exact-byte digest. Never consults client-supplied data.
+
+    The SDK path runs first; when it fails in the auth-shaped way proven in
+    production (blob_read_failed — the OIDC-only binding cannot construct a
+    store URL from a pathname), the public-store fetch takes over. Timeout,
+    not-found, size, and path-mismatch refusals are authoritative answers
+    about the blob itself and are NOT retried through the fallback. */
+export async function hashRetainedBytes(
+  storagePath: string,
+  deps: ExactHashDeps = defaultDeps
+): Promise<HashSuccess | HashFailure> {
+  const pathText = typeof storagePath === "string" ? storagePath : "";
+  if (!isRetainedListingsPath(pathText)) {
+    return {
+      ok: false,
+      executionStatus: "unavailable",
+      incompleteReason:
+        pathText.length > 0 ? "source_bytes_not_retained" : "storage_path_missing",
+    };
+  }
+
+  const viaSdk = await hashViaSdk(pathText, deps);
+  if (viaSdk.ok || viaSdk.incompleteReason !== "blob_read_failed") return viaSdk;
+  return hashViaPublicStore(pathText, deps);
 }
 
 /* ── Detail builders — exact Flight 1 evidence vocabulary. Machine

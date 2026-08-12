@@ -132,11 +132,42 @@ function makeService({
   return service;
 }
 
-const deps = (blobGet) => ({
+const deps = (blobGet, fetchImpl) => ({
   blobGet,
+  // Unless a test provides one, the public-store fallback is unavailable —
+  // pre-fallback assertions keep their original meaning.
+  fetchImpl:
+    fetchImpl ??
+    (async () => {
+      throw new Error("public store unavailable in this test");
+    }),
   nowIso: () => "2026-08-04T00:00:00.000Z",
   timeoutMs: 500,
 });
+
+/** Fake public-store fetch returning the fixture bytes at the right URL. */
+function makePublicFetch({
+  bytes = FIXTURE,
+  status = 200,
+  finalUrlOverride = null,
+  contentLength = null,
+} = {}) {
+  const calls = [];
+  const fn = async (url) => {
+    calls.push(url);
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      url: finalUrlOverride ?? url,
+      headers: new Headers(
+        contentLength === null ? {} : { "content-length": String(contentLength) }
+      ),
+      body: streamOf([bytes]),
+    };
+  };
+  fn.calls = calls;
+  return fn;
+}
 
 const mediaRow = (over = {}) => ({
   id: "media-1",
@@ -661,6 +692,92 @@ const helperSrc = read("lib/aubrey/listingPhotoExactHash.ts");
   ok(
     "RT25 that one invocation lives inside the orchestration",
     routeSrc.lastIndexOf("ensureExactHashAttempts") > orchestrationAt
+  );
+}
+
+/* RT27 · the public-store fallback — the production blob_read_failed repair.
+   The SDK path failing in the auth shape hands over to a server-constructed
+   public URL with identical guards; authoritative refusals never fall back. */
+{
+  const { blobPublicBase } = await import("../lib/aubrey/listingPhotoExactHash.ts");
+
+  // Auth-shaped SDK failure → fallback produces the digest.
+  const goodFetch = makePublicFetch();
+  const viaFallback = await hashRetainedBytes(
+    "listings/fixture.jpg",
+    deps(makeBlobGet({ throwName: "BlobError" }), goodFetch)
+  );
+  ok(
+    "RT27 auth-shaped SDK failure falls back and hashes the true bytes",
+    viaFallback.ok && viaFallback.digest === FIXTURE_SHA
+  );
+  ok(
+    "RT27 the fallback fetched the server-constructed public URL",
+    goodFetch.calls.length === 1 &&
+      goodFetch.calls[0] === `${blobPublicBase()}/listings/fixture.jpg`
+  );
+
+  // SDK success never consults the fallback.
+  const untouched = makePublicFetch();
+  const viaSdk = await hashRetainedBytes("listings/fixture.jpg", deps(makeBlobGet(), untouched));
+  ok("RT27 SDK success never touches the public store", viaSdk.ok && untouched.calls.length === 0);
+
+  // Authoritative refusals do NOT fall back.
+  for (const [label, blobOpts, reason] of [
+    ["not-found", { throwName: "BlobNotFoundError" }, "blob_not_found"],
+    ["timeout", { throwName: "AbortError" }, "blob_fetch_timeout"],
+    ["path mismatch", { pathnameOverride: "listings/other.jpg" }, "blob_path_mismatch"],
+    ["oversize", { declaredSize: AUBREY_EXACT_HASH_MAX_BYTES + 1 }, "blob_too_large"],
+  ]) {
+    const spy = makePublicFetch();
+    const r = await hashRetainedBytes("listings/fixture.jpg", deps(makeBlobGet(blobOpts), spy));
+    ok(
+      `RT27 authoritative ${label} answers directly (${reason}), no fallback`,
+      r.ok === false && r.incompleteReason === reason && spy.calls.length === 0
+    );
+  }
+
+  // Fallback guards are as strict as the SDK path's.
+  const redirected = await hashRetainedBytes(
+    "listings/fixture.jpg",
+    deps(
+      makeBlobGet({ throwName: "BlobError" }),
+      makePublicFetch({ finalUrlOverride: `${blobPublicBase()}/listings/other.jpg` })
+    )
+  );
+  ok(
+    "RT27 a redirect cannot substitute bytes — path mismatch refused",
+    redirected.ok === false && redirected.incompleteReason === "blob_path_mismatch"
+  );
+
+  const fallback404 = await hashRetainedBytes(
+    "listings/fixture.jpg",
+    deps(makeBlobGet({ throwName: "BlobError" }), makePublicFetch({ status: 404 }))
+  );
+  ok(
+    "RT27 fallback 404 records blob_not_found",
+    fallback404.ok === false && fallback404.incompleteReason === "blob_not_found"
+  );
+
+  const fallbackOversize = await hashRetainedBytes(
+    "listings/fixture.jpg",
+    deps(
+      makeBlobGet({ throwName: "BlobError" }),
+      makePublicFetch({ contentLength: AUBREY_EXACT_HASH_MAX_BYTES + 1 })
+    )
+  );
+  ok(
+    "RT27 fallback declared oversize refused as blob_too_large",
+    fallbackOversize.ok === false && fallbackOversize.incompleteReason === "blob_too_large"
+  );
+
+  const bothDown = await hashRetainedBytes(
+    "listings/fixture.jpg",
+    deps(makeBlobGet({ throwName: "BlobError" }))
+  );
+  ok(
+    "RT27 both paths down still degrades to blob_read_failed, never a throw",
+    bothDown.ok === false && bothDown.incompleteReason === "blob_read_failed"
   );
 }
 
