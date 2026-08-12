@@ -173,6 +173,14 @@ export function findingRequiresReview(classification: string | null): boolean {
 
 export const PROVIDER_IMAGE_AUTHENTICITY = "image_authenticity";
 
+/** Aubrey Flight 1 — exact retained-byte hash evidence. Third provider key,
+    LOCKED like the others. Evidence-only and inert: this provider NEVER
+    participates in coverage, holds, or status decisions — completed
+    attempts are always classification 'passed' ("completed with no gate
+    action authorized"), and the observation itself lives in detail.outcome.
+    The provider implementation lives in lib/aubrey/listingPhotoExactHash.ts. */
+export const PROVIDER_AUBREY_EXACT_HASH = "aubrey_exact_hash";
+
 /** triggered_by values for non-first-pass attempts (live CHECK vocabulary). */
 export const TRIGGERED_BY_RETRY = "retry";
 export const TRIGGERED_BY_ADMIN_RECHECK = "admin_recheck";
