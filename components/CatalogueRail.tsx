@@ -26,8 +26,9 @@ import { RailShell, RailSection, RailItem } from "@/components/rail/railPrimitiv
 
    Seller exits (Seller Workspace, Sell) are a separated grouping — a
    doorway out of the family, never styled as the active family. My
-   Catalogue is the only Soon item. Active logic is a plain
-   exact-pathname match; every target is unique, so no tie can exist.
+   Catalogue resolves to the existing Saved Watches section on /catalogue;
+   it does not create a second collection or saved-watch state. Active logic
+   for full-page destinations is a plain exact-pathname match.
    Icons follow the approved v2 renders: ring glyphs, with the squiggle
    for Watch DNA.
    ──────────────────────────────────────────────────────────────────────── */
@@ -107,8 +108,13 @@ export default function CatalogueRail() {
         <RailItem icon={ICONS.sellerWorkspace} label="Seller Workspace" href="/account" exit chevron />
         <RailItem icon={ICONS.sell} label="Sell" href="/sell" exit chevron />
       </RailSection>
-      <RailSection label="Soon">
-        <RailItem icon={ICONS.myCatalogue} label="My Catalogue" soon />
+      <RailSection label="Collection">
+        <RailItem
+          icon={ICONS.myCatalogue}
+          label="My Catalogue"
+          href="/catalogue#saved-watches"
+          chevron
+        />
       </RailSection>
     </RailShell>
   );

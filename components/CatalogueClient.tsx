@@ -929,8 +929,9 @@ export default function CatalogueClient({
       {/* Left nav — v3.21: the Painted Line CatalogueRail (Design Gate
           Concept A, v3 order §5). Discover = Browse → Catalogue → Watch DNA
           (New Arrivals removed, Jason-approved); Seller exits separated;
-          My Catalogue the only Soon. The rail owns its own full-height
-          fused composition and hides itself below md. */}
+          My Catalogue links to this page's existing Saved Watches section.
+          The rail owns its own full-height fused composition and hides itself
+          below md. */}
       <CatalogueRail />
 
       {/* Right content */}
@@ -1086,7 +1087,7 @@ export default function CatalogueClient({
                 listings. Empty-state copy (product-soul-approved) is
                 preserved verbatim for the true empty case AND the loading
                 case, so there's no flash between "loading" and "0 saved". */}
-            <div className="mt-8">
+            <div id="saved-watches" className="mt-8 scroll-mt-32">
               <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
                 Saved Watches
               </div>
