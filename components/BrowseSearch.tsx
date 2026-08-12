@@ -41,6 +41,7 @@ export default function BrowseSearch({
   ariaLabel = "Search FairWatchTrade",
   placeholder = "Search watches, references, or listing codes",
   legibilityMode = false,
+  dealerRoomMode = false,
 }: {
   query: string;
   onCommit: (next: string) => void;
@@ -52,6 +53,10 @@ export default function BrowseSearch({
       helper labels must meet the readable UI floor rather than the quieter
       decorative treatment used by the general discovery surface. */
   legibilityMode?: boolean;
+  /** Compact Dealer Room composition from the authoritative storefront
+      study: labelled local search, explicit GO action, and no empty helper
+      block consuming the space where inventory belongs. */
+  dealerRoomMode?: boolean;
 }) {
   const [text, setText] = useState(query);
   const [mirroredQuery, setMirroredQuery] = useState(query);
@@ -190,10 +195,22 @@ export default function BrowseSearch({
   };
 
   return (
-    <div className="border-b border-[var(--border-faint)] px-6 py-5">
-      <div className="mx-auto w-full max-w-[940px]">
+    <div
+      className={
+        dealerRoomMode
+          ? "border-b border-[var(--border-faint)] pb-4"
+          : "border-b border-[var(--border-faint)] px-6 py-5"
+      }
+    >
+      <div className={dealerRoomMode ? "w-full" : "mx-auto w-full max-w-[940px]"}>
+        {dealerRoomMode && (
+          <div className="mb-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+            Search This Dealer
+          </div>
+        )}
         {/* ── Search field ───────────────────────────────────────────────── */}
-        <div className="relative flex min-h-[46px] items-center border border-[#343c49] bg-[#0a0d12] transition-colors focus-within:border-[#596473] sm:min-h-[50px]">
+        <div className={dealerRoomMode ? "grid grid-cols-[minmax(0,1fr)_64px] gap-2" : ""}>
+        <div className="relative flex min-w-0 min-h-[46px] items-center border border-[#343c49] bg-[#0a0d12] transition-colors focus-within:border-[#596473] sm:min-h-[50px]">
           <div aria-hidden="true" className="w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]">
             ⌕
           </div>
@@ -213,9 +230,9 @@ export default function BrowseSearch({
             aria-label={ariaLabel}
             placeholder={placeholder}
             autoComplete="off"
-            className="w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none sm:text-[16px]"
+            className="min-w-0 w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none sm:text-[16px]"
           />
-          <button
+          {!dealerRoomMode && <button
             ref={helpBtnRef}
             type="button"
             aria-label="Search help"
@@ -253,10 +270,10 @@ export default function BrowseSearch({
             >
               ?
             </span>
-          </button>
+          </button>}
 
           {/* ── Anchored speech bubble (never a bottom sheet) ─────────────── */}
-          {helpOpen && (
+          {!dealerRoomMode && helpOpen && (
             <div
               ref={bubbleRef}
               role="dialog"
@@ -310,9 +327,19 @@ export default function BrowseSearch({
             </div>
           )}
         </div>
+        {dealerRoomMode && (
+          <button
+            type="button"
+            onClick={() => commit(text)}
+            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+          >
+            Go
+          </button>
+        )}
+        </div>
 
         {/* ── Your Search ────────────────────────────────────────────────── */}
-        <div className="mt-[14px]">
+        {(!dealerRoomMode || chips.length > 0) && <div className="mt-[14px]">
           <div className="mb-[9px] flex items-center justify-between gap-3">
             <span
               className={
@@ -377,7 +404,7 @@ export default function BrowseSearch({
               ))}
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

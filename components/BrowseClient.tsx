@@ -577,10 +577,13 @@ export default function BrowseClient({
   };
 
   const viewModeParam = searchParams.get("viewMode");
+  const defaultViewMode: "gallery" | "collector" = dealerScope ? "collector" : "gallery";
   const viewMode: "gallery" | "collector" =
-    viewModeParam === "collector" ? "collector" : "gallery";
+    viewModeParam === "collector" || viewModeParam === "gallery"
+      ? viewModeParam
+      : defaultViewMode;
   const setViewMode = (value: "gallery" | "collector") =>
-    setSingleParam("viewMode", value, "gallery");
+    setSingleParam("viewMode", value, defaultViewMode);
 
   const gridColsParam = searchParams.get("gridCols");
   const gridCols: 3 | 4 = gridColsParam === "4" ? 4 : 3;
@@ -1246,9 +1249,9 @@ export default function BrowseClient({
   const facetList = dealerFacetList ?? standardFacetList;
 
   const dealerIdentity = dealerScope ? (
-    <section className="-mx-6 -mt-5 flex flex-col gap-4 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink)] p-2">
+    <section className="-mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink)] p-2">
           {dealerScope.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -1272,7 +1275,7 @@ export default function BrowseClient({
           <div className="mb-1 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
             Browse · Sellers · Dealer Room
           </div>
-          <h1 className="truncate font-display text-[24px] font-light text-[var(--platinum)]">
+          <h1 className="font-display text-[22px] font-light text-[var(--platinum)] sm:truncate">
             {dealerScope.businessName}
           </h1>
           {(dealerScope.location || dealerScope.tagline) && (
@@ -1282,11 +1285,11 @@ export default function BrowseClient({
           )}
         </div>
       </div>
-      <div className="shrink-0 text-left sm:text-right">
+      <div className="flex shrink-0 items-baseline justify-between gap-3 text-left sm:block sm:text-right">
         <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
           Public inventory
         </div>
-        <div className="mt-1 font-display text-[18px] font-light text-[var(--platinum-dim)]">
+        <div className="font-display text-[18px] font-light text-[var(--platinum-dim)] sm:mt-1">
           {listings.length} {listings.length === 1 ? "watch" : "watches"}
         </div>
       </div>
@@ -1299,13 +1302,15 @@ export default function BrowseClient({
           record. It never changes the catalogue, cards, shell, or controls. */}
       {dealerIdentity}
 
+      <div className={dealerScope ? "relative -mx-6" : ""}>
+
       {/* Browse header — the count is the canonical filtered result set, so
           the number always describes exactly the listings rendered below. */}
-      <div className={`-mx-6 ${dealerScope ? "" : "-mt-5"}`}>
+      {!dealerScope && <div className="-mx-6 -mt-5">
         <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
           <div>
             <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
-              {dealerScope ? `${dealerScope.businessName} Inventory` : "Discover"}
+              Discover
             </h1>
             {/* This line carries catalogue status and a trust claim, not
                 decoration — how many watches are actually below, and that
@@ -1315,7 +1320,7 @@ export default function BrowseClient({
                 immediately; the weight and casing stay ordinary so it
                 remains a sentence beneath the heading, never a second one. */}
             <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
-              {filtered.length} watches · {dealerScope ? "dealer-scoped catalogue" : "curated and verified"}
+              {filtered.length} watches · curated and verified
             </p>
           </div>
         </div>
@@ -1328,34 +1333,37 @@ export default function BrowseClient({
           chips={searchChips}
           onClearAll={clearAll}
           ariaLabel={
-            dealerScope
-              ? `Search ${dealerScope.businessName} inventory`
-              : "Search FairWatchTrade"
+            "Search FairWatchTrade"
           }
           placeholder={
-            dealerScope
-              ? `Search ${dealerScope.businessName} inventory`
-              : "Search watches, references, or listing codes"
+            "Search watches, references, or listing codes"
           }
-          legibilityMode={!!dealerScope}
         />
-      </div>
+      </div>}
+
+      {dealerScope && (
+        <div className="px-6 pt-6 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8">
+          <BrowseSearch
+            query={queryText}
+            onCommit={setQuery}
+            chips={searchChips}
+            onClearAll={clearAll}
+            ariaLabel={`Search ${dealerScope.businessName} inventory`}
+            placeholder={`Search ${dealerScope.businessName} inventory`}
+            legibilityMode
+            dealerRoomMode
+          />
+        </div>
+      )}
 
       {/* Toggle bar */}
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      {!dealerScope && <div className="mt-8 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setIsFilterOpen((v) => !v)}
           className="hidden items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] transition hover:border-[#C9A84C]/40 md:inline-flex"
         >
           {isFilterOpen ? "Hide" : "Refine"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="inline-flex items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] md:hidden"
-        >
-          Refine
         </button>
         {/* v2.25a — creation before consumption: the one real way to create
             and name a saved search, beside the control that owns the filter
@@ -1366,13 +1374,28 @@ export default function BrowseClient({
         {!dealerScope && paginated.length > 0 && (
           <SaveSearchControl searchState={activeSearch} />
         )}
-      </div>
+      </div>}
 
       {/* Layout controls bar — grid width + view mode + page size.
           v1.57 — the Gallery/Collector toggle sits alongside grid width:
           both are orthogonal display controls, neither replaces the other. */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-4 sm:flex-nowrap">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-4 sm:flex-nowrap ${
+          dealerScope
+            ? "px-6 pt-4 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8"
+            : "mt-6"
+        }`}
+      >
         <div className="flex items-center gap-4">
+          {dealerScope && (
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="inline-flex items-center border border-[var(--border-subtle)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] text-[var(--slate)] md:hidden"
+            >
+              Refine
+            </button>
+          )}
           {/* v1.60 — absent from the DOM in Collector View, not grayed out:
               once Collector is always grid-cols-1, this toggle would
               control nothing while sitting on screen implying it does. */}
@@ -1400,10 +1423,16 @@ export default function BrowseClient({
           )}
 
           <div className="flex items-center gap-1 border-l border-[var(--border-faint)] pl-4">
-            {([
-              { key: "gallery", label: "Gallery" },
-              { key: "collector", label: "Collector" },
-            ] as const).map(({ key, label }) => (
+            {(dealerScope
+              ? ([
+                  { key: "collector", label: "Collector" },
+                  { key: "gallery", label: "Gallery" },
+                ] as const)
+              : ([
+                  { key: "gallery", label: "Gallery" },
+                  { key: "collector", label: "Collector" },
+                ] as const)
+            ).map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
@@ -1491,24 +1520,46 @@ export default function BrowseClient({
         </div>
       </div>
 
-      <div className="mt-4 flex gap-6">
+      {dealerScope && (
+        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8">
+          <div>
+            <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
+              {dealerScope.businessName} Inventory
+            </h1>
+            <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
+              Dealer-scoped catalogue
+            </p>
+          </div>
+          <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+            {filtered.length} {filtered.length === 1 ? "watch" : "watches"}
+          </div>
+        </div>
+      )}
+
+      <div className={dealerScope ? "block" : "mt-4 flex gap-6"}>
         {/* Desktop sidebar — collapses to w-0 */}
         <aside
           className={`hidden shrink-0 flex-col overflow-hidden transition-all duration-300 md:flex ${
             isFilterOpen
               ? dealerScope
-                ? "w-[220px] border-r border-[var(--border-faint)] bg-[var(--ink-deep)] py-5 xl:w-[250px]"
+                ? "absolute inset-y-0 left-0 w-[250px] border-r border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-7"
                 : "w-[168px]"
               : "w-0"
           }`}
         >
-          <div className={dealerScope ? "w-[220px] xl:w-[250px]" : "w-[168px]"}>
+          <div className={dealerScope ? "w-full" : "w-[168px]"}>
             {facetList}
           </div>
         </aside>
 
         {/* Grid wrapper — expands as the sidebar collapses */}
-        <div className="min-w-0 flex-1">
+        <div
+          className={
+            dealerScope
+              ? "min-w-0 px-6 py-6 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8"
+              : "min-w-0 flex-1"
+          }
+        >
           {paginated.length === 0 ? (
             dealerScope && listings.length === 0 ? (
               <section className="py-8 sm:py-12">
@@ -1912,6 +1963,7 @@ export default function BrowseClient({
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Mobile filter overlay */}

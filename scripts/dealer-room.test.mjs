@@ -81,14 +81,32 @@ test("empty Dealer Room rail remains readable and explicitly unavailable", () =>
   assert.match(browse, /text-\[11px\].*text-\[var\(--muted\)\]/);
   assert.match(browse, /text-\[9px\] tracking-\[0\.8px\] text-\[var\(--muted\)\]/);
   assert.doesNotMatch(browse, /text-\[8px\].*text-\[var\(--muted\)\] opacity-50/);
-  assert.match(browse, /w-\[220px\].*xl:w-\[250px\]/);
+  assert.match(browse, /absolute inset-y-0 left-0 w-\[250px\]/);
 });
 
 test("Dealer Room functional text uses the readable UI floor", () => {
   assert.match(browse, /dealerLegibility/);
-  assert.match(browse, /legibilityMode=\{!!dealerScope\}/);
+  assert.match(browse, /legibilityMode\s+dealerRoomMode/);
   assert.match(browse, /dealerScope \? "text-\[11px\]" : "text-\[9px\]"/);
   assert.match(browse, /Dealer inventory[\s\S]*text-\[14px\]/);
   assert.match(search, /legibilityMode[\s\S]*text-\[11px\].*text-\[var\(--slate\)\]/);
   assert.match(search, /legibilityMode[\s\S]*text-\[13px\] text-\[var\(--slate\)\]/);
+});
+
+test("Dealer Room follows the authoritative storefront composition", () => {
+  assert.match(search, /Search This Dealer/);
+  assert.match(search, /dealerRoomMode[\s\S]*>\s*Go\s*<\/button>/);
+  assert.match(search, /\(!dealerRoomMode \|\| chips\.length > 0\)/);
+  assert.match(browse, /relative -mx-6/);
+  assert.match(browse, /grid-cols-1[\s\S]*sm:grid-cols-\[minmax\(0,1fr\)_auto\]/);
+  assert.match(browse, /sm:truncate/);
+  assert.match(browse, /md:ml-\[250px\]/);
+  assert.match(browse, /md:w-\[calc\(100%-250px\)\]/);
+  assert.match(browse, /defaultViewMode:[^=]*= dealerScope \? "collector" : "gallery"/);
+  assert.match(browse, /\{ key: "collector", label: "Collector" \}[\s\S]*\{ key: "gallery", label: "Gallery" \}/);
+  assert.ok(
+    browse.indexOf("dealerRoomMode") <
+      browse.indexOf("{dealerScope.businessName} Inventory"),
+    "dealer-local search must precede the inventory heading",
+  );
 });
