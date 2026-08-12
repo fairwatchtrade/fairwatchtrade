@@ -3,19 +3,20 @@ import Link from "next/link";
 /* ────────────────────────────────────────────────────────────────────────
    VAULT REVIEW — room navigation (server component)
 
-   Shared header for the two Vault Review rooms:
+   Shared header for the Vault Review rooms:
 
      Internal · Vault
      Vault Review
-     [Cluster Review] [Specification Upgrade]        ← Admin Home
+     [Cluster Review] [Specification Upgrade] [Enrichment Authoring]  ← Admin Home
 
    Plain labeled links — no browser-history dependency, no shared admin
-   shell. Both rooms remain independent pages behind the same founder gate.
+   shell. Each room remains an independent page behind the same founder gate.
    ──────────────────────────────────────────────────────────────────────── */
 
 const ROOMS = [
   { key: "cluster", label: "Cluster Review", href: "/admin/vault-review" },
   { key: "upgrade", label: "Specification Upgrade", href: "/admin/vault-upgrade" },
+  { key: "enrichment", label: "Enrichment Authoring", href: "/admin/vault-enrichment" },
 ] as const;
 
 export default function VaultRoomTabs({
