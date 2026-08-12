@@ -65,8 +65,12 @@ test("search copy can become dealer-local without forking search behavior", () =
   assert.match(search, /placeholder=\{placeholder\}/);
 });
 
-test("zero inventory is not misreported as a failed filter", () => {
-  assert.match(browse, /if \(dealerScope && listings\.length === 0\)/);
+test("zero inventory preserves the Dealer Room composition", () => {
+  assert.doesNotMatch(browse, /if \(dealerScope && listings\.length === 0\) \{\s*return/);
+  assert.match(browse, /Inventory Brands/);
+  assert.match(browse, /All inventory/);
+  assert.match(browse, /Refine This Dealer/);
+  assert.match(browse, /dealerScope && listings\.length === 0 \?/);
   assert.match(browse, /No public watches right now\./);
   assert.match(browse, /Published watches from \{dealerScope\.businessName\}/);
 });

@@ -356,6 +356,7 @@ function FacetGroup({
   onToggle,
   implied,
   onImpliedToggle,
+  showWhenEmpty = false,
 }: {
   title: string;
   facets: [string, number][];
@@ -368,12 +369,27 @@ function FacetGroup({
       Search understood. */
   implied?: Set<string>;
   onImpliedToggle?: (value: string) => void;
+  showWhenEmpty?: boolean;
 }) {
   const selectedFolded = useMemo(
     () => new Set([...selected].map(facetKey)),
     [selected]
   );
-  if (facets.length === 0) return null;
+  if (facets.length === 0) {
+    if (!showWhenEmpty) return null;
+    return (
+      <div className="mb-[18px] px-[18px]">
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          className="w-full cursor-default text-left text-[8px] uppercase tracking-[2.5px] text-[var(--muted)] opacity-50"
+        >
+          {title}
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="mb-[22px] px-[18px]">
       <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
@@ -998,10 +1014,13 @@ export default function BrowseClient({
 
   const toggleDoc = (value: string) => toggleFilterParam("docs", value);
 
+  const showAllDealerInventory = () =>
+    navigateWithParams((next) => next.delete("brand"));
+
   // v1.57 — the rail: ORDINARY narrowing only. Movement and Case Size have
   // moved out entirely (see Workbench below) — one control, one location,
   // never rendered in both places per the Phase 1 architectural correction.
-  const facetList = (
+  const standardFacetList = (
     <div>
       {/* Filter intro */}
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
@@ -1082,6 +1101,116 @@ export default function BrowseClient({
     </div>
   );
 
+  const dealerFacetList = dealerScope ? (
+    <div>
+      <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
+        <div className="mb-3 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          Inventory Brands
+        </div>
+        <button
+          type="button"
+          onClick={showAllDealerInventory}
+          className={`flex w-full items-center justify-between py-2 text-left text-[11px] tracking-[0.3px] transition ${
+            selectedBrands.size === 0
+              ? "text-[var(--platinum)]"
+              : "text-[var(--muted)] hover:text-[var(--slate)]"
+          }`}
+        >
+          <span>All inventory</span>
+          <span className="tabular-nums text-[var(--muted)]">{listings.length}</span>
+        </button>
+        {brandFacets.map(([brand, count]) => {
+          const active = selectedBrands.has(brand);
+          return (
+            <button
+              key={brand}
+              type="button"
+              onClick={() => toggleBrand(brand)}
+              className={`flex w-full items-center justify-between py-2 text-left text-[11px] tracking-[0.3px] transition ${
+                active
+                  ? "text-[var(--platinum)]"
+                  : "text-[var(--muted)] hover:text-[var(--slate)]"
+              }`}
+            >
+              <span className="truncate">{brand}</span>
+              <span className="tabular-nums text-[var(--muted)]">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
+        <div className="mb-[6px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          Refine This Dealer
+        </div>
+        <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+          Collectors think in dials, not dropdowns.
+        </p>
+      </div>
+
+      <FacetGroup
+        title="Case Material"
+        facets={materialFacets}
+        selected={selectedMaterials}
+        onToggle={toggleMaterial}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Dial Color"
+        facets={dialFacets}
+        selected={selectedDials}
+        onToggle={toggleDial}
+        implied={impliedDials}
+        onImpliedToggle={removeImpliedDial}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Box & Papers"
+        facets={docFacets}
+        selected={selectedDocs}
+        onToggle={toggleDoc}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Condition"
+        facets={conditionFacets}
+        selected={selectedConditions}
+        onToggle={toggleCondition}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Case Size"
+        facets={caseSizeFacets}
+        selected={selectedCaseSizes}
+        onToggle={toggleCaseSize}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Movement"
+        facets={movementFacets}
+        selected={selectedMovements}
+        onToggle={toggleMovement}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Beat Rate"
+        facets={beatRateFacets}
+        selected={selectedBeatRates}
+        onToggle={toggleBeatRate}
+        showWhenEmpty
+      />
+      <FacetGroup
+        title="Power Reserve"
+        facets={powerReserveFacets}
+        selected={selectedPowerReserves}
+        onToggle={togglePowerReserve}
+        showWhenEmpty
+      />
+    </div>
+  ) : null;
+
+  const facetList = dealerFacetList ?? standardFacetList;
+
   const dealerIdentity = dealerScope ? (
     <section className="-mx-6 -mt-5 flex flex-col gap-4 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-4">
@@ -1129,33 +1258,6 @@ export default function BrowseClient({
       </div>
     </section>
   ) : null;
-
-  // An empty Dealer Room is an inventory fact, not a failed filter. Suppress
-  // controls that cannot act on anything and say exactly what is true.
-  if (dealerScope && listings.length === 0) {
-    return (
-      <div>
-        {dealerIdentity}
-        <section className="-mx-6 px-6 py-14 sm:py-20">
-          <div className="max-w-xl border-l border-[var(--border-gold)] pl-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
-              Dealer inventory
-            </div>
-            <h2 className="font-display text-[24px] font-light text-[var(--platinum)]">
-              No public watches right now.
-            </h2>
-            <p className="mt-3 text-[13px] leading-[1.7] text-[var(--slate)]">
-              This Dealer Room is ready. Published watches from {dealerScope.businessName}{" "}
-              will appear here automatically.
-            </p>
-            <Link href="/browse" className="fw-btn-secondary mt-6 inline-block">
-              Return to Browse
-            </Link>
-          </div>
-        </section>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -1347,7 +1449,21 @@ export default function BrowseClient({
         {/* Grid wrapper — expands as the sidebar collapses */}
         <div className="min-w-0 flex-1">
           {paginated.length === 0 ? (
-            searchActive ? (
+            dealerScope && listings.length === 0 ? (
+              <section className="py-8 sm:py-12">
+                <div className="max-w-xl border-l border-[var(--border-gold)] pl-5">
+                  <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                    Dealer inventory
+                  </div>
+                  <h2 className="font-display text-[24px] font-light text-[var(--platinum)]">
+                    No public watches right now.
+                  </h2>
+                  <p className="mt-3 text-[13px] leading-[1.7] text-[var(--slate)]">
+                    Published watches from {dealerScope.businessName} will appear here automatically.
+                  </p>
+                </div>
+              </section>
+            ) : searchActive ? (
               <SearchEmptyState
                 searchState={activeSearch}
                 queryString={searchParams.toString()}
