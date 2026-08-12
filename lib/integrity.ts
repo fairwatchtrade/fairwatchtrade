@@ -173,9 +173,196 @@ export function findingRequiresReview(classification: string | null): boolean {
 
 export const PROVIDER_IMAGE_AUTHENTICITY = "image_authenticity";
 
+/** Aubrey Flight 1 — exact retained-byte hash evidence. Third provider key,
+    LOCKED like the others. Evidence-only and inert: this provider NEVER
+    participates in coverage, holds, or status decisions — completed
+    attempts are always classification 'passed' ("completed with no gate
+    action authorized"), and the observation itself lives in detail.outcome.
+    The provider implementation lives in lib/aubrey/listingPhotoExactHash.ts. */
+export const PROVIDER_AUBREY_EXACT_HASH = "aubrey_exact_hash";
+
 /** triggered_by values for non-first-pass attempts (live CHECK vocabulary). */
 export const TRIGGERED_BY_RETRY = "retry";
 export const TRIGGERED_BY_ADMIN_RECHECK = "admin_recheck";
+
+/* ════════════════════════════════════════════════════════════════════════
+   AUBREY CHECK — STEP 2 · CAUSE-GROUP IDENTITY
+
+   Whole-image similarity, crop similarity, background similarity, OCR and
+   watermark findings can all arise from ONE reused source photograph. When
+   they support the same underlying proposition they must be retained
+   separately for inspection but must NOT be counted as independent
+   corroborating findings. This is the vocabulary and the counting primitive
+   that makes that possible; assignment happens at evidence-write time.
+
+   The exact layer already carries its own cause key: the retained-byte
+   digest. Two observations of identical bytes are, by definition, one cause.
+   Every other measurement defaults to its own row identity, so an unrelated
+   finding always counts exactly once and can never be silently merged.
+
+   NOTHING HERE GATES. countDistinctCauses() is a measurement, never a
+   branch — the publish gate reports it and never reads it back. Exact-hash
+   evidence remains memory, not judgment.
+   ════════════════════════════════════════════════════════════════════════ */
+
+export const CAUSE_KIND_EXACT_RETAINED_BYTES = "exact_retained_bytes";
+export const CAUSE_KIND_PROVIDER_RESULT = "provider_result";
+
+/** Named legitimate explanations. A neutral reason is recorded AS EVIDENCE
+    and is never an adverse signal — a seller relisting their own watch
+    produces byte-identical recurrence and is entirely legitimate. */
+export const CAUSE_NEUTRAL_SAME_SELLER = "same_seller_recurrence";
+
+export type CauseGroup = { key: string; kind: string };
+
+/** The minimum a row must expose to be assigned a cause. */
+export type CauseCandidate = {
+  id: string;
+  provider: string;
+  detail: Record<string, unknown> | null;
+};
+
+/** Assign one cause identity. Exact-layer rows key on the retained-byte
+    digest; everything else keys on its own row identity. A malformed or
+    missing digest falls back to row identity rather than collapsing distinct
+    causes together — under-merging stays inspectable, over-merging would
+    hide evidence a human is meant to see. */
+export function evidenceCauseGroup(row: CauseCandidate): CauseGroup {
+  if (row.provider === PROVIDER_AUBREY_EXACT_HASH) {
+    const digest =
+      row.detail && typeof row.detail === "object"
+        ? (row.detail as Record<string, unknown>).content_sha256
+        : null;
+    if (typeof digest === "string" && /^[0-9a-f]{64}$/.test(digest)) {
+      return { key: `sha256:${digest}`, kind: CAUSE_KIND_EXACT_RETAINED_BYTES };
+    }
+  }
+  return { key: `result:${row.id}`, kind: CAUSE_KIND_PROVIDER_RESULT };
+}
+
+/** How many distinct underlying causes these measurements represent. This is
+    the number a future governed scoring model counts against its threshold —
+    never the raw row count, which double-counts one shared photograph. */
+export function countDistinctCauses(rows: CauseCandidate[]): number {
+  const causes = new Set<string>();
+  for (const row of rows) causes.add(evidenceCauseGroup(row).key);
+  return causes.size;
+}
+
+/** True only when a recurrence exists AND every recurring copy is known to
+    belong to the same seller as this listing. Unknown ownership is never
+    treated as sameness: an unresolvable listing returns false, so the cause
+    keeps its ordinary identity instead of being quietly excused. */
+export function sameSellerRecurrenceOnly(
+  detail: Record<string, unknown> | null,
+  ownSellerId: string | null,
+  sellerByListingId: Map<string, string>
+): boolean {
+  if (!ownSellerId) return false;
+  if (!detail || typeof detail !== "object") return false;
+  const matches = (detail as Record<string, unknown>).matches;
+  if (!Array.isArray(matches) || matches.length === 0) return false;
+  for (const match of matches) {
+    if (typeof match !== "object" || match === null) return false;
+    const listingId = (match as Record<string, unknown>).listing_id;
+    if (typeof listingId !== "string") return false;
+    const seller = sellerByListingId.get(listingId);
+    if (!seller || seller !== ownSellerId) return false;
+  }
+  return true;
+}
+
+/** One provider-result row as the promotion path reads it. */
+export type PromotionSourceRow = {
+  id: string;
+  provider: string;
+  classification: string | null;
+  execution_status: string;
+  is_active: boolean;
+  detail: Record<string, unknown> | null;
+  reason: string | null;
+};
+
+/* ── THE ONE EVIDENCE-PROMOTION BUILDER ────────────────────────────────────
+
+   Both write sites — publish orchestration and founder recheck — build their
+   evidence rows here, so cause identity is assigned at EVERY evidence write
+   and the two paths cannot drift. This mirrors the gate's own arrangement:
+   one implementation, several call sites, zero divergence.
+
+   Assignment happens before the write, never reconstructed afterwards.
+   Same-seller ownership is the one fact the exact layer cannot know alone, so
+   it is resolved here in a single read over the matched listings. A failed or
+   partial read leaves the neutral reason null: the cause simply keeps its
+   ordinary identity. Nothing is quietly excused, and nothing is accused —
+   this evidence cannot hold a listing at all. ── */
+export async function buildPromotedEvidenceRows(params: {
+  service: SupabaseClient;
+  listingId: string;
+  results: PromotionSourceRow[];
+}): Promise<Record<string, unknown>[]> {
+  const { service, listingId, results } = params;
+  const promotable = results.filter(isPromotableFinding);
+  if (promotable.length === 0) return [];
+
+  const sellerByListingId = new Map<string, string>();
+  let ownSellerId: string | null = null;
+
+  const exactRows = promotable.filter((r) => r.provider === PROVIDER_AUBREY_EXACT_HASH);
+  if (exactRows.length > 0) {
+    const listingIdsToResolve = new Set<string>([listingId]);
+    for (const row of exactRows) {
+      const matches = row.detail?.matches;
+      if (!Array.isArray(matches)) continue;
+      for (const match of matches) {
+        const matchedId = (match as Record<string, unknown> | null)?.listing_id;
+        if (typeof matchedId === "string") listingIdsToResolve.add(matchedId);
+      }
+    }
+    const { data: sellerRows, error: sellerErr } = await service
+      .from("listings")
+      .select("id, seller_id")
+      .in("id", Array.from(listingIdsToResolve));
+    if (sellerErr) {
+      console.error("[integrity] cause-group seller read failed:", sellerErr.message);
+    } else {
+      for (const row of sellerRows ?? []) {
+        if (typeof row.seller_id === "string") {
+          sellerByListingId.set(row.id, row.seller_id);
+        }
+      }
+      ownSellerId = sellerByListingId.get(listingId) ?? null;
+    }
+  }
+
+  return promotable.map((r) => {
+    // v2.24 · the schema's purpose-built evidence columns, populated from
+    // the Aubrey detail shape when present (null for other providers).
+    const d = (r.detail ?? {}) as Record<string, unknown>;
+    const cause = evidenceCauseGroup({
+      id: r.id,
+      provider: r.provider,
+      detail: r.detail ?? null,
+    });
+    const neutral =
+      r.provider === PROVIDER_AUBREY_EXACT_HASH &&
+      sameSellerRecurrenceOnly(r.detail ?? null, ownSellerId, sellerByListingId);
+    return {
+      listing_id: listingId,
+      provider_result_id: r.id,
+      provider: r.provider,
+      classification: r.classification,
+      reason: r.reason ?? null,
+      detail: r.detail ?? null,
+      matched_source_url:
+        typeof d.matched_source_url === "string" ? d.matched_source_url : null,
+      confidence: typeof d.best_score === "number" ? d.best_score : null,
+      cause_group_key: cause.key,
+      cause_group_kind: cause.kind,
+      cause_neutral_reason: neutral ? CAUSE_NEUTRAL_SAME_SELLER : null,
+    };
+  });
+}
 
 /* ── listings.integrity_hold_reason — WHY a listing sits in pending_review.
 
@@ -200,11 +387,19 @@ export function isSystemReleasableHold(reason: string | null): boolean {
 export type IntegrityGateResult = {
   status: "published" | "pending_review";
   holdReason: IntegrityHoldReason | null;
+  /** Step 2 · REPORTED, NEVER READ BACK. How many distinct underlying causes
+      the promotable findings represent, so the number a future governed
+      scoring model will use is real and observable today. The gate's own
+      decision order below never consults it — status and holdReason are
+      determined exactly as they were before Step 2 existed. 0 whenever the
+      rows could not be read (an error path holds on its own terms). */
+  distinctCauseCount: number;
 };
 
 type GateMediaMetaEntry = { capture_session_id: string | null; storage_path: string };
 
 type GateProviderRow = {
+  id: string;
   provider: string;
   capture_session_id: string | null;
   storage_path: string | null;
@@ -244,7 +439,8 @@ export async function aggregateIntegrityForListing(params: {
   const pairs = mediaMeta.filter((m) => m.capture_session_id && m.storage_path);
   const mediaIds = (media ?? []).map((m) => m.id);
   if (pairs.length === 0 && mediaIds.length === 0) {
-    return { status: "published", holdReason: null }; // nothing correlatable
+    // nothing correlatable
+    return { status: "published", holdReason: null, distinctCauseCount: 0 };
   }
 
   const rows: GateProviderRow[] = [];
@@ -255,13 +451,17 @@ export async function aggregateIntegrityForListing(params: {
     const { data, error } = await service
       .from("listing_integrity_provider_results")
       .select(
-        "provider, capture_session_id, storage_path, media_id, execution_status, classification, is_active, detail"
+        "id, provider, capture_session_id, storage_path, media_id, execution_status, classification, is_active, detail"
       )
       .in("capture_session_id", sessionIds)
       .is("media_id", null);
     if (error) {
       console.error("[integrity] gate read (pre-publish) failed — holding:", error.message);
-      return { status: "pending_review", holdReason: HOLD_RESULTS_PENDING };
+      return {
+        status: "pending_review",
+        holdReason: HOLD_RESULTS_PENDING,
+        distinctCauseCount: 0,
+      };
     }
     for (const row of data ?? []) {
       if (wanted.has(`${row.capture_session_id}|${row.storage_path}`)) {
@@ -274,20 +474,34 @@ export async function aggregateIntegrityForListing(params: {
     const { data, error } = await service
       .from("listing_integrity_provider_results")
       .select(
-        "provider, capture_session_id, storage_path, media_id, execution_status, classification, is_active, detail"
+        "id, provider, capture_session_id, storage_path, media_id, execution_status, classification, is_active, detail"
       )
       .in("media_id", mediaIds);
     if (error) {
       console.error("[integrity] gate read (post-publish) failed — holding:", error.message);
-      return { status: "pending_review", holdReason: HOLD_RESULTS_PENDING };
+      return {
+        status: "pending_review",
+        holdReason: HOLD_RESULTS_PENDING,
+        distinctCauseCount: 0,
+      };
     }
     rows.push(...((data ?? []) as GateProviderRow[]));
   }
 
+  /* Step 2 · the cause count is MEASURED here and carried out unchanged. It
+     appears in no condition below: the decision order is byte-identical to
+     the pre-Step-2 gate, and correlated measurements from one shared
+     photograph can therefore never manufacture a hold. */
+  const distinctCauseCount = countDistinctCauses(rows.filter(isPromotableFinding));
+
   // 1 · any accepted, review-worthy finding — either provider — holds.
   for (const row of rows) {
     if (isPromotableFinding(row) && findingRequiresReview(row.classification)) {
-      return { status: "pending_review", holdReason: HOLD_FINDING_REVIEW };
+      return {
+        status: "pending_review",
+        holdReason: HOLD_FINDING_REVIEW,
+        distinctCauseCount,
+      };
     }
   }
 
@@ -317,10 +531,11 @@ export async function aggregateIntegrityForListing(params: {
         return {
           status: "pending_review",
           holdReason: attempted ? HOLD_PROVIDER_UNAVAILABLE : HOLD_RESULTS_PENDING,
+          distinctCauseCount,
         };
       }
     }
   }
 
-  return { status: "published", holdReason: null };
+  return { status: "published", holdReason: null, distinctCauseCount };
 }

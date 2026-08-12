@@ -2,12 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
-  isPromotableFinding,
   PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_UPLOAD,
   TRIGGERED_BY_RETRY,
   HOLD_RESULTS_PENDING,
   aggregateIntegrityForListing,
+  buildPromotedEvidenceRows,
   isSystemReleasableHold,
   type IntegrityHoldReason,
 } from "@/lib/integrity";
@@ -15,6 +15,10 @@ import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
 } from "@/lib/imageAuthenticity";
+import {
+  ensureExactHashAttempts,
+  type ExactHashMediaRow,
+} from "@/lib/aubrey/listingPhotoExactHash";
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
@@ -317,7 +321,7 @@ async function regateHeldListing(params: {
   service: SupabaseClient | null;
   listing: { id: string; status: string; integrity_hold_reason?: string | null };
   mediaMeta: MediaMetaEntry[];
-  media: { id: string; storage_path: string; capture_session_id: string | null }[];
+  media: { id: string; storage_path: string | null; capture_session_id: string | null }[];
   urlByPath: Map<string, string>;
   aubreyOn: boolean;
   email: {
@@ -407,14 +411,21 @@ async function completePublishOrchestration(params: {
   session: SupabaseClient;
   service: SupabaseClient | null;
   captureSource: "live_camera" | "desktop_upload";
-}): Promise<{ id: string; storage_path: string; capture_session_id: string | null }[]> {
-  const { listingId, mediaMeta, session, service, captureSource } = params;
+  /** Aubrey Flight 1 — from route orchestration context only, never client
+      data: 'system_upload' on the fresh-publish path, 'retry' on the
+      idempotent resume paths. */
+  exactHashTriggeredBy: typeof TRIGGERED_BY_UPLOAD | typeof TRIGGERED_BY_RETRY;
+}): Promise<ExactHashMediaRow[]> {
+  const { listingId, mediaMeta, session, service, captureSource, exactHashTriggeredBy } =
+    params;
   if (mediaMeta.length === 0) return [];
 
   // 1 · listing_media — idempotent insert by storage_path within this listing.
+  //     (capture_source + category ride along as the authoritative fields the
+  //     Aubrey exact-hash helper requires — database-derived, never payload.)
   const { data: existingMedia, error: existingErr } = await session
     .from("listing_media")
-    .select("id, storage_path, capture_session_id")
+    .select("id, listing_id, storage_path, capture_session_id, capture_source, category")
     .eq("listing_id", listingId);
 
   if (existingErr) {
@@ -424,7 +435,7 @@ async function completePublishOrchestration(params: {
   const existingPaths = new Set((existingMedia ?? []).map((r) => r.storage_path));
   const toInsert = mediaMeta.filter((m) => !existingPaths.has(m.storage_path));
 
-  let insertedMedia: { id: string; storage_path: string; capture_session_id: string | null }[] = [];
+  let insertedMedia: ExactHashMediaRow[] = [];
   if (toInsert.length > 0) {
     const mediaRows = toInsert.map((m) => ({
       listing_id: listingId,
@@ -440,15 +451,18 @@ async function completePublishOrchestration(params: {
     const { data, error: mediaError } = await session
       .from("listing_media")
       .insert(mediaRows)
-      .select("id, storage_path, capture_session_id");
+      .select("id, listing_id, storage_path, capture_session_id, capture_source, category");
     if (mediaError) {
       console.error("listing_media insert failed:", mediaError.message);
     } else {
-      insertedMedia = data ?? [];
+      insertedMedia = (data ?? []) as ExactHashMediaRow[];
     }
   }
 
-  const allMedia = [...(existingMedia ?? []), ...insertedMedia];
+  const allMedia = [
+    ...((existingMedia ?? []) as ExactHashMediaRow[]),
+    ...insertedMedia,
+  ];
 
   // Integrity steps require the trusted client — skip cleanly if unavailable.
   if (!service) return allMedia;
@@ -468,6 +482,18 @@ async function completePublishOrchestration(params: {
     }
   }
 
+  // 2b · Aubrey Flight 1 — exact retained-byte hash evidence, AFTER the
+  //      authoritative media rows exist and BEFORE the evidence-promotion
+  //      read so completed observations can be promoted in the same pass.
+  //      Inert by construction: never consulted by decideInitialStatus,
+  //      aggregateIntegrityForListing, regateHeldListing, or any listing
+  //      update, and not conditional on AUBREY_ENFORCEMENT.
+  await ensureExactHashAttempts({
+    service,
+    media: allMedia,
+    triggeredBy: exactHashTriggeredBy,
+  });
+
   // 3 · evidence promotion — accepted findings only, idempotent by unique
   //     (provider_result_id). Selects by the now-backfilled media_ids.
   const mediaIds = allMedia.map((m) => m.id);
@@ -483,24 +509,13 @@ async function completePublishOrchestration(params: {
     return allMedia;
   }
 
-  const evidenceRows = (results ?? [])
-    .filter(isPromotableFinding)
-    .map((r) => {
-      // v2.24 · the schema's purpose-built evidence columns, populated from
-      // the Aubrey detail shape when present (null for other providers).
-      const d = (r.detail ?? {}) as Record<string, unknown>;
-      return {
-        listing_id: listingId,
-        provider_result_id: r.id,
-        provider: r.provider,
-        classification: r.classification,
-        reason: r.reason ?? null,
-        detail: r.detail ?? null,
-        matched_source_url:
-          typeof d.matched_source_url === "string" ? d.matched_source_url : null,
-        confidence: typeof d.best_score === "number" ? d.best_score : null,
-      };
-    });
+  // Step 2 · cause identity is assigned inside the shared builder, so the
+  // publish path and the founder recheck path can never drift apart.
+  const evidenceRows = await buildPromotedEvidenceRows({
+    service,
+    listingId,
+    results: results ?? [],
+  });
 
   if (evidenceRows.length > 0) {
     const { error: evErr } = await service
@@ -615,6 +630,7 @@ export async function POST(request: NextRequest) {
         session: supabase,
         service,
         captureSource,
+        exactHashTriggeredBy: TRIGGERED_BY_RETRY,
       });
       const regated = await regateHeldListing({
         service,
@@ -863,6 +879,7 @@ export async function POST(request: NextRequest) {
           session: supabase,
           service,
           captureSource,
+          exactHashTriggeredBy: TRIGGERED_BY_RETRY,
         });
         const regated = await regateHeldListing({
           service,
@@ -905,6 +922,7 @@ export async function POST(request: NextRequest) {
     session: supabase,
     service: serviceUnavailable ? null : service,
     captureSource,
+    exactHashTriggeredBy: TRIGGERED_BY_UPLOAD,
   });
 
   /* ── v2.24 · email honesty — "your listing is live" sends ONLY when it is.

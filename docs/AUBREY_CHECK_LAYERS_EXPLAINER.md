@@ -163,3 +163,25 @@ any threshold on this page.
 
 Every layer is fail-open, writes its own row, and can only ever raise a hand.
 The worst outcome any of them can produce is a person being asked to look.
+
+---
+
+## Implementation status
+
+**Layer 2 (internal reuse) — Flight 1 built: exact retained-byte indexing.**
+Each listing photo's exact retained bytes (the normalized object FairWatchTrade
+stores, post client-side compression) are hashed server-side with SHA-256 and
+recorded on `listing_media`, with cross-listing recurrence captured as its own
+evidence row under provider `aubrey_exact_hash`.
+
+Flight 1 is **evidence-only and inert**: recurrence is an observation, never a
+verdict. It creates no hold, no rejection, no seller message, no review
+surface, and it does not participate in the publish gate or the
+`image_authenticity` coverage requirement. It catches byte-identical reuse
+only — a re-encoded, cropped, or resized copy is a non-match at this layer.
+
+Still ahead, in order, each separately authorized: cause-group scoring repair,
+then broader signal expansion. Layers 1b (photo character) and 3 (external
+provenance) remain **unbuilt**; nothing in Flight 1 changes that. Threshold 3
+remains provisional (unmeasured); `T_SAME = 17` remains the measured verifier
+threshold. Neither is recalibrated by Flight 1.
