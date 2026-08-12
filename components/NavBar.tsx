@@ -322,7 +322,7 @@ export default function NavBar({
                     onClick={() => setAccountOpen(false)}
                     className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
                   >
-                    Settings
+                    Account Settings
                   </Link>
                   {isAdmin && (
                     <Link

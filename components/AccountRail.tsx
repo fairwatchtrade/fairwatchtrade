@@ -206,7 +206,7 @@ export default function AccountRail({
         })}
         <RailItem
           icon={ICONS.settings}
-          label="Settings"
+          label="Account Settings"
           href="/account/settings"
           active={surface === "settings"}
           chevron

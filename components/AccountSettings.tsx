@@ -182,7 +182,7 @@ export default function AccountSettings({
             Account
           </div>
           <h1 className="mt-2 font-display text-[28px] font-light text-[var(--platinum)]">
-            Settings
+            Account Settings
           </h1>
         </div>
 
