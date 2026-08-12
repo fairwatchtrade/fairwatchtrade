@@ -12,6 +12,7 @@ import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
 } from "@/lib/imageAuthenticity";
+import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/listings/[id]/recheck — founder re-run of The Aubrey Check
@@ -37,6 +38,9 @@ import {
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Defense-in-depth: hardcoded literal in THIS file, intentionally independent
 // of the page's check and of any shared constant.
@@ -278,8 +282,18 @@ export async function POST(
     }
   }
 
+  let collectorDossier: string | null = null;
+  if (finalStatus === "published") {
+    try {
+      collectorDossier = (await ensureCollectorDossierForListing(id)).state;
+    } catch (error) {
+      console.error("[collector-dossier] recheck-release worker failed:", error);
+      collectorDossier = "failed";
+    }
+  }
+
   return NextResponse.json(
-    { ok: true, rechecked, status: finalStatus, hold_reason: gate.holdReason },
+    { ok: true, rechecked, status: finalStatus, hold_reason: gate.holdReason, collector_dossier: collectorDossier },
     { status: 200 }
   );
 }

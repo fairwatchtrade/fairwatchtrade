@@ -13,6 +13,7 @@ import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
 import { resolveHeroIndex, sanitizePhotoPresentation } from "@/lib/photoPresentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { formatMoney } from "@/lib/formatMoney";
+import { getCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
@@ -394,6 +395,13 @@ export default async function ListingDetailPage({
   const fingerprintLines = [fingerprint.primary, fingerprint.complications].filter(
     (line) => line.length > 0,
   );
+  const collectorDossier = await getCollectorDossierForListing(listing.id).catch(
+    (error) => {
+      // Dossier infrastructure can never make a live listing unreadable.
+      console.error("[collector-dossier] listing control read failed:", error);
+      return { state: "not_qualified" as const };
+    }
+  );
 
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
@@ -621,6 +629,38 @@ export default async function ListingDetailPage({
                 className="mt-[9px] h-px bg-[linear-gradient(90deg,rgba(201,168,76,0.85),rgba(201,168,76,0.18)_38%,transparent_76%)]"
               />
             </div>
+          )}
+          {collectorDossier.state === "ready" && (
+            <Link
+              href={`/api/listings/${listing.id}/collector-dossier`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={[
+                "mt-5 inline-flex items-center gap-3 border border-[var(--border-gold)]",
+                "bg-[rgba(201,168,76,0.045)] px-4 py-3",
+                "text-[var(--platinum-dim)] transition",
+                "hover:border-[var(--gold-dim)] hover:bg-[rgba(201,168,76,0.08)]",
+              ].join(" ")}
+              aria-label="Open Collector Dossier PDF"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                aria-hidden="true"
+                className="text-[var(--gold)]"
+              >
+                <path d="M4 1.5h6l4 4v11H4z" stroke="currentColor" />
+                <path d="M10 1.5v4h4M6.5 9h5M6.5 12h5" stroke="currentColor" />
+              </svg>
+              <span className="text-[10px] uppercase tracking-[0.22em]">
+                Collector Dossier
+              </span>
+              <span className="text-[9px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                PDF
+              </span>
+            </Link>
           )}
           {/* v2.11 — RELOCATED, not duplicated: on desktop this same link
               lives in the rail's Dealer Information card. Identical treatment,

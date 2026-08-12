@@ -59,7 +59,9 @@ function pendingRecord(
     .map(
       (field) => `<div class="fwt-dossier__record-row">
         <span class="fwt-dossier__record-label">${esc(field.label)}</span>
-        <span class="fwt-dossier__record-value">Not supplied</span>
+        <span class="fwt-dossier__record-value">${
+          field.value === null ? "Not supplied" : esc(field.value)
+        }</span>
       </div>`
     )
     .join("");
@@ -130,9 +132,11 @@ export function renderDossierHtml(vm: CollectorDossierViewModel): string {
           )}</div>
         </div>
         <div class="fwt-dossier__identity-cell">
-          <div class="fwt-dossier__identity-label">Case</div>
+          <div class="fwt-dossier__identity-label">${esc(
+            identity.secondaryLabel
+          )}</div>
           <div class="fwt-dossier__identity-value fwt-dossier__identity-value--plain">${esc(
-            identity.caseMaterial
+            identity.secondaryValue
           )}</div>
         </div>
       </div>

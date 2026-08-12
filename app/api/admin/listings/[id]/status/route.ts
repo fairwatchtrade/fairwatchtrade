@@ -8,6 +8,7 @@ import {
   sendReturnedToDraftEmail,
 } from "@/lib/listingDecisionEmail";
 import { formatMoney } from "@/lib/formatMoney";
+import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/listings/[id]/status — founder status change
@@ -75,6 +76,9 @@ type AllowedStatus = (typeof ALLOWED_STATUSES)[number];
 
 /* ── v2.24 · panel actions and the status each must accompany ── */
 const REVIEW_ACTIONS = ["approve", "reject", "clarify", "return_to_draft"] as const;
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 type ReviewAction = (typeof REVIEW_ACTIONS)[number];
 const ACTION_STATUS: Record<ReviewAction, AllowedStatus> = {
   approve: "published",
@@ -516,5 +520,23 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ ok: true, id: data.id, status: data.status }, { status: 200 });
+  /* Collector Dossier — independent post-publication work. The listing is
+     already live before this begins. Exact-reference qualification, durable
+     attachment, reuse and generation are idempotent; any failure is persisted
+     on the Dossier and must never unwind publication. Running this on every
+     published save also gives the founder a bounded retry for a failed job. */
+  let collectorDossier: string | null = null;
+  if (data.status === "published") {
+    try {
+      collectorDossier = (await ensureCollectorDossierForListing(id)).state;
+    } catch (error) {
+      console.error("[collector-dossier] publish worker failed:", error);
+      collectorDossier = "failed";
+    }
+  }
+
+  return NextResponse.json(
+    { ok: true, id: data.id, status: data.status, collector_dossier: collectorDossier },
+    { status: 200 }
+  );
 }

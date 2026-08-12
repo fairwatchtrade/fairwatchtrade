@@ -40,8 +40,8 @@ export type DossierSection = {
 
 export type DossierPendingField = {
   readonly label: string;
-  /** Never a fabricated value. Null means "not supplied for this canary". */
-  readonly value: null;
+  /** Never fabricated. Null means the governed record does not supply it. */
+  readonly value: string | null;
 };
 
 export type CollectorDossierViewModel = {
@@ -50,7 +50,8 @@ export type CollectorDossierViewModel = {
     readonly collection: string;
     readonly model: string;
     readonly reference: string;
-    readonly caseMaterial: string;
+    readonly secondaryLabel: string;
+    readonly secondaryValue: string;
   };
   /** The opening identity line — manuscript "Exact Identity". */
   readonly openingIdentity: string;
@@ -72,10 +73,10 @@ export type CollectorDossierViewModel = {
   readonly canary: {
     readonly primary: string;
     readonly secondary: string;
-    readonly state: Breguet5967CanarySeed["canaryState"];
-    readonly authorizedToServe: false;
-    readonly editorialManuscriptSha256: string;
-    readonly editorialDeltaSha256: string;
+    readonly state: Breguet5967CanarySeed["canaryState"] | "reference_production";
+    readonly authorizedToServe: boolean;
+    readonly editorialManuscriptSha256: string | null;
+    readonly editorialDeltaSha256: string | null;
   };
 };
 
@@ -94,7 +95,8 @@ export function buildBreguet5967CanaryViewModel(): CollectorDossierViewModel {
       collection: seed.collection,
       model: seed.model,
       reference: seed.reference,
-      caseMaterial: seed.caseMaterial,
+      secondaryLabel: "Case",
+      secondaryValue: seed.caseMaterial,
     },
 
     openingIdentity:
