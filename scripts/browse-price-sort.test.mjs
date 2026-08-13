@@ -205,7 +205,10 @@ assert.ok(
   "the dropdown must be labelled for assistive tech",
 );
 assert.ok(
-  sortBlock.includes("text-[9px] uppercase tracking-[1px]"),
+  // The control bar reads at 11px on a phone and 9px on desktop; the sort
+  // dropdown must carry that same pair rather than a size of its own.
+  sortBlock.includes("text-[11px] uppercase tracking-[1px]") &&
+    sortBlock.includes("md:text-[9px]"),
   "the sort control must borrow the existing control typography, not introduce a new one",
 );
 assert.ok(

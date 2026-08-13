@@ -1439,8 +1439,12 @@ export default function BrowseClient({
                 key={key}
                 type="button"
                 onClick={() => setViewMode(key)}
+                /* GALLERY / COLLECTOR chooses how a collector reads the whole
+                   page, so it is not fine print. 9px is ~1.1mm of cap height
+                   in a hand outdoors; the phone gets the same 11px the Dealer
+                   Room was already corrected to, desktop keeps 9px. */
                 className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                  dealerScope ? "text-[11px]" : "text-[9px]"
+                  dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
                 } ${
                   viewMode === key
                     ? "border-[var(--border-gold)] text-[var(--gold)]"
@@ -1473,7 +1477,7 @@ export default function BrowseClient({
               className={`uppercase tracking-[1px] ${
                 dealerScope
                   ? "text-[11px] text-[var(--slate)]"
-                  : "text-[9px] text-[var(--muted)]"
+                  : "text-[11px] text-[var(--muted)] md:text-[9px]"
               }`}
             >
               Sort
@@ -1483,7 +1487,7 @@ export default function BrowseClient({
               value={sort}
               onChange={(e) => setSort(e.target.value as "default" | "priceAsc" | "priceDesc")}
               style={{ colorScheme: "dark" }}
-              className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[9px] uppercase tracking-[1px] transition ${
+              className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition md:text-[9px] ${
                 dealerScope ? "!text-[11px]" : ""
               } ${
                 sort === "default"
@@ -1506,7 +1510,7 @@ export default function BrowseClient({
                 type="button"
                 onClick={() => setPageSize(n)}
                 className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                  dealerScope ? "text-[11px]" : "text-[9px]"
+                  dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
                 } ${
                   pageSize === n
                     ? "border-[var(--border-gold)] text-[var(--gold)]"

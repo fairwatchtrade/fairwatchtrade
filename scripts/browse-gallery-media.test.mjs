@@ -205,6 +205,25 @@ assert.ok(
 assert.ok(worstNew.w > worstOld.w * 1.9, "new: that landscape watch renders nearly twice as wide as the old shaft allowed");
 ok("fixture matrix: every source shape — landscape, portrait, square, long-bracelet — loses its dead shaft; landscape watches render decisively larger");
 
+/* ── 9b · The controls beside the grid are readable in a hand ────────── */
+const controls = src.slice(src.indexOf("Layout controls bar"), wrapperStart);
+assert.ok(controls.length > 200, "the layout controls bar must still exist above the results");
+// The 3/4-wide density group never renders below md, so its desktop-only
+// typography is not phone-facing text; everything else in the bar is.
+const densityStart = controls.indexOf('{viewMode === "gallery" && (');
+const densityEnd = controls.indexOf("</div>", controls.indexOf("{n}-wide"));
+assert.ok(densityStart > 0 && densityEnd > densityStart, "the density group must still be findable");
+const phoneControls = controls.slice(0, densityStart) + controls.slice(densityEnd);
+assert.ok(
+  !/(?<!md:)text-\[9px\]/.test(phoneControls),
+  "no 9px functional control text may reach a phone — GALLERY/COLLECTOR, SORT and the page-size controls read at 11px below md"
+);
+assert.ok(
+  (controls.match(/md:text-\[9px\]/g) ?? []).length >= 4,
+  "desktop keeps its 9px control bar exactly as shipped"
+);
+ok("Browse controls read at 11px on a phone and stay 9px on desktop");
+
 /* ── 10 · One consistent treatment across dark/light sources ─────────── */
 assert.ok(frameDiv.includes("bg-[var(--ink-deep)]"), "one restrained matte behind every photograph — dark and light sources get the identical frame treatment");
 ok("restrained matching background: the site's own --ink-deep matte, for every card");
