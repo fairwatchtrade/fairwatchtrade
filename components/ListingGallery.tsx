@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DialReveal from "@/components/DialReveal";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -68,6 +68,36 @@ export default function ListingGallery({
     initialIndex >= 0 && initialIndex < photos.length ? initialIndex : 0;
   const [active, setActive] = useState(safeInitial);
 
+  /* ── INSPECTION STATE (buyer-facing polish, 2026-08-13) ────────────────
+     Condition judgment needs the photograph at inspection scale: dial,
+     bezel, finishing, wear, scratches. When open, the image IS the
+     interface — a fixed overlay where the photo takes the full viewport at
+     its own aspect (object-contain, never cropped, no decorative
+     treatment), with the same prev/next controls, the thumbnail strip, an
+     obvious Close, and Escape. Body scroll is suspended while inspecting.
+
+     This is a distinct state, not an enlarged thumbnail: the surrounding
+     listing UI yields completely. The resting hero keeps v1.23's law —
+     the photograph itself is inert; inspection opens only from the
+     explicit Inspect control. Dial Reveal is a resting-hero instrument
+     and deliberately does not follow into the overlay. */
+  const [inspecting, setInspecting] = useState(false);
+  useEffect(() => {
+    if (!inspecting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setInspecting(false);
+      if (e.key === "ArrowLeft") setActive((i) => Math.max(0, i - 1));
+      if (e.key === "ArrowRight") setActive((i) => Math.min(photos.length - 1, i + 1));
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [inspecting, photos.length]);
+
   if (photos.length === 0) return null;
 
   const heroUrl = photos[active] ?? photos[0];
@@ -89,13 +119,13 @@ export default function ListingGallery({
       {/* Hero — large, full-width. The photograph itself carries no click
           handler: clicking it does nothing, by design. */}
       <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#14161C] p-2 sm:p-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         {dialUrl && heroUrl === dialUrl ? (
           <DialReveal
             photoUrl={heroUrl}
             className="max-h-[60vh] w-full rounded-lg object-contain transition-[filter] duration-200"
           />
         ) : (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
         )}
 
@@ -147,6 +177,98 @@ export default function ListingGallery({
           </button>
         )}
       </div>
+
+      {/* Inspect — the explicit door into the inspection state. Sits at the
+          hero's upper-right, clear of the arrows (vertical centre) and Dial
+          Reveal (lower-right). */}
+      <div className="mt-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setInspecting(true)}
+          className="inline-flex min-h-[36px] items-center gap-2 border border-[var(--border-subtle)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum-dim)]"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+          Inspect photo
+        </button>
+      </div>
+
+      {/* ── Inspection overlay ── */}
+      {inspecting && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo inspection"
+          className="fixed inset-0 z-[70] flex flex-col bg-[rgba(5,6,9,0.97)]"
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
+              {brandLabel} · Photo {active + 1} of {photos.length}
+            </span>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setInspecting(false)}
+              className="inline-flex min-h-[44px] items-center gap-2 border border-[var(--border-subtle)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+            >
+              Close ✕
+            </button>
+          </div>
+
+          <div className="relative flex min-h-0 flex-1 items-center justify-center px-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroUrl}
+              alt=""
+              className="max-h-full max-w-full object-contain"
+            />
+            {hasPrev && (
+              <button
+                type="button"
+                aria-label="Previous photo"
+                onClick={() => setActive((i) => Math.max(0, i - 1))}
+                className={`${arrowClass} left-4`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 18L9 12l6-6" />
+                </svg>
+              </button>
+            )}
+            {hasNext && (
+              <button
+                type="button"
+                aria-label="Next photo"
+                onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+                className={`${arrowClass} right-4`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {photos.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto px-4 py-3">
+              {photos.map((url, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActive(i)}
+                  aria-label={`View photo ${i + 1}`}
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border transition ${
+                    i === active ? "border-[#C9A84C]" : "border-white/15 hover:border-[#C9A84C]"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Remaining photos — scrollable horizontal thumbnail strip */}
       {photos.length > 1 && (

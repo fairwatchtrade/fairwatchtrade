@@ -6,6 +6,7 @@ import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
+import ListingStageFaq from "@/components/ListingStageFaq";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
@@ -911,6 +912,13 @@ export default async function ListingDetailPage({
             listingStatus={listing.status}
           />
         </div>
+
+        {/* LISTING-STAGE FAQ (buyer-facing polish, 2026-08-13) — the
+            questions a buyer has at exactly this step, answered in the
+            published FAQ copy, with the full room one click away. The
+            seller's own view keeps it too: it describes the marketplace,
+            not the viewer. */}
+        <ListingStageFaq sellerName={sellerName} />
         </div>
         {/* end LOWER FLOW */}
       </div>

@@ -75,12 +75,19 @@ test("zero inventory preserves the Dealer Room composition", () => {
   assert.match(browse, /Published watches from \{dealerScope\.businessName\}/);
 });
 
-test("empty Dealer Room rail remains readable and explicitly unavailable", () => {
-  assert.match(browse, /aria-label=\{`\$\{title\}: unavailable until public inventory exists`\}/);
-  assert.match(browse, />\s*Unavailable\s*<\/span>/);
-  assert.match(browse, /text-\[11px\].*text-\[var\(--muted\)\]/);
-  assert.match(browse, /text-\[9px\] tracking-\[0\.8px\] text-\[var\(--muted\)\]/);
-  assert.doesNotMatch(browse, /text-\[8px\].*text-\[var\(--muted\)\] opacity-50/);
+test("empty rail dimensions collapse into one truthful sentence, not a diagnostic panel", () => {
+  // Buyer-facing polish (2026-08-13 §12): per-group "Unavailable" rows are
+  // retired. Populated dimensions render normally; empty ones are summarized
+  // once, quietly, in readable muted text — and the dimension set itself
+  // stays the normal Browse architecture, ready to return when populated.
+  assert.doesNotMatch(browse, />\s*Unavailable\s*<\/span>/);
+  assert.match(browse, /Not represented in current inventory:/);
+  assert.match(browse, /dim\.facets\.length === 0/);
+  assert.match(browse, /const dealerDimensions/);
+  for (const dim of ["Case Material", "Dial Color", "Box & Papers", "Condition", "Case Size", "Movement", "Beat Rate", "Power Reserve"]) {
+    assert.ok(browse.includes(`title: "${dim}"`), `dimension ${dim} must remain in the dealer rail architecture`);
+  }
+  assert.match(browse, /text-\[11px\] leading-\[1\.6\] text-\[var\(--muted\)\]/);
   assert.match(browse, /absolute inset-y-0 left-0 w-\[250px\]/);
 });
 
@@ -109,4 +116,85 @@ test("Dealer Room follows the authoritative storefront composition", () => {
       browse.indexOf("{dealerScope.businessName} Inventory"),
     "dealer-local search must precede the inventory heading",
   );
+});
+
+/* ── Buyer-facing polish (2026-08-13) ─────────────────────────────────── */
+
+const actions = read("components/DealerRoomActions.tsx");
+const correspondence = read("components/ListingCorrespondence.tsx");
+const gallery = read("components/ListingGallery.tsx");
+const stageFaq = read("components/ListingStageFaq.tsx");
+const specs = read("components/ListingSpecs.tsx");
+
+test("Contact Dealer is the room's primary action and enters the existing messaging flow", () => {
+  assert.match(browse, /<DealerContactPanel/);
+  assert.match(browse, /businessName=\{dealerScope\.businessName\}/);
+  // The panel walks the buyer into the LISTING conversation — never a
+  // parallel channel. No fetch, no thread creation, no new API.
+  assert.match(actions, /Contact Dealer/);
+  assert.match(actions, /\/listings\/\$\{item\.id\}\?contact=1/);
+  assert.doesNotMatch(actions, /fetch\(|\/api\/messages|createClient/);
+  // Correspondence honors the arrival with its existing openHome().
+  assert.match(correspondence, /params\.get\("contact"\) === "1"/);
+  assert.match(correspondence, /if \(params\.get\("contact"\) === "1"\) openHome\(\)/);
+  // Room identity is dealer-specific: never "Contact Seller" here.
+  assert.doesNotMatch(actions, /Contact Seller/);
+  // Full-width on a phone, readable size, real touch target.
+  assert.match(actions, /min-h-\[44px\] w-full[\s\S]*sm:w-auto/);
+  assert.match(actions, /text-\[12px\] uppercase tracking-\[2px\] text-\[var\(--gold\)\]/);
+});
+
+test("dealer trust mark says what FairWatchTrade actually does — nothing more", () => {
+  assert.match(browse, /<DealerTrustMark \/>/);
+  assert.match(actions, /FairWatchTrade Dealer/);
+  assert.match(actions, /review before publication/);
+  assert.match(actions, /does not provide\s+independent third-party authentication/);
+  assert.match(actions, /payment is arranged\s+directly between buyer and seller/);
+  // No invented certifications or guarantees.
+  assert.doesNotMatch(actions, /guarantee|certified|authenticated dealer|escrow protection/i);
+});
+
+test("listing photography has a dedicated inspection state", () => {
+  assert.match(gallery, /Inspect photo/);
+  assert.match(gallery, /role="dialog"/);
+  assert.match(gallery, /aria-label="Photo inspection"/);
+  // Inspection scale, aspect preserved, no decorative crop.
+  assert.match(gallery, /max-h-full max-w-full object-contain/);
+  // Obvious exit + Escape + body scroll suspended while inspecting.
+  assert.match(gallery, /Close ✕/);
+  assert.match(gallery, /e\.key === "Escape"\) setInspecting\(false\)/);
+  assert.match(gallery, /document\.body\.style\.overflow = "hidden"/);
+  // Thumbnail navigation remains available inside the overlay.
+  assert.ok(
+    gallery.indexOf("View photo", gallery.indexOf('aria-label="Photo inspection"')) > 0,
+    "overlay must keep the thumbnail strip"
+  );
+  // The resting hero photograph stays inert (v1.23 law preserved).
+  assert.match(gallery, /The photograph itself carries no click\s*\n?\s*handler/);
+});
+
+test("listing-stage FAQ reuses the published copy and links to the full room", () => {
+  assert.match(listing, /<ListingStageFaq sellerName=\{sellerName\} \/>/);
+  // Curated ids into the generated customer copy — never hand-authored policy.
+  assert.match(stageFaq, /from "@\/lib\/faq\/faqContent"/);
+  for (const id of ["buying-4", "buying-5", "payments-0", "payments-2", "trust-0", "buying-6"]) {
+    assert.ok(stageFaq.includes(`"${id}"`), `listing-stage FAQ must include published ${id}`);
+  }
+  assert.match(stageFaq, /More questions and answers/);
+  assert.match(stageFaq, /href="\/faq"/);
+  // The single interface-copy entry describes this page's own controls.
+  assert.match(stageFaq, /Ask the seller/);
+});
+
+test("clickable collector navigation uses only byte-exact filter dimensions", () => {
+  assert.match(specs, /browseLink\("caseMaterial", details\.caseMaterial\)/);
+  assert.match(specs, /browseLink\("dialColor", details\.dialColorType\)/);
+  assert.match(specs, /browseLink\("movement", details\.movementType\)/);
+  assert.match(specs, /browseLink\("docs", details\.documentation\)/);
+  // Derived/formatted dimensions must NOT link — a reformatted value could
+  // land on an empty filter and masquerade as a real path.
+  assert.doesNotMatch(specs, /browseLink\("beatRate"/);
+  assert.doesNotMatch(specs, /browseLink\("caseSize"/);
+  assert.doesNotMatch(specs, /browseLink\("powerReserve"/);
+  assert.match(specs, /encodeURIComponent/);
 });

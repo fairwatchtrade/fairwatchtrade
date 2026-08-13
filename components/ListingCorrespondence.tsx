@@ -232,6 +232,16 @@ export default function ListingCorrespondence({
     return () => window.removeEventListener(ASK_SELLER_EVENT, onAsk);
   }, []);
 
+  /* Contact-Dealer arrival (buyer-facing polish, 2026-08-13): the Dealer
+     Room's Contact Dealer panel links here with ?contact=1 — the buyer
+     chose a watch to talk about, so the conversation home opens itself on
+     arrival. Same openHome(), one more caller; no new message semantics. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("contact") === "1") openHome();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function send() {
     const text = body.trim();
     if (!text || sending) return;

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatMovementFrequency } from "@/lib/movementFrequency";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
   "Solar/Kinetic": "Solar/Kinetic",
 };
 
-function SpecGrid({ rows }: { rows: Array<{ label: string; value: string }> }) {
+function SpecGrid({ rows }: { rows: Array<{ label: string; value: string; href?: string }> }) {
   return (
     <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
       {rows.map((row) => (
@@ -71,7 +72,21 @@ function SpecGrid({ rows }: { rows: Array<{ label: string; value: string }> }) {
             {row.label}
           </dt>
           <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">
-            {row.value}
+            {/* Clickable collector navigation (buyer-facing polish,
+                2026-08-13 §9): a value that maps byte-for-byte onto an
+                existing Browse filter dimension leads outward to the
+                marketplace's inventory carrying that same value. The link
+                is quiet — the fact stays a fact first. */}
+            {row.href ? (
+              <Link
+                href={row.href}
+                className="underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)] hover:decoration-[var(--gold-dim)]"
+              >
+                {row.value}
+              </Link>
+            ) : (
+              row.value
+            )}
           </dd>
         </div>
       ))}
@@ -102,29 +117,40 @@ export default function ListingSpecs({
       ? list.map((v) => String(v).trim()).filter(Boolean).join(", ")
       : "";
 
-  const snapshotRows: Array<{ label: string; value: string }> = [];
-  const pushSnap = (label: string, value?: string | null) => {
+  /* §9 clickable navigation — ONLY dimensions whose Browse filter consumes
+     the stored value verbatim get a link (caseMaterial, dialColorType,
+     movementType, documentation are faceted byte-for-byte from the same
+     fields). Formatted/derived dimensions (case size, beat rate, power
+     reserve) deliberately stay text: a link built from a reformatted value
+     could land on an empty filter and masquerade as a real path. */
+  const browseLink = (param: string, raw?: string | null): string | undefined =>
+    raw && String(raw).trim() !== ""
+      ? `/browse?${param}=${encodeURIComponent(String(raw))}`
+      : undefined;
+
+  const snapshotRows: Array<{ label: string; value: string; href?: string }> = [];
+  const pushSnap = (label: string, value?: string | null, href?: string) => {
     if (value != null && String(value).trim() !== "")
-      snapshotRows.push({ label, value: String(value) });
+      snapshotRows.push({ label, value: String(value), href });
   };
   pushSnap("Case Size", details.caseSizeMm ? `${details.caseSizeMm} mm` : "");
   pushSnap("Case Thickness", details.caseThicknessMm ? `${details.caseThicknessMm} mm` : "");
-  pushSnap("Case Material", details.caseMaterial);
+  pushSnap("Case Material", details.caseMaterial, browseLink("caseMaterial", details.caseMaterial));
   pushSnap("Case Finish", details.caseColorFinish);
-  pushSnap("Movement", movementLabel);
+  pushSnap("Movement", movementLabel, browseLink("movement", details.movementType));
   pushSnap("Calibre", details.calibre);
   pushSnap("Beat Rate", formatMovementFrequency(details.movementFrequency));
   pushSnap("Power Reserve", details.powerReserve);
   pushSnap("Water Resistance", details.waterResistance);
-  pushSnap("Dial Color", details.dialColorType);
+  pushSnap("Dial Color", details.dialColorType, browseLink("dialColor", details.dialColorType));
   pushSnap("Complications", complications);
   pushSnap("Year", year);
   pushSnap("Condition", condition);
 
-  const techRows: Array<{ label: string; value: string }> = [];
-  const pushTech = (label: string, value?: string | null) => {
+  const techRows: Array<{ label: string; value: string; href?: string }> = [];
+  const pushTech = (label: string, value?: string | null, href?: string) => {
     if (value != null && String(value).trim() !== "")
-      techRows.push({ label, value: String(value) });
+      techRows.push({ label, value: String(value), href });
   };
   pushTech("Closure Type", details.closureType);
   pushTech("Caseback", details.casebackType);
@@ -144,7 +170,7 @@ export default function ListingSpecs({
   pushTech("Bracelet Wrist Size", details.braceletWristSize);
   pushTech("Included With Watch", joined(details.includedWithWatch));
   pushTech("Service & Case History", joined(details.serviceHistory));
-  pushTech("Documentation", details.documentation);
+  pushTech("Documentation", details.documentation, browseLink("docs", details.documentation));
 
   return (
     <>

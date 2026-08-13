@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
+import {
+  DealerContactPanel,
+  DealerTrustMark,
+  type DealerContactItem,
+} from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
 import { parseBrowseSort, sortListings } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
@@ -356,7 +361,6 @@ function FacetGroup({
   onToggle,
   implied,
   onImpliedToggle,
-  showWhenEmpty = false,
   dealerLegibility = false,
 }: {
   title: string;
@@ -370,32 +374,17 @@ function FacetGroup({
       Search understood. */
   implied?: Set<string>;
   onImpliedToggle?: (value: string) => void;
-  showWhenEmpty?: boolean;
   dealerLegibility?: boolean;
 }) {
   const selectedFolded = useMemo(
     () => new Set([...selected].map(facetKey)),
     [selected]
   );
-  if (facets.length === 0) {
-    if (!showWhenEmpty) return null;
-    return (
-      <div className="px-[18px]">
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          aria-label={`${title}: unavailable until public inventory exists`}
-          className="flex w-full cursor-default items-center justify-between gap-3 border-b border-[var(--border-faint)] py-3 text-left text-[11px] uppercase tracking-[1.8px] text-[var(--muted)]"
-        >
-          <span>{title}</span>
-          <span className="text-[9px] tracking-[0.8px] text-[var(--muted)]">
-            Unavailable
-          </span>
-        </button>
-      </div>
-    );
-  }
+  /* An empty dimension renders nothing. The dealer rail summarizes its
+     empty dimensions in one quiet sentence instead of per-group
+     "Unavailable" rows (buyer-facing polish, 2026-08-13) — a missing
+     dimension is a fact about inventory, not a disabled control. */
+  if (facets.length === 0) return null;
   return (
     <div className="mb-[22px] px-[18px]">
       <div
@@ -1128,6 +1117,27 @@ export default function BrowseClient({
     </div>
   );
 
+  /* The dealer rail's eight normal Browse dimensions, in ruled order, with
+     their live facet truth — consumed just below to render populated groups
+     and summarize empty ones. */
+  const dealerDimensions: Array<{
+    title: string;
+    facets: [string, number][];
+    selected: Set<string>;
+    onToggle: (value: string) => void;
+    implied?: Set<string>;
+    onImpliedToggle?: (value: string) => void;
+  }> = [
+    { title: "Case Material", facets: materialFacets, selected: selectedMaterials, onToggle: toggleMaterial },
+    { title: "Dial Color", facets: dialFacets, selected: selectedDials, onToggle: toggleDial, implied: impliedDials, onImpliedToggle: removeImpliedDial },
+    { title: "Box & Papers", facets: docFacets, selected: selectedDocs, onToggle: toggleDoc },
+    { title: "Condition", facets: conditionFacets, selected: selectedConditions, onToggle: toggleCondition },
+    { title: "Case Size", facets: caseSizeFacets, selected: selectedCaseSizes, onToggle: toggleCaseSize },
+    { title: "Movement", facets: movementFacets, selected: selectedMovements, onToggle: toggleMovement },
+    { title: "Beat Rate", facets: beatRateFacets, selected: selectedBeatRates, onToggle: toggleBeatRate },
+    { title: "Power Reserve", facets: powerReserveFacets, selected: selectedPowerReserves, onToggle: togglePowerReserve },
+  ];
+
   const dealerFacetList = dealerScope ? (
     <div>
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
@@ -1177,79 +1187,58 @@ export default function BrowseClient({
         </p>
       </div>
 
-      <FacetGroup
-        title="Case Material"
-        facets={materialFacets}
-        selected={selectedMaterials}
-        onToggle={toggleMaterial}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Dial Color"
-        facets={dialFacets}
-        selected={selectedDials}
-        onToggle={toggleDial}
-        implied={impliedDials}
-        onImpliedToggle={removeImpliedDial}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Box & Papers"
-        facets={docFacets}
-        selected={selectedDocs}
-        onToggle={toggleDoc}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Condition"
-        facets={conditionFacets}
-        selected={selectedConditions}
-        onToggle={toggleCondition}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Case Size"
-        facets={caseSizeFacets}
-        selected={selectedCaseSizes}
-        onToggle={toggleCaseSize}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Movement"
-        facets={movementFacets}
-        selected={selectedMovements}
-        onToggle={toggleMovement}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Beat Rate"
-        facets={beatRateFacets}
-        selected={selectedBeatRates}
-        onToggle={toggleBeatRate}
-        showWhenEmpty
-        dealerLegibility
-      />
-      <FacetGroup
-        title="Power Reserve"
-        facets={powerReserveFacets}
-        selected={selectedPowerReserves}
-        onToggle={togglePowerReserve}
-        showWhenEmpty
-        dealerLegibility
-      />
+      {/* Buyer-facing polish (2026-08-13): a dimension this dealer's
+          inventory doesn't populate is NOT a control — the old per-group
+          "Unavailable" rows read like a diagnostic panel. Populated
+          dimensions render exactly as before; the empty ones collapse into
+          one quiet truthful sentence. The dimension set itself is the
+          normal Browse architecture and returns per group the moment a
+          dealer's inventory populates it. */}
+      {dealerDimensions.map((dim) =>
+        dim.facets.length > 0 ? (
+          <FacetGroup
+            key={dim.title}
+            title={dim.title}
+            facets={dim.facets}
+            selected={dim.selected}
+            onToggle={dim.onToggle}
+            implied={dim.implied}
+            onImpliedToggle={dim.onImpliedToggle}
+            dealerLegibility
+          />
+        ) : null
+      )}
+      {dealerDimensions.some((dim) => dim.facets.length === 0) && (
+        <div className="px-[18px] pt-1">
+          <p className="border-t border-[var(--border-faint)] pt-3 text-[11px] leading-[1.6] text-[var(--muted)]">
+            Not represented in current inventory:{" "}
+            {dealerDimensions
+              .filter((dim) => dim.facets.length === 0)
+              .map((dim) => dim.title)
+              .join(" · ")}
+          </p>
+        </div>
+      )}
     </div>
   ) : null;
 
   const facetList = dealerFacetList ?? standardFacetList;
 
+  /* Contact panel items — the dealer's public watches, straight from the
+     already-loaded inventory. The panel walks a buyer into the EXISTING
+     listing conversation; it never opens a parallel channel. */
+  const dealerContactItems: DealerContactItem[] = dealerScope
+    ? listings.map((row) => ({
+        id: row.id,
+        brand: row.brand,
+        model: row.model,
+        reference: row.reference,
+        thumbUrl: heroFrame(row).url,
+      }))
+    : [];
+
   const dealerIdentity = dealerScope ? (
-    <section className="-mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
+    <section className="relative -mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink)] p-2">
           {dealerScope.logoUrl ? (
@@ -1283,15 +1272,28 @@ export default function BrowseClient({
               {[dealerScope.location, dealerScope.tagline].filter(Boolean).join(" · ")}
             </p>
           )}
+          {/* Trust context beside identity: what FairWatchTrade actually
+              does, one tap away — never an implied guarantee. */}
+          <div className="mt-2">
+            <DealerTrustMark />
+          </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-baseline justify-between gap-3 text-left sm:block sm:text-right">
-        <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
-          Public inventory
+      <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+        <div className="flex items-baseline justify-between gap-3 text-left sm:block sm:text-right">
+          <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+            Public inventory
+          </div>
+          <div className="font-display text-[18px] font-light text-[var(--platinum-dim)] sm:mt-1">
+            {listings.length} {listings.length === 1 ? "watch" : "watches"}
+          </div>
         </div>
-        <div className="font-display text-[18px] font-light text-[var(--platinum-dim)] sm:mt-1">
-          {listings.length} {listings.length === 1 ? "watch" : "watches"}
-        </div>
+        {/* The room's primary buyer action — full-width on a phone, beside
+            the inventory count on desktop. */}
+        <DealerContactPanel
+          businessName={dealerScope.businessName}
+          items={dealerContactItems}
+        />
       </div>
     </section>
   ) : null;
