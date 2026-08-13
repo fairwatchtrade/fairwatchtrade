@@ -41,7 +41,37 @@ export type RetrievalFailure =
   | "SOURCE_HOST_FORBIDDEN"
   | "SOURCE_UNREACHABLE"
   | "SOURCE_RETRIEVAL_FAILED"
+  | "SOURCE_REDIRECT_REFUSED"
   | "SOURCE_CONTENT_UNUSABLE";
+
+/**
+ * Is this URL a permissible retrieval target? Validating the FIRST hop is
+ * not enough on its own — see the redirect posture in retrieveSource.
+ */
+export function retrievalTargetRefusal(
+  url: string
+): { failure: RetrievalFailure; detail: string } | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { failure: "SOURCE_URL_INVALID", detail: "URL did not parse." };
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return { failure: "SOURCE_URL_INVALID", detail: "Only http(s) sources are retrievable." };
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+  if (
+    FORBIDDEN_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)) ||
+    PRIVATE_HOST.test(parsed.hostname)
+  ) {
+    return {
+      failure: "SOURCE_HOST_FORBIDDEN",
+      detail: `Host "${parsed.hostname}" cannot be a governed source.`,
+    };
+  }
+  return null;
+}
 
 export type RetrievalResult =
   | { ok: false; requestedUrl: string; failure: RetrievalFailure; detail: string }
@@ -98,24 +128,27 @@ function titleOf(html: string): string | null {
  * with a similar source — the caller gets a refusal, not a fallback.
  */
 export async function retrieveSource(requestedUrl: string): Promise<RetrievalResult> {
-  let parsed: URL;
-  try {
-    parsed = new URL(requestedUrl);
-  } catch {
-    return { ok: false, requestedUrl, failure: "SOURCE_URL_INVALID", detail: "URL did not parse." };
-  }
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    return { ok: false, requestedUrl, failure: "SOURCE_URL_INVALID", detail: "Only http(s) sources are retrievable." };
-  }
+  const targetRefusal = retrievalTargetRefusal(requestedUrl);
+  if (targetRefusal) return { ok: false, requestedUrl, ...targetRefusal };
+  const parsed = new URL(requestedUrl);
   const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-  if (FORBIDDEN_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)) || PRIVATE_HOST.test(parsed.hostname)) {
-    return { ok: false, requestedUrl, failure: "SOURCE_HOST_FORBIDDEN", detail: `Host "${parsed.hostname}" cannot be a governed source.` };
-  }
 
   let response: Response;
   try {
+    /* REDIRECTS ARE NOT FOLLOWED.
+       Validating only the first hop and then following redirects would
+       leave an SSRF-through-redirect seam: a perfectly public-looking host
+       can answer 302 with a private destination, and the guard above would
+       never see it. FairWatchTrade already settled this exact question —
+       /api/presentation-thumb fetches with redirect: "error" for the same
+       reason — so retrieval takes the same no-follow posture.
+
+       "manual" rather than "error" only so the refusal can be NAMED: a
+       redirecting source is a URL worth correcting, not a network fault,
+       and an operator should be told which it was. Nothing is followed
+       either way, so no hop after the first can ever be requested. */
     response = await fetch(parsed.toString(), {
-      redirect: "follow",
+      redirect: "manual",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       headers: {
         "user-agent": "FairWatchTrade reference evidence retriever/1.0",
@@ -126,6 +159,17 @@ export async function retrieveSource(requestedUrl: string): Promise<RetrievalRes
     return {
       ok: false, requestedUrl, failure: "SOURCE_UNREACHABLE",
       detail: error instanceof Error ? error.message.slice(0, 160) : "fetch failed",
+    };
+  }
+
+  // A redirect — including the opaque form — is refused, never chased.
+  if ((response.status >= 300 && response.status < 400) || response.type === "opaqueredirect") {
+    const location = response.headers.get("location");
+    return {
+      ok: false, requestedUrl, failure: "SOURCE_REDIRECT_REFUSED",
+      detail: location
+        ? `Source redirected to "${location.slice(0, 120)}"; supply the canonical URL.`
+        : "Source redirected; supply the canonical URL.",
     };
   }
 

@@ -10,7 +10,9 @@ import { readFileSync } from "node:fs";
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const { evidenceBindingRefusals, admissionFor, REFUSAL_CODES } =
   await import("../lib/dossier/claimAdmission.ts");
-const { htmlToText, retrieveSource } = await import("../lib/dossier/sourceRetrieval.ts");
+const { htmlToText, retrieveSource, retrievalTargetRefusal } =
+  await import("../lib/dossier/sourceRetrieval.ts");
+const { createServer } = await import("node:http");
 
 let n = 0;
 const ok = (name, cond) => {
@@ -144,6 +146,73 @@ ok("an UNRESOLVED finding is not refused for unsupported values it never asserts
   ok("a non-http(s) scheme is refused",
     !ftp.ok && ftp.failure === "SOURCE_URL_INVALID");
 }
+
+/* ── SSRF through redirect: the seam closed in v4.47 ──────────────────
+   Validating only the first hop and then following redirects lets a
+   public-looking host answer 302 with a private destination. A live server
+   proves the redirect is refused rather than chased; the target validator
+   proves the destination it pointed at would itself be refused. Together:
+   no hop after the first can ever be requested. */
+{
+  const server = createServer((req, res) => {
+    if (req.url === "/redirect-to-internal") {
+      // The classic SSRF target — cloud instance metadata.
+      res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end("<html><body>" + "internal secret ".repeat(40) + "</body></html>");
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const port = server.address().port;
+
+  /* The loopback guard fires first here, which is itself correct — but it
+     means this case alone does not prove the redirect branch. Both layers
+     are asserted: the target guard below, and the redirect branch proven
+     against a real public redirect in the live check that follows. */
+  const viaRedirect = await retrieveSource(`http://127.0.0.1:${port}/redirect-to-internal`);
+  ok("a loopback source is refused outright, redirect or not",
+    !viaRedirect.ok && viaRedirect.failure === "SOURCE_HOST_FORBIDDEN");
+
+  /* Prove the redirect branch itself with a server whose host passes the
+     first-hop guard. 0.0.0.0 is refused, so bind to a hostname the guard
+     accepts and let the redirect be the ONLY thing that can stop it. */
+  const publicish = createServer((req, res) => {
+    res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" });
+    res.end();
+  });
+  await new Promise((r) => publicish.listen(0, "127.0.0.1", r));
+  const p2 = publicish.address().port;
+  // "localtest.me" resolves to 127.0.0.1 publicly but is not a literal
+  // private address, so it clears the first-hop guard exactly as a
+  // compromised public host would.
+  const redirected = await retrieveSource(`http://localtest.me:${p2}/`);
+  ok("a first-hop-clean source that redirects to a private address is refused, not chased",
+    !redirected.ok && redirected.failure === "SOURCE_REDIRECT_REFUSED");
+  await new Promise((r) => publicish.close(r));
+
+  ok("the private destination that redirect pointed at is itself a refused target",
+    retrievalTargetRefusal("http://169.254.169.254/latest/meta-data/")?.failure === "SOURCE_HOST_FORBIDDEN");
+
+  for (const internal of [
+    "http://127.0.0.1/admin", "http://10.0.0.5/secret", "http://192.168.1.1/",
+    "http://172.16.0.1/", "http://169.254.169.254/", "http://0.0.0.0/",
+  ]) {
+    assert.equal(retrievalTargetRefusal(internal)?.failure, "SOURCE_HOST_FORBIDDEN",
+      `${internal} must be refused as a retrieval target`);
+  }
+  ok("every private/link-local range is refused as a retrieval target", true);
+
+  await new Promise((r) => server.close(r));
+}
+
+ok("retrieval never follows redirects — the no-follow posture is structural",
+  (() => {
+    const src = read("lib/dossier/sourceRetrieval.ts");
+    return !/redirect:\s*"follow"/.test(src) && /redirect:\s*"manual"/.test(src) &&
+      /status >= 300 && response\.status < 400/.test(src);
+  })());
 
 /* ── Retrieved documents become comparable text ───────────────────────── */
 ok("scripts, styles and markup are stripped; entities decoded",
