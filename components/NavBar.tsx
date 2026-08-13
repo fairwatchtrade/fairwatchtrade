@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import MobileNav from "@/components/MobileNav";
 import NotificationsBell from "@/components/NotificationsBell";
+import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
 
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
@@ -46,19 +47,13 @@ const NAV_LINKS = [
   { label: "About", href: "/about" },
 ];
 
-function Wordmark({ onClick }: { onClick?: () => void }) {
-  return (
-    <Link
-      href="/"
-      onClick={onClick}
-      className="font-display text-xl font-light tracking-[0.02em]"
-    >
-      <span className="text-[var(--platinum)]">Fair</span>
-      <span className="text-[var(--gold)]">Watch</span>
-      <span className="text-[var(--platinum)]">Trade</span>
-    </Link>
-  );
-}
+/* v4.28 — the wordmark is now the canonical live identity
+   (components/FairWatchTradeLogo): live F/W clock mark + wordmark, one
+   component shared with the mobile drawer. The local Wordmark() that used
+   to live here was the second of two hand-maintained copies; both are
+   gone. Sizing note for the width budget documented above: the identity
+   adds roughly 55px to the left cluster, which the lg (1024) breakpoint
+   still clears comfortably. */
 
 // v2.5 — Account indicator icon. Thin outline person + faint outer
 // medallion ring, ~26px visual footprint (matching the "Recommended" demo
@@ -159,7 +154,7 @@ export default function NavBar({
   return (
     <nav className="w-full border-b border-[var(--border-subtle)] bg-[var(--ink)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 sm:px-6">
-        <Wordmark />
+        <FairWatchTradeLogo />
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 lg:flex">

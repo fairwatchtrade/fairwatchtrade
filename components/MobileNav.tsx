@@ -4,6 +4,7 @@ import { useEffect, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
 
 /* ════════════════════════════════════════════════════════════════════════
    NAV DRAWER — hamburger-triggered site navigation, every page.
@@ -238,9 +239,11 @@ export default function MobileNav({
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-faint)] px-5 py-4">
-          <Link href="/" onClick={onClose} className="font-display text-[15px] font-normal text-[var(--platinum)]">
-            Fair<span className="text-[var(--gold)]">Watch</span>Trade
-          </Link>
+          {/* v4.28 — the canonical live identity, compact. This was the
+              second hand-maintained copy of the wordmark; both copies are
+              now one component, so the drawer can never drift from the
+              masthead again. */}
+          <FairWatchTradeLogo size="compact" onClick={onClose} />
           <button
             type="button"
             aria-label="Close menu"
