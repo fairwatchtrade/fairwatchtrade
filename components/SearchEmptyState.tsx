@@ -57,6 +57,10 @@ export default function SearchEmptyState({
   const router = useRouter();
   const [state, setState] = useState<SaveState>("idle");
   const [message, setMessage] = useState("");
+  /* Permissioned Adjacency — this is a CREATION surface too (for a
+     zero-result exact-identifier search it is the only one), so the
+     per-search close-matches opt-in is asked here as well. Default OFF. */
+  const [closeMatches, setCloseMatches] = useState(false);
 
   const save = async () => {
     if (state === "saving" || state === "saved") return;
@@ -75,19 +79,36 @@ export default function SearchEmptyState({
     }
 
     const name = searchState.text.trim() || "Saved Search";
-    const { error } = await supabase.from("saved_searches").insert({
-      user_id: user.id,
-      name,
-      query_string: queryString,
-      search_state: searchState,
-      meaning_version: SEARCH_MEANING_VERSION,
-      paused: false,
-    });
+    const { data: inserted, error } = await supabase
+      .from("saved_searches")
+      .insert({
+        user_id: user.id,
+        name,
+        query_string: queryString,
+        search_state: searchState,
+        meaning_version: SEARCH_MEANING_VERSION,
+        paused: false,
+        include_adjacent: closeMatches,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       setState("error");
       setMessage("Could not save this Search.");
       return;
+    }
+
+    /* Bounded re-evaluation: the new search must not look broken merely
+       because qualifying watches were already published. Best effort. */
+    if (inserted?.id) {
+      try {
+        await supabase.rpc("reevaluate_saved_search", {
+          p_saved_search_id: inserted.id,
+        });
+      } catch (rpcErr) {
+        console.error("[FairWatchTrade] Saved-search re-evaluation failed:", rpcErr);
+      }
     }
 
     setState("saved");
@@ -129,6 +150,27 @@ export default function SearchEmptyState({
         <span aria-hidden="true">&nbsp;—&nbsp;</span>
         <span>we&rsquo;ll keep watching for your watch.</span>
       </p>
+
+      {/* Permissioned Adjacency — obvious, reversible, default OFF. For a
+          reference search this is the family door: "PFC274-0000600" saved
+          with close matches on may surface PFC274-0000600-B33002 with the
+          reason stated. After saving, the permission is managed per search
+          on the Account Saved Searches surface. */}
+      <label className="mt-[10px] flex cursor-pointer items-start gap-2">
+        <input
+          type="checkbox"
+          checked={closeMatches}
+          onChange={(e) => setCloseMatches(e.target.checked)}
+          disabled={state === "saving" || state === "saved"}
+          className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[#C9A84C]"
+        />
+        <span className="text-[12px] leading-[1.5] text-[var(--slate)]">
+          <span className="text-[var(--platinum-dim)]">Show me close matches too</span>
+          {" "}— occasionally show watches meaningfully related to this search
+          even when they are not an exact match. Each one will say why it was
+          shown.
+        </span>
+      </label>
 
       <div
         aria-live="polite"

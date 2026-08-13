@@ -147,6 +147,12 @@ ok("save-time opt-in exists, in plain words, wired to the column",
 ok("saving triggers the bounded single-search re-evaluation",
   control.includes('rpc("reevaluate_saved_search"'));
 
+const emptyState = read("components/SearchEmptyState.tsx");
+ok("the empty-state save path — the only one for a zero-result identifier search — carries the same opt-in",
+  emptyState.includes("Show me close matches too") &&
+  emptyState.includes("include_adjacent: closeMatches") &&
+  emptyState.includes('rpc("reevaluate_saved_search"'));
+
 const module_ = read("components/SavedSearchesModule.tsx");
 ok("management surface reads and toggles the per-search permission",
   module_.includes("include_adjacent") &&
