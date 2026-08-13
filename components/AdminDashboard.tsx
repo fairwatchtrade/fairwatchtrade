@@ -158,28 +158,52 @@ export default function AdminDashboard({
   );
   const customBrand = listings.filter((l) => l.custom_brand_flag === true);
 
+  /* ── Review → goes INTO the queue (founder finding, 2026-08-12): the
+        button previously anchored to the explorer table further down the
+        page — a scroll, not a workflow. Each attention item now links to the
+        OLDEST listing of its own population; from there the review page's
+        next-in-queue link (v4.22) walks the rest. Oldest first everywhere,
+        so the two features agree on what "next" means. ── */
+  const oldestId = (list: AdminListing[]): string | null =>
+    list.length === 0
+      ? null
+      : [...list].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )[0].id;
+
+  // Captured once per mount (purity rule: no Date.now() during render).
+  // Freshness matches the rest of the page — data updates on refresh anyway.
+  const [mountedAt] = useState(() => Date.now());
+  const last24hList = listings.filter(
+    (l) => mountedAt - new Date(l.created_at).getTime() < 24 * 60 * 60 * 1000
+  );
+
   const attentionItems = [
     {
       key: "ai",
       count: aiFailed.length,
+      firstId: oldestId(aiFailed),
       label: (n: number) =>
         `${n} listing${n === 1 ? "" : "s"} failed AI description review`,
     },
     {
       key: "completeness",
       count: lowCompleteness.length,
+      firstId: oldestId(lowCompleteness),
       label: (n: number) =>
         `${n} listing${n === 1 ? "" : "s"} under completeness threshold (${LOW_COMPLETENESS_THRESHOLD})`,
     },
     {
       key: "custom",
       count: customBrand.length,
+      firstId: oldestId(customBrand),
       label: (n: number) =>
         `${n} custom-brand submission${n === 1 ? "" : "s"} to verify`,
     },
     {
       key: "new24h",
       count: counts.last24h,
+      firstId: oldestId(last24hList),
       label: (n: number) =>
         `${n} new listing${n === 1 ? "" : "s"} in last 24 hours`,
     },
@@ -293,12 +317,12 @@ export default function AdminDashboard({
                     <span className="text-[13px] text-[var(--platinum)]">
                       {item.label(item.count)}
                     </span>
-                    <a
-                      href="#explorer"
+                    <Link
+                      href={item.firstId ? `/admin/listings/${item.firstId}` : "#explorer"}
                       className="border border-[var(--border-subtle)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-subtle)] hover:text-[var(--gold)]"
                     >
                       Review →
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
