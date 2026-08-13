@@ -148,7 +148,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
               Make an offer on this watch
             </h1>
             <p className="mt-2 max-w-[680px] text-[12px] leading-[1.6] text-[var(--muted)]">
-              Review the listing details, enter your offer, and add an optional message to the seller.
+              Review the listing details, enter your offer, and add an optional note with your offer.
             </p>
           </div>
           <div className="font-display text-[13px] italic leading-[1.45] text-[var(--platinum-dim)] md:max-w-[290px] md:text-right">
@@ -282,7 +282,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   {/* optional message */}
                   <div className="mb-5">
                     <label htmlFor="message" className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
-                      Message to the seller{" "}
+                      Note with your offer{" "}
                       <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
                         — optional
                       </span>
@@ -292,7 +292,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       value={message}
                       maxLength={2000}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Share a concise note with the seller."
+                      placeholder="Anything the seller should know about this offer."
                       spellCheck={false}
                       // WS4 (2026-07-28) — Jason's ruled 1px increase to the
                       // ENTERED message text at normal zoom; the placeholder

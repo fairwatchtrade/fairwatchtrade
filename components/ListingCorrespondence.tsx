@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { ASK_SELLER_EVENT } from "@/components/AskSellerLink";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING CORRESPONDENCE — components/ListingCorrespondence.tsx  (v2.7)
@@ -109,11 +111,31 @@ export default function ListingCorrespondence({
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* Initialized from the props the effect used to re-derive: an ineligible
+     viewer was set non-loading synchronously inside the effect, which the
+     purity lint now correctly rejects. Same truth, decided at birth. */
+  const [loading, setLoading] = useState(authed && !isOwner);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /* ── Rail slot (founder ruling 2026-08-12): the dead space beneath the
+        rail's Purchase Request card becomes the question box. The page
+        renders an empty #rail-ask-slot inside the xl rail; this component
+        portals a compact composer into it — the THIRD dressing of the same
+        single state scope (home, bar, rail card), so a question typed in
+        the rail IS the same draft as the home composer and sends through
+        the same send(). Nothing is duplicated but pixels. ── */
+  const [railSlot, setRailSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    // Deferred a frame: the slot is server-rendered before this component,
+    // but the purity rule forbids a synchronous setState inside an effect.
+    const frame = requestAnimationFrame(() => {
+      setRailSlot(document.getElementById("rail-ask-slot"));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const sectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -129,10 +151,7 @@ export default function ListingCorrespondence({
   // On load: find this listing's existing thread (if any) and open the home
   // with its history — an existing conversation is visible without a tap.
   useEffect(() => {
-    if (!eligible) {
-      setLoading(false);
-      return;
-    }
+    if (!eligible) return; // loading already initialized false for this case
     let cancelled = false;
     (async () => {
       try {
@@ -204,6 +223,15 @@ export default function ListingCorrespondence({
     });
   }
 
+  /* The lg→xl band has no rail, so its price block carries a quiet
+     "Ask the seller" link (AskSellerLink) instead of a composer. It speaks
+     through this one event; the answer is the existing openHome(). */
+  useEffect(() => {
+    const onAsk = () => openHome();
+    window.addEventListener(ASK_SELLER_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_SELLER_EVENT, onAsk);
+  }, []);
+
   async function send() {
     const text = body.trim();
     if (!text || sending) return;
@@ -257,6 +285,64 @@ export default function ListingCorrespondence({
       {/* v2.7a — in-flow anchor for the fixed bar's measurement. Zero-size,
           decorative, never affects layout. */}
       <span ref={anchorRef} aria-hidden="true" className="block h-0 w-0" />
+
+      {/* ── RAIL CARD (xl only) — the question box in the rail's dead space.
+             Same body state, same send(), same confirmation — a third
+             dressing, never a second implementation. Signed-out visitors get
+             the honest door instead of an empty slot. ── */}
+      {railSlot &&
+        createPortal(
+          eligible ? (
+            <section className="border border-[var(--border-gold)] px-[18px] pb-[18px] pt-[18px]">
+              <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                Ask the Seller
+              </div>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value.slice(0, 2000))}
+                placeholder="Ask about condition, provenance, or request additional photos..."
+                rows={3}
+                className="mt-3 w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[12px] leading-[1.6] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
+              />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => openHome()}
+                  className="text-[10px] text-[var(--slate)] underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)]"
+                >
+                  View conversation ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={sending || body.trim().length === 0}
+                  className="bg-[var(--gold)] px-4 py-1.5 text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:opacity-40"
+                >
+                  {sending ? "Sending…" : "Send"}
+                </button>
+              </div>
+              {confirmation && (
+                <div className="mt-2 font-display text-[11px] italic text-[var(--success)]">
+                  {confirmation}
+                </div>
+              )}
+              {error && <div className="mt-2 text-[10px] text-[var(--danger)]">{error}</div>}
+            </section>
+          ) : (
+            <section className="border border-[var(--border-mid)] px-[18px] py-[16px]">
+              <div className="text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+                Ask the Seller
+              </div>
+              <Link
+                href={`/login?callbackUrl=/listings/${listingId}`}
+                className="mt-3 block text-[12px] text-[var(--slate)] transition hover:text-[var(--gold)]"
+              >
+                Sign in to message the seller →
+              </Link>
+            </section>
+          ),
+          railSlot
+        )}
 
       {/* ── SECTION 5 HOME — thread history + composer. Renders when a
              thread exists or after the bar opens it. ── */}

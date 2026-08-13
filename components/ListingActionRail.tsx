@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AskSellerLink from "@/components/AskSellerLink";
 import InlinePurchaseRequest from "@/components/InlinePurchaseRequest";
 import OpenPurchaseRequestButton from "@/components/OpenPurchaseRequestButton";
 
@@ -239,6 +240,15 @@ export default function ListingActionRail({
           <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
             Asking Price
           </p>
+          {/* The lg→xl band has no rail composer, so the question door is a
+              quiet link here — it opens the existing conversation home.
+              Authed non-owners only: the listener lives in
+              ListingCorrespondence, which owners and guests don't mount. */}
+          {!isOwner && canRequestInline && (
+            <div className="mt-3">
+              <AskSellerLink />
+            </div>
+          )}
         </div>
         {purchaseBlock}
       </>
@@ -261,10 +271,14 @@ export default function ListingActionRail({
         </Link>
       </section>
 
-      {/* Purchase Request */}
+      {/* Purchase Request — or, for the listing's own seller, plain price
+          truth. The owner card previously kept the "Purchase Request" header
+          with nothing beneath it (owner ⇒ purchaseBlock null): a purchase
+          card offering no purchase, standing there alone. Founder finding,
+          2026-08-12. Same card, honest header. */}
       <section className="border border-[var(--border-gold)] px-[18px] pb-[18px] pt-[18px]">
         <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
-          Purchase Request
+          {isOwner ? "Your Listing" : "Purchase Request"}
         </div>
         <p className="mt-3 font-display text-[28px] font-light leading-none text-[var(--platinum)]">
           {priceText}

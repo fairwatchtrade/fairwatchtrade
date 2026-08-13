@@ -678,6 +678,21 @@ export default async function ListingDetailPage({
             Sold by {sellerName} →
           </Link>
 
+          {/* lg→xl band price (founder finding, 2026-08-12): in this band the
+              rail does not exist and the inline purchase section lives at the
+              bottom of the lower flow — so the price was effectively three
+              screens from the watch. The number belongs beside the identity.
+              Hidden below lg (mobile keeps its ruled layout) and at xl+ (the
+              rail's card carries it there). Same figure, one more dressing. */}
+          <div className="hidden lg:block xl:hidden">
+            <p className="mt-6 font-display text-[32px] font-light leading-none text-[var(--platinum)]">
+              {priceText}
+            </p>
+            <p className="mt-1.5 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
+              Asking Price
+            </p>
+          </div>
+
           {/* Stated by the seller, not certified by the platform: a sentence,
               no chip, no checkmark. The outline mark is decoration only. */}
           {includesBoxAndPapers && (
@@ -781,6 +796,12 @@ export default async function ListingDetailPage({
               askingCurrency={listing.asking_currency}
               canRequestInline={!!user}
             />
+            {/* Ask-the-Seller slot (founder ruling 2026-08-12): the rail's
+                dead space below the Purchase Request card. ListingCorrespondence
+                portals its rail composer here — one state scope, third
+                dressing. empty:hidden keeps the grid gap honest when nothing
+                is portaled (owner view before hydration). */}
+            <div id="rail-ask-slot" className="empty:hidden" />
           </aside>
         </div>
         {/* end OPENING */}
