@@ -57,6 +57,10 @@ export type CollectorDossierViewModel = {
   readonly openingIdentity: string;
   /** Reader-facing sections, in the required visible reading order. */
   readonly sections: readonly DossierSection[];
+  /** Governs the stored artifact path (collector-dossier-v{n}.pdf): 1 for
+      the Vault-only skeleton, 2 when a founder-approved reference-level
+      article supplies the editorial body. */
+  readonly templateVersion: number;
   /** Canonical/listing distinction, preserved but not rendered as a section. */
   readonly listingSpecific: {
     readonly moduleId: string;
@@ -90,6 +94,7 @@ export function buildBreguet5967CanaryViewModel(): CollectorDossierViewModel {
   const seed = BREGUET_5967_CANARY_SEED;
 
   return {
+    templateVersion: 1,
     identity: {
       brand: seed.brand,
       collection: seed.collection,

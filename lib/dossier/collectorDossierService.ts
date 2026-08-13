@@ -171,8 +171,12 @@ export async function ensureCollectorDossierForListing(
     const pdf = await generateDossierPdf(vm);
     const pdfBuffer = Buffer.from(pdf);
     const sha256 = createHash("sha256").update(pdfBuffer).digest("hex");
+    /* Versioned by content model: v1 is the Vault-only skeleton, v2 carries
+       a founder-approved article. Distinct pathnames keep every generation
+       deterministic AND leave the prior artifact's bytes untouched — the
+       dossier row's storage_url is the single serving truth either way. */
     const pathname =
-      `collector-dossiers/references/${resolution.referenceId}/collector-dossier-v1.pdf`;
+      `collector-dossiers/references/${resolution.referenceId}/collector-dossier-v${vm.templateVersion}.pdf`;
 
     // The connected Vercel Blob store authenticates through OIDC in
     // production. A deterministic reference path plus overwrite makes a retry

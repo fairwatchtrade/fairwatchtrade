@@ -74,8 +74,19 @@ test("production content reads only the canonical Vault chain", () => {
 });
 
 test("reader-facing production copy excludes internal hashes", () => {
-  assert.doesNotMatch(referenceViewModel, /claim-fingerprint|sha256|SHA-256/);
+  // Manuscript hashes are canary METADATA (never rendered — neither renderer
+  // consumes the editorial hash fields); no hash may appear inside reader
+  // paragraph copy itself.
+  assert.doesNotMatch(referenceViewModel, /claim-fingerprint/);
+  const paragraphs = [...referenceViewModel.matchAll(/paragraphs: \[[\s\S]*?\]/g)]
+    .map((m) => m[0])
+    .join("\n");
+  assert.doesNotMatch(paragraphs, /sha256|SHA-256/i);
   assert.match(referenceViewModel, /Listing-specific facts are deliberately excluded/);
+  const html = read("lib/dossier/renderDossierHtml.ts");
+  const doc = read("lib/dossier/renderDossierDocument.ts");
+  assert.doesNotMatch(html, /editorialManuscriptSha256|editorialDeltaSha256/);
+  assert.doesNotMatch(doc, /editorialManuscriptSha256|editorialDeltaSha256/);
 });
 
 test("ordinary listing reads do not statically load Chromium", () => {
@@ -106,13 +117,65 @@ test("PDF route rechecks public listing status and current exact attachment", ()
   assert.match(pdfRoute, /NextResponse\.redirect/);
 });
 
-test("artifact path is deterministic by reference, enabling reuse", () => {
+test("artifact path is deterministic by reference and content-model version", () => {
   assert.match(
     service,
-    /collector-dossiers\/references\/\$\{resolution\.referenceId\}\/collector-dossier-v1\.pdf/
+    /collector-dossiers\/references\/\$\{resolution\.referenceId\}\/collector-dossier-v\$\{vm\.templateVersion\}\.pdf/
   );
   assert.match(service, /addRandomSuffix: false/);
   assert.match(service, /allowOverwrite: true/);
+});
+
+/* ── Reference-level editorial articles: storage + approval foundation ──
+   (2026-08-13). Storage and gate only — the table ships empty, no prose is
+   authored in code, and behavior is byte-identical until a founder-approved
+   article row exists. */
+const articlesMigration = read(
+  "supabase/migrations/20260813150000_collector_dossier_articles.sql"
+);
+
+test("articles are reference-level, one approved per reference, client-untouchable", () => {
+  assert.match(articlesMigration, /vault_reference_id uuid not null references public\.vault_references/);
+  assert.match(articlesMigration, /check \(status in \('draft', 'approved', 'retired'\)\)/);
+  assert.match(articlesMigration, /cda_one_approved_per_reference[\s\S]*where status = 'approved'/);
+  assert.match(articlesMigration, /revoke all on public\.collector_dossier_articles from public, anon, authenticated/);
+  // The article belongs to the reference — no listing or seller column exists.
+  assert.doesNotMatch(articlesMigration, /listing_id|seller_id/);
+});
+
+test("approval is hash-bound, attributed, and freezes the approved content", () => {
+  assert.match(articlesMigration, /cda_approved_complete[\s\S]*manuscript_sha256 is not null and approved_by is not null/);
+  assert.match(articlesMigration, /extensions\.digest\(/);
+  assert.match(articlesMigration, /only a draft can be approved/);
+  assert.match(articlesMigration, /approved article content is frozen/);
+  assert.match(articlesMigration, /an approved article cannot return to draft/);
+  assert.match(articlesMigration, /reviewer profile missing; refusing to approve/);
+  assert.match(articlesMigration, /revoke all on function public\.collector_dossier_article_approve/);
+});
+
+test("approval re-enters the proven generation path without touching listings", () => {
+  assert.match(articlesMigration, /update public\.collector_dossiers[\s\S]*status = 'pending',[\s\S]*template_version = 2/);
+  assert.doesNotMatch(articlesMigration, /update public\.listings/);
+});
+
+test("the view model consumes ONLY approved articles and fails safe to the skeleton", () => {
+  assert.match(referenceViewModel, /\.eq\("status", "approved"\)/);
+  assert.match(referenceViewModel, /maybeSingle\(\)/);
+  // Malformed stored sections → skeleton, never a half-rendered article.
+  assert.match(referenceViewModel, /serving skeleton/);
+  // Identity anchor opens and the canonical boundary closes, article or not.
+  assert.match(referenceViewModel, /\[exactReference, \.\.\.article\.sections, canonicalBoundary\]/);
+  // The skeleton path remains intact for references without an article.
+  assert.match(referenceViewModel, /VAULT_PROFILE/);
+  assert.match(referenceViewModel, /templateVersion = article \? 2 : 1/);
+});
+
+test("rollback refuses while approved editorial content exists", () => {
+  const down = read(
+    "supabase/rollbacks/20260813150000_collector_dossier_articles.down.sql"
+  );
+  assert.match(down, /status = 'approved'/);
+  assert.match(down, /retire them before rolling back/);
 });
 
 test("private canary routes are not repurposed as production routes", () => {
