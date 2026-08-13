@@ -43,6 +43,11 @@ export type PersistedClaim = {
   options: { value: string; evidence: string }[];
   supports: string[];
   moduleHint: string | null;
+  /** RETRIEVAL_BOUND when every evidence entry cites a real retrieval whose
+      text carries the excerpt and supports the claimed values; UNBOUND is
+      honest legacy. Only RETRIEVAL_BOUND admitted claims may feed the
+      automatic composer. */
+  evidenceBinding: string;
 };
 
 type ClaimRow = {
@@ -59,6 +64,7 @@ type ClaimRow = {
   options: unknown;
   supports: string[] | null;
   module_hint: string | null;
+  evidence_binding: string | null;
 };
 
 function toPersisted(row: ClaimRow): PersistedClaim {
@@ -78,6 +84,7 @@ function toPersisted(row: ClaimRow): PersistedClaim {
       : [],
     supports: row.supports ?? [],
     moduleHint: row.module_hint,
+    evidenceBinding: row.evidence_binding ?? "UNBOUND",
   };
 }
 
@@ -123,7 +130,7 @@ export async function populateReferenceClaims(
 
   const { data: existingRows } = await db
     .from("collector_dossier_claims")
-    .select("id, claim_key, claim_class, outcome, admission, refusals, subject, statement, values, qualifier, options, supports, module_hint")
+    .select("id, claim_key, claim_class, outcome, admission, refusals, subject, statement, values, qualifier, options, supports, module_hint, evidence_binding")
     .eq("vault_reference_id", referenceId)
     .eq("lifecycle", "current");
   const existing = new Map(
@@ -209,7 +216,7 @@ export async function readReferenceClaims(referenceId: string): Promise<Populati
 
   const { data: rows, error } = await db
     .from("collector_dossier_claims")
-    .select("id, claim_key, claim_class, outcome, admission, refusals, subject, statement, values, qualifier, options, supports, module_hint")
+    .select("id, claim_key, claim_class, outcome, admission, refusals, subject, statement, values, qualifier, options, supports, module_hint, evidence_binding")
     .eq("vault_reference_id", referenceId)
     .eq("lifecycle", "current")
     .order("claim_key");

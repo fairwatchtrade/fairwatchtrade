@@ -107,6 +107,33 @@ async function readApprovedArticle(
   };
 }
 
+/**
+ * NON-PUBLIC PREVIEW ONLY. The newest machine-composed draft article for a
+ * reference, so the founder can read a verified draft inside the real
+ * Dossier presentation before any approval decision. Nothing public ever
+ * consumes a draft: the public path above reads status='approved' only,
+ * and this reader is reachable solely through the admin-gated preview
+ * route.
+ */
+async function readLatestDraftArticle(
+  db: ReturnType<typeof createServiceClient>,
+  referenceId: string
+): Promise<{ opening: string | null; sections: DossierSection[] } | null> {
+  const { data, error } = await db
+    .from("collector_dossier_articles")
+    .select("opening_identity, sections")
+    .eq("vault_reference_id", referenceId)
+    .eq("status", "draft")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as ApprovedArticleRow;
+  const sections = parseArticleSections(row.sections);
+  if (sections.length === 0) return null;
+  return { opening: row.opening_identity?.trim() || null, sections };
+}
+
 function field(label: string, value: string | null): DossierPendingField {
   return { label, value };
 }
@@ -124,7 +151,12 @@ function nonBlank(...values: Array<string | null | undefined>): string[] {
  */
 export async function buildReferenceDossierViewModel(
   referenceId: string,
-  preparedAt = new Date()
+  preparedAt = new Date(),
+  /** INTERNAL. "approved" is the only public path. "draft_preview" is used
+      solely by the admin-gated preview route so the founder can read a
+      machine-composed verified draft in the real Dossier presentation —
+      it never touches the served artifact path. */
+  articleSource: "approved" | "draft_preview" = "approved"
 ): Promise<CollectorDossierViewModel | null> {
   const db = createServiceClient();
   const { data, error } = await db
@@ -163,8 +195,17 @@ export async function buildReferenceDossierViewModel(
 
   // Founder-approved editorial article, when one exists for this reference.
   // Absent (the normal state until content governance fills the table), the
-  // Vault-only skeleton below renders exactly as it always has.
-  const article = await readApprovedArticle(db, referenceId);
+  // Vault-only skeleton below renders exactly as it always has. The
+  // draft_preview source is admin-only and never reaches a served artifact.
+  const article =
+    articleSource === "draft_preview"
+      ? await readLatestDraftArticle(db, referenceId).then((draft) =>
+          draft
+            ? { ...draft, manuscriptSha256: null, deltaSha256: null }
+            : null
+        )
+      : await readApprovedArticle(db, referenceId);
+  if (articleSource === "draft_preview" && !article) return null;
 
   const brandName = brand.name?.trim() || "Unknown maker";
   const collectionName = collection.name?.trim() || "Uncatalogued collection";
@@ -276,11 +317,17 @@ export async function buildReferenceDossierViewModel(
         field("Listing revision", null),
       ],
     },
+    /* The preview marks make a draft rendering visibly a draft in the
+       document itself — a preview PDF can never be mistaken for, or
+       circulated as, a published Dossier. */
     canary: {
       primary: "Collector Dossier",
-      secondary: "Reference-level artifact",
+      secondary:
+        articleSource === "draft_preview"
+          ? "Verified draft preview — not published"
+          : "Reference-level artifact",
       state: "reference_production",
-      authorizedToServe: true,
+      authorizedToServe: articleSource !== "draft_preview",
       editorialManuscriptSha256: article?.manuscriptSha256 ?? null,
       editorialDeltaSha256: article?.deltaSha256 ?? null,
     },
