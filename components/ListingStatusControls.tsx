@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { WRITABLE_STATUSES, isWritableStatus, type WritableStatus } from "@/lib/listingStatus";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -51,6 +52,7 @@ export default function ListingStatusControls({
   listingId: string;
   currentStatus: string;
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState<string>(currentStatus);
   const [selected, setSelected] = useState<StatusOption>(
     isStatusOption(currentStatus) ? currentStatus : "published"
@@ -109,6 +111,14 @@ export default function ListingStatusControls({
         setStatus(applied);
         if (isStatusOption(applied)) setSelected(applied);
         setFeedback({ kind: "ok", text: `Status changed to "${applied}".` });
+        /* Founder finding (2026-08-12): this control and the adjudication
+           panel below act on the same listing but each only updated itself,
+           so the page header, the other panel, and the next-in-queue link
+           went stale after a change here. The evidence panel already
+           refreshes the server render on success; this control now does the
+           same, so both surfaces always show one truth. Local feedback text
+           survives the refresh — this component keeps its own state. */
+        router.refresh();
       }
     } catch {
       setFeedback({ kind: "err", text: "Network error — status unchanged." });
