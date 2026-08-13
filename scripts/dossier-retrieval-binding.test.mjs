@@ -10,8 +10,10 @@ import { readFileSync } from "node:fs";
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const { evidenceBindingRefusals, admissionFor, REFUSAL_CODES } =
   await import("../lib/dossier/claimAdmission.ts");
-const { htmlToText, retrieveSource, retrievalTargetRefusal } =
-  await import("../lib/dossier/sourceRetrieval.ts");
+const {
+  htmlToText, retrieveSource, retrievalTargetRefusal,
+  addressRefusal, resolveDestination, pinnedLookup, unwrapMappedIPv4,
+} = await import("../lib/dossier/sourceRetrieval.ts");
 const { createServer } = await import("node:http");
 
 let n = 0;
@@ -175,22 +177,14 @@ ok("an UNRESOLVED finding is not refused for unsupported values it never asserts
   ok("a loopback source is refused outright, redirect or not",
     !viaRedirect.ok && viaRedirect.failure === "SOURCE_HOST_FORBIDDEN");
 
-  /* Prove the redirect branch itself with a server whose host passes the
-     first-hop guard. 0.0.0.0 is refused, so bind to a hostname the guard
-     accepts and let the redirect be the ONLY thing that can stop it. */
-  const publicish = createServer((req, res) => {
-    res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" });
-    res.end();
-  });
-  await new Promise((r) => publicish.listen(0, "127.0.0.1", r));
-  const p2 = publicish.address().port;
-  // "localtest.me" resolves to 127.0.0.1 publicly but is not a literal
-  // private address, so it clears the first-hop guard exactly as a
-  // compromised public host would.
-  const redirected = await retrieveSource(`http://localtest.me:${p2}/`);
-  ok("a first-hop-clean source that redirects to a private address is refused, not chased",
-    !redirected.ok && redirected.failure === "SOURCE_REDIRECT_REFUSED");
-  await new Promise((r) => publicish.close(r));
+  /* v4.47's redirect proof used `localtest.me` to clear the first-hop
+     string guard. Since v4.48 that hostname is refused earlier, at its
+     RESOLVED address — which is the stronger guard working, and it means a
+     local integration test for the redirect branch can no longer be
+     constructed: there is no address a test server may bind to that the
+     address policy permits. That is the correct outcome, not a gap. The
+     redirect branch is therefore proven below against a real public
+     redirect, through the real transport. */
 
   ok("the private destination that redirect pointed at is itself a refused target",
     retrievalTargetRefusal("http://169.254.169.254/latest/meta-data/")?.failure === "SOURCE_HOST_FORBIDDEN");
@@ -207,12 +201,121 @@ ok("an UNRESOLVED finding is not refused for unsupported values it never asserts
   await new Promise((r) => server.close(r));
 }
 
+/* ── DNS-resolution SSRF: the address we validate is the address we
+   connect to (v4.48) ──────────────────────────────────────────────────
+   A hostname guard cannot enforce this — `localtest.me` is not a private
+   string and resolves to loopback. The boundary is the resolved address,
+   and the validated address is pinned into the socket. */
+{
+  // IPv4 forbidden space, by real range arithmetic rather than prefixes.
+  for (const [addr, what] of [
+    ["127.0.0.1", "loopback"], ["10.1.2.3", "RFC1918 10/8"],
+    ["172.16.5.4", "RFC1918 172.16/12"], ["172.31.255.254", "RFC1918 upper bound"],
+    ["192.168.1.1", "RFC1918 192.168/16"], ["169.254.169.254", "cloud metadata"],
+    ["100.64.0.1", "CGNAT"], ["0.0.0.0", "unspecified"],
+    ["224.0.0.1", "multicast"], ["255.255.255.255", "broadcast"],
+    ["198.18.0.1", "benchmarking"],
+  ]) {
+    assert.equal(addressRefusal(addr)?.failure, "SOURCE_FORBIDDEN_ADDRESS", `${addr} (${what}) must refuse`);
+  }
+  ok("every forbidden IPv4 range refuses by range arithmetic, not string prefix", true);
+
+  for (const [addr, what] of [
+    ["::1", "IPv6 loopback"], ["::", "IPv6 unspecified"],
+    ["fc00::1", "unique-local"], ["fd12:3456::1", "unique-local fd"],
+    ["fe80::1", "link-local"], ["ff02::1", "multicast"],
+    ["2001:db8::1", "documentation"],
+  ]) {
+    assert.equal(addressRefusal(addr)?.failure, "SOURCE_FORBIDDEN_ADDRESS", `${addr} (${what}) must refuse`);
+  }
+  ok("forbidden IPv6 ranges refuse (loopback, unspecified, ULA, link-local, multicast)", true);
+
+  ok("an IPv4-mapped IPv6 address cannot smuggle a forbidden IPv4 through",
+    unwrapMappedIPv4("::ffff:127.0.0.1") === "127.0.0.1" &&
+    addressRefusal("::ffff:127.0.0.1")?.failure === "SOURCE_FORBIDDEN_ADDRESS" &&
+    addressRefusal("::ffff:169.254.169.254")?.failure === "SOURCE_FORBIDDEN_ADDRESS");
+
+  ok("ordinary public addresses are permitted",
+    addressRefusal("93.184.216.34") === null && addressRefusal("2606:2800:220:1::1") === null);
+
+  // Resolution refuses on the ANSWER, whatever the hostname text says.
+  const resolvesTo = (addresses) => async () =>
+    addresses.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }));
+
+  ok("a public-LOOKING hostname resolving to loopback refuses before any connection",
+    (await resolveDestination("totally-public-looking.example-cdn.net", resolvesTo(["127.0.0.1"])))
+      .failure === "SOURCE_FORBIDDEN_ADDRESS");
+
+  ok("a hostname resolving to cloud metadata refuses",
+    (await resolveDestination("metadata-mirror.net", resolvesTo(["169.254.169.254"])))
+      .failure === "SOURCE_FORBIDDEN_ADDRESS");
+
+  ok("round-robin cannot smuggle a private address alongside a public one",
+    (await resolveDestination("mixed.example-cdn.net", resolvesTo(["93.184.216.34", "10.0.0.7"])))
+      .failure === "SOURCE_FORBIDDEN_ADDRESS");
+
+  ok("a genuinely public resolution is permitted and returns the address to pin",
+    (await resolveDestination("cdn.example-public.net", resolvesTo(["93.184.216.34"])))
+      .destination.address === "93.184.216.34");
+
+  ok("a DNS failure is named, not silently treated as unreachable",
+    (await resolveDestination("nope.invalid", async () => { throw new Error("ENOTFOUND"); }))
+      .failure === "SOURCE_DNS_RESOLUTION_FAILED");
+
+  /* THE LOAD-BEARING REGRESSION. Validation happened against one address;
+     the socket must be unable to obtain any other. The pinned lookup is
+     what the connector calls, so driving it directly proves the pin: a
+     second resolution simply cannot influence the connection. */
+  {
+    const validated = { address: "93.184.216.34", family: 4 };
+    const lookup = pinnedLookup("rebind.example-cdn.net", validated);
+    const answer = await new Promise((resolve, reject) =>
+      lookup("rebind.example-cdn.net", {}, (err, addr, fam) => (err ? reject(err) : resolve({ addr, fam }))));
+    const answerAll = await new Promise((resolve, reject) =>
+      lookup("rebind.example-cdn.net", { all: true }, (err, addr) => (err ? reject(err) : resolve(addr))));
+    ok("the socket can only ever be given the already-validated address (no second lookup)",
+      answer.addr === "93.184.216.34" && answer.fam === 4 &&
+      Array.isArray(answerAll) && answerAll.length === 1 && answerAll[0].address === "93.184.216.34");
+
+    const wrongHost = await new Promise((resolve) =>
+      lookup("attacker-controlled.net", {}, (err) => resolve(err)));
+    ok("the pinned lookup refuses any host it did not validate",
+      wrongHost instanceof Error && /unvalidated host/.test(wrongHost.message));
+  }
+
+  // End to end through the real transport, with a resolver that lies.
+  const rebound = await retrieveSource(
+    "https://looks-legit.example-cdn.net/spec",
+    resolvesTo(["127.0.0.1"])
+  );
+  ok("the whole transport refuses a hostname whose resolution is forbidden",
+    !rebound.ok && rebound.failure === "SOURCE_FORBIDDEN_ADDRESS");
+}
+
 ok("retrieval never follows redirects — the no-follow posture is structural",
   (() => {
     const src = read("lib/dossier/sourceRetrieval.ts");
     return !/redirect:\s*"follow"/.test(src) && /redirect:\s*"manual"/.test(src) &&
       /status >= 300 && response\.status < 400/.test(src);
   })());
+
+/* ── Live transport proofs (network) ──────────────────────────────────
+   The order requires exercising the actual transport, not only inspecting
+   it. These two run the full path — resolve, classify, pin, connect. */
+if (process.env.FWT_SKIP_NETWORK_TESTS !== "1") {
+  const redirecting = await retrieveSource(
+    "http://topperjewelers.com/products/breitling-chronomat-b01-42-ub0134101b1u1"
+  );
+  ok("a real public redirect is refused and its destination named (v4.47 posture intact)",
+    !redirecting.ok && redirecting.failure === "SOURCE_REDIRECT_REFUSED" &&
+    /https:\/\/topperjewelers\.com/.test(redirecting.detail));
+
+  const canary = await retrieveSource(
+    "https://topperjewelers.com/products/breitling-chronomat-b01-42-ub0134101b1u1"
+  );
+  ok("the public canary source still retrieves through the pinned transport",
+    canary.ok && canary.httpStatus === 200 && canary.text.includes("42.00 mm"));
+}
 
 /* ── Retrieved documents become comparable text ───────────────────────── */
 ok("scripts, styles and markup are stripped; entities decoded",
