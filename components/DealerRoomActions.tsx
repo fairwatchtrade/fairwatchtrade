@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import HelpBubble from "@/components/HelpBubble";
 
 /* ────────────────────────────────────────────────────────────────────────
    DEALER ROOM ACTIONS — components/DealerRoomActions.tsx
@@ -21,7 +22,12 @@ import Link from "next/link";
      FairWatchTrade actually does, in the same terms as the published FAQ:
      listings reviewed before publication, photo-match evidence recorded,
      no independent third-party authentication, payment arranged directly.
-     Nothing reassuring-sounding is claimed beyond what is true.
+     Nothing reassuring-sounding is claimed beyond what is true. The
+     explanation speaks FairWatchTrade's ONE help-affordance language —
+     the shared HelpBubble (Layout ruling 2026-08-06): refined gold ?,
+     hover/focus/tap behavior, anchored speech bubble with its caret,
+     Escape / outside / Android Back close, focus returned to the trigger.
+     Never a second question-mark design, never a generic tooltip.
 
    Both are outward-facing. No dealer management controls live here.
    Canary: PFC274 = 62 — /api/evaluate untouched.
@@ -45,7 +51,8 @@ export function DealerContactPanel({
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // Escape closes; focus returns to the button that opened it.
+  // Escape closes with focus returned; outside activation closes without
+  // stealing focus — the overlay conventions the help language set.
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -55,8 +62,17 @@ export function DealerContactPanel({
         buttonRef.current?.focus();
       }
     };
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || buttonRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [open]);
 
   return (
@@ -149,45 +165,31 @@ export function DealerContactPanel({
 }
 
 export function DealerTrustMark() {
-  const [open, setOpen] = useState(false);
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="inline-flex min-h-[28px] items-center gap-1.5 border border-[var(--border-subtle)] px-2 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum-dim)]"
-      >
+    <span className="flex items-center gap-0.5">
+      <span className="inline-flex min-h-[28px] items-center border border-[var(--border-subtle)] px-2 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)]">
         FairWatchTrade Dealer
-        <span
-          aria-hidden="true"
-          className="flex h-[14px] w-[14px] items-center justify-center rounded-full border border-current text-[9px] lowercase italic"
+      </span>
+      {/* The ? and its speech bubble are the shared pattern, verbatim —
+          the bubble anchors to this span so the caret points at the ?. */}
+      <span className="relative inline-flex">
+        <HelpBubble
+          label="What FairWatchTrade Dealer means"
+          historyKey="fwtDealerTrustHelp"
+          title="A dealer storefront, reviewed like everything else"
+          bubbleClassName="left-0 top-[calc(100%+10px)] w-[330px] max-w-[86vw]"
+          caretClassName="left-[13px]"
         >
-          i
-        </span>
-      </button>
-      {open && (
-        <span
-          role="note"
-          className="absolute left-0 top-full z-40 mt-2 block w-[300px] max-w-[80vw] border border-[var(--border-subtle)] bg-[var(--ink-deep)] px-4 py-3 text-left shadow-[0_12px_30px_rgba(0,0,0,0.55)]"
-        >
-          <span className="block text-[12px] leading-[1.6] text-[var(--slate)]">
+          <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
             This seller operates a dealer storefront on FairWatchTrade. Every
             listing here passed the same review before publication as the rest
             of the marketplace, and exact photo matches are recorded across
             listings as review evidence. FairWatchTrade does not provide
             independent third-party authentication, and payment is arranged
             directly between buyer and seller.
-          </span>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)]"
-          >
-            Close
-          </button>
-        </span>
-      )}
+          </p>
+        </HelpBubble>
+      </span>
     </span>
   );
 }

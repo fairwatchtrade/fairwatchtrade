@@ -154,6 +154,19 @@ test("dealer trust mark says what FairWatchTrade actually does — nothing more"
   assert.doesNotMatch(actions, /guarantee|certified|authenticated dealer|escrow protection/i);
 });
 
+test("trust explanation speaks the ONE help-affordance language", () => {
+  // The shared HelpBubble (Layout ruling 2026-08-06) — never a second
+  // question-mark design, never a freehand tooltip panel.
+  assert.match(actions, /import HelpBubble from "@\/components\/HelpBubble"/);
+  assert.match(actions, /<HelpBubble/);
+  assert.match(actions, /historyKey="fwtDealerTrustHelp"/);
+  // The bubble anchors to its own relative span so the caret points at the ?.
+  assert.match(actions, /relative inline-flex/);
+  // The freehand vessel is gone: no role="note" panel, no circled-i glyph.
+  assert.doesNotMatch(actions, /role="note"/);
+  assert.doesNotMatch(actions, /lowercase italic/);
+});
+
 test("listing photography has a dedicated inspection state", () => {
   assert.match(gallery, /Inspect photo/);
   assert.match(gallery, /role="dialog"/);
