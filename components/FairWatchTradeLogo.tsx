@@ -68,11 +68,19 @@ const SIZES: Record<
 > = {
   /* Global header. Below lg the whole identity steps down so the mobile
      masthead (wordmark + bell + hamburger) never wraps or collides. */
+  /* v4.30 — sized up on Jason's real display (3072 CSS px wide, 32" 4K at
+     125%), where the first pass read as a trinket. 42px is the practical
+     ceiling for the h-14 (56px) masthead: 7px of air above and below, no
+     header redesign, no breakpoint move. The mark deliberately runs a
+     little larger against the wordmark than the study's 1.73 ratio — the
+     study staged a full-page identity, this one has to hold its own beside
+     five nav words on a very wide screen. Real-device observation outranks
+     the stage measurement. */
   header: {
-    mark: "h-[28px] w-[28px] lg:h-[34px] lg:w-[34px]",
-    word: "text-[17px] lg:text-[20px]",
-    watch: "text-[20px] lg:text-[24px]",
-    gap: "gap-[7px] lg:gap-[9px]",
+    mark: "h-[34px] w-[34px] lg:h-[42px] lg:w-[42px]",
+    word: "text-[18px] lg:text-[21px]",
+    watch: "text-[21px] lg:text-[25px]",
+    gap: "gap-[8px] lg:gap-[10px]",
   },
   /* Inside the mobile drawer header, beside its close control. */
   compact: {
