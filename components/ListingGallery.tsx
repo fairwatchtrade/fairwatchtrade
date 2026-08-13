@@ -200,7 +200,10 @@ export default function ListingGallery({
           role="dialog"
           aria-modal="true"
           aria-label="Photo inspection"
-          className="fixed inset-0 z-[70] flex flex-col bg-[rgba(5,6,9,0.97)]"
+          /* Opaque, deliberately: the desktop SEE-it showed page text bleeding
+             through a 97% wash and competing with the photograph. In the
+             inspection state the image is the only interface. */
+          className="fixed inset-0 z-[70] flex flex-col bg-[#05060A]"
         >
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
