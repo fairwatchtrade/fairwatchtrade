@@ -235,20 +235,24 @@ export async function buildReferenceDossierViewModel(
       : null
   );
 
+  /* Reader-facing framing in natural buyer language. The boundary itself
+     is preserved exactly — reference truth here, the individual watch with
+     the seller's listing — but the reader is never taught the database
+     architecture to understand it. */
   const exactReference: DossierSection = {
     moduleId: "EXACT_REFERENCE",
-    heading: "Exact Reference",
+    heading: "This Reference",
     paragraphs: [
-      `The governed Vault chain for reference ${referenceText} is ${brandName} → ${collectionName} → ${familyName} → ${variantName}.`,
-      "This is a reference-level artifact. It can be reused by multiple live listings only when each listing resolves to this same exact Vault reference.",
+      `${referenceText} is the ${brandName} ${variantName}, part of the ${collectionName} collection.`,
+      "This Dossier is about the reference itself — the watch as its maker specified it. Everything here applies to any example of this exact reference, not to one particular watch for sale.",
     ],
   };
   const canonicalBoundary: DossierSection = {
     moduleId: "CANONICAL_BOUNDARY",
-    heading: "Canonical Boundary",
+    heading: "About This Dossier",
     paragraphs: [
-      "Seller-specific condition, photographs, included items, service claims, asking price and seller-provided provenance are not part of this canonical reference dossier. They remain attached to the individual listing.",
-      "This dossier records the governed Vault identity available at preparation time. It does not authenticate, grade or describe the present condition of any individual watch.",
+      "Condition, service history, included items, provenance, photographs and asking price belong to the individual watch and remain part of the seller's listing.",
+      "This Dossier does not authenticate, grade or describe the present condition of any individual watch.",
     ],
   };
 

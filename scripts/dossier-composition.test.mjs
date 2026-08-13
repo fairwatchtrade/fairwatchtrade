@@ -355,6 +355,9 @@ function makeStore(over = {}) {
     async readClaimSetHash() {
       return state.currentHash;
     },
+    async readDomainUnits() {
+      return [];
+    },
     async insertAttempt(row) {
       const id = `attempt-${state.nextId++}`;
       state.attempts.set(id, { ...row, status: "composing" });

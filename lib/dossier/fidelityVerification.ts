@@ -31,6 +31,7 @@ import type {
   CompositionIdentity,
   LinkedSection,
 } from "./composition.ts";
+import type { ComposableDomainUnit } from "./domainKnowledge.ts";
 
 export const DETERMINISTIC_REFUSAL_CODES = [
   "ALTERED_OR_ADDED_VALUE",
@@ -42,6 +43,7 @@ export const DETERMINISTIC_REFUSAL_CODES = [
   "UNSUPPORTED_SIGNIFICANCE_LANGUAGE",
   "UNSUPPORTED_CHRONOLOGY_LANGUAGE",
   "UNKNOWN_CLAIM_LINKED",
+  "UNKNOWN_DOMAIN_LINKED",
 ] as const;
 export type DeterministicRefusalCode =
   (typeof DETERMINISTIC_REFUSAL_CODES)[number];
@@ -194,7 +196,7 @@ const LANGUAGE_GUARDS: { code: DeterministicRefusalCode; patterns: RegExp[] }[] 
     code: "UNSUPPORTED_SIGNIFICANCE_LANGUAGE",
     patterns: [
       /\bsought[-\s]after\b/i, /\bcollectible\b/i, /\biconic\b/i, /\blegendary\b/i,
-      /\bgrail\b/i, /\brare(st|ly)?\b/i, /\bscarce\b/i, /\bprized\b/i, /\bcoveted\b/i,
+      /\bgrail\b/i, /\brare(r|st|ly)?\b/i, /\bscarce\b/i, /\bprized\b/i, /\bcoveted\b/i,
       /\bmost important\b/i, /\bhighly regarded\b/i, /\bdesirable\b/i,
       /\binvestment\b/i, /\bsignificant\b/i, /\bcelebrated\b/i, /\brenowned\b/i,
     ],
@@ -214,9 +216,11 @@ export function deterministicFidelityCheck(
   sections: readonly LinkedSection[],
   claims: readonly ComposableClaim[],
   identity: CompositionIdentity,
-  openingIdentity?: string
+  openingIdentity?: string,
+  domainUnits: readonly ComposableDomainUnit[] = []
 ): DeterministicRefusal[] {
   const byKey = new Map(claims.map((c) => [c.claimKey, c]));
+  const byDomainKey = new Map(domainUnits.map((u) => [u.knowledgeKey, u]));
   const refusals: DeterministicRefusal[] = [];
 
   /* Governed identity is expressible everywhere: the full reference, its
@@ -230,9 +234,13 @@ export function deterministicFidelityCheck(
     moduleId: string,
     paragraphIndex: number,
     text: string,
-    claimIds: readonly string[]
+    claimIds: readonly string[],
+    domainIds: readonly string[] = []
   ) => {
     const linked = claimIds.map((id) => byKey.get(id)).filter(Boolean) as ComposableClaim[];
+    const linkedDomain = domainIds
+      .map((id) => byDomainKey.get(id))
+      .filter(Boolean) as ComposableDomainUnit[];
     for (const id of claimIds) {
       if (!byKey.has(id)) {
         refusals.push({
@@ -243,13 +251,30 @@ export function deterministicFidelityCheck(
         });
       }
     }
+    for (const id of domainIds) {
+      if (!byDomainKey.has(id)) {
+        refusals.push({
+          code: "UNKNOWN_DOMAIN_LINKED",
+          moduleId,
+          paragraphIndex,
+          detail: `paragraph links domain unit "${id}", which is not in the applicable shelf`,
+        });
+      }
+    }
 
+    // Linked material spans BOTH corpora: a paragraph may express what its
+    // reference claims state about this watch and what its domain units
+    // state about the craft — and nothing else.
     const linkedMaterial = norm(
-      linked
-        .map((c) => `${c.statement} ${(c.values ?? []).join(" ")} ${c.qualifier ?? ""}`)
-        .join(" ")
+      [
+        ...linked.map((c) => `${c.statement} ${(c.values ?? []).join(" ")} ${c.qualifier ?? ""}`),
+        ...linkedDomain.map((u) => `${u.statement} ${(u.values ?? []).join(" ")} ${u.qualifier ?? ""}`),
+      ].join(" ")
     );
-    const linkedValues = linked.flatMap((c) => c.values ?? []);
+    const linkedValues = [
+      ...linked.flatMap((c) => c.values ?? []),
+      ...linkedDomain.flatMap((u) => u.values ?? []),
+    ];
     const seen = new Set<string>();
 
     for (const tok of mechanicalTokens(text)) {
@@ -296,7 +321,7 @@ export function deterministicFidelityCheck(
   };
 
   for (const s of sections) {
-    s.paragraphs.forEach((p, i) => check(s.moduleId, i, p.text, p.claimIds));
+    s.paragraphs.forEach((p, i) => check(s.moduleId, i, p.text, p.claimIds, p.domainIds ?? []));
   }
 
   /* The opening line is identity-only: any mechanical token beyond the
@@ -317,27 +342,32 @@ export function deterministicFidelityCheck(
   /* Drift by omission: every linked claim carrying a qualifier must have
      that qualifier's anchor survive in at least one paragraph that links
      the claim. */
-  const qualifierCarried = new Map<string, boolean>();
+  const qualifierCarried = new Map<string, { qualifier: string; carried: boolean }>();
   for (const s of sections) {
     for (const p of s.paragraphs) {
       const body = norm(p.text);
-      for (const id of p.claimIds) {
-        const c = byKey.get(id);
-        if (!c?.qualifier) continue;
-        const anchor = norm(c.qualifier).split(/[,;]/)[0].slice(0, 34);
-        const prior = qualifierCarried.get(id) ?? false;
-        qualifierCarried.set(id, prior || body.includes(anchor));
+      const linkedWithQualifiers: Array<[string, string]> = [
+        ...p.claimIds
+          .map((id) => [id, byKey.get(id)?.qualifier] as const)
+          .filter((e): e is readonly [string, string] => Boolean(e[1])),
+        ...(p.domainIds ?? [])
+          .map((id) => [id, byDomainKey.get(id)?.qualifier] as const)
+          .filter((e): e is readonly [string, string] => Boolean(e[1])),
+      ].map(([id, q]) => [id, q] as [string, string]);
+      for (const [id, qualifier] of linkedWithQualifiers) {
+        const anchor = norm(qualifier).split(/[,;]/)[0].slice(0, 34);
+        const prior = qualifierCarried.get(id)?.carried ?? false;
+        qualifierCarried.set(id, { qualifier, carried: prior || body.includes(anchor) });
       }
     }
   }
-  for (const [id, carried] of qualifierCarried) {
-    if (!carried) {
-      const c = byKey.get(id);
+  for (const [id, entry] of qualifierCarried) {
+    if (!entry.carried) {
       refusals.push({
         code: "OMITTED_QUALIFIER",
         moduleId: "ARTICLE",
         paragraphIndex: -1,
-        detail: `${id} requires the qualifier "${c?.qualifier}" and no paragraph linking it carries the qualifier`,
+        detail: `${id} requires the qualifier "${entry.qualifier}" and no paragraph linking it carries the qualifier`,
       });
     }
   }

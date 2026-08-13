@@ -29,6 +29,7 @@
    ════════════════════════════════════════════════════════════════════════ */
 
 import type { ClaimClass } from "./claimAdmission.ts";
+import type { ComposableDomainUnit } from "./domainKnowledge.ts";
 
 /** The slice of a persisted claim the composition layer needs. */
 export type ComposableClaim = {
@@ -53,8 +54,15 @@ export type CompositionIdentity = {
   reference: string;
 };
 
-/** Internal composition shape. `claimIds` never reaches a reader. */
-export type LinkedParagraph = { text: string; claimIds: string[] };
+/** Internal composition shape. Neither id list ever reaches a reader.
+    `claimIds` name exact-reference claims; `domainIds` name governed
+    domain-knowledge units — the typed dual linkage the verifiers need to
+    know which scope each permission carries. */
+export type LinkedParagraph = {
+  text: string;
+  claimIds: string[];
+  domainIds: string[];
+};
 export type LinkedSection = {
   moduleId: string;
   heading: string;
@@ -73,6 +81,7 @@ export const COMPOSITION_REFUSAL_CODES = [
   "COMPOSER_OUTPUT_MALFORMED",
   "PARAGRAPH_WITHOUT_CLAIM_LINKAGE",
   "UNKNOWN_CLAIM_LINKED",
+  "UNKNOWN_DOMAIN_LINKED",
   "INELIGIBLE_CLAIM_LINKED",
   "STALE_CLAIM_BASIS",
   "COMPOSER_UNAVAILABLE",
@@ -126,10 +135,12 @@ export type CompositionStructureRefusal = {
 
 export function parseComposerOutput(
   raw: string,
-  eligibleKeys: readonly string[]
+  eligibleKeys: readonly string[],
+  eligibleDomainKeys: readonly string[] = []
 ): { composition: ParsedComposition | null; refusals: CompositionStructureRefusal[] } {
   const refusals: CompositionStructureRefusal[] = [];
   const eligible = new Set(eligibleKeys);
+  const eligibleDomain = new Set(eligibleDomainKeys);
 
   let parsed: unknown;
   try {
@@ -187,7 +198,7 @@ export function parseComposerOutput(
     }
     const paragraphs: LinkedParagraph[] = [];
     for (const [pi, p] of (s.paragraphs as unknown[]).entries()) {
-      const par = p as { text?: unknown; claimIds?: unknown };
+      const par = p as { text?: unknown; claimIds?: unknown; domainIds?: unknown };
       if (typeof par.text !== "string" || !par.text.trim()) {
         refusals.push({
           code: "COMPOSER_OUTPUT_MALFORMED",
@@ -195,15 +206,20 @@ export function parseComposerOutput(
         });
         continue;
       }
-      if (!Array.isArray(par.claimIds) || par.claimIds.length === 0) {
+      const claimIds = Array.isArray(par.claimIds)
+        ? par.claimIds.filter((c): c is string => typeof c === "string")
+        : [];
+      const domainIds = Array.isArray(par.domainIds)
+        ? par.domainIds.filter((c): c is string => typeof c === "string")
+        : [];
+      if (claimIds.length === 0 && domainIds.length === 0) {
         refusals.push({
           code: "PARAGRAPH_WITHOUT_CLAIM_LINKAGE",
-          detail: `section ${s.moduleId} paragraph ${pi} names no claims`,
+          detail: `section ${s.moduleId} paragraph ${pi} names no governing material`,
         });
         continue;
       }
-      const ids = par.claimIds.filter((c): c is string => typeof c === "string");
-      for (const id of ids) {
+      for (const id of claimIds) {
         if (!eligible.has(id)) {
           refusals.push({
             code: "UNKNOWN_CLAIM_LINKED",
@@ -211,7 +227,15 @@ export function parseComposerOutput(
           });
         }
       }
-      paragraphs.push({ text: par.text.trim(), claimIds: ids });
+      for (const id of domainIds) {
+        if (!eligibleDomain.has(id)) {
+          refusals.push({
+            code: "UNKNOWN_DOMAIN_LINKED",
+            detail: `section ${s.moduleId} paragraph ${pi} links domain unit "${id}", which is not in the applicable shelf`,
+          });
+        }
+      }
+      paragraphs.push({ text: par.text.trim(), claimIds, domainIds });
     }
     if (paragraphs.length > 0) {
       sections.push({ moduleId: s.moduleId, heading: s.heading.trim(), paragraphs });
@@ -254,6 +278,12 @@ export const SEMANTIC_REFUSAL_CODES = [
   "CHRONOLOGY_DRIFT",
   "REFERENCE_CONFLATION",
   "OMITTED_QUALIFIER",
+  /* A factual general-horology assertion with no linked domain unit —
+     model-memory knowledge sneaking in as connective tissue. */
+  "UNSUPPORTED_GENERAL_KNOWLEDGE",
+  /* Present-condition, wearability, lighting-observation or real-world
+     use/safety implications never evidenced. */
+  "INVENTED_CONDITION_OR_USE",
 ] as const;
 export type SemanticRefusalCode = (typeof SEMANTIC_REFUSAL_CODES)[number];
 
@@ -305,9 +335,11 @@ export function parseVerifierOutput(raw: string): {
 export function composerSystemPrompt(): string {
   return `You are the writer of a reference-level article about one exact wristwatch reference, published by a curated marketplace for experienced collectors.
 
-You receive GOVERNED IDENTITY (brand, collection, model, reference) and GOVERNED CLAIMS. These are the only facts you may use.
+You receive GOVERNED IDENTITY (brand, collection, model, reference), GOVERNED CLAIMS about this exact reference, and APPLICABLE DOMAIN KNOWLEDGE — governed, reusable horology knowledge already determined to apply to this watch. These are the only facts you may use.
 
 Your job: write the most engaging, natural, collector-literate article you can from the supplied governed material. Research, evidence and admission were done elsewhere and are not your concern — the writing is.
+
+THE RHYTHM. This watch is the spine of the article. Step outward into the supplied domain knowledge when it genuinely teaches the reader something — what a beat rate means, what a feature does, where a design element comes from — then return to this watch. reference, craft, understanding, reference. A reader who never buys this watch should still leave knowing more about watches. But the article must keep returning to this exact reference: it is a feature about one watch that opens doors, never a glossary with a watch attached.
 
 You may, and should:
 - reorganize and synthesize the claims into a real narrative, not a list;
@@ -318,13 +350,15 @@ You may, and should:
 - write with warmth and specificity, as if you have the watch in front of you.
 
 The factual walls — these are absolute:
-- no new factual claims of any kind: no number, date, measurement, material, identifier or specification beyond the claims;
+- no new factual claims of any kind: no number, date, measurement, material, identifier or specification beyond the claims and domain knowledge supplied;
+- every factual general-horology statement must come from a supplied domain unit and be linked through "domainIds" — if no unit covers it, leave it out, however true it feels;
 - no causality or manufacturer/designer intent unless a claim states it;
 - no new chronology or temporal relations between events;
 - no new attribution — never put a statement in a named source's mouth;
 - no rarity, scarcity, market, demand, investment or collector-reception claims;
 - no identity beyond the supplied material — never import sibling references or other models;
-- never convert a model-specification claim into a statement about an individual watch's present condition;
+- never convert a model-specification claim into a statement about an individual watch's present condition, its real-world durability, or what the owner may safely do with it;
+- never invent physical observations under specific light, angles or conditions, and never assert wearability or on-wrist behaviour beyond what the supplied material states;
 - never mention evidence, claims, sources, verification, research, AI, or this process in the article text.
 
 Vivid but non-factual is the line: "the grey dial keeps the temperature of the whole composition low" is writing; "the grey dial was a limited option" is a factual claim you may not invent.
@@ -332,8 +366,11 @@ Vivid but non-factual is the line: "the grey dial keeps the temperature of the w
 Known temptations — refuse them yourself:
 - temporal-span words unless a claim carries them: "decades", "centuries", "since <year>", "revived", "pioneered", "first use", "always been";
 - what a line, model or detail "is known for", "is recognisable as", "has become", or what "standard" it represents;
-- what the object was "conceived as", "built to be", or "meant for" — that is intent;
-- rarity and reception words: "iconic", "sought-after", "rare", "collectible", "prized".
+- what the object was "conceived as", "built to be", or "meant for" — that is intent; so is the single word "deliberately";
+- rarity and reception words: "iconic", "sought-after", "rare", "collectible", "prized";
+- specific finishes, materials, link shapes or construction details no claim states: "polished", "brushed", "gold", "steel", "rounded links". If the supplied material says "two-tone" or "bicoloured", that is exactly as specific as you may be;
+- explaining WHY a name, number or feature is what it is ("the calibre gives the reference its designation", "that fine division is what lets the chronograph read…") — connection between two supplied facts is still a new causal fact;
+- extending a domain unit beyond its own sentence. The unit licenses what it states, not the field of knowledge around it.
 A history claim gives you its stated fact, not a licence to narrate the span between its date and today.
 
 Where a claim carries a "qualifier", include the qualifier's wording essentially verbatim — light grammatical fitting only, never a loose paraphrase — inside a paragraph that uses the claim. The qualifier text was written to be reader-usable; carry it.
@@ -342,20 +379,23 @@ Reserve causal connectives — "because", "so that", "therefore", "in order to",
 
 Structure: fewer, fuller sections over many thin ones; a section should earn its heading. Let the article read as one considered piece with a beginning, a middle and an end — not a list of rooms. A short article from few claims is fine, but make every sentence in it worth reading.
 
-Every paragraph must name, in "claimIds", the exact claim keys that permit it to exist. The opening identity line uses only the governed identity and needs no claimIds.
+Every paragraph must name the exact governed material that permits it to exist: reference claim keys in "claimIds", domain knowledge keys in "domainIds". A paragraph may carry either or both, but never neither. The opening identity line uses only the governed identity and needs no linkage.
+
+Linkage is judged PER PARAGRAPH: each paragraph is verified against only the material it names. If a paragraph so much as mentions a fact from any supplied claim or unit — even one already used elsewhere — link that claim or unit in that paragraph too. An echo without its link is a violation, however faithful the echo.
 
 Answer with JSON only:
-{"openingIdentity":"...","sections":[{"moduleId":"UPPER_SNAKE","heading":"...","paragraphs":[{"text":"...","claimIds":["..."]}]}]}`;
+{"openingIdentity":"...","sections":[{"moduleId":"UPPER_SNAKE","heading":"...","paragraphs":[{"text":"...","claimIds":["..."],"domainIds":["..."]}]}]}`;
 }
 
 export function composerUserPrompt(
   identity: CompositionIdentity,
-  claims: readonly ComposableClaim[]
+  claims: readonly ComposableClaim[],
+  domainUnits: readonly ComposableDomainUnit[] = []
 ): string {
   return (
     "GOVERNED IDENTITY:\n" +
     JSON.stringify(identity, null, 1) +
-    "\n\nGOVERNED CLAIMS:\n" +
+    "\n\nGOVERNED CLAIMS (about this exact reference — link via claimIds):\n" +
     JSON.stringify(
       claims.map((c) => ({
         claimKey: c.claimKey,
@@ -366,6 +406,17 @@ export function composerUserPrompt(
       })),
       null,
       1
+    ) +
+    "\n\nAPPLICABLE DOMAIN KNOWLEDGE (reusable craft/context — link via domainIds):\n" +
+    JSON.stringify(
+      domainUnits.map((u) => ({
+        domainKey: u.knowledgeKey,
+        knowledgeClass: u.knowledgeClass,
+        statement: u.statement,
+        ...(u.qualifier ? { qualifier: u.qualifier } : {}),
+      })),
+      null,
+      1
     )
   );
 }
@@ -373,16 +424,20 @@ export function composerUserPrompt(
 export function verifierSystemPrompt(): string {
   return `You are a fidelity verifier for a watch reference article.
 
-You receive an article as sections of paragraphs. Each paragraph names its LINKED CLAIMS — the only claims that paragraph is permitted to express. You never receive, and never ask for, the reasoning of whoever wrote the prose.
+You receive an article as sections of paragraphs. Each paragraph names its LINKED MATERIAL — exact-reference claims and/or governed domain-knowledge units. That linked material is the only thing the paragraph is permitted to express. You never receive, and never ask for, the reasoning of whoever wrote the prose.
 
-Your only jurisdiction: does each paragraph say only what its linked claims permit it to say?
+Your only jurisdiction: does each paragraph say only what its linked material permits it to say?
+
+The two scopes matter: a reference claim licenses statements about THIS watch; a domain unit licenses general statements about the craft, feature or standard it covers — never new statements about this specific watch. A paragraph may weave both, but each factual assertion must be licensed by material of the right scope.
 
 Rules:
 - Judge each paragraph against ITS OWN linked claims, not the article's claims as a whole. A fact supported elsewhere in the article but not by this paragraph's linked claims is drift in this paragraph.
 - Rewording, reordering and connective language are NOT drift.
-- Vivid, evocative, NON-FACTUAL descriptive language is NOT drift: metaphor, visual characterization and texture applied to admitted elements assert no verifiable fact and require no claim support. Only assertions with factual content need a claim behind them.
-- Any fact, number, date, identifier, attribution, causal relation, temporal relation, rarity, collector-reception or market-importance assertion not supported by the paragraph's linked claims IS drift — however beautifully it is phrased.
-- A linked claim carrying a "qualifier" requires that qualifier's meaning to survive in a paragraph using the claim. Dropping it is drift.
+- Vivid, evocative, NON-FACTUAL descriptive language is NOT drift: metaphor, visual characterization and texture applied to admitted elements assert no verifiable fact and require no claim support. Only assertions with factual content need linked material behind them.
+- Any fact, number, date, identifier, attribution, causal relation, temporal relation, rarity, collector-reception or market-importance assertion not supported by the paragraph's linked material IS drift — however beautifully it is phrased.
+- A factual general-horology assertion (mechanics, standards, feature history, how watches work) with no linked domain unit covering it is drift: code UNSUPPORTED_GENERAL_KNOWLEDGE. Model-memory truth is still drift.
+- Present-condition, wearability, durability, lighting-observation or real-world use/safety implications beyond the linked material are drift: code INVENTED_CONDITION_OR_USE. A model specification licenses the specification, not what the owner may do with the watch today.
+- A linked claim or domain unit carrying a "qualifier" requires that qualifier's meaning to survive in a paragraph using it. Dropping it is drift.
 - The governed identity (brand, collection, model, reference) may be named anywhere without linkage.
 - Do not score. Do not express confidence. Do not judge writing quality. Report only named refusals.
 
@@ -395,9 +450,11 @@ export function verifierUserPrompt(
   identity: CompositionIdentity,
   openingIdentity: string,
   sections: readonly LinkedSection[],
-  claims: readonly ComposableClaim[]
+  claims: readonly ComposableClaim[],
+  domainUnits: readonly ComposableDomainUnit[] = []
 ): string {
   const byKey = new Map(claims.map((c) => [c.claimKey, c]));
+  const byDomainKey = new Map(domainUnits.map((u) => [u.knowledgeKey, u]));
   const payload = sections.map((s) => ({
     moduleId: s.moduleId,
     heading: s.heading,
@@ -410,10 +467,23 @@ export function verifierUserPrompt(
           ? {
               claimKey: c.claimKey,
               claimClass: c.claimClass,
+              scope: "this exact reference",
               statement: c.statement,
               ...(c.qualifier ? { qualifier: c.qualifier } : {}),
             }
           : { claimKey: id, missing: true };
+      }),
+      linkedDomainKnowledge: p.domainIds.map((id) => {
+        const u = byDomainKey.get(id);
+        return u
+          ? {
+              domainKey: u.knowledgeKey,
+              knowledgeClass: u.knowledgeClass,
+              scope: "general craft/context — licenses no new statement about this specific watch",
+              statement: u.statement,
+              ...(u.qualifier ? { qualifier: u.qualifier } : {}),
+            }
+          : { domainKey: id, missing: true };
       }),
     })),
   }));

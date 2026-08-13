@@ -258,8 +258,10 @@ function hostOf(url: string | null): string | null {
   }
 }
 
-/** Evidence refusals shared by every class that requires citation. */
-function evidenceRefusals(evidence: ClaimEvidence[]): RefusalCode[] {
+/** Evidence refusals shared by every class that requires citation. Exported
+    for the sibling domain-knowledge corpus, which cites under the same
+    shape law. */
+export function evidenceRefusals(evidence: ClaimEvidence[]): RefusalCode[] {
   const out: RefusalCode[] = [];
   if (evidence.length === 0) return ["MISSING_EVIDENCE"];
   for (const e of evidence) {

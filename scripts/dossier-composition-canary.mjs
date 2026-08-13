@@ -102,6 +102,26 @@ const store = {
     if (error) throw new Error(`claim-set hash failed: ${error.message}`);
     return data ?? null;
   },
+  async readDomainUnits() {
+    const { data, error } = await db
+      .from("collector_dossier_domain_knowledge")
+      .select("id, knowledge_key, knowledge_class, concept_key, admission, evidence_binding, statement, values, qualifier, applicability")
+      .eq("lifecycle", "current")
+      .order("knowledge_key");
+    if (error) throw new Error(`domain shelf read failed: ${error.message}`);
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      knowledgeKey: r.knowledge_key,
+      knowledgeClass: r.knowledge_class,
+      conceptKey: r.concept_key,
+      admission: r.admission,
+      evidenceBinding: r.evidence_binding ?? "UNBOUND",
+      statement: r.statement,
+      values: Array.isArray(r.values) ? r.values : [],
+      qualifier: r.qualifier,
+      applicability: Array.isArray(r.applicability) ? r.applicability : [],
+    }));
+  },
   async insertAttempt(row) {
     if (!APPLY) {
       const id = `dry-attempt-${++dryCounter}`;
@@ -115,6 +135,8 @@ const store = {
         claim_set_hash: row.claimSetHash,
         input_claim_keys: row.inputClaimKeys,
         input_claim_count: row.inputClaimCount,
+        input_domain_ids: row.inputDomainIds ?? [],
+        input_domain_keys: row.inputDomainKeys ?? [],
         status: "composing",
       })
       .select("id")
@@ -199,6 +221,7 @@ console.log(`status:          ${result.status}`);
 console.log(`attempt:         ${result.attemptId}`);
 console.log(`claim-set hash:  ${result.claimSetHash}`);
 console.log(`input claims:    ${result.inputClaimKeys.length} — ${result.inputClaimKeys.join(", ")}`);
+console.log(`domain units:    ${result.inputDomainKeys.length} — ${result.inputDomainKeys.join(", ")}`);
 if (result.detail) console.log(`detail:          ${result.detail}`);
 
 for (const r of result.structureRefusals) console.log(`  STRUCTURE ${r.code} — ${r.detail}`);
@@ -212,7 +235,7 @@ if (result.linkedSections) {
     console.log(`## ${s.heading}  [${s.moduleId}]`);
     for (const p of s.paragraphs) {
       console.log(`\n${p.text}`);
-      console.log(`   ↳ claims: ${p.claimIds.join(", ")}`);
+      console.log(`   ↳ claims: ${p.claimIds.join(", ") || "—"}   domain: ${(p.domainIds ?? []).join(", ") || "—"}`);
     }
     console.log("");
   }
