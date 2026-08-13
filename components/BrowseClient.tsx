@@ -1464,19 +1464,28 @@ export default function BrowseClient({
           </div>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-          {/* Sort — a single dropdown, the control collectors already know
-              from every other marketplace, and the one shape that absorbs a
-              new ordering as one more line instead of another button competing
-              for this bar. It borrows the neighbouring controls' type and
-              border, and turns gold on the same rule they do: the room says
-              plainly when it is no longer in its default order.
+        {/* Sort + page size — SIBLINGS of the view toggle, not a nested
+            right-hand wrapper. The real-device pass exposed why the wrapper
+            was a defect: real device font metrics tipped the whole wrapped
+            group below the toggle, and its INNER wrap then stacked Sort and
+            20/40/ALL on separate lines — three rows of controls before any
+            watch. As direct bar children with phone-only order utilities,
+            the cluster folds into TWO deliberate rows: view toggle with the
+            page sizes beside it, Sort beneath — and Sort's dropdown (whose
+            widest option sets its width) can never force a third row.
+            Desktop's single nowrap line is visually identical to before. */}
+        {/* Sort — a single dropdown, the control collectors already know
+            from every other marketplace, and the one shape that absorbs a
+            new ordering as one more line instead of another button competing
+            for this bar. It borrows the neighbouring controls' type and
+            border, and turns gold on the same rule they do: the room says
+            plainly when it is no longer in its default order.
 
-              "Default" is deliberately not "Featured" — nothing is featured
-              here, and the underlying query carries no ORDER BY, so a word
-              promising an editorial or recency order would be a claim the
-              data does not support. */}
-          <div className="flex items-center gap-2">
+            "Default" is deliberately not "Featured" — nothing is featured
+            here, and the underlying query carries no ORDER BY, so a word
+            promising an editorial or recency order would be a claim the
+            data does not support. */}
+        <div className="order-last ml-auto flex items-center gap-2 md:order-none">
             <label
               htmlFor="browse-sort"
               className={`uppercase tracking-[1px] ${
@@ -1508,26 +1517,28 @@ export default function BrowseClient({
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
-            {([20, 40, "all"] as const).map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setPageSize(n)}
-                className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                  dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
-                } ${
-                  pageSize === n
-                    ? "border-[var(--border-gold)] text-[var(--gold)]"
-                    : dealerScope
-                      ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
-                      : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
-                }`}
-              >
-                {n === "all" ? "All" : n}
-              </button>
-            ))}
-          </div>
+        {/* Desktop: ml-4 replaces the retired wrapper's gap-x-4 after Sort.
+            Phone: ml-auto seats the page sizes at the right end of the view-
+            toggle row (Sort has moved to its own row via order-last). */}
+        <div className="ml-auto flex items-center gap-1 md:ml-4">
+          {([20, 40, "all"] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPageSize(n)}
+              className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
+                dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
+              } ${
+                pageSize === n
+                  ? "border-[var(--border-gold)] text-[var(--gold)]"
+                  : dealerScope
+                    ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                    : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+              }`}
+            >
+              {n === "all" ? "All" : n}
+            </button>
+          ))}
         </div>
       </div>
 
