@@ -1399,8 +1399,10 @@ export default function BrowseClient({
           {/* v1.60 — absent from the DOM in Collector View, not grayed out:
               once Collector is always grid-cols-1, this toggle would
               control nothing while sitting on screen implying it does. */}
+          {/* Desktop-only: below md the Gallery is always two columns, so
+              3-WIDE / 4-WIDE would name a choice the phone does not offer. */}
           {viewMode === "gallery" && (
-            <div className="flex items-center gap-1">
+            <div className="hidden items-center gap-1 md:flex">
               {([3, 4] as const).map((n) => (
                 <button
                   key={n}
@@ -1600,13 +1602,20 @@ export default function BrowseClient({
               // v1.61 — Collector View: stacked block, not a grid. space-y-*
               // utilities don't apply inside `grid`, so Collector gets its
               // own flex flex-col wrapper with real vertical gutters instead
-              // of the old gap-px background-bleed hack. Gallery View's grid
-              // wrapper is untouched — byte-for-byte the same as v1.60.
+              // of the old gap-px background-bleed hack. Gallery View keeps the
+              // same grid wrapper; only its phone column count has changed.
               className={
                 viewMode === "collector"
                   ? "flex flex-col space-y-6 md:space-y-8"
-                  : `grid gap-px bg-[var(--border-faint)] ${
-                      gridCols === 3 ? "grid-cols-3" : "grid-cols-4"
+                  : /* The column count is a DESKTOP density choice. A phone is
+                       ~412px wide: three columns leave a 95px card holding a
+                       44px watch, which is how the 4:3 frame could be correct
+                       and the watch still be a postage stamp. Below md the
+                       grid is two columns — the frame doubles, the watch
+                       doubles with it, and the thumbnail is occupied rather
+                       than merely inhabited. Desktop keeps 3/4 exactly. */
+                    `grid gap-px bg-[var(--border-faint)] grid-cols-2 ${
+                      gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"
                     }`
               }
             >
@@ -1688,7 +1697,11 @@ export default function BrowseClient({
                           </div>
                         )}
                         {docBadge && (
-                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--border-gold)] bg-[rgba(12,11,9,0.65)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
+                          /* 8px is a decorative size, and FULL SET / PAPERS
+                             ONLY is status text a collector reads. On a phone
+                             it reads at 10px on one line inside the wider
+                             two-column frame; desktop keeps its 8px badge. */
+                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--border-gold)] bg-[rgba(12,11,9,0.65)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] md:text-[8px]">
                             {docBadge}
                           </span>
                         )}

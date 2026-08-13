@@ -76,8 +76,13 @@ ok(
 
 /* ── Save affordance: exactly one per screen state ── */
 ok(
-  "SaveSearchControl renders only when results exist",
-  browse.includes("{paginated.length > 0 && <SaveSearchControl")
+  "SaveSearchControl renders only when results exist, and only once",
+  // The law is the affordance, not the exact guard expression: the control
+  // never appears without results, and never twice on one screen (the empty
+  // state owns its own inline "save it"). The dealer-scoped Browse added a
+  // second condition AHEAD of the results guard, so match the guard itself.
+  /paginated\.length > 0 && \(\s*<SaveSearchControl/.test(browse) &&
+    (browse.match(/<SaveSearchControl/g) ?? []).length === 1
 );
 
 /* ── Caret law (the Galaxy mid-query editing defect) ── */

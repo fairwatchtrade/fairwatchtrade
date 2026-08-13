@@ -46,6 +46,29 @@ for (const cls of ["relative", "aspect-[4/3]", "w-full", "overflow-hidden", "md:
 }
 ok("mobile media well is a short 4:3 frame at full card width; desktop keeps h-[140px]");
 
+/* ── 1b · The phone grid is two columns; 3/4-wide is a desktop density ── */
+const wrapperStart = src.indexOf('"flex flex-col space-y-6 md:space-y-8"');
+assert.ok(wrapperStart > 0, "the results wrapper must still choose between Collector stack and Gallery grid");
+const gridWrapper = src.slice(wrapperStart, src.indexOf("{paginated.map"));
+assert.ok(gridWrapper.includes("grid-cols-2"), "below md the Gallery grid must be two columns");
+assert.ok(
+  gridWrapper.includes('gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"'),
+  "the 3/4 density choice must apply at md and above only"
+);
+assert.ok(
+  !/(^|[^:])\bgrid-cols-[34]\b/.test(gridWrapper.replace(/md:grid-cols-[34]/g, "")),
+  "no unprefixed 3- or 4-column class may reach a phone"
+);
+const densityControl = src.slice(
+  src.indexOf("{viewMode === \"gallery\" && ("),
+  src.indexOf("{n}-wide")
+);
+assert.ok(
+  densityControl.includes("hidden items-center gap-1 md:flex"),
+  "the 3-WIDE / 4-WIDE control must be desktop-only — a phone is not offered that choice"
+);
+ok("phone Gallery is two columns; the 3/4-wide density control is desktop-only");
+
 /* ── 2 · Whole-watch preservation: contain fallback, never blind cover ─ */
 assert.ok(gallery.includes("object-contain"), "contain fallback must exist");
 assert.ok(!gallery.includes("object-cover"), "no blind object-cover class in the Gallery branch — cover may only arrive via a seller-authored inline frame style");
@@ -68,7 +91,12 @@ assert.ok(badgeIdx > frameIdx, "FULL SET badge must live inside the media frame"
 assert.ok(gallery.includes("left-1.5 top-1.5"), "shield anchors to the frame's top-left");
 assert.ok(gallery.includes("right-1.5 top-1.5"), "doc badge anchors to the frame's top-right");
 assert.ok(frameDiv.includes("relative"), "the frame is the badges' positioning context");
-ok("🛡️ and FULL SET anchor to the actual media frame — opposite corners, no collision");
+// FULL SET / PAPERS ONLY is status text, not decoration: on a phone it reads
+// at 10px (8px wrapped inside its own pill in the old narrow frame).
+const docBadgeTag = gallery.slice(gallery.indexOf("docBadge && ("), gallery.indexOf("{docBadge}"));
+assert.ok(docBadgeTag.includes("text-[10px]"), "the doc badge must read at 10px on a phone");
+assert.ok(docBadgeTag.includes("md:text-[8px]"), "desktop keeps its 8px badge");
+ok("🛡️ and FULL SET anchor to the actual media frame — opposite corners, no collision, badge readable on a phone");
 
 /* ── 5 · Card navigation intact ──────────────────────────────────────── */
 assert.ok(gallery.includes("href={listingHref(row.id)}"), "gallery card must still link to the listing");
@@ -100,16 +128,30 @@ assert.equal(rot.width, "75%", "swapped box: width = container height at 4:3");
 assert.equal(rot.height, "133.333%", "swapped box: height = container width at 4:3");
 ok("authored frames render exactly as approved on the 4:3 stage — focal, zoom band, rotation geometry");
 
-/* ── 9 · Source-fixture matrix: old shaft vs new frame ────────────────
-   Real XCover numbers: ~412px CSS viewport, 3-column grid → 137.33px card.
-   Old: p-7 (56px) → 81.33w × 140h well. New: p-3 (24px) → 113.33w × 85h.
-   object-contain displayed size for every source shape in the order. */
+/* ── 9 · Source-fixture matrix: old shaft vs 4:3 frame vs two-up ──────
+   Real XCover geometry: 412px CSS viewport, px-6 page padding (48), p-3 card
+   padding (24), 1px grid gutters. Three stages are compared:
+     OLD    pre-v3.30 — 3 columns, p-7, fixed 140px well → 81.33w × 140h shaft
+     THREE  v3.30     — 3 columns, responsive 4:3 frame
+     TWO    now       — 2 columns, the same 4:3 frame
+   The 4:3 frame removed the dead shaft; the column count is what decides
+   whether the watch is substantial. Both must hold at once. */
 const contain = (fw, fh, aspect) =>
   aspect > fw / fh ? { w: fw, h: fw / aspect } : { w: fh * aspect, h: fh };
+const frameFor4x3 = (cols) => {
+  const w = (412 - 48 - (cols - 1)) / cols - 24;
+  return { w, h: w * (3 / 4) };
+};
 const OLD = { w: 137.33 - 56, h: 140 };
-const NEW = { w: 137.33 - 24, h: (137.33 - 24) * (3 / 4) };
-assert.ok(NEW.h < OLD.h * 0.62, "the towering shaft is gone — frame height drops from 140px to ~85px");
-assert.ok(NEW.w > OLD.w * 1.35, "the frame takes the full available card width");
+const THREE = frameFor4x3(3);
+const NEW = frameFor4x3(2);
+assert.ok(THREE.h < OLD.h * 0.62, "the towering shaft is gone — frame height drops from 140px to ~72px");
+assert.ok(THREE.w > OLD.w * 1.15, "the 4:3 frame takes the full available card width");
+assert.ok(NEW.w > THREE.w * 1.55, "two-up: the frame itself is decisively wider than the three-up frame");
+assert.ok(
+  (NEW.w * NEW.h) / (THREE.w * THREE.h) > 2.4,
+  "two-up: the media frame gains well over twice the area on a phone"
+);
 
 const fixtures = [
   ["wide landscape photography (16:9)", 16 / 9],
@@ -121,7 +163,19 @@ const fixtures = [
 ];
 for (const [label, aspect] of fixtures) {
   const before = contain(OLD.w, OLD.h, aspect);
+  const three = contain(THREE.w, THREE.h, aspect);
   const after = contain(NEW.w, NEW.h, aspect);
+  // Whatever the source shape, the watch is decisively larger two-up than it
+  // was three-up — this is the seam the real XCover pass reported as "the
+  // watch is visually too small" even after the shaft was gone.
+  assert.ok(
+    after.w > three.w * 1.55 && after.h > three.h * 1.55,
+    `${label}: the watch must render decisively larger two-up (was ${three.w.toFixed(1)}x${three.h.toFixed(1)}, now ${after.w.toFixed(1)}x${after.h.toFixed(1)})`
+  );
+  assert.ok(
+    (after.w * after.h) / (NEW.w * NEW.h) >= (three.w * three.h) / (THREE.w * THREE.h) - 0.001,
+    `${label}: the share of the thumbnail the watch occupies must not fall`
+  );
   const deadBefore = OLD.h - before.h; // vertical dead matte, the reported shaft
   const deadAfter = NEW.h - after.h;
   assert.ok(after.w <= NEW.w + 0.01 && after.h <= NEW.h + 0.01, `${label}: whole image stays inside the frame`);
@@ -140,8 +194,15 @@ for (const [label, aspect] of fixtures) {
 // The worst reported case, stated exactly: a 16:9 landscape photo.
 const worstOld = contain(OLD.w, OLD.h, 16 / 9);
 const worstNew = contain(NEW.w, NEW.h, 16 / 9);
+// Stated as a PROPORTION of the frame: a bigger frame may hold more absolute
+// letterbox pixels while wasting far less of itself, which is the whole point.
 assert.ok(OLD.h - worstOld.h > 90, "old: >90px of dead shaft above+below a landscape photo");
-assert.ok(NEW.h - worstNew.h < 25, "new: <25px of letterbox for the same photo");
+assert.ok((OLD.h - worstOld.h) / OLD.h > 0.6, "old: the shaft wasted most of the well's height");
+assert.ok(
+  (NEW.h - worstNew.h) / NEW.h <= 0.2501,
+  "new: the same photo letterboxes only the 25% a 16:9 source must inside a 4:3 frame"
+);
+assert.ok(worstNew.w > worstOld.w * 1.9, "new: that landscape watch renders nearly twice as wide as the old shaft allowed");
 ok("fixture matrix: every source shape — landscape, portrait, square, long-bracelet — loses its dead shaft; landscape watches render decisively larger");
 
 /* ── 10 · One consistent treatment across dark/light sources ─────────── */
