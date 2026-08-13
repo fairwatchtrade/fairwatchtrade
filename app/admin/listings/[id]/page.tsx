@@ -189,10 +189,34 @@ export default async function ListingReviewPage({
   let listing: Record<string, unknown> | null = null;
   let panelPhotos: PanelPhoto[] = [];
   let panelReview: PanelReview = null;
+  /* ── Next-in-queue (founder request, 2026-08-12): adjudicating one listing
+        must not dead-end back at the Operations Center list. The oldest OTHER
+        pending_review listing is fetched alongside this one so the header can
+        always offer the next stop — computed at load, so it stays correct
+        right after a decision on THIS listing changes its status. ── */
+  let nextPending: { id: string; brand: string; model: string } | null = null;
+  let pendingCount = 0;
   try {
     const service = createServiceClient();
     const { data } = await service.from("listings").select("*").eq("id", id).maybeSingle();
     listing = data ?? null;
+
+    const { data: nextRow, count } = await service
+      .from("listings")
+      .select("id, brand, model", { count: "exact" })
+      .eq("status", "pending_review")
+      .neq("id", id)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    pendingCount = count ?? 0;
+    const first = (nextRow ?? [])[0];
+    if (first) {
+      nextPending = {
+        id: String(first.id),
+        brand: typeof first.brand === "string" ? first.brand : "—",
+        model: typeof first.model === "string" ? first.model : "",
+      };
+    }
 
     /* ── v2.24 · Aubrey evidence fetches — founder-locked tables, read only
           after the gate above, only when the listing exists. A failure in
@@ -292,9 +316,32 @@ export default async function ListingReviewPage({
   return (
     <div style={wrap}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <Link href="/admin" style={{ color: "#7aa2f7", textDecoration: "none" }}>
-          ← Operations Center
-        </Link>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <Link href="/admin" style={{ color: "#7aa2f7", textDecoration: "none" }}>
+            ← Operations Center
+          </Link>
+          {nextPending ? (
+            <Link
+              href={`/admin/listings/${nextPending.id}`}
+              style={{ color: "#e0af68", textDecoration: "none" }}
+            >
+              Next in review queue: {nextPending.brand} {nextPending.model} →
+              <span style={{ color: "#565f89", marginLeft: 8 }}>
+                ({pendingCount} waiting)
+              </span>
+            </Link>
+          ) : (
+            <span style={{ color: "#565f89" }}>Review queue clear</span>
+          )}
+        </div>
 
         <div style={{ margin: "14px 0 4px", fontSize: 18, fontWeight: 700 }}>
           {(listing.brand as string) || "—"} {(listing.model as string) || ""}

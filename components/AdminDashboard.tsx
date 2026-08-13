@@ -1,13 +1,18 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ────────────────────────────────────────────────────────────────────────
    ADMIN DASHBOARD — components/AdminDashboard.tsx  (v1.95)
 
    The operator table. Dark, minimal, information-dense — same tokens as the
-   rest of the platform, not a different product. Pure presentation: all data
-   is fetched and derived in the server page; this renders it. No client state,
-   so it stays a server component (refresh to update).
+   rest of the platform, not a different product. All data is fetched and
+   derived in the server page; this renders it. Client component since the
+   status-sort request (founder, 2026-08-12): the ONLY client state is the
+   explorer's sort mode — data still arrives as server-fetched props and
+   updates on refresh, exactly as before.
 
    Phase-2 sections are honest shells — the copy is always "Data model not yet
    available", never "No records found" / "No flags found" (those would imply
@@ -180,12 +185,44 @@ export default function AdminDashboard({
     },
   ].filter((i) => i.count > 0);
 
-  // Explorer rows: problems float to the top, then newest first.
+  /* ── Explorer ordering (founder request, 2026-08-12): the Status header
+        cycles three modes. Default keeps the original law — problems float
+        to the top, then newest first. "By status" groups rows in operator
+        work order (pending_review first, rejected last); reversed flips it.
+        Within any status group, newest first. ── */
+  const [sortMode, setSortMode] = useState<"problems" | "status" | "status_desc">(
+    "problems"
+  );
+  const STATUS_WORK_ORDER = ["pending_review", "draft", "published", "rejected"];
+  const statusRank = (l: AdminListing) => {
+    const i = STATUS_WORK_ORDER.indexOf(l.status);
+    return i === -1 ? STATUS_WORK_ORDER.length : i;
+  };
+  const newestFirst = (a: AdminListing, b: AdminListing) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
   const sortedListings = [...listings].sort((a, b) => {
+    if (sortMode === "status") {
+      const sr = statusRank(a) - statusRank(b);
+      if (sr !== 0) return sr;
+      return newestFirst(a, b);
+    }
+    if (sortMode === "status_desc") {
+      const sr = statusRank(b) - statusRank(a);
+      if (sr !== 0) return sr;
+      return newestFirst(a, b);
+    }
     const pr = problemRank(b) - problemRank(a);
     if (pr !== 0) return pr;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return newestFirst(a, b);
   });
+
+  const sortCaption =
+    sortMode === "status"
+      ? "by status · review first"
+      : sortMode === "status_desc"
+        ? "by status · reversed"
+        : "problems first";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -303,7 +340,7 @@ export default function AdminDashboard({
         <section id="explorer" className="mt-10">
           <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
             Marketplace Explorer · {listings.length} listing
-            {listings.length === 1 ? "" : "s"} · problems first
+            {listings.length === 1 ? "" : "s"} · {sortCaption}
           </div>
 
           {listings.length === 0 ? (
@@ -319,7 +356,29 @@ export default function AdminDashboard({
                     <th className="px-4 py-3 font-normal">Model</th>
                     <th className="px-4 py-3 font-normal">Reference</th>
                     <th className="px-4 py-3 font-normal">Seller</th>
-                    <th className="px-4 py-3 font-normal">Status</th>
+                    <th className="px-4 py-3 font-normal">
+                      {/* Cycles: problems first → by status → reversed. */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSortMode((m) =>
+                            m === "problems"
+                              ? "status"
+                              : m === "status"
+                                ? "status_desc"
+                                : "problems"
+                          )
+                        }
+                        title="Sort by status (click cycles: problems first → review first → reversed)"
+                        className={`uppercase tracking-[2px] transition-colors ${
+                          sortMode === "problems"
+                            ? "text-[var(--muted)] hover:text-[var(--platinum)]"
+                            : "text-[var(--gold)]"
+                        }`}
+                      >
+                        Status{sortMode === "status" ? " ↓" : sortMode === "status_desc" ? " ↑" : ""}
+                      </button>
+                    </th>
                     <th className="px-4 py-3 font-normal">Compl.</th>
                     <th className="px-4 py-3 font-normal">Signif.</th>
                     <th className="px-4 py-3 font-normal">AI</th>
