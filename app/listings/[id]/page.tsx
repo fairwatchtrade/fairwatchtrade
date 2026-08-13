@@ -622,14 +622,41 @@ export default async function ListingDetailPage({
               watch's identity, not a database footnote under the title. The
               rule beneath it starts gold with meaning and fades into the
               graphite. Absent reference omits the whole signature cleanly. */}
-          {reference && (
+          {(reference || fingerprintLines.length > 0) && (
             <div className="mt-[22px] max-w-[760px] sm:mt-[27px]">
               <span className="mb-2 block text-[10px] uppercase tracking-[0.24em] text-[var(--gold)]">
                 Reference
               </span>
-              <span className="block font-display text-[15px] leading-[1.55] tracking-[0.065em] text-[var(--platinum-dim)] sm:inline sm:text-[18px] sm:leading-[1.45] sm:tracking-[0.085em]">
-                <ReferenceValue value={reference} />
-              </span>
+              {/* Founder composition ruling (2026-08-12, delivered in MS
+                  Paint): the Collector Fingerprint facts share the
+                  reference's baseline instead of standing stranded in their
+                  own band below the rule. One wrapped row — reference first,
+                  then the facts with their gold separators; the same
+                  overflow-hidden clip keeps a wrapped line from ever leading
+                  with a dot. */}
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 overflow-hidden sm:gap-x-7">
+                {reference && (
+                  <span className="font-display text-[15px] leading-[1.55] tracking-[0.065em] text-[var(--platinum-dim)] sm:text-[18px] sm:leading-[1.45] sm:tracking-[0.085em]">
+                    <ReferenceValue value={reference} />
+                  </span>
+                )}
+                {fingerprintLines.flat().map((fact, i) => (
+                  <span
+                    key={fact}
+                    className="relative font-display text-[16px] leading-[1.7] text-[var(--platinum-dim)] sm:text-[18px] sm:leading-[1.55]"
+                  >
+                    {i > 0 && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-y-0 -left-2 flex items-center text-[12px] text-[var(--gold-dim)] sm:-left-[14px]"
+                      >
+                        ·
+                      </span>
+                    )}
+                    {fact}
+                  </span>
+                ))}
+              </div>
               <div
                 aria-hidden="true"
                 className="mt-[9px] h-px bg-[linear-gradient(90deg,rgba(201,168,76,0.85),rgba(201,168,76,0.18)_38%,transparent_76%)]"
@@ -738,43 +765,12 @@ export default async function ListingDetailPage({
             </div>
           )}
 
-          {/* Collector Fingerprint — unboxed quick read, Design Gate v2. Two
-              conceptual lines (identity, then complications), each rendered
-              only when it has facts. Every fact carries the same weight and
-              colour; the gold separators do the composing. The facts are flex
-              items; each gold separator is a pseudo-element sitting in the
-              inter-fact gap, not a glyph in the text flow. On a wrapped line
-              the leading fact's separator falls at negative-left, outside the
-              box, and is clipped by overflow-hidden — so no rendered line can
-              begin OR end with a separator. Missing facts never render, so
-              there is never a stray separator. Static facts: semantic text —
-              no roles, no handlers, no affordance. */}
-          {fingerprintLines.length > 0 && (
-            <div className="mt-[22px] border-t border-[var(--border-subtle)] pt-[18px] sm:mt-[28px] sm:pt-[22px]">
-              {fingerprintLines.map((line, li) => (
-                <div
-                  key={li}
-                  className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 overflow-hidden font-display text-[16px] leading-[1.7] text-[var(--platinum-dim)] sm:gap-x-7 sm:text-[18px] sm:leading-[1.55] ${
-                    li > 0 ? "mt-1" : ""
-                  }`}
-                >
-                  {line.map((fact, i) => (
-                    <span key={fact} className="relative">
-                      {i > 0 && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute inset-y-0 -left-2 flex items-center text-[12px] text-[var(--gold-dim)] sm:-left-[14px]"
-                        >
-                          ·
-                        </span>
-                      )}
-                      {fact}
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Collector Fingerprint (Design Gate v2) — RELOCATED, not removed:
+              since the founder's composition ruling of 2026-08-12 the facts
+              share the reference's baseline row above, where their separator
+              and clipping rules moved with them. Nothing renders here any
+              more; this comment marks the old home so the relocation reads as
+              deliberate. */}
         </section>
           </div>
           {/* end CONTENT CELL */}
