@@ -27,12 +27,13 @@ export const dossierCss = `
   --d-surface:      #13151C;
   --d-platinum:     #E8E4DC;
   --d-platinum-dim: #CFCBC3;
+  --d-body:         #DCD8D0;
   --d-slate:        #9CA1B0;
   --d-muted:        #818799;
   --d-ghost:        #646B7A;
   --d-gold:         #C9A84C;
   --d-gold-dim:     #9A7E3A;
-  --d-gold-subtle:  rgba(201,168,76,0.45);
+  --d-gold-subtle:  rgba(201,168,76,0.58);
   --d-gold-whisper: rgba(201,168,76,0.08);
   --d-border-gold:  rgba(201,168,76,0.28);
   --d-border-gold-strong: rgba(201,168,76,0.55);
@@ -118,10 +119,10 @@ export const dossierCss = `
 }
 
 .fwt-dossier__identity-label {
-  font-size: 7.5px;
+  font-size: 8px;
   letter-spacing: 2.6px;
   text-transform: uppercase;
-  color: var(--d-ghost);
+  color: var(--d-muted);
 }
 
 .fwt-dossier__identity-value {
@@ -207,9 +208,9 @@ export const dossierCss = `
 .fwt-dossier__body p {
   font-family: var(--d-sans);
   font-size: 14.5px;
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1.95;
-  color: var(--d-platinum-dim);
+  color: var(--d-body);
   margin-bottom: 22px;
   orphans: 3;
   widows: 3;
@@ -227,9 +228,9 @@ export const dossierCss = `
 .fwt-dossier__note {
   font-family: var(--d-sans);
   font-size: 12.5px;
-  font-weight: 300;
-  line-height: 1.85;
-  color: var(--d-muted);
+  font-weight: 400;
+  line-height: 1.9;
+  color: var(--d-slate);
   border-left: 1px solid var(--d-border-gold);
   padding-left: 18px;
   margin-top: 26px;
@@ -265,14 +266,14 @@ export const dossierCss = `
 
 .fwt-dossier__record-label {
   font-size: 12px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--d-slate);
 }
 
 .fwt-dossier__record-value {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.8px;
-  color: var(--d-ghost);
+  color: var(--d-muted);
   text-align: right;
   white-space: nowrap;
 }
@@ -319,10 +320,10 @@ export const dossierCss = `
 
 .fwt-dossier__canary-secondary {
   font-size: 8px;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 2.6px;
   text-transform: uppercase;
-  color: var(--d-muted);
+  color: var(--d-slate);
 }
 
 .fwt-dossier__canary-wrap {
@@ -372,7 +373,7 @@ html, body {
 .fwt-dossier__brand   { font-size: 58px; }
 .fwt-dossier__lead    { font-size: 19px; }
 .fwt-dossier__heading { font-size: 26px; }
-.fwt-dossier__body p  { font-size: 12.5px; line-height: 1.85; }
+.fwt-dossier__body p  { font-size: 13px; line-height: 1.92; }
 
 /* A page break before the first section keeps the cover intact as an opening
    page and prevents a heading orphaning against the masthead. The padding

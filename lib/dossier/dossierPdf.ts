@@ -112,8 +112,10 @@ export async function generateDossierPdf(
       headerTemplate: dossierPdfHeaderTemplate(vm),
       footerTemplate: dossierPdfFooterTemplate(vm),
       // Left/right run to the edge so the dark composition bleeds; the top and
-      // bottom bands carry the per-page canary marks.
-      margin: { top: "16mm", bottom: "14mm", left: "0mm", right: "0mm" },
+      // bottom bands carry the per-page canary marks. The bottom reservation
+      // carries extra clearance so a paragraph's final line box can never
+      // fragment tight against the footer band at the larger body leading.
+      margin: { top: "16mm", bottom: "18mm", left: "0mm", right: "0mm" },
       preferCSSPageSize: false,
       timeout: 60_000,
     });

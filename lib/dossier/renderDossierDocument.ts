@@ -55,8 +55,8 @@ const BAND_BLEED = "6mm";
 const BAND_BASE =
   "width:100%;margin:0;padding:0 22mm;box-sizing:border-box;" +
   "background:#0D0F14;-webkit-print-color-adjust:exact;print-color-adjust:exact;" +
-  "font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:6.5px;" +
-  "letter-spacing:2.4px;text-transform:uppercase;display:flex;" +
+  "font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:7.5px;" +
+  "font-weight:500;letter-spacing:2.4px;text-transform:uppercase;display:flex;" +
   `height:calc(100% + ${BAND_BLEED});`;
 
 export function dossierPdfHeaderTemplate(
@@ -66,7 +66,7 @@ export function dossierPdfHeaderTemplate(
   // band, clear of the paper edge.
   return `<div style="${BAND_BASE}justify-content:space-between;align-items:flex-end;padding-bottom:2mm;margin-top:-${BAND_BLEED};">
   <span style="color:#C9A84C;font-weight:600;">${esc(vm.canary.primary)}</span>
-  <span style="color:#646B7A;">${esc(vm.identity.reference)}</span>
+  <span style="color:#8A90A0;">${esc(vm.identity.reference)}</span>
 </div>`;
 }
 
@@ -76,8 +76,8 @@ export function dossierPdfFooterTemplate(
   // The footer container is bottom-anchored, so extra height grows upward.
   // Shifting the band down by the bleed is what carries the ink to the edge.
   return `<div style="${BAND_BASE}justify-content:space-between;align-items:flex-start;padding-top:2mm;position:relative;top:${BAND_BLEED};">
-  <span style="color:#818799;">${esc(vm.canary.secondary)}</span>
-  <span style="color:#646B7A;">
+  <span style="color:#9CA1B0;">${esc(vm.canary.secondary)}</span>
+  <span style="color:#8A90A0;">
     <span class="pageNumber"></span> / <span class="totalPages"></span>
   </span>
 </div>`;
