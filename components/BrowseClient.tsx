@@ -1306,8 +1306,13 @@ export default function BrowseClient({
 
       {/* Browse header — the count is the canonical filtered result set, so
           the number always describes exactly the listings rendered below. */}
+      {/* Mobile vertical density (real-XCover SEE-it, 2026-08-13): every
+          pre-grid block keeps its desktop rhythm at md+ but tightens below
+          it, so the first row of watches arrives materially earlier on a
+          phone. Space is recovered from air between blocks only — text
+          sizes, touch targets and the 2-up Gallery are untouched. */}
       {!dealerScope && <div className="-mx-6 -mt-5">
-        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5">
+        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-3 md:py-5">
           <div>
             <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
               Discover
@@ -1357,7 +1362,7 @@ export default function BrowseClient({
       )}
 
       {/* Toggle bar */}
-      {!dealerScope && <div className="mt-8 flex flex-wrap items-center gap-3">
+      {!dealerScope && <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-8">
         <button
           type="button"
           onClick={() => setIsFilterOpen((v) => !v)}
@@ -1380,10 +1385,10 @@ export default function BrowseClient({
           v1.57 — the Gallery/Collector toggle sits alongside grid width:
           both are orthogonal display controls, neither replaces the other. */}
       <div
-        className={`flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-4 sm:flex-nowrap ${
+        className={`flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-3 sm:flex-nowrap md:pb-4 ${
           dealerScope
             ? "px-6 pt-4 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8"
-            : "mt-6"
+            : "mt-3 md:mt-6"
         }`}
       >
         <div className="flex items-center gap-4">

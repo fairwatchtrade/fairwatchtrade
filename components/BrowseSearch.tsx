@@ -199,7 +199,9 @@ export default function BrowseSearch({
       className={
         dealerRoomMode
           ? "border-b border-[var(--border-faint)] pb-4"
-          : "border-b border-[var(--border-faint)] px-6 py-5"
+          : /* Phone: the search state reads as one cohesive block riding
+               close to the header; desktop keeps its py-5 room. */
+            "border-b border-[var(--border-faint)] px-6 pt-3 pb-4 md:py-5"
       }
     >
       <div className={dealerRoomMode ? "w-full" : "mx-auto w-full max-w-[940px]"}>
@@ -339,8 +341,8 @@ export default function BrowseSearch({
         </div>
 
         {/* ── Your Search ────────────────────────────────────────────────── */}
-        {(!dealerRoomMode || chips.length > 0) && <div className="mt-[14px]">
-          <div className="mb-[9px] flex items-center justify-between gap-3">
+        {(!dealerRoomMode || chips.length > 0) && <div className="mt-[10px] md:mt-[14px]">
+          <div className="mb-[6px] flex items-center justify-between gap-3 md:mb-[9px]">
             <span
               className={
                 legibilityMode
