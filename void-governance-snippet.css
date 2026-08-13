@@ -1,8 +1,21 @@
-/* ── PASTE INTO globals.css, immediately BELOW the existing --void warning
-   comment (the "VOID FLOOR WARNING" block, just above --gold-dim). ── */
+/* ── ALREADY APPLIED. This snippet's governance block lives in
+   app/globals.css, beside the --void token. Kept only as a record of the
+   correction; do not paste it a second time. ──
 
-  /* GOVERNANCE: --void is ONLY for placeholder: text, truly decorative
-     elements, and disabled states. Any text a user needs to read —
-     labels, hints, captions, "Soon" pills, progress step names,
-     nav items — floors at --ghost (#4A4F5C) minimum.
-     If a brief specifies --void on informational text, --ghost wins. */
+   The rule this file originally carried is SUPERSEDED. It read:
+
+     "Any text a user needs to read — labels, hints, captions, 'Soon' pills,
+      progress step names, nav items — floors at --ghost minimum.
+      If a brief specifies --void on informational text, --ghost wins."
+
+   That is no longer the law, and the hex it quoted was not --ghost's value.
+   Per /docs/product-laws/Void-Token-Governance.md ("Supersession") and
+   /docs/product-laws/Readability-Floor-Governance.md, which controls on
+   conflict: --ghost is NOT a readable floor. It is reserved, with --void,
+   for placeholder text, genuinely decorative elements, and disabled states.
+
+   The governing rule, as installed in app/globals.css:
+
+     Any text a user needs to read — labels, hints, captions, "Soon" pills,
+     progress step names, nav items — takes the readable floor (--muted
+     minimum), never --ghost and never --void. ── */
