@@ -89,8 +89,31 @@ export const REFUSAL_CODES = [
   "UNSUPPORTED_CHRONOLOGY",
   "UNSUPPORTED_ATTRIBUTION",
   "UNLINKED_OBSERVATION",
+  /* Retrieval-bound evidence (2026-08-13). A citation is not evidence
+     merely because its URL looks plausible — these are the conditions
+     under which a source object fails to prove it was ever obtained, or
+     fails to prove it supports what the claim says. */
+  "SOURCE_NOT_RETRIEVED",
+  "SOURCE_RETRIEVAL_FAILED",
+  "SOURCE_HOST_MISMATCH",
+  "EVIDENCE_NOT_FOUND_IN_RETRIEVED_CONTENT",
+  "CLAIM_VALUE_NOT_SUPPORTED_BY_EVIDENCE",
+  "EVIDENCE_CONTENT_CHANGED",
 ] as const;
 export type RefusalCode = (typeof REFUSAL_CODES)[number];
+
+/** A durable record of a source that was actually fetched. */
+export type RetrievedSource = {
+  id: string;
+  requestedUrl: string;
+  resolvedUrl: string | null;
+  host: string;
+  httpStatus: number | null;
+  contentSha256: string;
+  /** Bounded, tag-stripped text of the retrieved document. */
+  text: string;
+  lifecycle: "current" | "superseded";
+};
 
 export type ClaimEvidence = {
   sourceClass: SourceClass | null;
@@ -98,6 +121,12 @@ export type ClaimEvidence = {
   sourceUrl: string | null;
   sourceExcerpt: string | null;
   sourceAccessed: string | null;
+  /** The retrieval this evidence was drawn from. Without it, the evidence
+      proves shape only, and shape is not retrieval. */
+  retrievalId?: string | null;
+  /** The retrieval's content hash at the moment the claim was bound, so a
+      source changing later is detectable rather than silent. */
+  retrievalSha256?: string | null;
 };
 
 export type ClaimInput = {
@@ -254,7 +283,99 @@ export type AdmissionContext = {
   referenceText: string;
   /** Claim keys already ADMITTED for this reference — for DESIGN linkage. */
   admittedKeys?: readonly string[];
+  /** Retrievals available to bind evidence against, by id. Absent means the
+      caller supplied no proof of retrieval, and every cited claim refuses. */
+  retrievals?: readonly RetrievedSource[];
 };
+
+/* ── Value support ─────────────────────────────────────────────────────
+   Presentation noise is normalized; factual distinctions are not. A claimed
+   "42 mm" is supported by retrieved "42.00 mm" (same quantity, different
+   rendering) but never by "43 mm". Thousands separators are folded for the
+   numeric comparison only — 28,800 and 28800 are one number. */
+function valueSupported(value: string, haystack: string): boolean {
+  const v = normalizeForComparison(value).toLowerCase();
+  const hay = normalizeForComparison(haystack).toLowerCase();
+  if (v.length === 0) return true;
+  if (hay.includes(v)) return true;
+
+  // Numeric-aware fallback: same magnitude, same unit, different rendering.
+  const m = v.match(/^([\d][\d,.\s]*)\s*(.*)$/);
+  if (!m) return false;
+  const claimed = Number(m[1].replace(/[,\s]/g, ""));
+  if (!Number.isFinite(claimed)) return false;
+  const unit = m[2].trim();
+
+  const pattern = unit
+    ? new RegExp(`([\\d][\\d,.]*)\\s*${unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g")
+    : new RegExp(`\\b([\\d][\\d,.]*)\\b`, "g");
+  for (const hit of hay.matchAll(pattern)) {
+    const found = Number(hit[1].replace(/,/g, ""));
+    if (Number.isFinite(found) && found === claimed) return true;
+  }
+  return false;
+}
+
+/**
+ * Retrieval binding. Answers the two questions the shape validators never
+ * could: was this source actually fetched, and does the fetched material
+ * carry what the claim attaches to it?
+ *
+ * This does NOT judge whether the source is good enough — source class,
+ * corroboration and exact-reference discipline stay downstream, exactly
+ * where they were.
+ */
+export function evidenceBindingRefusals(
+  claim: Pick<ClaimInput, "evidence" | "values" | "outcome">,
+  ctx: AdmissionContext
+): RefusalCode[] {
+  const out = new Set<RefusalCode>();
+  const byId = new Map((ctx.retrievals ?? []).map((r) => [r.id, r]));
+  let anySupportingText = "";
+
+  for (const e of claim.evidence) {
+    if (!e.retrievalId) {
+      out.add("SOURCE_NOT_RETRIEVED");
+      continue;
+    }
+    const r = byId.get(e.retrievalId);
+    if (!r) {
+      out.add("SOURCE_NOT_RETRIEVED");
+      continue;
+    }
+    if (r.lifecycle !== "current" || (r.httpStatus !== null && r.httpStatus >= 400)) {
+      out.add("SOURCE_RETRIEVAL_FAILED");
+      continue;
+    }
+    // The cited URL and the retrieved document must be the same source.
+    const citedHost = hostOf(e.sourceUrl);
+    if (citedHost && citedHost !== r.host) out.add("SOURCE_HOST_MISMATCH");
+    // A source that changed after the claim was bound is not silently reused.
+    if (e.retrievalSha256 && e.retrievalSha256 !== r.contentSha256) {
+      out.add("EVIDENCE_CONTENT_CHANGED");
+      continue;
+    }
+    // The excerpt must actually appear in what came back.
+    if (e.sourceExcerpt && !normalizeForComparison(r.text).toLowerCase()
+        .includes(normalizeForComparison(e.sourceExcerpt).toLowerCase())) {
+      out.add("EVIDENCE_NOT_FOUND_IN_RETRIEVED_CONTENT");
+      continue;
+    }
+    anySupportingText += `\n${r.text}`;
+  }
+
+  // Every value the claim asserts must be present in retrieved material.
+  // UNRESOLVED/UNSUPPORTED findings assert no value of their own.
+  if (claim.outcome === "VERIFIED" && anySupportingText.length > 0) {
+    for (const v of claim.values) {
+      if (!valueSupported(v, anySupportingText)) {
+        out.add("CLAIM_VALUE_NOT_SUPPORTED_BY_EVIDENCE");
+        break;
+      }
+    }
+  }
+  return [...out];
+}
 
 /**
  * The whole admission contract, per class. Returns the named refusals; an
@@ -280,6 +401,9 @@ export function claimRefusals(claim: ClaimInput, ctx: AdmissionContext): Refusal
     }
   }
   for (const code of evidenceRefusals(claim.evidence)) refusals.add(code);
+  // Retrieval binding runs BEFORE the class contracts have any say: a
+  // source that was never fetched cannot be sufficient for any class.
+  for (const code of evidenceBindingRefusals(claim, ctx)) refusals.add(code);
 
   // Exact-reference scope. A claim about this reference may not carry a
   // foreign reference identifier — that is how sibling facts leak in. Only

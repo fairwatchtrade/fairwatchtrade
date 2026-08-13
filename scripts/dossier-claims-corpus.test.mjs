@@ -20,7 +20,29 @@ const ok = (name, cond) => {
 };
 
 const REF = "5967BB/11/9W6";
-const ctx = (admittedKeys = []) => ({ referenceText: REF, admittedKeys });
+
+/* Retrieval-bound evidence (2026-08-13): a source object no longer proves
+   anything on its own, so these fixtures cite a retrieval whose text
+   actually carries what the claims assert. */
+const RETRIEVAL = {
+  id: "ret-test",
+  requestedUrl: "https://monochrome-watches.com/breguet-classique-5967",
+  resolvedUrl: "https://monochrome-watches.com/breguet-classique-5967",
+  host: "monochrome-watches.com",
+  httpStatus: 200,
+  contentSha256: "c".repeat(64),
+  text: "The case measures 41 mm in diameter. Breguet introduced the Classique 5967 in 2009. The dial is individually numbered and hand-guilloche.",
+  lifecycle: "current",
+};
+const RETRIEVAL_B = {
+  ...RETRIEVAL, id: "ret-test-b",
+  requestedUrl: "https://phillips.com/lot/12",
+  resolvedUrl: "https://phillips.com/lot/12",
+  host: "phillips.com",
+};
+const ctx = (admittedKeys = []) => ({
+  referenceText: REF, admittedKeys, retrievals: [RETRIEVAL, RETRIEVAL_B],
+});
 
 const goodEvidence = (over = {}) => [{
   sourceClass: "SPECIALIST_TECHNICAL",
@@ -28,6 +50,8 @@ const goodEvidence = (over = {}) => [{
   sourceUrl: "https://monochrome-watches.com/breguet-classique-5967",
   sourceExcerpt: "The case measures 41 mm in diameter.",
   sourceAccessed: "2026-08-13",
+  retrievalId: "ret-test",
+  retrievalSha256: "c".repeat(64),
   ...over,
 }];
 
@@ -65,6 +89,12 @@ ok("admission is a separate three-state vocabulary",
 /* ── Objective fact: auto-admission and its refusals ──────────────────── */
 ok("a well-sourced objective fact auto-admits",
   admissionFor(fact(), ctx()).admission === "ADMITTED");
+
+// The v4.45 contract proved source SHAPE. Since retrieval binding, shape
+// alone is no longer sufficient for any class — a perfectly formed source
+// object that was never fetched refuses.
+ok("shape alone no longer admits anything: an unretrieved source refuses",
+  admissionFor(fact({ evidence: goodEvidence({ retrievalId: null }) }), ctx()).admission === "REFUSED");
 
 ok("an uncited claim is never accepted, however plausible",
   claimRefusals(fact({ evidence: [] }), ctx()).includes("MISSING_EVIDENCE"));
@@ -127,7 +157,11 @@ ok("an objective fact naming a foreign reference is refused as contamination",
 
   const twoHosts = [
     ...goodEvidence({ sourceClass: "DEALER_ARCHIVE" }),
-    ...goodEvidence({ sourceClass: "AUCTION_RECORD", sourceUrl: "https://phillips.com/lot/12" }),
+    ...goodEvidence({
+      sourceClass: "AUCTION_RECORD",
+      sourceUrl: "https://phillips.com/lot/12",
+      retrievalId: "ret-test-b",
+    }),
   ];
   ok("two independent source hosts satisfy corroboration",
     admissionFor(contextual({ evidence: twoHosts }), ctx()).admission === "ADMITTED");
