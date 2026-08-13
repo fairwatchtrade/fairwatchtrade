@@ -243,7 +243,7 @@ export default function MobileNav({
               second hand-maintained copy of the wordmark; both copies are
               now one component, so the drawer can never drift from the
               masthead again. */}
-          <FairWatchTradeLogo size="compact" onClick={onClose} />
+          <FairWatchTradeLogo size="compact" onClick={onClose} animate={open} />
           <button
             type="button"
             aria-label="Close menu"

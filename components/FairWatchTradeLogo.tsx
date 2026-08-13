@@ -95,12 +95,24 @@ const TICKS = Array.from({ length: 60 }, (_, i) => {
   };
 });
 
-function LiveClockMark({ className }: { className: string }) {
+function LiveClockMark({
+  className,
+  animate,
+}: {
+  className: string;
+  animate: boolean;
+}) {
   const hourRef = useRef<SVGGElement>(null);
   const minuteRef = useRef<SVGGElement>(null);
   const secondRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
+    /* The mobile drawer stays MOUNTED when closed (its hide mechanism is
+       opacity/pointer-events, not unmounting), so without this guard a
+       second clock would animate invisibly behind every page on every
+       device. Caught by counting hand transforms in the shipped HTML: six
+       where three were expected. A hidden clock costs nothing now. */
+    if (!animate) return;
     let frame = 0;
     const tick = () => {
       const now = new Date();
@@ -114,7 +126,7 @@ function LiveClockMark({ className }: { className: string }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [animate]);
 
   return (
     <svg
@@ -204,10 +216,14 @@ export default function FairWatchTradeLogo({
   size = "header",
   onClick,
   className = "",
+  animate = true,
 }: {
   size?: LogoSize;
   onClick?: () => void;
   className?: string;
+  /** False while this instance is mounted but not visible — the mobile
+      drawer's closed state. Stops a hidden second clock from animating. */
+  animate?: boolean;
 }) {
   const s = SIZES[size];
   return (
@@ -217,7 +233,7 @@ export default function FairWatchTradeLogo({
       aria-label="FairWatchTrade"
       className={`flex select-none items-center ${s.gap} ${className}`}
     >
-      <LiveClockMark className={s.mark} />
+      <LiveClockMark className={s.mark} animate={animate} />
       {/* aria-hidden: the link above already carries the name, so the
           wordmark must not announce it a second time. */}
       <span
