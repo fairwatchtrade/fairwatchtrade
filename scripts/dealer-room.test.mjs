@@ -160,11 +160,26 @@ test("trust explanation speaks the ONE help-affordance language", () => {
   assert.match(actions, /import HelpBubble from "@\/components\/HelpBubble"/);
   assert.match(actions, /<HelpBubble/);
   assert.match(actions, /historyKey="fwtDealerTrustHelp"/);
-  // The bubble anchors to its own relative span so the caret points at the ?.
-  assert.match(actions, /relative inline-flex/);
+  // Long-help content carries the rounded-card character (Layout 2026-08-06).
+  assert.match(actions, /rounded-2xl/);
   // The freehand vessel is gone: no role="note" panel, no circled-i glyph.
   assert.doesNotMatch(actions, /role="note"/);
   assert.doesNotMatch(actions, /lowercase italic/);
+});
+
+test("phone trust bubble cannot expand the mobile viewport", () => {
+  // Caught on the real XCover: a fixed-width card anchored to the tiny
+  // trigger span overflowed 412px before the clamp could measure, and
+  // mobile Chrome expanded the layout viewport to fit (page zoomed out).
+  // Below sm the anchor is the full-width identity section and the card
+  // spans it edge to edge; the fixed width exists only at sm+.
+  assert.match(actions, /inline-flex sm:relative/);
+  assert.match(actions, /left-3 right-3[^"]*sm:left-0 sm:right-auto[^"]*sm:w-\[330px\]/);
+  // The caret follows the ? via the shared component's tracking extension.
+  assert.match(actions, /caretTracksTrigger/);
+  const bubble = read("components/HelpBubble.tsx");
+  assert.match(bubble, /caretTracksTrigger = false/);
+  assert.match(bubble, /caretRef\.current\.style\.left/);
 });
 
 test("listing photography has a dedicated inspection state", () => {

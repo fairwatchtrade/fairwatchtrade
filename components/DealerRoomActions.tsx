@@ -170,15 +170,23 @@ export function DealerTrustMark() {
       <span className="inline-flex min-h-[28px] items-center border border-[var(--border-subtle)] px-2 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)]">
         FairWatchTrade Dealer
       </span>
-      {/* The ? and its speech bubble are the shared pattern, verbatim —
-          the bubble anchors to this span so the caret points at the ?. */}
-      <span className="relative inline-flex">
+      {/* The ? and its speech bubble are the shared pattern. Anchoring is
+          breakpoint-split ON PURPOSE: below sm this span is static, so the
+          bubble anchors to the identity SECTION (relative, full width) and
+          spans it edge to edge — a fixed-width card anchored to this tiny
+          span overflowed the phone viewport faster than the clamp could
+          measure it, and mobile Chrome expanded the whole layout viewport
+          to fit (caught on the real XCover, 2026-08-13). A full-width card
+          cannot overflow, and the caret tracks the ? wherever it sits.
+          At sm+ the span is the ancestor and the card is the same 330px
+          long-help rounded card as everywhere else. */}
+      <span className="inline-flex sm:relative">
         <HelpBubble
           label="What FairWatchTrade Dealer means"
           historyKey="fwtDealerTrustHelp"
           title="A dealer storefront, reviewed like everything else"
-          bubbleClassName="left-0 top-[calc(100%+10px)] w-[330px] max-w-[86vw]"
-          caretClassName="left-[13px]"
+          bubbleClassName="left-3 right-3 top-[calc(100%+8px)] rounded-2xl sm:left-0 sm:right-auto sm:top-[calc(100%+10px)] sm:w-[330px]"
+          caretTracksTrigger
         >
           <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
             This seller operates a dealer storefront on FairWatchTrade. Every

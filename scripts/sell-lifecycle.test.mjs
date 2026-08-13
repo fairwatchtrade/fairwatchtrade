@@ -113,7 +113,6 @@ const status = read("lib/listingStatus.ts");
 {
   const publicPaths = [
     "app/browse/page.tsx",
-    "app/catalogue/page.tsx",
     "app/sellers/[id]/page.tsx",
     "app/watch-dna/page.tsx",
     "marketplace/page.tsx",
@@ -123,6 +122,23 @@ const status = read("lib/listingStatus.ts");
     ok(
       `${p} filters to published listings`,
       /\.eq\("status",\s*"published"\)/.test(src)
+    );
+  }
+  /* Catalogue (Permissioned Adjacency, v4.35): the page no longer queries
+     listings at all — it reads the collector's own saved-search matches,
+     and publish-gating happens at read time in lib/catalogueMatches, which
+     drops any card whose joined listing is not currently published. */
+  {
+    const cataloguePage = read("app/catalogue/page.tsx");
+    const catalogueLib = read("lib/catalogueMatches.ts");
+    ok(
+      "app/catalogue/page.tsx reads collector-scoped matches, never marketplace listings",
+      /from\("saved_search_matches"\)/.test(cataloguePage) &&
+        !/from\("listings"\)/.test(cataloguePage)
+    );
+    ok(
+      "catalogue cards render only currently published listings",
+      /listing\.status !== "published"\) continue/.test(catalogueLib)
     );
   }
   const detail = read("app/listings/[id]/page.tsx");

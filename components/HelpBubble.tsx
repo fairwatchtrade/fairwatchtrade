@@ -42,6 +42,7 @@ export default function HelpBubble({
   bubbleClassName,
   caretClassName,
   triggerClassName,
+  caretTracksTrigger = false,
 }: {
   /** Accessible name for the trigger and dialog (e.g. "Condition help"). */
   label: string;
@@ -53,6 +54,13 @@ export default function HelpBubble({
   bubbleClassName?: string;
   caretClassName?: string;
   triggerClassName?: string;
+  /** When the bubble is anchored to a WIDE positioning ancestor (so a
+      fixed-width card can never force mobile-viewport expansion), the caret
+      can no longer be placed with a static offset — the trigger's position
+      inside that ancestor varies. This measures the trigger each open and
+      seats the caret directly under it, shift-aware. The pointer stays part
+      of the character, wherever the ? happens to sit. */
+  caretTracksTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   /* Viewport-aware placement: the bubble opens below by default, but when the
@@ -68,6 +76,11 @@ export default function HelpBubble({
      the opposite way, so it keeps pointing at its trigger. Width is never
      crushed to solve collision. */
   const [shiftX, setShiftX] = useState(0);
+  /** caretTracksTrigger only: the caret element, positioned by direct DOM
+      write in the measurement effect (the blessed effect job — updating the
+      DOM from measured layout — and it runs before paint, so the caret
+      never flashes at a wrong spot). */
+  const caretRef = useRef<HTMLSpanElement | null>(null);
   const pinnedRef = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,6 +244,21 @@ export default function HelpBubble({
     }
     if (shift !== 0) setShiftX(shift);
 
+    /* Caret tracking: seat the caret under the trigger's centre, in the
+       card's own coordinate space. The caret rides the card, and the card's
+       visual left after the clamp is (b.left - shift), so the offset lands
+       the point exactly on the ? without any separate shift compensation.
+       Clamped inside the card so a trigger near an edge can never push the
+       caret out of the border. */
+    if (caretTracksTrigger && caretRef.current) {
+      const t = trigger.getBoundingClientRect();
+      const center = (t.left + t.right) / 2;
+      const x = center - (b.left - shift) - 9; // 9 = half the 18px caret
+      const clamped = Math.min(Math.max(x, 14), Math.max(14, b.width - 32));
+      caretRef.current.style.left = `${clamped}px`;
+      caretRef.current.style.transform = "rotate(45deg)";
+    }
+
     if (b.bottom <= window.innerHeight - 12) return; // fits below — stay put
     const t = trigger.getBoundingClientRect();
     const spaceAbove = t.top;
@@ -240,7 +268,7 @@ export default function HelpBubble({
     if (spaceAbove > spaceBelow && spaceAbove >= b.height + 22) {
       setPlaceAbove(true);
     }
-  }, [open]);
+  }, [open, caretTracksTrigger]);
 
   return (
     <>
@@ -318,8 +346,9 @@ export default function HelpBubble({
                its trigger — the inline transform walks it back. It must
                restate rotate(45deg): an inline transform replaces the class
                transform entirely. */
+            ref={caretRef}
             style={
-              shiftX !== 0
+              !caretTracksTrigger && shiftX !== 0
                 ? { transform: `translateX(${shiftX}px) rotate(45deg)` }
                 : undefined
             }
@@ -327,7 +356,7 @@ export default function HelpBubble({
               placeAbove
                 ? "bottom-[-10px] border-b border-r"
                 : "top-[-10px] border-l border-t"
-            } ${caretClassName ?? "right-[23px]"}`}
+            } ${caretTracksTrigger ? "" : (caretClassName ?? "right-[23px]")}`}
           />
           <button
             type="button"
