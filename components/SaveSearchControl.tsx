@@ -48,6 +48,10 @@ export default function SaveSearchControl({
   const [name, setName] = useState("");
   const [savedName, setSavedName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /* Permissioned Adjacency — per-search close-matches opt-in, default OFF.
+     The permission belongs to the Saved Search itself, so it is asked here,
+     at the moment of saving, never hidden in Settings. */
+  const [closeMatches, setCloseMatches] = useState(false);
 
   /* Money Truth Stage B (order §12) — a Search being saved WITH price intent
      is told, at the moment of saving, that the price part won't be watched.
@@ -95,16 +99,21 @@ export default function SaveSearchControl({
       return;
     }
 
-    const { error: insErr } = await supabase.from("saved_searches").insert({
-      user_id: user.id,
-      name: trimmed,
-      query_string: searchParams.toString(),
-      // v2.68 — the interpreted meaning travels with the save so the
-      // publish watcher can evaluate it. Null stays valid (quick-link-only).
-      search_state: searchState ?? null,
-      meaning_version: 1,
-      paused: false,
-    });
+    const { data: inserted, error: insErr } = await supabase
+      .from("saved_searches")
+      .insert({
+        user_id: user.id,
+        name: trimmed,
+        query_string: searchParams.toString(),
+        // v2.68 — the interpreted meaning travels with the save so the
+        // publish watcher can evaluate it. Null stays valid (quick-link-only).
+        search_state: searchState ?? null,
+        meaning_version: 1,
+        paused: false,
+        include_adjacent: closeMatches,
+      })
+      .select("id")
+      .single();
 
     if (insErr) {
       setPhase("naming");
@@ -117,8 +126,23 @@ export default function SaveSearchControl({
       return;
     }
 
+    /* Bounded re-evaluation: a brand-new search must not look broken merely
+       because qualifying watches were published before it existed. One
+       search, currently published inventory, owner-gated in SQL. Best
+       effort — the save is already real; a re-eval hiccup never undoes it. */
+    if (inserted?.id) {
+      try {
+        await supabase.rpc("reevaluate_saved_search", {
+          p_saved_search_id: inserted.id,
+        });
+      } catch (rpcErr) {
+        console.error("[FairWatchTrade] Saved-search re-evaluation failed:", rpcErr);
+      }
+    }
+
     setSavedName(trimmed);
     setName("");
+    setCloseMatches(false);
     setPhase("saved");
     // Long enough to read AND take the "View saved searches" path (v2.68).
     setTimeout(() => setPhase((p) => (p === "saved" ? "resting" : p)), 8000);
@@ -195,6 +219,22 @@ export default function SaveSearchControl({
         {error && (
           <span className="text-[11px] text-[var(--danger)]">{error}</span>
         )}
+        {/* Permissioned Adjacency — obvious, reversible, default OFF. */}
+        <label className="flex w-full cursor-pointer items-start gap-2 pt-1">
+          <input
+            type="checkbox"
+            checked={closeMatches}
+            onChange={(e) => setCloseMatches(e.target.checked)}
+            disabled={phase === "saving"}
+            className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[#C9A84C]"
+          />
+          <span className="text-[12px] leading-[1.5] text-[var(--slate)]">
+            <span className="text-[var(--platinum-dim)]">Show me close matches too</span>
+            {" "}— occasionally show watches meaningfully related to this
+            search even when they are not an exact match. Each one will say
+            why it was shown.
+          </span>
+        </label>
         {priceUnwatched && (
           <span className="w-full text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
             {unwatchedNote}

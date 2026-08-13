@@ -15,6 +15,12 @@ import {
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
+import {
+  catalogueHeroState,
+  groupCatalogueMatches,
+  type CatalogueMatchRow,
+  type CatalogueSearch,
+} from "@/lib/catalogueMatches";
 
 /* Content-aware Catalogue sizing — static class maps so Tailwind sees every
    variant. Card cells target ~280px; the section width = cards + 220px rail
@@ -35,8 +41,14 @@ const SECTION_MAX_W: Record<1 | 2 | 3, string> = {
 
    Answers one question: "What happened while I was away?" Every element is
    secondary to that except the Catalogue Match hero, which answers it
-   directly. My Catalogue (reference tracking) is still Phase 2 — its table
-   doesn't exist yet, so it renders an honest empty shell. Saved Watches is
+   directly — from real accrued saved-search matches (Permissioned
+   Adjacency, 2026-08-12). The marketplace-wide "Discovery" newest-three
+   feed is GONE: Browse is what is on FairWatchTrade; Catalogue is what is
+   relevant to this collector. Search Matches renders exact matches first
+   and, only for searches whose owner opted in, explainable close matches
+   in a visually subordinate section — each with the stored reason it was
+   shown. One listing, one card; exact wins; adjacent never inflates
+   exact-match language; empty is quieter than fabricated. Saved Watches is
    real (v2.5c): fetched client-side from saved_watches, joined to listings.
    Correspondence is real (v2.6): the buyer's table of contents — every row
    links to the listing where the conversation lives, never a separate
@@ -96,7 +108,8 @@ export type ListingRow = {
 
 type CatalogueProps = {
   displayName: string | null;
-  recentListings: ListingRow[];
+  searches: CatalogueSearch[];
+  matchRows: CatalogueMatchRow<ListingRow>[];
 };
 
 /* ── My Offers (v2.7) ─────────────────────────────────────────────────────
@@ -752,8 +765,15 @@ function MyOffersSection({
 
 export default function CatalogueClient({
   displayName,
-  recentListings,
+  searches,
+  matchRows,
 }: CatalogueProps) {
+  // Collector-scoped match truth, derived once (lib/catalogueMatches):
+  // published-only, permission honored at read time, exact wins, adjacent
+  // bounded. The hero and the Search Matches section both read from this.
+  const { exact: exactMatches, adjacent: adjacentMatches } =
+    groupCatalogueMatches(searches, matchRows);
+  const heroState = catalogueHeroState(searches, exactMatches.length);
   // v2.5c — Saved Watches is now real. This component had zero data-fetching
   // of its own before this change (pure server-props-driven); rather than
   // require the parent server page (not available in this build — flagged
@@ -921,7 +941,7 @@ export default function CatalogueClient({
      the two card sections, capped at three columns, floored at one. */
   const contentCols = Math.min(
     3,
-    Math.max(recentListings.length, savedListings.length, 1),
+    Math.max(exactMatches.length, adjacentMatches.length, savedListings.length, 1),
   ) as 1 | 2 | 3;
 
   return (
@@ -941,30 +961,74 @@ export default function CatalogueClient({
           {greeting()}, {displayName ?? "Collector"}.
         </h1>
 
-        {/* Catalogue Match hero — State 2 (the honest state for v1.90).
-            The gold border/background are present in BOTH states so the hero
-            stays dominant even when empty. It is the promise, not the result. */}
-        {/* Density correction (2026-08-09): measured at 153px tall for 89px
-            of content — 64px of padding, 72% of what it was wrapping — which
-            pushed Correspondence, My Offers and Discovery down the page for
-            three short lines. Padding tightened, nothing else: the gold
-            border and wash, the eyebrow, the heading, the sentence and the
-            hero's dominance over the sections beneath it are unchanged. */}
+        {/* Catalogue Match hero — four honest states (Permissioned
+            Adjacency). The gold border/background are present in EVERY
+            state so the hero stays dominant even when quiet. "We're
+            watching for you." is permitted only when FairWatchTrade
+            actually watches at least one active saved search; a real match
+            switches the hero to its found state; no saved searches means
+            the promise is not yet made. Adjacent results never drive the
+            hero — only exact matches may say "found". */}
+        {/* Density correction (2026-08-09): padding tightened, nothing
+            else — the hero's dominance over the sections beneath it is
+            unchanged. */}
         <div className="mt-6 border border-[rgba(201,168,76,0.28)] bg-[var(--gold-whisper)] px-7 py-5">
-          {/* TODO: Phase 2 — State 1 (a real catalogue match exists): same gold
-              border/background, headline "Did your watch finally appear?", a
-              match card with listing details and a "View listing →" button.
-              Requires the catalogue table (Phase 2). Not implemented in v1.90. */}
           <div className="mb-2 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             Catalogue Match
           </div>
-          <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
-            We&apos;re watching for you.
-          </div>
-          <div className="text-[13px] leading-relaxed text-[var(--muted)]">
-            Your catalogue is active. We&apos;ll notify you the moment a match
-            appears.
-          </div>
+          {heroState === "matches" ? (
+            <>
+              <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
+                Did your watch finally appear?
+              </div>
+              <div className="text-[13px] leading-relaxed text-[var(--muted)]">
+                {exactMatches.length === 1
+                  ? "A watch matching one of your saved searches is available now — it's just below."
+                  : `${exactMatches.length} watches matching your saved searches are available now — they're just below.`}
+              </div>
+            </>
+          ) : heroState === "watching" ? (
+            <>
+              <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
+                We&apos;re watching for you.
+              </div>
+              <div className="text-[13px] leading-relaxed text-[var(--muted)]">
+                Your catalogue is active. We&apos;ll notify you the moment a match
+                appears.
+              </div>
+            </>
+          ) : heroState === "paused" ? (
+            <>
+              <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
+                Watching is paused.
+              </div>
+              <div className="text-[13px] leading-relaxed text-[var(--muted)]">
+                Every saved search is paused. Resume one and FairWatchTrade will
+                keep watching for you.{" "}
+                <Link
+                  href="/account?module=saved"
+                  className="text-[var(--gold)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-[3px] transition hover:decoration-[var(--gold)]"
+                >
+                  Manage saved searches
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-1.5 font-display text-[22px] font-light text-[var(--platinum)]">
+                Nothing is being watched yet.
+              </div>
+              <div className="text-[13px] leading-relaxed text-[var(--muted)]">
+                Save a search and FairWatchTrade will watch for your watch.{" "}
+                <Link
+                  href="/browse"
+                  className="text-[var(--gold)] underline decoration-[rgba(201,168,76,0.44)] underline-offset-[3px] transition hover:decoration-[var(--gold)]"
+                >
+                  Browse watches
+                </Link>
+              </div>
+            </>
+          )}
         </div>
 
         {/* v2.6 — Correspondence. The inbox is a table of contents, not the
@@ -1053,35 +1117,68 @@ export default function CatalogueClient({
             <SavedSearchesCard />
           </div>
 
-          {/* Left — discovery feed + saved watches */}
+          {/* Left — search matches + saved watches. The marketplace-wide
+              "Discovery" newest-three feed is gone (Permissioned Adjacency):
+              what renders here is collector-scoped truth only, and when
+              there is none the section is quietly absent — the hero above
+              already says what FairWatchTrade is doing. */}
           <div className="mt-8 min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:mt-0">
-            <div>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
-                  Discovery
-                </div>
-                <Link
-                  href="/browse"
-                  className="text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
-                >
-                  See all →
-                </Link>
-              </div>
-
-              {recentListings.length === 0 ? (
-                <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-                  <div className="font-display text-[11px] italic text-[var(--muted)]">
-                    No published listings yet.
+            {(exactMatches.length > 0 || adjacentMatches.length > 0) && (
+              <div>
+                {exactMatches.length > 0 && (
+                  <div>
+                    <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                      Search Matches
+                    </div>
+                    <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
+                      {exactMatches.map((card) => (
+                        <div key={card.listing.id} className="flex flex-col">
+                          {/* Exact vs. adjacent must be unmistakable: the
+                              exact label is the section's one gold accent. */}
+                          <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px]">
+                            <span className="text-[var(--gold)]">Exact match</span>
+                            <span className="text-[var(--muted)]">
+                              {" "}· from &ldquo;{card.searchNames.join("”, “")}&rdquo;
+                            </span>
+                          </div>
+                          <ListingCard row={card.listing} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
-                  {recentListings.map((row) => (
-                    <ListingCard key={row.id} row={row} />
-                  ))}
-                </div>
-              )}
-            </div>
+                )}
+
+                {/* Close matches — visually subordinate, bounded, and each
+                    one says WHY it was shown (the stored reason). Never
+                    mixed into, or counted with, exact matches. */}
+                {adjacentMatches.length > 0 && (
+                  <div className={exactMatches.length > 0 ? "mt-10" : ""}>
+                    <div className="mb-1 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                      Close to your search
+                    </div>
+                    <p className="mb-4 text-[12px] leading-[1.5] text-[var(--muted)]">
+                      Not exact matches — watches meaningfully related to
+                      searches where you asked to see close matches too.
+                    </p>
+                    <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
+                      {adjacentMatches.map((card) => (
+                        <div key={card.listing.id} className="flex flex-col">
+                          <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                            Close to &ldquo;{card.searchNames.join("”, “")}&rdquo;
+                          </div>
+                          <ListingCard row={card.listing} />
+                          {card.reason && (
+                            <p className="-mt-2 px-7 pb-5 text-[12px] leading-[1.5] text-[var(--slate)]">
+                              {card.reason}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Saved watches — v2.5c: real data from saved_watches, joined to
                 listings. Empty-state copy (product-soul-approved) is

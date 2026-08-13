@@ -25,6 +25,8 @@ export type SavedSearchFullRow = {
   query_string: string;
   search_state: SearchState | null;
   paused: boolean;
+  /** Permissioned Adjacency — the per-search close-matches opt-in. */
+  include_adjacent: boolean;
   open_count: number;
   last_opened_at: string | null;
   created_at: string;
@@ -35,6 +37,10 @@ export type SavedMatchRow = {
   saved_search_id: string;
   listing_id: string;
   created_at: string;
+  /** Absent on pre-adjacency rows — those are exact by construction. */
+  match_kind?: string | null;
+  /** Stored collector-readable sentence; only on adjacent rows. */
+  adjacent_reason?: string | null;
 };
 
 /** Filter params a Browse query string may carry beside q (v2.60 keys). */
@@ -114,14 +120,37 @@ export function statusLabel(row: Pick<SavedSearchFullRow, "paused">): "Watching"
  */
 export function matchCounts(
   row: Pick<SavedSearchFullRow, "last_opened_at">,
-  matches: Pick<SavedMatchRow, "created_at">[]
+  matches: Pick<SavedMatchRow, "created_at" | "match_kind">[]
 ): { total: number; fresh: number } {
+  // EXACT ONLY — adjacent results must never inflate exact-match counts or
+  // "new match" language (Permissioned Adjacency law). Rows without a kind
+  // predate adjacency and are exact by construction.
+  const exact = matches.filter((m) => m.match_kind !== "adjacent");
   const opened = row.last_opened_at ? Date.parse(row.last_opened_at) : null;
   const fresh =
     opened === null
-      ? matches.length
-      : matches.filter((m) => Date.parse(m.created_at) > opened).length;
-  return { total: matches.length, fresh };
+      ? exact.length
+      : exact.filter((m) => Date.parse(m.created_at) > opened).length;
+  return { total: exact.length, fresh };
+}
+
+/**
+ * Close matches accrued for one search — shown only while the search is
+ * currently opted in (the permission is honored at read time; switching it
+ * off removes the presentation without deleting history).
+ */
+export function adjacentCount(
+  row: Pick<SavedSearchFullRow, "include_adjacent">,
+  matches: Pick<SavedMatchRow, "match_kind">[]
+): number {
+  if (!row.include_adjacent) return 0;
+  return matches.filter((m) => m.match_kind === "adjacent").length;
+}
+
+/** The quiet close-matches line beside the exact count; null when silent. */
+export function adjacentCountLabel(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? "1 close match" : `${count} close matches`;
 }
 
 /** The DD1 match-count line, truthful per state. */
@@ -167,6 +196,10 @@ export function openResultsHref(row: Pick<SavedSearchFullRow, "query_string">): 
 export type MatchPresentation = {
   matchId: string;
   listingId: string;
+  /** Exact vs. adjacent must be unmistakable wherever a match renders. */
+  matchKind: "exact" | "adjacent";
+  /** The stored reason an adjacent watch was shown; null for exact. */
+  reason: string | null;
   available: boolean;
   title: string;
   reference: string | null;
@@ -202,6 +235,8 @@ export function presentMatch(
   return {
     matchId: match.id,
     listingId: match.listing_id,
+    matchKind: match.match_kind === "adjacent" ? "adjacent" : "exact",
+    reason: match.match_kind === "adjacent" ? (match.adjacent_reason ?? null) : null,
     available,
     title: listing ? `${listing.brand}${listing.model ? ` ${listing.model}` : ""}` : "Previously matched watch",
     reference: listing?.reference ?? null,

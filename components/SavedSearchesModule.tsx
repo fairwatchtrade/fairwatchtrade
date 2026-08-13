@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { bumpAndHref } from "@/lib/savedSearches";
 import {
+  adjacentCount,
+  adjacentCountLabel,
   contextLine,
   interpretedMeaning,
   matchCountLabel,
@@ -82,13 +84,13 @@ export default function SavedSearchesModule() {
       }
       const { data: rows } = await supabase
         .from("saved_searches")
-        .select("id,name,query_string,search_state,paused,open_count,last_opened_at,created_at")
+        .select("id,name,query_string,search_state,paused,include_adjacent,open_count,last_opened_at,created_at")
         .order("open_count", { ascending: false })
         .order("last_opened_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       const { data: matches } = await supabase
         .from("saved_search_matches")
-        .select("id,saved_search_id,listing_id,created_at")
+        .select("id,saved_search_id,listing_id,created_at,match_kind,adjacent_reason")
         .order("created_at", { ascending: false });
       if (cancelled) return;
       const byteSearch = new Map<string, SavedMatchRow[]>();
@@ -233,6 +235,56 @@ export default function SavedSearchesModule() {
     );
   };
 
+  // ── close matches: the per-search adjacency permission (reversible) ──
+  // Turning ON runs the bounded single-search re-evaluation so already-
+  // published close matches appear immediately; turning OFF removes them
+  // from presentation without deleting anything (read-time permission).
+  const toggleAdjacent = async (entry: Entry) => {
+    const id = entry.row.id;
+    const next = !entry.row.include_adjacent;
+    setBusyId(id);
+    setErrorById((p) => ({ ...p, [id]: "" }));
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("saved_searches")
+      .update({ include_adjacent: next })
+      .eq("id", id);
+    if (error) {
+      setBusyId(null);
+      setErrorById((p) => ({ ...p, [id]: "That didn’t save. Please try again." }));
+      return;
+    }
+    let refreshed: SavedMatchRow[] | null = null;
+    if (next) {
+      try {
+        await supabase.rpc("reevaluate_saved_search", { p_saved_search_id: id });
+        const { data } = await supabase
+          .from("saved_search_matches")
+          .select("id,saved_search_id,listing_id,created_at,match_kind,adjacent_reason")
+          .eq("saved_search_id", id)
+          .order("created_at", { ascending: false });
+        refreshed = (data ?? []) as SavedMatchRow[];
+      } catch {
+        // The permission is saved; freshly found rows arrive on next load.
+      }
+    }
+    setBusyId(null);
+    setEntries((prev) =>
+      (prev ?? []).map((e) =>
+        e.row.id === id
+          ? {
+              ...e,
+              row: { ...e.row, include_adjacent: next },
+              matches: refreshed ?? e.matches,
+              // Presentations reload on next inspection so kinds/reasons
+              // reflect what the re-evaluation just found.
+              presentations: refreshed ? null : e.presentations,
+            }
+          : e
+      )
+    );
+  };
+
   // ── delete: restrained inline confirmation; cascade removes history ──
   const confirmDelete = async (entry: Entry) => {
     const id = entry.row.id;
@@ -290,6 +342,8 @@ export default function SavedSearchesModule() {
         <div className="border-t border-[var(--border-subtle)]">
           {entries.map((entry) => {
             const counts = matchCounts(entry.row, entry.matches);
+            const closeCount = adjacentCount(entry.row, entry.matches);
+            const closeLabel = adjacentCountLabel(closeCount);
             const status = statusLabel(entry.row);
             const meaning = interpretedMeaning(entry.row);
             const unwatched = unwatchedConditionNote(entry.row);
@@ -347,6 +401,19 @@ export default function SavedSearchesModule() {
                       >
                         {matchCountLabel(counts)}
                       </span>
+                      {/* Close matches are counted BESIDE exact matches,
+                          never inside them — adjacency must not inflate
+                          exact-match language. Shown only while opted in. */}
+                      {closeLabel && (
+                        <span className="text-[12px] text-[var(--muted)]">
+                          · {closeLabel}
+                        </span>
+                      )}
+                      {entry.row.include_adjacent && (
+                        <span className="border border-[var(--border-subtle)] px-[7px] py-[4px] text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                          Close matches on
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 text-[11px] text-[var(--muted)]">
                       {contextLine(entry.row, counts, newest)}
@@ -367,7 +434,7 @@ export default function SavedSearchesModule() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    {counts.total > 0 && (
+                    {counts.total + closeCount > 0 && (
                       <button
                         type="button"
                         ref={(el) => {
@@ -395,6 +462,16 @@ export default function SavedSearchesModule() {
                       className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
                     >
                       {entry.row.paused ? "Resume" : "Pause"}
+                    </button>
+                    {/* The adjacency permission belongs to the Saved Search
+                        itself — managed here, reversible, never in Settings. */}
+                    <button
+                      type="button"
+                      onClick={() => toggleAdjacent(entry)}
+                      disabled={busyId === entry.row.id}
+                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
+                    >
+                      {entry.row.include_adjacent ? "Stop close matches" : "Show close matches"}
                     </button>
                     <button
                       type="button"
@@ -437,7 +514,16 @@ export default function SavedSearchesModule() {
                         Gathering what we found…
                       </div>
                     ) : (
-                      entry.presentations.map((m) => (
+                      entry.presentations
+                        /* Read-time permission: close matches disappear from
+                           presentation the moment the collector turns them
+                           off — history is kept, never shown against the
+                           current permission. */
+                        .filter(
+                          (m) =>
+                            m.matchKind !== "adjacent" || entry.row.include_adjacent
+                        )
+                        .map((m) => (
                         <div
                           key={m.matchId}
                           className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 border-b border-[var(--border-subtle)] px-4 py-3 last:border-b-0 sm:grid-cols-[72px_minmax(0,1fr)_auto]"
@@ -453,9 +539,26 @@ export default function SavedSearchesModule() {
                             )}
                           </div>
                           <div className="min-w-0">
+                            {/* Exact vs. close must be unmistakable, row by
+                                row — the collector never infers whether we
+                                found the watch or something nearby. */}
+                            <div
+                              className={`mb-1 text-[9px] uppercase tracking-[1.5px] ${
+                                m.matchKind === "exact"
+                                  ? "text-[var(--gold)]"
+                                  : "text-[var(--muted)]"
+                              }`}
+                            >
+                              {m.matchKind === "exact" ? "Exact match" : "Close to your search"}
+                            </div>
                             <div className="break-words font-display text-[15px] font-light text-[var(--platinum)]">
                               {m.title}
                             </div>
+                            {m.reason && (
+                              <div className="mt-1 text-[11px] leading-[1.5] text-[var(--slate)]">
+                                {m.reason}
+                              </div>
+                            )}
                             <div className="mt-1 text-[11px] leading-[1.4] text-[var(--muted)]">
                               {[m.reference ? `Reference ${m.reference}` : null, m.priceText, m.condition]
                                 .filter(Boolean)

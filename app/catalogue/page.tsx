@@ -1,25 +1,26 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
+import type { CatalogueMatchRow, CatalogueSearch } from "@/lib/catalogueMatches";
 
 /* ────────────────────────────────────────────────────────────────────────
-   BUYER CATALOGUE — /catalogue  (v2.1c)
+   BUYER CATALOGUE — /catalogue
 
    "What happened while I was away?" — a collector's morning brief, not an
    account page. Server wrapper following the same server-fetch → client-props
-   pattern as app/account/page.tsx → AccountDashboard and browse/page.tsx →
-   BrowseClient. Reads the user from the SSR Supabase client; an unauthenticated
-   visitor is sent to SIGN-IN with /catalogue preserved as the callbackUrl (the
-   project's standard auth-flow contract — login returns them straight to
-   Catalogue), NOT bounced through /sell and never dropped on the generic error
-   page. Catalogue is an authenticated personal surface and appears in the
-   approved primary mobile navigation, so a signed-out tap must resolve to
-   sign-in with continuity. Then pulls the greeting name from profiles and the
-   newest 3 published listings for the discovery feed, and hands them to the
-   client <CatalogueClient />.
+   pattern as app/account/page.tsx → AccountDashboard. Reads the user from the
+   SSR Supabase client; an unauthenticated visitor is sent to SIGN-IN with
+   /catalogue preserved as the callbackUrl.
 
-   Catalogue + saved-watches are Phase 2 (tables don't exist yet) — the client
-   renders honest empty shells, no fabricated matches.
+   Permissioned Adjacency (2026-08-12 build order): the old "Discovery" feed
+   — the marketplace-wide newest three published listings — is GONE. Browse
+   is what is on FairWatchTrade; Catalogue is what is relevant to THIS
+   collector. What renders here now is collector-scoped truth only: the
+   collector's own saved searches and the matches FairWatchTrade accrued for
+   them (exact, and — only where the collector opted in per search —
+   explainable close matches). Both reads are RLS own-row; the listing join
+   resolves under listings_select_public_or_own, so an unpublished match
+   simply returns no listing and renders nothing.
 
    PRIVACY: combined_score / significance_score / score_state are NEVER
    selected or rendered on buyer-facing surfaces. Not now, not in any future
@@ -46,21 +47,31 @@ export default async function CataloguePage() {
 
   const displayName = profile?.display_name ?? null;
 
-  // Discovery feed — the same published listings as /browse, newest 3 only.
-  // PRIVACY: combined_score / significance_score / score_state are NEVER
-  // selected here. PFC274 = 62.
-  const { data: listings } = await supabase
-    .from("listings")
-    .select(
-      "id, brand, model, reference, year, condition, asking_price, asking_currency, photos, details, status, created_at"
-    )
-    .eq("status", "published")
-    .order("created_at", { ascending: false })
-    .limit(3);
+  // The collector's saved searches — names for attribution, paused and
+  // include_adjacent so presentation can honor both at read time.
+  const { data: searchRows } = await supabase
+    .from("saved_searches")
+    .select("id, name, paused, include_adjacent");
 
-  const recentListings = (Array.isArray(listings) ? listings : []) as ListingRow[];
+  // Accrued matches, newest first, each with its listing (or null when the
+  // watch is no longer publicly readable — those render nothing here).
+  const { data: matchRows } = await supabase
+    .from("saved_search_matches")
+    .select(
+      "id, saved_search_id, match_kind, adjacent_reason, created_at, listing:listings(id, brand, model, reference, year, condition, asking_price, asking_currency, photos, details, status, created_at)"
+    )
+    .order("created_at", { ascending: false });
+
+  const searches = (Array.isArray(searchRows) ? searchRows : []) as CatalogueSearch[];
+  const matches = (Array.isArray(matchRows)
+    ? matchRows
+    : []) as unknown as CatalogueMatchRow<ListingRow>[];
 
   return (
-    <CatalogueClient displayName={displayName} recentListings={recentListings} />
+    <CatalogueClient
+      displayName={displayName}
+      searches={searches}
+      matchRows={matches}
+    />
   );
 }
