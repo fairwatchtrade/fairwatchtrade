@@ -49,9 +49,10 @@ import Link from "next/link";
    Colours use production tokens rather than forking a second palette; the
    study's brighter minute-hand gold collapses into --gold, with the
    hierarchy carried by the ivory hour hand and the thinner, translucent
-   second hand. The one literal is the dial well (#080A0D), deliberately a
-   touch darker than --ink so the dial reads as a dial and not as a hole in
-   the header.
+   second hand. The one non-token value is the dial well: per appearance it
+   sits a touch beyond the page ink — darker than --ink at night, a touch
+   lighter than the ivory page in daylight — so the dial reads as a dial
+   and not as a hole in the header.
 
    ── ACCESSIBILITY ──────────────────────────────────────────────────────
    The link carries the accessible name. The mark and the wordmark are both
@@ -148,7 +149,7 @@ function LiveClockMark({
         cx="90"
         cy="90"
         r="72"
-        fill="#080A0D"
+        fill="light-dark(#FAF7F0,#080A0D)"
         stroke="var(--gold)"
         strokeWidth="2.4"
       />

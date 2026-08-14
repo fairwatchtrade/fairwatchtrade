@@ -152,38 +152,38 @@ export default function HomepageClient({ listings }: { listings: ListingRow[] })
             aria-label="FairWatchTrade clock"
             className="block h-auto w-full"
           >
-            <circle cx="110" cy="110" r="108" stroke="rgba(201,168,76,0.12)" strokeWidth="0.5" />
-            <circle cx="110" cy="110" r="100" stroke="rgba(201,168,76,0.28)" strokeWidth="1" />
-            <circle cx="110" cy="110" r="93" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
-            <line x1="110" y1="16" x2="110" y2="26" stroke="#C9A84C" strokeWidth="1.5" />
-            <line x1="110" y1="194" x2="110" y2="204" stroke="#C9A84C" strokeWidth="1.5" />
-            <line x1="16" y1="110" x2="26" y2="110" stroke="#C9A84C" strokeWidth="1.5" />
-            <line x1="194" y1="110" x2="204" y2="110" stroke="#C9A84C" strokeWidth="1.5" />
-            <line x1="158.4" y1="21.6" x2="153.4" y2="30.3" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="198.4" y1="61.6" x2="189.7" y2="66.6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="198.4" y1="158.4" x2="189.7" y2="153.4" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="158.4" y1="198.4" x2="153.4" y2="189.7" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="61.6" y1="198.4" x2="66.6" y2="189.7" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="21.6" y1="158.4" x2="30.3" y2="153.4" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="21.6" y1="61.6" x2="30.3" y2="66.6" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <line x1="61.6" y1="21.6" x2="66.6" y2="30.3" stroke="rgba(201,168,76,0.3)" strokeWidth="0.8" />
-            <text x="110" y="50" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="rgba(232,228,220,0.55)" letterSpacing="1">XII</text>
-            <text x="170" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="rgba(232,228,220,0.38)" letterSpacing="1">III</text>
-            <text x="110" y="178" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="rgba(232,228,220,0.38)" letterSpacing="1">VI</text>
-            <text x="50" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="rgba(232,228,220,0.38)" letterSpacing="1">IX</text>
-            <text x="110" y="96" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="8" fill="rgba(201,168,76,0.4)" letterSpacing="2">FW</text>
-            <text x="110" y="106" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="5.5" fill="rgba(201,168,76,0.28)" letterSpacing="1.5">FAIRWATCHTRADE</text>
+            <circle cx="110" cy="110" r="108" stroke="light-dark(rgba(122,95,32,0.2),rgba(201,168,76,0.12))" strokeWidth="0.5" />
+            <circle cx="110" cy="110" r="100" stroke="light-dark(rgba(122,95,32,0.4),rgba(201,168,76,0.28))" strokeWidth="1" />
+            <circle cx="110" cy="110" r="93" stroke="light-dark(rgba(62,54,38,0.06),rgba(255,255,255,0.03))" strokeWidth="0.5" />
+            <line x1="110" y1="16" x2="110" y2="26" stroke="var(--gold)" strokeWidth="1.5" />
+            <line x1="110" y1="194" x2="110" y2="204" stroke="var(--gold)" strokeWidth="1.5" />
+            <line x1="16" y1="110" x2="26" y2="110" stroke="var(--gold)" strokeWidth="1.5" />
+            <line x1="194" y1="110" x2="204" y2="110" stroke="var(--gold)" strokeWidth="1.5" />
+            <line x1="158.4" y1="21.6" x2="153.4" y2="30.3" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="198.4" y1="61.6" x2="189.7" y2="66.6" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="198.4" y1="158.4" x2="189.7" y2="153.4" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="158.4" y1="198.4" x2="153.4" y2="189.7" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="61.6" y1="198.4" x2="66.6" y2="189.7" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="21.6" y1="158.4" x2="30.3" y2="153.4" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="21.6" y1="61.6" x2="30.3" y2="66.6" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <line x1="61.6" y1="21.6" x2="66.6" y2="30.3" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
+            <text x="110" y="50" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.6),rgba(232,228,220,0.55))" letterSpacing="1">XII</text>
+            <text x="170" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">III</text>
+            <text x="110" y="178" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">VI</text>
+            <text x="50" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">IX</text>
+            <text x="110" y="96" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="8" fill="light-dark(rgba(122,95,32,0.55),rgba(201,168,76,0.4))" letterSpacing="2">FW</text>
+            <text x="110" y="106" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="5.5" fill="light-dark(rgba(122,95,32,0.4),rgba(201,168,76,0.28))" letterSpacing="1.5">FAIRWATCHTRADE</text>
             <g style={{ transformOrigin: "110px 110px", transform: `rotate(${hourDeg}deg)` }}>
-              <line x1="110" y1="110" x2="110" y2="48" stroke="#E8E4DC" strokeWidth="1.2" strokeLinecap="round" />
+              <line x1="110" y1="110" x2="110" y2="48" stroke="var(--platinum)" strokeWidth="1.2" strokeLinecap="round" />
             </g>
             <g style={{ transformOrigin: "110px 110px", transform: `rotate(${minDeg}deg)` }}>
-              <line x1="110" y1="110" x2="110" y2="34" stroke="#E8E4DC" strokeWidth="1" strokeLinecap="round" />
+              <line x1="110" y1="110" x2="110" y2="34" stroke="var(--platinum)" strokeWidth="1" strokeLinecap="round" />
             </g>
             <g className="second-hand" style={{ transformOrigin: "110px 110px", transform: `rotate(${secDeg}deg)` }}>
-              <line x1="110" y1="122" x2="110" y2="40" stroke="#C9A84C" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
+              <line x1="110" y1="122" x2="110" y2="40" stroke="var(--gold)" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
             </g>
-            <circle cx="110" cy="110" r="3" fill="#C9A84C" />
-            <circle cx="110" cy="110" r="1.5" fill="#0D0F14" />
+            <circle cx="110" cy="110" r="3" fill="var(--gold)" />
+            <circle cx="110" cy="110" r="1.5" fill="var(--ink)" />
           </svg>
         </div>
 
