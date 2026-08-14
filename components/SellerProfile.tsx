@@ -188,7 +188,7 @@ export default function SellerProfile({
           {/* Quality signal — only if server returned prose (>=40 avg). */}
           {qualityText && (
             <div className="mb-4 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.025)] p-3">
-              <div className="mb-1 text-[7.5px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+              <div className="mb-1 text-[11px] uppercase tracking-[1.5px] text-[var(--gold-subtle)]">
                 Listing quality
               </div>
               <p className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--slate)]">
@@ -199,10 +199,10 @@ export default function SellerProfile({
 
           {/* Verification shell — always present, always dormant. */}
           <div className="mb-4 border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.01)] p-3">
-            <div className="mb-1 text-[7.5px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="mb-1 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
               Verification
             </div>
-            <div className="text-[10px] font-light italic text-[var(--muted)]">
+            <div className="text-[11px] font-light italic text-[var(--muted)]">
               In Hand Verified — Phase 2
             </div>
           </div>
@@ -210,7 +210,7 @@ export default function SellerProfile({
           <div className="fw-rule my-5" />
 
           {/* House Style — section header kept; items omitted (no column yet). */}
-          <div className="text-[7.5px] uppercase tracking-[3px] text-[var(--gold)] opacity-70">
+          <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-70">
             Private correspondence, public standards.
           </div>
 
@@ -226,7 +226,7 @@ export default function SellerProfile({
 
           {/* Correspondence — pinned to bottom */}
           <div className="mt-auto border-t border-[var(--border-faint)] pt-5">
-            <div className="mb-2 text-[7.5px] uppercase tracking-[3px] text-[var(--gold)] opacity-70">
+            <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-70">
               Correspondence
             </div>
             <p className="mb-3 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
@@ -306,7 +306,7 @@ export default function SellerProfile({
                       {row.model ?? row.brand}
                     </div>
                     {meta && (
-                      <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                      <div className="mb-3 text-[11px] tracking-[0.3px] text-[var(--muted)]">
                         {attrs ? `${meta} · ${attrs}` : meta}
                       </div>
                     )}

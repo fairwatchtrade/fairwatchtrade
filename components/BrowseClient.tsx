@@ -466,7 +466,7 @@ function FacetGroup({
 function SpecRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <div className="flex items-baseline justify-between gap-2 border-b border-[var(--border-faint)] py-1 text-[10px] tracking-[0.3px]">
+    <div className="flex items-baseline justify-between gap-2 border-b border-[var(--border-faint)] py-1 text-[11px] tracking-[0.3px]">
       <span className="text-[var(--muted)]">{label}</span>
       <span className="text-[var(--slate)]">{value}</span>
     </div>
@@ -1990,7 +1990,7 @@ export default function BrowseClient({
                               {formatPrice(row.asking_price, row.asking_currency)}
                             </span>
                           </div>
-                          <div className="mb-2 truncate text-[10px] tracking-[0.3px] text-[var(--muted)]">
+                          <div className="mb-2 truncate text-[11px] tracking-[0.3px] text-[var(--muted)]">
                             {row.reference}
                           </div>
                         </Link>
