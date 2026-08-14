@@ -231,24 +231,47 @@ export default function ListingActionRail({
     </div>
   );
 
-  /* ── MOBILE / TABLET — today's in-flow layout, unchanged. ── */
+  /* Dealer Information — defined once, worn by both dressings. It used to be
+     built inside the rail branch alone, so below xl the seller's name and the
+     only route to their profile left the page with the rail: absent across the
+     whole lg→xl desktop band and on every mobile viewport. Every listing links
+     to the seller's profile is a standing rule, not a wide-screen courtesy. */
+  const dealerInformation = (
+    <section className="border border-[var(--border-gold)] bg-[linear-gradient(180deg,rgba(201,168,76,0.045),rgba(255,255,255,0.012))] px-[18px] pb-[18px] pt-[18px]">
+      <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
+        Dealer Information
+      </div>
+      <Link
+        href={`/sellers/${sellerId}`}
+        className="mt-3 block text-[13px] leading-snug text-[var(--muted)] transition hover:text-[var(--gold)]"
+      >
+        Sold by {sellerName} →
+      </Link>
+    </section>
+  );
+
+  /* ── MOBILE / TABLET — today's in-flow layout, unchanged but for the
+        seller attribution it was missing. ── */
   if (variant === "inline") {
     return (
       <>
         <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
-          <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-            Asking Price
-          </p>
-          {/* The lg→xl band has no rail composer, so the question door is a
-              quiet link here — it opens the existing conversation home.
-              Authed non-owners only: the listener lives in
-              ListingCorrespondence, which owners and guests don't mount. */}
-          {!isOwner && canRequestInline && (
-            <div className="mt-3">
-              <AskSellerLink />
-            </div>
-          )}
+          {dealerInformation}
+          <div className="mt-6">
+            <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
+              Asking Price
+            </p>
+            {/* The lg→xl band has no rail composer, so the question door is a
+                quiet link here — it opens the existing conversation home.
+                Authed non-owners only: the listener lives in
+                ListingCorrespondence, which owners and guests don't mount. */}
+            {!isOwner && canRequestInline && (
+              <div className="mt-3">
+                <AskSellerLink />
+              </div>
+            )}
+          </div>
         </div>
         {purchaseBlock}
       </>
@@ -258,18 +281,7 @@ export default function ListingActionRail({
   /* ── DESKTOP RAIL — two stacked cards, 14px apart (gap owned by page.tsx). ── */
   return (
     <>
-      {/* Dealer Information */}
-      <section className="border border-[var(--border-gold)] bg-[linear-gradient(180deg,rgba(201,168,76,0.045),rgba(255,255,255,0.012))] px-[18px] pb-[18px] pt-[18px]">
-        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
-          Dealer Information
-        </div>
-        <Link
-          href={`/sellers/${sellerId}`}
-          className="mt-3 block text-[13px] leading-snug text-[var(--muted)] transition hover:text-[var(--gold)]"
-        >
-          Sold by {sellerName} →
-        </Link>
-      </section>
+      {dealerInformation}
 
       {/* Purchase Request — or, for the listing's own seller, plain price
           truth. The owner card previously kept the "Purchase Request" header
