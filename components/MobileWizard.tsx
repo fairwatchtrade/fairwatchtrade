@@ -1306,7 +1306,7 @@ export default function MobileWizard({
                     setBrandId(b.id);
                     setDraft((d) => ({ ...d, brand: b.name, customBrandFlag: false }));
                   }}
-                  className="block w-full px-3 py-2.5 text-left text-[13px] text-[var(--platinum-dim)] transition-colors hover:bg-[rgba(255,255,255,0.03)]"
+                  className="block w-full px-3 py-2.5 text-left text-[13px] text-[var(--platinum-dim)] transition-colors hover:bg-[var(--hover-wash)]"
                 >
                   {b.name}
                 </button>
@@ -1408,7 +1408,7 @@ export default function MobileWizard({
           )}
 
           {draft.askingPrice.trim() !== "" && (
-            <div className="mt-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+            <div className="mt-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
               {askingParse.ok ? (
                 <div className="text-[12px] leading-[1.5] text-[var(--platinum-dim)]">
                   <strong className="font-medium text-[var(--platinum)]">

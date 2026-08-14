@@ -116,7 +116,7 @@ export default function InlinePurchaseRequest({
   if (view !== "form") {
     return (
       <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
-        <div className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+        <div className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
           <div className="text-[9px] uppercase tracking-[2px] text-[var(--gold-dim)]">
             {view === "success"
               ? "Request sent"

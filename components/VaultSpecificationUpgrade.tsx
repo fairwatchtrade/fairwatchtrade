@@ -1124,7 +1124,7 @@ export default function VaultSpecificationUpgrade({
         }}
         className={`mb-6 border border-dashed px-6 py-8 text-center transition ${
           dragging
-            ? "border-[var(--gold)] bg-[rgba(201,168,76,0.05)]"
+            ? "border-[var(--gold)] bg-[var(--gold-whisper)]"
             : "border-[var(--border-mid)] bg-[var(--surface)]"
         }`}
       >

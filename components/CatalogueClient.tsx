@@ -296,13 +296,13 @@ function ListingCard({ row }: { row: ListingRow }) {
           </div>
         )}
         {docBadge && (
-          <span className="absolute right-3 top-3 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
+          <span className="absolute right-3 top-3 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--on-photo-gold)]">
             {docBadge}
           </span>
         )}
       </div>
 
-      <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+      <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
         {row.brand}
       </div>
       <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
@@ -463,7 +463,7 @@ function WatchOfferGroup({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
         ) : (
-          <div className="text-[8px] tracking-[0.3px] text-[var(--muted)]">No photo</div>
+          <div className="text-[11px] tracking-[0.3px] text-[var(--muted)]">No photo</div>
         )}
       </div>
 
@@ -527,7 +527,7 @@ function WatchOfferGroup({
         {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
         {history.length > 0 && (
           <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
-            <div className="mb-1 text-[8px] uppercase tracking-[2px] text-[var(--muted)] opacity-70">
+            <div className="mb-1 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] opacity-70">
               Previous requests
             </div>
             {history.map((h) => (
@@ -544,7 +544,7 @@ function WatchOfferGroup({
   return l ? (
     <Link
       href={`/listings/${l.id}`}
-      className="block border-b border-[rgba(255,255,255,0.03)] transition last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+      className="block border-b border-[rgba(255,255,255,0.03)] transition last:border-b-0 hover:bg-[var(--hover-wash)]"
     >
       {inner}
     </Link>
@@ -634,7 +634,7 @@ function MyOffersSection({
     // v2.84-capped two-column grid, so on ultrawide screens its rows stretched
     // status to the viewport cliff. The cap binds only beyond 1100px.
     <div className="mt-8 max-w-[1100px]">
-      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+      <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
         My Offers
       </div>
 
@@ -666,7 +666,7 @@ function MyOffersSection({
           </div>
           <Link
             href="/browse"
-            className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+            className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
           >
             Explore the Marketplace →
           </Link>
@@ -973,7 +973,7 @@ export default function CatalogueClient({
             else — the hero's dominance over the sections beneath it is
             unchanged. */}
         <div className="mt-6 border border-[rgba(201,168,76,0.28)] bg-[var(--gold-whisper)] px-7 py-5">
-          <div className="mb-2 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-2 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
             Catalogue Match
           </div>
           {heroState === "matches" ? (
@@ -1038,7 +1038,7 @@ export default function CatalogueClient({
           // WS1 (2026-07-28) — bounded: keeps each thread's timestamp attached
           // to its conversation instead of the far viewport edge on ultrawide.
           <div className="mt-8 max-w-[1100px]">
-            <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Correspondence
             </div>
             <div className="border border-[var(--border-subtle)]">
@@ -1051,7 +1051,7 @@ export default function CatalogueClient({
                   <Link
                     key={t.id}
                     href={`/listings/${t.listing!.id}`}
-                    className="flex items-center justify-between border-b border-[rgba(255,255,255,0.03)] px-4 py-3 transition last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+                    className="flex items-center justify-between border-b border-[rgba(255,255,255,0.03)] px-4 py-3 transition last:border-b-0 hover:bg-[var(--hover-wash)]"
                   >
                     <span
                       className={`truncate text-[13px] ${
@@ -1127,7 +1127,7 @@ export default function CatalogueClient({
               <div>
                 {exactMatches.length > 0 && (
                   <div>
-                    <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                       Search Matches
                     </div>
                     <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
@@ -1153,7 +1153,7 @@ export default function CatalogueClient({
                     mixed into, or counted with, exact matches. */}
                 {adjacentMatches.length > 0 && (
                   <div className={exactMatches.length > 0 ? "mt-10" : ""}>
-                    <div className="mb-1 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                    <div className="mb-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                       Close to your search
                     </div>
                     <p className="mb-4 text-[12px] leading-[1.5] text-[var(--muted)]">
@@ -1185,7 +1185,7 @@ export default function CatalogueClient({
                 preserved verbatim for the true empty case AND the loading
                 case, so there's no flash between "loading" and "0 saved". */}
             <div id="saved-watches" className="mt-8 scroll-mt-32">
-              <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+              <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                 Saved Watches
               </div>
               {savedListings.length > 0 ? (
@@ -1203,17 +1203,17 @@ export default function CatalogueClient({
                     Save a watch that speaks to you, and your Catalogue will begin to take shape.
                   </div>
                   <div className="flex flex-col items-center gap-3">
-                    <Link href="/browse" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                    <Link href="/browse" className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
                       Explore the Marketplace →
                     </Link>
-                    <Link href="/vault" className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                    <Link href="/vault" className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
                       Explore the Vault →
                     </Link>
                     {/* v3.21 — LIVE link (v3 order §6.3): Watch DNA is a
                         working module; no surface may claim it is Soon. */}
                     <Link
                       href="/watch-dna"
-                      className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                      className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
                     >
                       Watch DNA Quiz →
                     </Link>

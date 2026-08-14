@@ -391,7 +391,7 @@ function FacetGroup({
         className={
           dealerLegibility
             ? "mb-3 text-[10px] uppercase tracking-[1.8px] text-[var(--muted)]"
-            : "mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]"
+            : "mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]"
         }
       >
         {title}
@@ -1051,7 +1051,7 @@ export default function BrowseClient({
     <div>
       {/* Filter intro */}
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-[6px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+        <div className="mb-[6px] text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
           {dealerScope ? `Refine ${dealerScope.businessName}` : "Refine"}
         </div>
         <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
@@ -1097,7 +1097,7 @@ export default function BrowseClient({
           collector-specific criteria, reusing the identical FacetGroup /
           countBy / toggle-handler pattern as every rail facet above. */}
       <div className="mx-[18px] mb-[22px] border-t border-[var(--border-faint)] pt-5">
-        <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+        <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
           Collector&apos;s Workbench
         </div>
       </div>
@@ -1427,7 +1427,7 @@ export default function BrowseClient({
                   type="button"
                   onClick={() => setGridCols(n)}
                   className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                    dealerScope ? "text-[11px]" : "text-[9px]"
+                    "text-[11px]"
                   } ${
                     gridCols === n
                       ? "border-[var(--border-gold)] text-[var(--gold)]"
@@ -1463,7 +1463,7 @@ export default function BrowseClient({
                    in a hand outdoors; the phone gets the same 11px the Dealer
                    Room was already corrected to, desktop keeps 9px. */
                 className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                  dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
+                  "text-[11px]"
                 } ${
                   viewMode === key
                     ? "border-[var(--border-gold)] text-[var(--gold)]"
@@ -1505,7 +1505,7 @@ export default function BrowseClient({
               className={`uppercase tracking-[1px] ${
                 dealerScope
                   ? "text-[11px] text-[var(--slate)]"
-                  : "text-[11px] text-[var(--muted)] md:text-[9px]"
+                  : "text-[11px] text-[var(--muted)]"
               }`}
             >
               Sort
@@ -1514,7 +1514,7 @@ export default function BrowseClient({
               id="browse-sort"
               value={sort}
               onChange={(e) => setSort(parseBrowseSort(e.target.value))}
-              className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition md:text-[9px] ${
+              className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition ${
                 dealerScope ? "!text-[11px]" : ""
               } ${
                 sort === "default"
@@ -1544,7 +1544,7 @@ export default function BrowseClient({
               type="button"
               onClick={() => setPageSize(n)}
               className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                dealerScope ? "text-[11px]" : "text-[11px] md:text-[9px]"
+                "text-[11px]"
               } ${
                 pageSize === n
                   ? "border-[var(--border-gold)] text-[var(--gold)]"
@@ -1774,7 +1774,7 @@ export default function BrowseClient({
                              ONLY is status text a collector reads. On a phone
                              it reads at 10px on one line inside the wider
                              two-column frame; desktop keeps its 8px badge. */
-                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)] md:text-[8px]">
+                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
                             {docBadge}
                           </span>
                         )}
@@ -1856,7 +1856,7 @@ export default function BrowseClient({
                       )}
 
                       {/* Brand */}
-                      <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                      <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                         {row.brand}
                       </div>
 
@@ -1942,7 +1942,7 @@ export default function BrowseClient({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={hero} alt="" style={heroStyle} className="h-full w-full" />
                       ) : (
-                        <div className="text-center text-[9px] leading-tight tracking-[0.3px] text-[var(--muted)]">
+                        <div className="text-center text-[11px] leading-tight tracking-[0.3px] text-[var(--muted)]">
                           No photo
                         </div>
                       )}
@@ -1963,7 +1963,7 @@ export default function BrowseClient({
                     <div className="min-w-0 flex-1">
                       <div style={{ maxWidth: 420 }}>
                         <Link href={listingHref(row.id)} className="block">
-                          <div className="mb-[3px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                          <div className="mb-[3px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                             {row.brand}
                           </div>
                           <div className="mb-[2px] flex items-center gap-2">
@@ -2105,7 +2105,7 @@ export default function BrowseClient({
                     {isSnapshotOpen && (
                       <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[var(--panel-line)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_var(--panel-shadow-color)]">
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+                          <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                             Collector Snapshot · {row.model ?? row.brand}
                           </span>
                           <button

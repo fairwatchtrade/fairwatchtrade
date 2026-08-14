@@ -158,7 +158,7 @@ export default function NavBar({
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 lg:flex">
-          {/* v3.23 — Design Duck ruling: "Account" is a GUEST-ONLY word.
+          {/* v3.23 — design ruling: "Account" is a GUEST-ONLY word.
               Signed in, the avatar/name cluster is the single Account
               entrance (My Account → Overview), so the primary word is just a
               second door into the same workspace landing in a different room.
@@ -206,7 +206,7 @@ export default function NavBar({
                       <Link
                         href="/signup"
                         onClick={() => setJoinOpen(false)}
-                        className="mb-2 block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-3 py-2.5 text-center text-[9px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+                        className="mb-2 block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2.5 text-center text-[9px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
                       >
                         Create account
                       </Link>
@@ -294,28 +294,28 @@ export default function NavBar({
                   <Link
                     href="/account?module=dashboard"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     My Account
                   </Link>
                   <Link
                     href="/sell"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     Sell a Watch
                   </Link>
                   <Link
                     href="/account"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     My Listings
                   </Link>
                   <Link
                     href="/account/settings"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     Account Settings
                   </Link>
@@ -323,7 +323,7 @@ export default function NavBar({
                     <Link
                       href="/admin"
                       onClick={() => setAccountOpen(false)}
-                      className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                      className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                     >
                       Admin
                     </Link>
@@ -332,7 +332,7 @@ export default function NavBar({
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="block w-full px-4 py-2 text-left text-[10px] uppercase tracking-[2.5px] text-[var(--muted)] transition-colors hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--danger)]"
+                    className="block w-full px-4 py-2 text-left text-[10px] uppercase tracking-[2.5px] text-[var(--muted)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--danger)]"
                   >
                     Sign Out
                   </button>

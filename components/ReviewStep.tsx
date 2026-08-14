@@ -359,8 +359,8 @@ export default function ReviewStep({
               so the separate ISO label that used to sit beside it was the same
               fact said twice — "US$8,250 USD". The label is gone; the Money
               Truth formatting and currency semantics are untouched. */}
-          <div className="mt-2 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2.5">
-            <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+          <div className="mt-2 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2.5">
+            <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
               Asking price
             </div>
             <div className="mt-0.5 font-display text-[18px] font-light text-[var(--gold)]">
@@ -383,7 +383,7 @@ export default function ReviewStep({
             <div className="mt-5">
               {/* Section boundary: the seller's story is its own region, never a
                   continuation of the price explanation above it. */}
-              <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold)]">
+              <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold)]">
                 Your Description
               </div>
               <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-[var(--slate)]">
@@ -432,7 +432,7 @@ export default function ReviewStep({
               Publication readiness
             </h3>
             <span
-              className={`border px-2.5 py-1 text-[9px] uppercase tracking-[1.5px] ${
+              className={`border px-2.5 py-1 text-[11px] uppercase tracking-[1.2px] ${
                 admissionReady
                   ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
                   : "border-[var(--border-gold)] text-[var(--gold)]"

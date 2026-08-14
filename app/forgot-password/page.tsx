@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="relative z-[1] flex flex-1 flex-col justify-center">
-          <div className="mb-5 text-[8px] uppercase tracking-[3px] text-[var(--gold-dim)]">
+          <div className="mb-5 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
             Why we are here
           </div>
 
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
             <div className="mb-[14px] flex items-start gap-3">
               <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">I</div>
               <div className="flex-1">
-                <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+                <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                   Capital Efficiency
                 </div>
                 <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
             <div className="mb-[14px] flex items-start gap-3">
               <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">II</div>
               <div className="flex-1">
-                <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+                <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                   Collector-First Discovery
                 </div>
                 <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
             <div className="flex items-start gap-3">
               <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">III</div>
               <div className="flex-1">
-                <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+                <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                   Authenticity-First
                 </div>
                 <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -139,7 +139,7 @@ export default function ForgotPasswordPage() {
 
       {/* ── RIGHT PANEL — Reset Password ── */}
       <div className="flex flex-1 flex-col">
-        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
           Reset Password
         </div>
 
@@ -168,7 +168,7 @@ export default function ForgotPasswordPage() {
                 <div className="mb-7 h-px w-12 bg-[var(--gold-subtle)]" />
 
                 <div className="mb-7">
-                  <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Email
                   </div>
                   <input

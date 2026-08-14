@@ -152,7 +152,7 @@ export default function SellerProfile({
       <div className="flex flex-1 flex-col md:flex-row">
         {/* LEFT — the person */}
         <div className="flex w-full shrink-0 flex-col border-b border-[var(--border-faint)] px-6 py-7 md:w-[232px] md:border-r md:border-b-0">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)]">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-gold)] bg-[var(--gold-whisper)]">
             <span className="font-display text-[16px] font-light text-[var(--gold)]">
               {initials}
             </span>
@@ -165,19 +165,19 @@ export default function SellerProfile({
 
           <div className="mt-4">
             <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Member since</span>
+              <span className="text-[11px] uppercase tracking-[1px] text-[var(--muted)]">Member since</span>
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">
                 {memberSince(seller.createdAt)}
               </span>
             </div>
             <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Active listings</span>
+              <span className="text-[11px] uppercase tracking-[1px] text-[var(--muted)]">Active listings</span>
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">
                 {listings.length}
               </span>
             </div>
             <div className="flex items-baseline justify-between py-2">
-              <span className="text-[9px] uppercase tracking-[1px] text-[var(--muted)]">Completed sales</span>
+              <span className="text-[11px] uppercase tracking-[1px] text-[var(--muted)]">Completed sales</span>
               {/* Literal dash — never 0. Transaction history is Phase 2 dormant. */}
               <span className="font-display text-[15px] font-light text-[var(--platinum-dim)]">—</span>
             </div>
@@ -217,7 +217,7 @@ export default function SellerProfile({
           <div className="fw-rule my-5" />
 
           {/* Collector statement — always the fallback (no column yet). */}
-          <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+          <div className="mb-2 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Collector statement
           </div>
           <p className="font-display text-[12px] font-light italic leading-[1.8] text-[var(--muted)]">
@@ -240,7 +240,7 @@ export default function SellerProfile({
             ) : (
               <span className="fw-btn-secondary inline-block opacity-40">Contact via listing</span>
             )}
-            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Private correspondence · Public standards
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function SellerProfile({
             <div className="font-display text-[18px] font-light text-[var(--platinum)]">
               Active Listings
             </div>
-            <div className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               {listings.length} {listings.length === 1 ? "watch" : "watches"}
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function SellerProfile({
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+                    className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[var(--hover-wash)]"
                   >
                     <div className="relative mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
                       {hero ? (
@@ -293,13 +293,13 @@ export default function SellerProfile({
                         </div>
                       )}
                       {docBadge && (
-                        <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
+                        <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-2 py-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--gold)]">
                           {docBadge}
                         </span>
                       )}
                     </div>
 
-                    <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+                    <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
                       {row.brand}
                     </div>
                     <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
@@ -321,7 +321,7 @@ export default function SellerProfile({
 
           {/* Transaction history — always shown below the grid; dormant. */}
           <div className="mt-7 border-t border-[var(--border-faint)] pt-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="mb-2 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Transaction history
             </div>
             {completedSales === 0 ? (

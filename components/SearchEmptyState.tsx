@@ -230,7 +230,7 @@ export default function SearchEmptyState({
                   className="flex items-baseline justify-between gap-4 py-2.5 transition hover:bg-[var(--hover-wash)]"
                 >
                   <span className="min-w-0">
-                    <span className="mr-2 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                    <span className="mr-2 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
                       {r.brand}
                     </span>
                     <span className="font-display text-[14px] font-light text-[var(--platinum)]">

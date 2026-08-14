@@ -375,8 +375,8 @@ function TypeaheadField({
               onMouseEnter={() => setActiveIdx(i)}
               className={`block w-full px-3 py-2 text-left text-[13px] ${
                 i === activeIdx
-                  ? "bg-[rgba(201,168,76,0.12)] text-[var(--platinum)]"
-                  : "text-[var(--platinum)] hover:bg-[rgba(201,168,76,0.06)]"
+                  ? "bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                  : "text-[var(--platinum)] hover:bg-[var(--gold-whisper)]"
               }`}
             >
               {s}
@@ -392,8 +392,8 @@ function TypeaheadField({
               onMouseEnter={() => setActiveIdx(filtered.length)}
               className={`block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left text-[13px] italic ${
                 activeIdx === filtered.length
-                  ? "bg-[rgba(201,168,76,0.12)] text-[var(--platinum)]"
-                  : "text-[var(--muted)] hover:bg-[rgba(201,168,76,0.06)] hover:text-[var(--platinum)]"
+                  ? "bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                  : "text-[var(--muted)] hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]"
               }`}
             >
               {otherOption.label}
@@ -745,7 +745,7 @@ export default function DetailsStep({
           return (
             <div
               role="alert"
-              className="mt-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 text-[12px] leading-relaxed text-[var(--muted)]"
+              className="mt-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 text-[12px] leading-relaxed text-[var(--muted)]"
             >
               <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                 These two answers disagree
@@ -790,7 +790,7 @@ export default function DetailsStep({
             the AI pass returns near-certain corrections. Gold, not red: this is
             help, not a grade. */}
         {review && (
-          <div className="mt-6 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-5 py-5">
+          <div className="mt-6 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-5">
             <h3 className="font-display text-[17px] font-light text-[var(--platinum)]">
               One last look
             </h3>
@@ -832,7 +832,7 @@ export default function DetailsStep({
               <button
                 type="button"
                 onClick={applySuggestions}
-                className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--platinum)] transition hover:bg-[rgba(201,168,76,0.12)]"
+                className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--platinum)] transition hover:bg-[var(--gold-whisper)]"
               >
                 Apply suggestions
               </button>

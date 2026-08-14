@@ -209,7 +209,7 @@ export default function SignUpPage() {
 
       {/* The manifesto */}
       <div className="relative z-[1] flex flex-1 flex-col justify-center">
-        <div className="mb-5 text-[8px] uppercase tracking-[3px] text-[var(--gold-dim)]">
+        <div className="mb-5 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
           Why we are here
         </div>
 
@@ -223,7 +223,7 @@ export default function SignUpPage() {
           <div className="mb-[14px] flex items-start gap-3">
             <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">I</div>
             <div className="flex-1">
-              <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+              <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Capital Efficiency
               </div>
               <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -234,7 +234,7 @@ export default function SignUpPage() {
           <div className="mb-[14px] flex items-start gap-3">
             <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">II</div>
             <div className="flex-1">
-              <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+              <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Collector-First Discovery
               </div>
               <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -245,7 +245,7 @@ export default function SignUpPage() {
           <div className="flex items-start gap-3">
             <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">III</div>
             <div className="flex-1">
-              <div className="mb-[2px] text-[9px] uppercase tracking-[1.5px] text-[var(--slate)]">
+              <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Authenticity-First
               </div>
               <div className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]">
@@ -268,7 +268,7 @@ export default function SignUpPage() {
       <div className="flex min-h-screen bg-[var(--ink)]">
         {leftPanel}
         <div className="flex flex-1 flex-col">
-          <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Create Account
           </div>
           <div className="flex flex-1 flex-col items-center justify-center bg-[var(--ink-deep)] px-11 py-9">
@@ -283,7 +283,7 @@ export default function SignUpPage() {
               </div>
 
               <div className="mb-5">
-                <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                   Confirmation code
                 </div>
                 <input
@@ -344,7 +344,7 @@ export default function SignUpPage() {
 
       {/* ── RIGHT PANEL — Sign Up ── */}
       <div className="flex flex-1 flex-col">
-        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
           Create Account
         </div>
 
@@ -362,7 +362,7 @@ export default function SignUpPage() {
                 Literal about channel, timing, and no-batch; honest that it is not
                 yet Catalogue-targeted. The manifesto (left panel) stays unchanged. */}
             <div className="mb-6 border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.015)] p-4">
-              <div className="mb-3 text-[8px] uppercase tracking-[2.5px] text-[var(--gold)]">
+              <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
                 What your account gives you
               </div>
               <ul className="flex flex-col gap-2.5 text-[11px] leading-[1.5] text-[var(--muted)]">
@@ -389,12 +389,12 @@ export default function SignUpPage() {
                     onClick={() => setRole(chip.id)}
                     className={`flex-1 cursor-pointer border px-2 py-[10px] text-center ${
                       selected
-                        ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.05)]"
+                        ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
                         : "border-[var(--border-subtle)]"
                     }`}
                   >
                     <span
-                      className={`mb-[3px] block text-[9px] uppercase tracking-[1.5px] ${
+                      className={`mb-[3px] block text-[11px] uppercase tracking-[1.2px] ${
                         selected ? "text-[var(--gold)]" : "text-[var(--muted)]"
                       }`}
                     >
@@ -413,7 +413,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="mb-5">
-              <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+              <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                 Email
               </div>
               <input
@@ -427,7 +427,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="mb-5">
-              <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+              <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                 Password
               </div>
               <input
@@ -441,7 +441,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="mb-5">
-              <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+              <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                 Confirm Password
               </div>
               <input

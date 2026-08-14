@@ -117,13 +117,30 @@ html[data-theme="dark"] { color-scheme: dark; }
      weak yellow. Deeper and browner than the dark arm by design. */
   --gold-dim:     light-dark(#84682A, #9A7E3A);
   --gold-subtle:  light-dark(rgba(122,95,32,0.72), rgba(201,168,76,0.45));
-  --gold-whisper: light-dark(rgba(122,95,32,0.08), rgba(201,168,76,0.08));
+  /* A whisper of gold, not a smear of olive: the brown-heavy tint went muddy
+     on ivory, so the light arm carries the burnished hue instead. */
+  --gold-whisper: light-dark(rgba(176,138,46,0.13), rgba(201,168,76,0.08));
 
   /* GOLD HIERARCHY RULE: --gold is used ONCE per section.
      It marks the single most important element in that zone.
      Supporting gold uses --gold-dim or --gold-subtle only.
      Never two --gold elements competing in the same section. */
   --gold:         light-dark(#8D6B1F, #C9A84C);
+
+  /* GOLD AS A FILL is a different optical job from gold as a line or a word.
+     The antique gold above is correct for small marks on paper, but poured
+     across a whole button it reads as mustard/olive — and ivory text on it
+     fails contrast outright. A filled gold control therefore takes a richer
+     burnished gold with near-black engraving, which is the same relationship
+     dark mode already has (bright gold plate, ink text). */
+  --gold-fill:    light-dark(#B08A2E, #C9A84C);
+  --on-gold:      light-dark(#211D14, #0D0F14);
+
+  /* Disabled must stay READABLE — a disabled control still has to say what it
+     is. Alpha alone over ivory bleaches the label away (Signup's CREATE
+     ACCOUNT at opacity .4), so disabled gets real surface + text values. */
+  --disabled-surface: light-dark(#E4DFD3, rgba(255,255,255,0.06));
+  --disabled-text:    light-dark(#777063, #7C8394);
 
   --danger:       light-dark(#A03B33, #E07070);  /* deep restrained red, not candy */
   --success:      light-dark(#2E7D4F, #70C090);  /* deep muted green, not emerald */
@@ -144,20 +161,27 @@ html[data-theme="dark"] { color-scheme: dark; }
      Channel 2 attention = teal LEFT edge only; Channel 4 interaction = neutral.
      Defined here as the single palette; applied per surface in the Seller and
      Admin implementation orders. Sale Pending is badge-led warm ivory. ── */
+  /* In Daylight a 5% state colour poured across a whole card turns the
+     room rose, olive or green — the exact drift Jason flagged. Every
+     light-mode lifecycle wash therefore shares ONE faint warm neutral;
+     the state is still spoken by its coloured hairline and badge, which
+     keep their own hues. Dark arms are untouched. */
+  --state-wash:              rgba(62,54,38,0.028);
+
   --lc-draft-line:           light-dark(rgba(122,95,32,0.44), rgba(201,168,76,0.34));
-  --lc-draft-wash:           light-dark(rgba(122,95,32,0.05), rgba(201,168,76,0.045));
+  --lc-draft-wash:           light-dark(var(--state-wash), rgba(201,168,76,0.045));
   --lc-draft-badge:          light-dark(#84682A, #C9A84C);
   --lc-pending_review-line:  light-dark(rgba(90,95,110,0.45), rgba(156,161,176,0.40));
-  --lc-pending_review-wash:  light-dark(rgba(90,95,110,0.05), rgba(156,161,176,0.045));
+  --lc-pending_review-wash:  light-dark(var(--state-wash), rgba(156,161,176,0.045));
   --lc-pending_review-badge: light-dark(#5A5F6E, #B9BECC);
   --lc-published-line:       light-dark(rgba(46,125,79,0.45), rgba(112,192,144,0.34));
-  --lc-published-wash:       light-dark(rgba(46,125,79,0.05), rgba(112,192,144,0.038));
+  --lc-published-wash:       light-dark(var(--state-wash), rgba(112,192,144,0.038));
   --lc-published-badge:      light-dark(#2E7D4F, #70C090);
   --lc-rejected-line:        light-dark(rgba(160,59,51,0.5), rgba(190,86,80,0.44));
-  --lc-rejected-wash:        light-dark(rgba(160,59,51,0.05), rgba(190,86,80,0.05));
+  --lc-rejected-wash:        light-dark(var(--state-wash), rgba(190,86,80,0.05));
   --lc-rejected-badge:       light-dark(#A03B33, #DB8E88);
   --lc-reserved-line:        light-dark(rgba(110,90,37,0.55), rgba(228,216,188,0.62));
-  --lc-reserved-wash:        light-dark(rgba(110,90,37,0.05), rgba(228,216,188,0.05));
+  --lc-reserved-wash:        light-dark(var(--state-wash), rgba(228,216,188,0.05));
   --lc-reserved-badge:       light-dark(#6E5A25, #EFE4CB);
   --lc-neutral-line:         var(--border-subtle);
   --lc-attn-edge:            light-dark(#2C7F88, #58B4BE);
@@ -272,16 +296,16 @@ html, body {
 
 .fw-eyebrow {
   font-family: 'Inter', sans-serif;
-  font-size: 8px;
-  letter-spacing: 3px;
+  font-size: 10px;
+  letter-spacing: 2.6px;
   text-transform: uppercase;
   color: var(--gold-subtle);
 }
 
 .fw-nav-label {
   font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  letter-spacing: 2.5px;
+  font-size: 11px;
+  letter-spacing: 2.2px;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -352,24 +376,32 @@ html, body {
 /* ── BUTTONS ── */
 .fw-btn-primary {
   font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  letter-spacing: 3px;
+  /* 9px of tracked capitals is a mark, not a word. A primary action is the
+     most functional text on its screen and takes the readable floor. */
+  font-size: 11px;
+  letter-spacing: 2.4px;
   text-transform: uppercase;
   font-weight: 400;
   padding: 13px 24px;
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--gold-fill);
+  color: var(--on-gold);
   border: none;
   cursor: pointer;
-  transition: opacity var(--ease);
+  transition: opacity var(--ease), background var(--ease), color var(--ease);
 }
 .fw-btn-primary:hover    { opacity: 0.9; }
-.fw-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Disabled says what it is, quietly — never a bleached ghost of itself. */
+.fw-btn-primary:disabled {
+  opacity: 1;
+  background: var(--disabled-surface);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
 
 .fw-btn-secondary {
   font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-size: 11px;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
   font-weight: 400;
   padding: 9px 18px;

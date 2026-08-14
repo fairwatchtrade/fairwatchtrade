@@ -302,7 +302,7 @@ export default function AccountSettings({
     <main className="min-h-screen bg-[var(--ink)] px-6 py-12 text-[var(--platinum)]">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8">
-          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+          <div className="text-[11px] uppercase tracking-[2.6px] text-[var(--gold-subtle)]">
             Account
           </div>
           <h1 className="mt-2 font-display text-[28px] font-light text-[var(--platinum)]">
@@ -312,10 +312,10 @@ export default function AccountSettings({
 
         {/* ── Section 1 — Profile ── */}
         <section className="mb-10">
-          <div className="mb-4 text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Profile
           </div>
-          <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+          <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
             Display name
           </div>
           <input
@@ -350,7 +350,7 @@ export default function AccountSettings({
         {/* ── Section — Appearance ── */}
         <section className="mb-10">
           <div className="mb-4 flex items-center gap-3">
-            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+            <span className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Appearance
             </span>
             {appearanceMsg && (
@@ -392,12 +392,12 @@ export default function AccountSettings({
 
         {/* ── Section 2 — Security ── */}
         <section className="mb-10">
-          <div className="mb-4 text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Security
           </div>
 
           <div className="mb-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Current password
             </div>
             <input
@@ -411,7 +411,7 @@ export default function AccountSettings({
           </div>
 
           <div className="mb-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               New password
             </div>
             <input
@@ -425,7 +425,7 @@ export default function AccountSettings({
           </div>
 
           <div className="mb-5">
-            <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Confirm new password
             </div>
             <input
@@ -472,7 +472,7 @@ export default function AccountSettings({
         {/* ── Section 3 — Notification Preferences (v2.6, Correspondence) ── */}
         <section className="mb-10">
           <div className="mb-4 flex items-center gap-3">
-            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+            <span className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Notification Preferences
             </span>
             {prefsMsg && (
@@ -499,7 +499,7 @@ export default function AccountSettings({
               }}
               className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
                 notifyEmail
-                  ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.12)]"
+                  ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
                   : "border-[var(--border-subtle)] bg-transparent"
               }`}
             >
@@ -522,7 +522,7 @@ export default function AccountSettings({
               </p>
               {notifySms && (
                 <div className="mt-3 max-w-[240px]">
-                  <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Phone number
                   </div>
                   <input
@@ -547,7 +547,7 @@ export default function AccountSettings({
               }}
               className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
                 notifySms
-                  ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.12)]"
+                  ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
                   : "border-[var(--border-subtle)] bg-transparent"
               }`}
             >
@@ -565,7 +565,7 @@ export default function AccountSettings({
         {/* ── Section — Selling (Money Truth Stage B, order §6.2) ── */}
         <section className="mb-10">
           <div className="mb-4 flex items-center gap-3">
-            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+            <span className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Selling
             </span>
             {currencyMsg && (
@@ -579,7 +579,7 @@ export default function AccountSettings({
             )}
           </div>
 
-          <div className="mb-2 text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+          <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
             {isDealer ? "Store currency" : "Preferred listing currency"}
           </div>
           <select
@@ -604,7 +604,7 @@ export default function AccountSettings({
 
           {isDealer && (
             <div className="mt-8 border-t border-[var(--border-faint)] pt-8">
-              <div className="mb-1 text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+              <div className="mb-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                 Dealer Room identity
               </div>
               <p className="mb-5 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
@@ -622,7 +622,7 @@ export default function AccountSettings({
                       className="h-full w-full object-contain"
                     />
                   ) : (
-                    <span className="text-center text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                    <span className="text-center text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
                       No logo selected
                     </span>
                   )}
@@ -645,7 +645,7 @@ export default function AccountSettings({
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <label>
-                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Business name
                   </span>
                   <input
@@ -656,7 +656,7 @@ export default function AccountSettings({
                   />
                 </label>
                 <label>
-                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Public room address
                   </span>
                   <div className="flex items-center border border-[var(--border-subtle)] bg-[var(--surface)] px-3 focus-within:border-[var(--border-gold)]">
@@ -670,7 +670,7 @@ export default function AccountSettings({
                   </div>
                 </label>
                 <label>
-                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Location
                   </span>
                   <input
@@ -681,7 +681,7 @@ export default function AccountSettings({
                   />
                 </label>
                 <label>
-                  <span className="mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Positioning line
                   </span>
                   <input
@@ -720,18 +720,18 @@ export default function AccountSettings({
 
         {/* ── Section 4 — Account info (read-only) ── */}
         <section>
-          <div className="mb-4 text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Account
           </div>
 
           <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] py-2">
-            <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Email
             </span>
             <span className="text-[13px] text-[var(--slate)]">{email}</span>
           </div>
           <div className="flex items-baseline justify-between py-2">
-            <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Member since
             </span>
             <span className="font-display text-[14px] font-light text-[var(--platinum-dim)]">

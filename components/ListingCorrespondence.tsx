@@ -304,7 +304,7 @@ export default function ListingCorrespondence({
         createPortal(
           eligible ? (
             <section className="border border-[var(--border-gold)] px-[18px] pb-[18px] pt-[18px]">
-              <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+              <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
                 Ask the Seller
               </div>
               <textarea
@@ -340,7 +340,7 @@ export default function ListingCorrespondence({
             </section>
           ) : (
             <section className="border border-[var(--border-mid)] px-[18px] py-[16px]">
-              <div className="text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+              <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
                 Ask the Seller
               </div>
               <Link
@@ -358,13 +358,13 @@ export default function ListingCorrespondence({
              thread exists or after the bar opens it. ── */}
       {eligible && open && (
         <section ref={sectionRef} className="mt-8">
-          <div className="border-t border-[var(--border-faint)] pt-6 text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
             Correspondence
           </div>
 
           {/* Regarding block — per the original brief's composer header */}
           <div className="mt-4 border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3">
-            <div className="text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Regarding
             </div>
             <div className="mt-1 font-display text-[14px] font-light text-[var(--platinum)]">
@@ -512,7 +512,7 @@ export default function ListingCorrespondence({
             <div className="flex flex-1 items-center justify-end">
               <Link
                 href={`/login?callbackUrl=/listings/${listingId}`}
-                className="shrink-0 border border-[var(--border-gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)]"
+                className="shrink-0 border border-[var(--border-gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
               >
                 Sign in to Message Seller
               </Link>

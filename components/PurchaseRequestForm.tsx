@@ -133,7 +133,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
           >
             ← Return to listing
           </Link>
-          <span className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+          <span className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Purchase Request
           </span>
         </div>
@@ -143,7 +143,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
         {/* page head + ceremony */}
         <header className="grid grid-cols-1 items-end gap-4 border-b border-[var(--border-faint)] pb-6 md:grid-cols-[1fr_auto]">
           <div>
-            <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold)]">Purchase Request</div>
+            <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold)]">Purchase Request</div>
             <h1 className="mt-2 font-display text-[34px] font-light leading-[1.06] text-[var(--platinum)] sm:text-[37px]">
               Make an offer on this watch
             </h1>
@@ -166,11 +166,11 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={listing.heroUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <span className="text-[9px] uppercase tracking-[1.5px] text-[#8a8577]">No photo</span>
+                  <span className="text-[11px] uppercase tracking-[1.2px] text-[#8a8577]">No photo</span>
                 )}
               </div>
               <div className="flex flex-col justify-center p-5">
-                <div className="text-[9px] uppercase tracking-[1.7px] text-[var(--gold)]">{listing.brand}</div>
+                <div className="text-[11px] uppercase tracking-[1.7px] text-[var(--gold)]">{listing.brand}</div>
                 <div className="mt-1.5 font-display text-[22px] font-light leading-[1.08] text-[var(--platinum)]">
                   {listing.model ?? listing.brand}
                 </div>
@@ -222,13 +222,13 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
               <>
                 <div className="flex items-start justify-between gap-5 border-b border-[var(--border-faint)] pb-5">
                   <div>
-                    <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold)]">Your offer</div>
+                    <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold)]">Your offer</div>
                     <h2 className="mt-1.5 font-display text-[26px] font-light text-[var(--platinum)]">Offer to the seller</h2>
                     <p className="mt-2 max-w-[520px] text-[11px] leading-[1.55] text-[var(--muted)]">
                       Enter the amount you would like to offer. You may also add a brief message.
                     </p>
                   </div>
-                  <div className="whitespace-nowrap text-right text-[8px] uppercase tracking-[1px] text-[var(--muted)]">
+                  <div className="whitespace-nowrap text-right text-[11px] uppercase tracking-[1px] text-[var(--muted)]">
                     Seller&apos;s asking price
                     <strong className="mt-1 block font-display text-[20px] font-normal normal-case tracking-normal text-[var(--platinum)]">
                       {askingText}
@@ -316,7 +316,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       type="button"
                       onClick={submit}
                       disabled={busy || !parsed.ok}
-                      className="min-h-[43px] shrink-0 border border-[var(--gold)] bg-transparent px-[18px] text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="min-h-[43px] shrink-0 border border-[var(--gold)] bg-transparent px-[18px] text-[11px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {busy ? "Sending…" : "Send Purchase Request"}
                     </button>
@@ -437,7 +437,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     </small>
                   </div>
                   <div className="sm:text-right">
-                    <small className="block font-sans text-[8px] uppercase tracking-[1.3px] text-[var(--muted)]">Submitted offer</small>
+                    <small className="block font-sans text-[11px] uppercase tracking-[1.3px] text-[var(--muted)]">Submitted offer</small>
                     <span className="mt-1 block font-display text-[18px] font-light text-[var(--platinum)]">
                       {submittedOffer !== null ? fmt(submittedOffer) : "—"}
                     </span>
@@ -459,9 +459,9 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
 /* ── shared state-panel primitives (approved visual idiom) ───────────────── */
 
 const primaryBtn =
-  "inline-flex min-h-[43px] items-center justify-center border border-[var(--gold)] bg-transparent px-[18px] text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]";
+  "inline-flex min-h-[43px] items-center justify-center border border-[var(--gold)] bg-transparent px-[18px] text-[11px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]";
 const tertiaryBtn =
-  "inline-flex min-h-[43px] items-center justify-center px-2 text-[9px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--platinum)]";
+  "inline-flex min-h-[43px] items-center justify-center px-2 text-[11px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--platinum)]";
 
 function StatePanel({
   mark,
@@ -489,7 +489,7 @@ function StatePanel({
       >
         {mark}
       </div>
-      <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold)]">{eyebrow}</div>
+      <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold)]">{eyebrow}</div>
       <h3 className="mt-2 font-display text-[26px] font-light leading-[1.1] text-[var(--platinum)] sm:text-[28px]">{heading}</h3>
       {children}
     </div>

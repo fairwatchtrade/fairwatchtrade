@@ -333,7 +333,7 @@ export default function SavedSearchesModule() {
           <button
             type="button"
             onClick={() => router.push("/browse")}
-            className="mt-5 min-h-[44px] border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-5 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.12)]"
+            className="mt-5 min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
           >
             Browse watches
           </button>
@@ -443,7 +443,7 @@ export default function SavedSearchesModule() {
                         onClick={() => seeMatches(entry)}
                         aria-expanded={matchesOpen}
                         aria-controls={`saved-search-matches-${entry.row.id}`}
-                        className="min-h-[44px] border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.12)] sm:min-h-[40px]"
+                        className="min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] sm:min-h-[40px]"
                       >
                         {counts.total === 1 ? "See match" : "See matches"}
                       </button>

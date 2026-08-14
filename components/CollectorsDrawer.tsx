@@ -312,7 +312,6 @@ export default function CollectorsDrawer({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        data-immersive-dark=""
         aria-controls="collectors-drawer-overlay"
         aria-label={
           expanded
@@ -322,20 +321,20 @@ export default function CollectorsDrawer({
         className={[
           // In the gutter: −65px from the listing content edge (see header).
           "group absolute inset-y-0 left-[-65px] z-[10] w-[48px] cursor-pointer",
-          "border border-[rgba(232,226,214,0.15)] border-l-[rgba(232,226,214,0.07)]",
+          "border border-[var(--border-mid)] border-l-[var(--border-faint)]",
           "backdrop-blur-[16px]",
-          "[background:linear-gradient(180deg,rgba(229,225,215,0.035),transparent_24%),light-dark(rgba(20,22,28,0.66),rgba(20,22,28,0.42))]",
+          "[background:linear-gradient(180deg,light-dark(rgba(255,253,248,0.9),rgba(229,225,215,0.035)),transparent_24%),light-dark(rgba(236,231,221,0.92),rgba(20,22,28,0.42))]",
           "transition-[background,border-color,box-shadow] duration-[180ms]",
           "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]",
           expanded
-            ? "border-r-[rgba(201,168,76,0.28)] shadow-[9px_0_28px_rgba(0,0,0,0.22),inset_-1px_0_rgba(201,168,76,0.24)] [background:linear-gradient(180deg,rgba(229,225,215,0.045),transparent_24%),light-dark(rgba(20,22,28,0.60),rgba(20,22,28,0.34))]"
-            : "shadow-[9px_0_28px_rgba(0,0,0,0.22),inset_-1px_0_rgba(201,168,76,0.18)]",
+            ? "border-r-[var(--border-gold)] shadow-[9px_0_28px_var(--panel-shadow-color),inset_-1px_0_var(--border-gold-strong)] [background:linear-gradient(180deg,light-dark(rgba(255,253,248,0.95),rgba(229,225,215,0.045)),transparent_24%),light-dark(rgba(240,236,227,0.95),rgba(20,22,28,0.34))]"
+            : "shadow-[9px_0_28px_var(--panel-shadow-color),inset_-1px_0_var(--border-gold)]",
         ].join(" ")}
       >
         {/* inner hairline frame (Study D ::before) */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-[7px] left-[6px] right-[6px] top-[7px] border border-[rgba(232,226,214,0.055)]"
+          className="pointer-events-none absolute bottom-[7px] left-[6px] right-[6px] top-[7px] border border-[var(--border-faint)]"
         />
 
         {/* icon previews — same 88px rhythm as the panel rows, same top:119px
@@ -343,15 +342,15 @@ export default function CollectorsDrawer({
             the strokes survive any dial beneath the glass. */}
         <span
           aria-hidden="true"
-          className="absolute left-0 top-[119px] grid w-full text-[color:light-dark(rgba(240,236,226,0.78),rgba(229,225,215,0.42))] transition-colors duration-[160ms] group-hover:text-[color:light-dark(rgba(240,236,226,0.98),rgba(229,225,215,0.78))] group-focus-visible:text-[color:light-dark(rgba(240,236,226,0.98),rgba(229,225,215,0.78))] [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.65))]"
+          className="absolute left-0 top-[119px] grid w-full text-[color:light-dark(rgba(45,42,36,0.9),rgba(229,225,215,0.42))] transition-colors duration-[160ms] group-hover:text-[color:light-dark(rgba(30,28,24,1),rgba(229,225,215,0.78))] group-focus-visible:text-[color:light-dark(rgba(30,28,24,1),rgba(229,225,215,0.78))] [filter:drop-shadow(0_1px_2px_light-dark(rgba(120,110,90,0.25),rgba(0,0,0,0.65)))]"
           style={{ gridTemplateRows: `repeat(${items.length}, 88px)` }}
         >
           {items.map((it, i) => (
             <span
               key={it.key}
               className={[
-                "grid h-[88px] w-full place-items-center border-t border-[rgba(232,226,214,0.075)] transition-[color,background,filter] duration-[160ms]",
-                i === items.length - 1 ? "border-b border-b-[rgba(232,226,214,0.075)]" : "",
+                "grid h-[88px] w-full place-items-center border-t border-[var(--border-faint)] transition-[color,background,filter] duration-[160ms]",
+                i === items.length - 1 ? "border-b border-b-[var(--border-faint)]" : "",
                 i === 1
                   ? "group-hover:bg-[rgba(201,168,76,0.025)] group-hover:text-[rgba(201,168,76,0.80)] group-hover:[filter:drop-shadow(0_0_8px_rgba(201,168,76,0.16))]"
                   : "",
@@ -372,12 +371,12 @@ export default function CollectorsDrawer({
         <span
           className={[
             "group/cue absolute bottom-[18px] left-[9px] right-[9px] grid h-[42px] place-items-center",
-            "border-t border-[rgba(232,226,214,0.10)]",
+            "border-t border-[var(--border-subtle)]",
             "transition-colors duration-[180ms] hover:text-[var(--gold)] group-focus-visible:text-[var(--gold)]",
             /* Open, the handle stops whispering: full gold says this rail is
                the thing that closes it, without adding permanent text to a
                48px spine. */
-            expanded ? "text-[var(--gold)]" : "text-[color:light-dark(rgba(224,197,111,0.9),rgba(201,168,76,0.68))]",
+            expanded ? "text-[var(--gold)]" : "text-[var(--gold)]",
           ].join(" ")}
         >
           <span
@@ -393,8 +392,8 @@ export default function CollectorsDrawer({
             role="tooltip"
             className={[
               "pointer-events-none absolute bottom-1/2 left-[49px] translate-x-1 translate-y-1/2",
-              "whitespace-nowrap border border-[var(--border-mid)] bg-[rgba(13,15,20,0.96)] px-2.5 py-2",
-              "font-display text-[12px] text-[var(--platinum-dim)] shadow-[0_10px_28px_rgba(0,0,0,0.24)]",
+              "whitespace-nowrap border border-[var(--border-mid)] bg-[var(--surface-2)] px-2.5 py-2",
+              "font-display text-[13px] text-[var(--platinum)] shadow-[0_10px_28px_var(--panel-shadow-color)]",
               "invisible opacity-0 transition-[opacity,transform,visibility] duration-[150ms]",
               "group-hover/cue:visible group-hover/cue:translate-x-0 group-hover/cue:opacity-100",
               "group-focus-visible:visible group-focus-visible:translate-x-0 group-focus-visible:opacity-100",
@@ -527,14 +526,14 @@ export default function CollectorsDrawer({
                   Saved Search Quick Links
                 </b>
                 <span
-                  className={`text-[8px] uppercase tracking-[0.11em] text-[var(--muted)] ${glassText}`}
+                  className={`text-[11px] uppercase tracking-[0.11em] text-[var(--muted)] ${glassText}`}
                 >
                   Up to three
                 </span>
               </div>
               <SavedSearchQuickLinks />
               <p
-                className={`mt-[17px] text-[8px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--muted)] ${glassText}`}
+                className={`mt-[17px] text-[11px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--slate)] ${glassText}`}
               >
                 Names reopen their saved browse query immediately.
               </p>

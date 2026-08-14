@@ -280,7 +280,7 @@ export default function SellerListingsRoom({
         ) : (
           <div>
             {/* Column guide — quiet, uppercase, from the locked artifact. */}
-            <div className="hidden gap-3 px-7 py-2 text-[8px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_110px_150px]">
+            <div className="hidden gap-3 px-7 py-2 text-[11px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_110px_150px]">
               <span>Image</span>
               <span>Listing</span>
               <span className="text-right">Price</span>
@@ -336,7 +336,7 @@ export default function SellerListingsRoom({
                   {/* Status + restrained real actions */}
                   <div className="hidden items-center justify-end gap-2 md:flex">
                     <span
-                      className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                      className="border px-2 py-[3px] text-[11px] uppercase tracking-[1.2px]"
                       style={statusBadgeStyle(row.status)}
                     >
                       {badge}
@@ -345,7 +345,7 @@ export default function SellerListingsRoom({
                       <Link
                         href={`/listings/${row.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="border border-[var(--border-mid)] px-2.5 py-[5px] text-[9px] uppercase tracking-[1.4px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
+                        className="border border-[var(--border-mid)] px-2.5 py-[5px] text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] transition hover:text-[var(--platinum)]"
                       >
                         View
                       </Link>
@@ -360,7 +360,7 @@ export default function SellerListingsRoom({
                           onSubmitForReview(row.id);
                         }}
                         disabled={submittingId === row.id}
-                        className="border border-[var(--border-gold)] px-2.5 py-[5px] text-[9px] uppercase tracking-[1.4px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                        className="border border-[var(--border-gold)] px-2.5 py-[5px] text-[11px] uppercase tracking-[1.4px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {submittingId === row.id ? "…" : "Submit"}
                       </button>
@@ -373,7 +373,7 @@ export default function SellerListingsRoom({
                       {price(row)}
                     </span>
                     <span
-                      className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                      className="border px-2 py-[3px] text-[11px] uppercase tracking-[1.2px]"
                       style={statusBadgeStyle(row.status)}
                     >
                       {badge}
@@ -405,11 +405,11 @@ export default function SellerListingsRoom({
               })}
             >
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold)]">
+                <span className="text-[11px] uppercase tracking-[2.2px] text-[var(--gold)]">
                   Selected Listing
                 </span>
                 <span
-                  className="border px-2 py-[3px] text-[8px] uppercase tracking-[1.5px]"
+                  className="border px-2 py-[3px] text-[11px] uppercase tracking-[1.2px]"
                   style={statusBadgeStyle(selected.status)}
                 >
                   {sellerLabel(selected.status)}
@@ -432,7 +432,7 @@ export default function SellerListingsRoom({
                 )}
               </div>
 
-              <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+              <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
                 {selected.brand}
               </div>
               <h3 className="mt-1 font-display text-[22px] font-light leading-[1.08] text-[var(--platinum)]">
@@ -442,7 +442,7 @@ export default function SellerListingsRoom({
 
               <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3">
                 <div className="col-span-2 border-t border-[rgba(255,255,255,0.035)] pt-2.5">
-                  <div className="text-[9px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                  <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Asking Price
                   </div>
                   <div className="mt-1 font-display text-[24px] font-light text-[var(--platinum)]">
@@ -454,7 +454,7 @@ export default function SellerListingsRoom({
                     (saved_watches RLS is saver-owned). Truthful unavailable
                     state; never a fabricated zero. */}
                 <div className="border-t border-[rgba(255,255,255,0.035)] pt-2.5">
-                  <div className="text-[9px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                  <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Saves
                   </div>
                   <div className="mt-1 font-display text-[15px] font-light text-[var(--platinum-dim)]">
@@ -465,7 +465,7 @@ export default function SellerListingsRoom({
                 {/* CORRESPONDENCE — listing-specific threads, composed at
                     read time from the RLS-scoped source already fetched. */}
                 <div className="border-t border-[rgba(255,255,255,0.035)] pt-2.5">
-                  <div className="text-[9px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                  <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Correspondence
                   </div>
                   {threadsLoaded ? (
@@ -601,7 +601,7 @@ export default function SellerListingsRoom({
                   <button
                     type="button"
                     onClick={onOpenImportedDrafts}
-                    className="border border-[var(--border-gold)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)]"
+                    className="border border-[var(--border-gold)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
                   >
                     Edit in Imported Drafts
                   </button>
@@ -622,7 +622,7 @@ export default function SellerListingsRoom({
 
             {/* MARKET PULSE — locked honest unavailable state, verbatim copy. */}
             <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-4 py-3.5">
-              <div className="mb-2 text-[9px] uppercase tracking-[2.2px] text-[var(--gold)]">
+              <div className="mb-2 text-[11px] uppercase tracking-[2.2px] text-[var(--gold)]">
                 Market Pulse
               </div>
               <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">

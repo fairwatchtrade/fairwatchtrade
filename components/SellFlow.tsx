@@ -794,7 +794,7 @@ export default function SellFlow() {
       <div className="space-y-6">
         <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
         <div className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-14 text-center">
-          <div className="text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
             List from phone
           </div>
           <h2 className="mt-2 font-display text-[22px] font-light text-[var(--platinum)]">
@@ -807,7 +807,7 @@ export default function SellFlow() {
           <button
             type="button"
             onClick={resumeOnDesktop}
-            className="mt-6 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+            className="mt-6 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
           >
             Resume on desktop
           </button>
@@ -830,7 +830,7 @@ export default function SellFlow() {
             ref={handoffOpenerRef}
             type="button"
             onClick={openHandoff}
-            className="border border-[var(--border-subtle)] px-3 py-1.5 text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+            className="border border-[var(--border-subtle)] px-3 py-1.5 text-[11px] uppercase tracking-[1.4px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
           >
             List from phone
           </button>
@@ -967,7 +967,7 @@ export default function SellFlow() {
             <ListingScoreMeter listing={toScoringState(draft)} />
           ) : (
             <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-              <div className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+              <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
                 Listing Score
               </div>
               <div className="mt-2 font-display text-[11px] italic text-[var(--muted)]">
@@ -1071,7 +1071,7 @@ function ProgressBar({
           const inner = (
             <>
               <div
-                className={`font-[Inter] text-[9px] uppercase tracking-[1px] sm:tracking-[2px] ${
+                className={`font-[Inter] text-[11px] uppercase tracking-[1px] sm:tracking-[1.4px] ${
                   i === step
                     ? "text-[var(--gold)]"
                     : i < step
@@ -1082,7 +1082,7 @@ function ProgressBar({
                 {ROMAN[i]}
               </div>
               <div
-                className={`mt-1 font-[Inter] text-[9px] uppercase tracking-[0.5px] sm:tracking-[1.5px] ${
+                className={`mt-1 font-[Inter] text-[11px] uppercase tracking-[0.5px] sm:tracking-[1.2px] ${
                   i === step
                     ? "text-[var(--platinum)]"
                     : i < step
@@ -1408,7 +1408,7 @@ function CurationStep({
 
   const input =
     "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--muted)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
-  const label = "mb-2 block text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]";
+  const label = "mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]";
 
   return (
     <div>
@@ -1471,13 +1471,13 @@ function CurationStep({
               entry and stops with governed copy — never a claim that the
               value is unknown to Rolex. */}
           {identifier?.kind === "reference" && (
-            <div className="mt-2 text-[9px] uppercase tracking-[1.5px] leading-[1.8]">
+            <div className="mt-2 text-[11px] uppercase tracking-[1.2px] leading-[1.8]">
               <div className="text-[var(--gold)]">{ROLEX_REFERENCE_RECOGNIZED}</div>
               <div className="text-[var(--muted)]">{ROLEX_REFERENCE_DOC_FLAG}</div>
             </div>
           )}
           {identifier?.kind === "style" && (
-            <div className="mt-2 text-[9px] uppercase tracking-[1.5px] leading-[1.8]">
+            <div className="mt-2 text-[11px] uppercase tracking-[1.2px] leading-[1.8]">
               <div className="text-[var(--gold)]">{ROLEX_STYLE_RECOGNIZED}</div>
               <div className="text-[var(--platinum-dim)]">
                 {rolexStyleReferenceLine(identifier.reference)}
@@ -1598,7 +1598,7 @@ function CurationStep({
 
           {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
             <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--gold-subtle)]">
-              <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[8px] uppercase tracking-[1.2px]">
+              <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[11px] uppercase tracking-[1.2px]">
                 Recommended
               </span>
               <span>No preference is set. USD is suggested, not silently saved.</span>
@@ -1606,7 +1606,7 @@ function CurationStep({
           )}
 
           {draft.askingPrice.trim() !== "" && (
-            <div className="mt-3 flex flex-col gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-3 flex flex-col gap-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               {askingParse.ok ? (
                 <div className="text-[12px] leading-[1.5] text-[var(--platinum-dim)]">
                   List this watch for{" "}
@@ -1624,7 +1624,7 @@ function CurationStep({
                 type="button"
                 disabled={confirmDisabled}
                 onClick={() => patch({ askingConfirmed: true })}
-                className={`shrink-0 border px-3.5 py-2 text-[9px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`shrink-0 border px-3.5 py-2 text-[11px] uppercase tracking-[1.2px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   draft.askingConfirmed
                     ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
                     : "border-[var(--gold)] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
@@ -1652,7 +1652,7 @@ function CurationStep({
           other seller sees exactly the pre-existing step. */}
       {profile && (
         <div className="mt-5">
-          <div className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+          <div className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
             <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
               {profile.brand} profile active
             </div>
@@ -1813,7 +1813,7 @@ function PhotosStep({
       <div
         className={`mt-4 transition-all duration-200 ${
           dragOver
-            ? "bg-[rgba(201,168,76,0.04)] shadow-[inset_0_0_0_1px_rgba(201,168,76,0.2)]"
+            ? "bg-[var(--gold-whisper)] shadow-[inset_0_0_0_1px_rgba(201,168,76,0.2)]"
             : ""
         }`}
         onDragEnter={() => setDragCount((c) => c + 1)}

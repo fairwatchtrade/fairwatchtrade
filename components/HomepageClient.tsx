@@ -60,7 +60,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
   return (
     <Link
       href={`/listings/${listing.id}`}
-      className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+      className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[var(--hover-wash)]"
     >
       <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
         {hero ? (

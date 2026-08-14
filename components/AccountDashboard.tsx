@@ -372,7 +372,7 @@ function ListingRow({
         <div className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {price}
         </div>
-        <div className="mt-[3px] text-[8px] uppercase tracking-[1.5px]" style={badgeStyle}>
+        <div className="mt-[3px] text-[11px] uppercase tracking-[1.2px]" style={badgeStyle}>
           {badgeLabel}
         </div>
       </div>
@@ -500,7 +500,7 @@ function DashboardView({
             key={kpi.label}
             className="flex-1 border-r border-[var(--border-faint)] px-6 py-6 last:border-r-0"
           >
-            <div className="text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+            <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               {kpi.label}
             </div>
             <div className={`mt-1 font-display text-[22px] font-light ${kpi.valueClass}`}>
@@ -521,7 +521,7 @@ function DashboardView({
       </div>
 
       {/* RECENT PREVIEW — last 3, no tabs */}
-      <div className="px-6 pt-5 pb-3 text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+      <div className="px-6 pt-5 pb-3 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
         Recent Listings
       </div>
       {recent.length === 0 ? (
@@ -654,7 +654,7 @@ function MessagesView({
             setOpenThreadId(null);
             setThreadMeta(null);
           }}
-          className="mb-5 text-[9px] uppercase tracking-[2px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+          className="mb-5 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] transition hover:text-[var(--slate)]"
         >
           ← Correspondence
         </button>
@@ -684,7 +684,7 @@ function MessagesView({
           <button
             type="button"
             onClick={() => archiveThread(threadMeta)}
-            className="text-[9px] uppercase tracking-[2px] text-[var(--muted)] transition hover:text-[var(--muted)]"
+            className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] transition hover:text-[var(--muted)]"
           >
             Archive
           </button>
@@ -757,13 +757,13 @@ function MessagesView({
   return (
     <div>
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <div className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
           Correspondence
         </div>
         <button
           type="button"
           onClick={() => setShowArchived((v) => !v)}
-          className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--muted)]"
+          className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--muted)]"
         >
           {showArchived ? "Show active" : "Show archived"}
         </button>
@@ -918,13 +918,13 @@ function RequestsView({
   return (
     <div>
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <div className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
           Purchase Requests
         </div>
         <button
           type="button"
           onClick={() => setShowResolved((v) => !v)}
-          className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--muted)]"
+          className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--muted)]"
         >
           {showResolved ? "Show pending" : "Show resolved"}
         </button>
@@ -987,7 +987,7 @@ function RequestsView({
                         {title}
                       </span>
                       <span
-                        className="shrink-0 text-[9px] uppercase tracking-[1.5px]"
+                        className="shrink-0 text-[11px] uppercase tracking-[1.2px]"
                         // Unmapped status: readable neutral, not placeholder
                         // grey — a new DB state must never arrive invisible.
                         style={{ color: STATUS_COLOR[r.status] ?? "var(--muted)" }}
@@ -1321,7 +1321,7 @@ export default function AccountDashboard({
               </div>
               <Link
                 href="/sell"
-                className="bg-[var(--gold)] px-4 py-[7px] font-[Inter] text-[9px] font-normal uppercase tracking-[2px] text-[var(--ink)]"
+                className="bg-[var(--gold)] px-4 py-[7px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.4px] text-[var(--ink)]"
               >
                 Create Listing
               </Link>

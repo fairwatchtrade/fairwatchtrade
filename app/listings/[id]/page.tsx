@@ -673,7 +673,7 @@ export default async function ListingDetailPage({
                 "mt-5 inline-flex items-center gap-3 border border-[var(--border-gold)]",
                 "bg-[rgba(201,168,76,0.045)] px-4 py-3",
                 "text-[var(--platinum-dim)] transition",
-                "hover:border-[var(--gold-dim)] hover:bg-[rgba(201,168,76,0.08)]",
+                "hover:border-[var(--gold-dim)] hover:bg-[var(--gold-whisper)]",
               ].join(" ")}
               aria-label="Open Collector Dossier PDF"
             >
@@ -691,7 +691,7 @@ export default async function ListingDetailPage({
               <span className="text-[10px] uppercase tracking-[0.22em]">
                 Collector Dossier
               </span>
-              <span className="text-[9px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
                 PDF
               </span>
             </Link>
@@ -743,7 +743,7 @@ export default async function ListingDetailPage({
           )}
 
           {listing.in_hand_verified && (
-            <div className="mt-3 flex items-start gap-3 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3">
+            <div className="mt-3 flex items-start gap-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
               <span className="mt-[2px] text-[var(--gold)] opacity-80" aria-hidden="true">🛡️</span>
               <div>
                 <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)]">

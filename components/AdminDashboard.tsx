@@ -279,7 +279,7 @@ export default function AdminDashboard({
           </Link>
           <Link
             href="/account"
-            className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.06)]"
+            className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[var(--gold-whisper)]"
           >
             ← Back to Seller Workspace
           </Link>

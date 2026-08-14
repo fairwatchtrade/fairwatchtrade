@@ -156,8 +156,8 @@ export default function FaqRoom() {
                 aria-current={active ? "true" : undefined}
                 className={`flex min-h-[44px] w-full items-center justify-between border-l-2 px-[11px] py-[12px] text-left text-[13px] leading-[20px] transition ${
                   active
-                    ? "border-[var(--gold)] bg-[rgba(201,168,76,0.06)] text-[var(--platinum)]"
-                    : "border-transparent text-[var(--slate)] hover:bg-[rgba(255,255,255,0.02)] hover:text-[var(--platinum)]"
+                    ? "border-[var(--gold)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                    : "border-transparent text-[var(--slate)] hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                 }`}
               >
                 <span className="min-w-0 pr-2">{s.label}</span>
@@ -265,7 +265,7 @@ export default function FaqRoom() {
               {/* An in-site page, never the visitor's mail client. */}
               <Link
                 href="/contact"
-                className="mt-[12px] ml-0 flex w-fit min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)] md:mt-0 md:ml-[6px] md:inline-flex md:align-middle"
+                className="mt-[12px] ml-0 flex w-fit min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-[22px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)] md:mt-0 md:ml-[6px] md:inline-flex md:align-middle"
               >
                 Contact Us
               </Link>

@@ -652,9 +652,9 @@ export default function ImportedDraftsWorkspace() {
                 key={l.id}
                 type="button"
                 onClick={() => selectListing(l.id)}
-                className={`relative flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-5 py-[14px] text-left transition hover:bg-[rgba(255,255,255,0.02)] ${
+                className={`relative flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-5 py-[14px] text-left transition hover:bg-[var(--hover-wash)] ${
                   isSel
-                    ? "bg-[rgba(201,168,76,0.04)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
+                    ? "bg-[var(--gold-whisper)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
                     : ""
                 }`}
               >
@@ -760,7 +760,7 @@ export default function ImportedDraftsWorkspace() {
                     ? "border-[var(--success)] bg-[rgba(111,154,125,0.05)]"
                     : attention.length > 0
                       ? "border-[var(--danger)] bg-[var(--danger)]/[0.06]"
-                      : "border-[var(--gold)] bg-[rgba(201,168,76,0.04)]"
+                      : "border-[var(--gold)] bg-[var(--gold-whisper)]"
               }`}
             >
               {selected.status === "pending_review" ? (
@@ -1200,7 +1200,7 @@ export default function ImportedDraftsWorkspace() {
               ) : selected.status === "published" ? (
                 <a
                   href={`/listings/${selected.id}`}
-                  className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)]"
+                  className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
                 >
                   View Published Listing
                 </a>

@@ -202,7 +202,7 @@ export default function DialReveal({
       {active && (
         <div className="absolute bottom-[48px] right-[8px] z-30 flex h-[146px] w-[36px] items-center justify-center">
           {/* smoked-glass plate */}
-          <div className="pointer-events-none absolute inset-0 border border-[rgba(232,228,220,0.09)] bg-[rgba(13,15,20,0.28)] shadow-[0_12px_28px_rgba(0,0,0,0.18)] backdrop-blur-[8px]" />
+          <div className="pointer-events-none absolute inset-0 border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim)] shadow-[0_12px_28px_rgba(0,0,0,0.32)] backdrop-blur-[8px]" />
           {/* tick marks — vertical rhythm only. NOT a boundary line: it never
               crosses the photograph, it lives inside the 36px plate. */}
           <div
@@ -250,13 +250,13 @@ export default function DialReveal({
             "pointer-events-none absolute inset-0 border transition-[background,border-color,box-shadow] duration-150",
             "peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-[#C9A84C]",
             active
-              ? "border-[rgba(201,168,76,0.90)] bg-[rgba(201,168,76,0.10)] shadow-[0_0_12px_rgba(201,168,76,0.10)]"
-              : "border-[rgba(201,168,76,0.58)] bg-[rgba(13,15,20,0.30)] shadow-[0_0_0_1px_rgba(13,15,20,0.40)]",
+              ? "border-[rgba(201,168,76,0.95)] bg-[rgba(201,168,76,0.16)] shadow-[0_0_12px_rgba(201,168,76,0.28)]"
+              : "border-[rgba(201,168,76,0.88)] bg-[var(--on-photo-scrim-deep)] shadow-[0_1px_6px_rgba(0,0,0,0.35)]",
           ].join(" ")}
         >
           <span
             className={[
-              "absolute inset-[4px] bg-[var(--gold)] transition-[opacity,transform] duration-150",
+              "absolute inset-[4px] bg-[var(--on-photo-gold)] transition-[opacity,transform] duration-150",
               active ? "scale-100 opacity-[0.72]" : "scale-[0.55] opacity-0",
             ].join(" ")}
           />

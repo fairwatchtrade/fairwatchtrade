@@ -73,7 +73,7 @@ export default function ContactForm({
     return (
       <div
         role="status"
-        className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-6 py-8"
+        className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-6 py-8"
       >
         <h2 className="font-display text-[22px] font-normal leading-[28px] text-[var(--platinum)]">
           Message received.
@@ -163,7 +163,7 @@ export default function ContactForm({
       <button
         type="submit"
         disabled={sending}
-        className="min-h-[44px] border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-[22px] py-[12px] text-[12px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-[22px] py-[12px] text-[12px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {sending ? "Sending…" : "Send Message"}
       </button>

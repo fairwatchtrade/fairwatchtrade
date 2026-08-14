@@ -171,7 +171,7 @@ export default function ListingActionRail({
 
   const purchaseBlock = ctaState === "owner" ? null : ctaState === "reserved" ? (
     <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
-      <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-3 text-[11px] tracking-[0.5px]">
+      <div className="inline-block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 text-[11px] tracking-[0.5px]">
         <div className="uppercase tracking-[2px] text-[var(--gold-dim)]">
           {requestStatus === "accepted" ? "Your request was accepted" : "Reserved"}
         </div>
@@ -199,7 +199,7 @@ export default function ListingActionRail({
           <div className="mt-1 text-[var(--muted)]">This watch is no longer available.</div>
         </div>
       ) : ctaState === "pending" ? (
-        <div className="inline-block border border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div className="inline-block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           Your request is pending
         </div>
       ) : ctaState === "accepted" ? (
@@ -260,7 +260,7 @@ export default function ListingActionRail({
     <>
       {/* Dealer Information */}
       <section className="border border-[var(--border-gold)] bg-[linear-gradient(180deg,rgba(201,168,76,0.045),rgba(255,255,255,0.012))] px-[18px] pb-[18px] pt-[18px]">
-        <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
           Dealer Information
         </div>
         <Link
@@ -277,7 +277,7 @@ export default function ListingActionRail({
           card offering no purchase, standing there alone. Founder finding,
           2026-08-12. Same card, honest header. */}
       <section className="border border-[var(--border-gold)] px-[18px] pb-[18px] pt-[18px]">
-        <div className="text-[8px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
           {isOwner ? "Your Listing" : "Purchase Request"}
         </div>
         <p className="mt-3 font-display text-[28px] font-light leading-none text-[var(--platinum)]">
