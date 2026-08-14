@@ -17,7 +17,7 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 export const DOSSIER_FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&display=swap";
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;350;400;500&display=swap";
 
 export const dossierCss = `
 .fwt-dossier {
@@ -27,7 +27,8 @@ export const dossierCss = `
   --d-surface:      #13151C;
   --d-platinum:     #E8E4DC;
   --d-platinum-dim: #CFCBC3;
-  --d-body:         #DCD8D0;
+  --d-body:         #D5D1C9;
+  --d-body-lead:    #DFDBD3;
   --d-slate:        #9CA1B0;
   --d-muted:        #818799;
   --d-ghost:        #646B7A;
@@ -179,7 +180,7 @@ export const dossierCss = `
 /* ── SECTIONS ─────────────────────────────────────────────────────────── */
 
 .fwt-dossier__section {
-  margin-top: 58px;
+  margin-top: 68px;
   /* Never strand a heading at the foot of a printed page. */
   break-inside: auto;
 }
@@ -208,17 +209,24 @@ export const dossierCss = `
 .fwt-dossier__body p {
   font-family: var(--d-sans);
   font-size: 14.5px;
-  font-weight: 400;
-  line-height: 1.95;
+  font-weight: 350;
+  line-height: 1.88;
   color: var(--d-body);
-  margin-bottom: 22px;
+  margin-bottom: 19px;
   orphans: 3;
   widows: 3;
 }
 
 .fwt-dossier__body p:last-child { margin-bottom: 0; }
 
-/* The first section's opening paragraph carries a little more presence. */
+/* Pacing: each section ENTERS a half-step brighter and settles — the
+   opening paragraph leads, the paragraphs after it recede, and the space
+   between sections does the grouping. The first section of the article
+   still carries the strongest entry. */
+.fwt-dossier__body p:first-child {
+  color: var(--d-body-lead);
+  font-weight: 400;
+}
 .fwt-dossier__section--first .fwt-dossier__body p:first-child {
   color: var(--d-platinum);
 }
@@ -373,7 +381,7 @@ html, body {
 .fwt-dossier__brand   { font-size: 58px; }
 .fwt-dossier__lead    { font-size: 19px; }
 .fwt-dossier__heading { font-size: 26px; }
-.fwt-dossier__body p  { font-size: 13px; line-height: 1.92; }
+.fwt-dossier__body p  { font-size: 12.5px; line-height: 1.86; }
 
 /* A page break before the first section keeps the cover intact as an opening
    page and prevents a heading orphaning against the masthead. The padding

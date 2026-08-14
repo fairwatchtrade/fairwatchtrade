@@ -72,7 +72,12 @@ const { buildReferenceDossierViewModel, generateDossierPdf } = await import(
 rmSync(tmpDir, { recursive: true, force: true });
 
 /* ── Build the draft-preview view model and render ─────────────────────── */
-const vm = await buildReferenceDossierViewModel(REFERENCE_ID, new Date(), "draft_preview");
+let vm = await buildReferenceDossierViewModel(REFERENCE_ID, new Date(), "draft_preview");
+if (!vm) {
+  // No machine draft (e.g. it was just approved): render the approved
+  // article through the same path — what production itself serves.
+  vm = await buildReferenceDossierViewModel(REFERENCE_ID, new Date(), "approved");
+}
 if (!vm) {
   console.error("STOP: no draft article exists for the canary reference — nothing to preview.");
   process.exit(1);
