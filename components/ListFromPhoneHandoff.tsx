@@ -87,7 +87,7 @@ export default function ListFromPhoneHandoff({
   return (
     <section
       aria-label="List from phone"
-      className="relative mx-auto w-full max-w-[380px] border border-[var(--border-subtle)] bg-[#0d1118] p-6 text-center"
+      className="relative mx-auto w-full max-w-[380px] border border-[var(--border-subtle)] bg-[color:light-dark(#FFFDF8,#0d1118)] p-6 text-center"
     >
       {/* Universal close — device-run ruling (Jason + Layout Duck): the ×
           is THE dismissal, with a real accessible name. Closing cancels the
@@ -110,7 +110,7 @@ export default function ListFromPhoneHandoff({
               button. */}
           <span
             aria-hidden="true"
-            className="flex h-[30px] w-[30px] items-center justify-center border border-[var(--border-gold)] text-[22px] font-light leading-none text-[var(--platinum)] transition-all group-hover:border-[rgba(201,168,76,0.55)] group-hover:shadow-[0_0_10px_rgba(201,168,76,0.25)] group-focus-visible:shadow-[0_0_10px_rgba(201,168,76,0.25)]"
+            className="flex h-[30px] w-[30px] items-center justify-center border border-[var(--border-gold)] text-[22px] font-light leading-none text-[var(--platinum)] transition-all group-hover:border-[color:light-dark(rgba(122,95,32,0.55),rgba(201,168,76,0.55))] group-hover:shadow-[0_0_10px_rgba(201,168,76,0.25)] group-focus-visible:shadow-[0_0_10px_rgba(201,168,76,0.25)]"
           >
             ×
           </span>
@@ -154,7 +154,7 @@ export default function ListFromPhoneHandoff({
           <button
             type="button"
             onClick={copy}
-            className="mt-4 w-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+            className="mt-4 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
           >
             {copied ? "Link copied" : "Copy link"}
           </button>

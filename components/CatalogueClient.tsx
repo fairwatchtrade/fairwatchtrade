@@ -296,7 +296,7 @@ function ListingCard({ row }: { row: ListingRow }) {
           </div>
         )}
         {docBadge && (
-          <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--gold)]">
+          <span className="absolute right-3 top-3 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[8px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
             {docBadge}
           </span>
         )}

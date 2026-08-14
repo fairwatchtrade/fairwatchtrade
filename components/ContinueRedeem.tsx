@@ -63,7 +63,7 @@ export default function ContinueRedeem({ token }: { token: string }) {
     router.replace(`/login?callbackUrl=${encodeURIComponent(`/sell/continue/${token}`)}`);
   }
 
-  const shell = "w-full max-w-[360px] border border-[var(--border-subtle)] bg-[#0d1118] p-6 text-center";
+  const shell = "w-full max-w-[360px] border border-[var(--border-subtle)] bg-[color:light-dark(#FFFDF8,#0d1118)] p-6 text-center";
 
   if (phase === "redeeming") {
     return (
@@ -88,7 +88,7 @@ export default function ContinueRedeem({ token }: { token: string }) {
         <button
           type="button"
           onClick={signInWithCorrectAccount}
-          className="mt-5 w-full border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+          className="mt-5 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
         >
           Sign in with the correct account
         </button>

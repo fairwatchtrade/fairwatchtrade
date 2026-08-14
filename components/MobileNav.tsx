@@ -150,9 +150,9 @@ function Badge({
   children: React.ReactNode;
 }) {
   const colors: Record<BadgeVariant, string> = {
-    green: "border-[rgba(80,180,120,0.35)] text-[var(--success)]",
+    green: "border-[color:light-dark(rgba(46,125,79,0.5),rgba(80,180,120,0.35))] text-[var(--success)]",
     gold: "border-[var(--border-gold)] text-[var(--gold)]",
-    blue: "border-[rgba(100,150,220,0.35)] text-[rgba(140,180,240,0.9)]",
+    blue: "border-[color:light-dark(rgba(58,98,160,0.5),rgba(100,150,220,0.35))] text-[color:light-dark(#3A62A0,rgba(140,180,240,0.9))]",
   };
   return (
     <span className={`border px-1.5 py-0.5 text-[8px] tracking-[1px] ${colors[variant]}`}>
@@ -230,7 +230,7 @@ export default function MobileNav({
     >
       {/* Drawer — 82%, slides from left */}
       <div
-        className={`relative flex h-full w-[76%] flex-col bg-[#09090E] transition-transform duration-300 ${
+        className={`relative flex h-full w-[76%] flex-col bg-[color:light-dark(#FFFDF8,#09090E)] transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -286,7 +286,7 @@ export default function MobileNav({
                 onClick={onClose}
                 className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[13px] transition ${
                   isActive
-                    ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
+                    ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
                     : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
                 }`}
               >
@@ -308,7 +308,7 @@ export default function MobileNav({
               onClick={onClose}
               className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[13px] transition ${
                 pathname === "/account"
-                  ? "border-[var(--gold)] bg-[rgba(201,168,76,0.04)] text-[var(--platinum)]"
+                  ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
                   : "border-transparent text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
               }`}
             >
@@ -332,7 +332,7 @@ export default function MobileNav({
                 <Link
                   href="/signup"
                   onClick={onClose}
-                  className="border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)] px-4 py-2.5 text-center text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+                  className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-center text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
                 >
                   Create account
                 </Link>
@@ -392,7 +392,7 @@ export default function MobileNav({
 
       {/* Peek — dimmed remainder, taps to close. relative so children anchor.
           0.72 backdrop lets the live page read through (visually alive). */}
-      <div className="relative flex-1 bg-[rgba(7,8,12,0.80)]" onClick={onClose}>
+      <div className="relative flex-1 bg-[color:light-dark(rgba(37,35,31,0.35),rgba(7,8,12,0.80))]" onClick={onClose}>
         {/* Watch-hand pull — a dauphine hand pointing left, centered vertically.
             The drawer-pull gesture, not a UI chevron. Decorative SVG, so the
             gold fill is hardcoded (can't read CSS vars). */}
@@ -405,10 +405,10 @@ export default function MobileNav({
             aria-hidden="true"
           >
             {/* Dauphine hand: tapered diamond pointing left, with facet edge */}
-            <polygon points="2,20 20,9 16,20 20,31" fill="#C9A84C" />
-            <polygon points="2,20 20,9 16,20" fill="#E6C868" opacity="0.55" />
+            <polygon points="2,20 20,9 16,20 20,31" style={{ fill: "var(--gold)" }} />
+            <polygon points="2,20 20,9 16,20" style={{ fill: "light-dark(#B49353, #E6C868)" }} opacity="0.55" />
             {/* Pivot cap */}
-            <circle cx="19" cy="20" r="2" fill="#C9A84C" />
+            <circle cx="19" cy="20" r="2" style={{ fill: "var(--gold)" }} />
           </svg>
           <span className="text-[7px] uppercase tracking-[3px] text-[var(--muted)]">
             Close

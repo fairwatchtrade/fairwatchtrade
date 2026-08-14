@@ -1774,7 +1774,7 @@ export default function BrowseClient({
                              ONLY is status text a collector reads. On a phone
                              it reads at 10px on one line inside the wider
                              two-column frame; desktop keeps its 8px badge. */
-                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--border-gold)] bg-[rgba(12,11,9,0.65)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] md:text-[8px]">
+                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)] md:text-[8px]">
                             {docBadge}
                           </span>
                         )}
@@ -1792,10 +1792,10 @@ export default function BrowseClient({
                               e.stopPropagation();
                               setOpenQuickId((prev) => (prev === row.id ? null : row.id));
                             }}
-                            className={`absolute bottom-1.5 left-1.5 grid h-[27px] w-[27px] place-items-center rounded-full border bg-[rgba(12,11,9,0.75)] transition ${
+                            className={`absolute bottom-1.5 left-1.5 grid h-[27px] w-[27px] place-items-center rounded-full border bg-[var(--on-photo-scrim-deep)] transition ${
                               isQuickOpen
-                                ? "border-[var(--border-gold)] text-[var(--gold)]"
-                                : "border-[rgba(255,255,255,0.18)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                                ? "border-[var(--on-photo-gold-line)] text-[var(--on-photo-gold)]"
+                                : "border-[var(--on-photo-line)] text-[var(--on-photo-text)] hover:text-[var(--on-photo-gold)]"
                             }`}
                           >
                             <svg

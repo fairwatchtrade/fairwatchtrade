@@ -58,9 +58,13 @@ const PITCH = 16;
 const THRESHOLD = 8;
 const SENSITIVITY = 0.28;
 
-const STROKE_GHOST = "rgba(232,228,220,0.09)";
-const STROKE_COMPLETED = "#c9a84c";
-const STROKE_ACTIVE = "#e0c56f";
+/* Appearance-resolved linework (v4.65): these feed style.stroke, where
+   var() resolves per the surrounding appearance — the plate whispers in
+   warm charcoal on ivory and platinum on ink, and its golds change optical
+   job with the room. Values live in globals.css beside the other tokens. */
+const STROKE_GHOST = "var(--blueprint-ghost)";
+const STROKE_COMPLETED = "var(--blueprint-completed)";
+const STROKE_ACTIVE = "var(--blueprint-active)";
 
 export interface WatchBlueprintProps {
   /** Completed regions (faint gold), or "all" to complete every layer. */

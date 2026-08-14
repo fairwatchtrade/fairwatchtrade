@@ -112,13 +112,13 @@ export default function ListingGallery({
     "rounded-full border border-white/10 bg-black/30 text-white/45 backdrop-blur-[4px] " +
     "transition hover:border-white/20 hover:bg-black/50 hover:text-white/80 " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
-    "focus-visible:outline-[#C9A84C]";
+    "focus-visible:outline-[var(--gold)]";
 
   return (
     <div>
       {/* Hero — large, full-width. The photograph itself carries no click
           handler: clicking it does nothing, by design. */}
-      <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-[#14161C] p-2 sm:p-3">
+      <div className="relative w-full overflow-hidden rounded-lg border border-[var(--border-mid)] bg-[color:light-dark(#F1EDE3,#14161C)] p-2 sm:p-3">
         {dialUrl && heroUrl === dialUrl ? (
           <DialReveal
             photoUrl={heroUrl}
@@ -266,7 +266,7 @@ export default function ListingGallery({
                   onClick={() => setActive(i)}
                   aria-label={`View photo ${i + 1}`}
                   className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border transition ${
-                    i === active ? "border-[#C9A84C]" : "border-white/15 hover:border-[#C9A84C]"
+                    i === active ? "border-[var(--gold)]" : "border-[var(--border-mid)] hover:border-[var(--gold)]"
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -289,8 +289,8 @@ export default function ListingGallery({
               aria-label={`View photo ${i + 1}`}
               className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border transition ${
                 i === active
-                  ? "border-[#C9A84C]"
-                  : "border-white/15 hover:border-[#C9A84C]"
+                  ? "border-[var(--gold)]"
+                  : "border-[var(--border-mid)] hover:border-[var(--gold)]"
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
