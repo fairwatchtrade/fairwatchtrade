@@ -35,7 +35,13 @@
    rooms, printed antique gold, warm gray-beige borders — the same
    house, daylight coming through the windows.
    ═══════════════════════════════════════════════════════════════ */
-html { color-scheme: light dark; }
+/* DAYLIGHT CONTAINMENT (2026-08-14): while the site-wide Daylight migration
+   is incomplete, System deliberately resolves to the established Dark
+   appearance instead of following the OS — a visitor who never opens
+   Settings sees the finished site. An explicit Light choice still works
+   (the repair/census workflow depends on it). To reopen the curtains when
+   Daylight is done, restore this line to: color-scheme: light dark; */
+html { color-scheme: dark; }
 html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"] { color-scheme: dark; }
 [data-immersive-dark] {

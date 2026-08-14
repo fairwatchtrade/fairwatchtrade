@@ -48,12 +48,10 @@ export async function generateViewport(): Promise<Viewport> {
   if (explicit) {
     return { themeColor: explicit === "light" ? "#F3F0E8" : "#0D0F14" };
   }
-  return {
-    themeColor: [
-      { media: "(prefers-color-scheme: light)", color: "#F3F0E8" },
-      { media: "(prefers-color-scheme: dark)", color: "#0D0F14" },
-    ],
-  };
+  /* Daylight containment: System currently resolves Dark (globals.css), so
+     the browser strip pins the dark color instead of following the OS.
+     Restore the prefers-color-scheme media pair when Daylight reopens. */
+  return { themeColor: "#0D0F14" };
 }
 
 export default async function RootLayout({
