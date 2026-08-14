@@ -11,7 +11,7 @@ import {
   type DealerContactItem,
 } from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
-import { parseBrowseSort, sortListings } from "@/lib/browseSort";
+import { parseBrowseSort, sortListings, type BrowseSort } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
 import {
   defaultFrame,
@@ -567,11 +567,18 @@ export default function BrowseClient({
 
   const viewModeParam = searchParams.get("viewMode");
   const defaultViewMode: "gallery" | "collector" = dealerScope ? "collector" : "gallery";
-  const viewMode: "gallery" | "collector" =
-    viewModeParam === "collector" || viewModeParam === "gallery"
-      ? viewModeParam
+  /* Scan is the Dealer Room's third reading mode — a dense sweep of one
+     dealer's shelf. It exists only where a single dealer's inventory is the
+     whole result set; on the global /browse a "scan" URL value degrades to
+     the default view rather than erroring, same law as every other URL
+     control. */
+  const viewMode: "gallery" | "collector" | "scan" =
+    viewModeParam === "collector" ||
+    viewModeParam === "gallery" ||
+    (viewModeParam === "scan" && dealerScope)
+      ? (viewModeParam as "gallery" | "collector" | "scan")
       : defaultViewMode;
-  const setViewMode = (value: "gallery" | "collector") =>
+  const setViewMode = (value: "gallery" | "collector" | "scan") =>
     setSingleParam("viewMode", value, defaultViewMode);
 
   const gridColsParam = searchParams.get("gridCols");
@@ -591,8 +598,7 @@ export default function BrowseClient({
   // no way for the sort to reset while the filters beside it survive — which
   // would read as a data defect rather than a state defect.
   const sort = parseBrowseSort(searchParams.get("sort"));
-  const setSort = (value: "default" | "priceAsc" | "priceDesc") =>
-    setSingleParam("sort", value, "default");
+  const setSort = (value: BrowseSort) => setSingleParam("sort", value, "default");
 
   // The current Browse reality, as a single encoded value — used to build
   // every listing link's returnTo. Built via URLSearchParams (never manual
@@ -614,6 +620,11 @@ export default function BrowseClient({
   // Set — opening another row's snapshot simply replaces this value, which
   // is the "opening another automatically closes the previous" rule for free.
   const [openSnapshotId, setOpenSnapshotId] = useState<string | null>(null);
+  /* Quick Specs loupe — Dealer Room Gallery/Scan cards. A single id, never a
+     Set: opening one card's specs closes the previous, the same
+     one-open-at-a-time law the Collector Snapshot established. Transient by
+     design — never persisted to the URL. */
+  const [openQuickId, setOpenQuickId] = useState<string | null>(null);
   // Compare is selection-only this phase (no compare screen yet). The Set is
   // the workflow-preparation surface the future compare view will read from.
   const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
@@ -1436,6 +1447,7 @@ export default function BrowseClient({
               ? ([
                   { key: "collector", label: "Collector" },
                   { key: "gallery", label: "Gallery" },
+                  { key: "scan", label: "Scan" },
                 ] as const)
               : ([
                   { key: "gallery", label: "Gallery" },
@@ -1501,7 +1513,7 @@ export default function BrowseClient({
             <select
               id="browse-sort"
               value={sort}
-              onChange={(e) => setSort(e.target.value as "default" | "priceAsc" | "priceDesc")}
+              onChange={(e) => setSort(parseBrowseSort(e.target.value))}
               style={{ colorScheme: "dark" }}
               className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition md:text-[9px] ${
                 dealerScope ? "!text-[11px]" : ""
@@ -1516,6 +1528,10 @@ export default function BrowseClient({
               <option value="default">Default</option>
               <option value="priceAsc">Price: Low to High</option>
               <option value="priceDesc">Price: High to Low</option>
+              {/* A dealer's shelf is small enough for an alphabetical walk to
+                  be a real reading order; the global catalogue keeps its
+                  established three. */}
+              {dealerScope && <option value="brandAsc">Brand A–Z</option>}
             </select>
           </div>
 
@@ -1629,6 +1645,14 @@ export default function BrowseClient({
               className={
                 viewMode === "collector"
                   ? "flex flex-col space-y-6 md:space-y-8"
+                  : viewMode === "scan"
+                    ? /* Scan — the dense sweep of one dealer's shelf. Four
+                         columns on a wide desktop, three on a narrower one,
+                         and the phone keeps the same two-column floor as
+                         Gallery: a third phone column would shrink each watch
+                         to a postage stamp, which is exactly the defect the
+                         Gallery mobile grid already corrected. */
+                      "grid gap-px bg-[var(--border-faint)] grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
                   : /* The column count is a DESKTOP density choice. A phone is
                        ~412px wide: three columns leave a 95px card holding a
                        44px watch, which is how the 4:3 frame could be correct
@@ -1650,14 +1674,38 @@ export default function BrowseClient({
                 const doc = row.details?.documentation;
                 const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
 
-                // v1.58 — Gallery View. Byte-for-byte untouched from v1.57;
-                // not part of this brief.
-                if (viewMode === "gallery") {
+                // Gallery and Scan share one card anatomy; Scan is the same
+                // card read at shelf density — tighter type, squarer well,
+                // four to a row on a wide desktop.
+                if (viewMode === "gallery" || viewMode === "scan") {
+                  const scan = viewMode === "scan";
+                  /* Quick Specs — the loupe's content. Rows exist only for
+                     data this listing actually carries: no Unknown, no N/A,
+                     no dash, per the standing missing-data law. An empty set
+                     renders no loupe at all. */
+                  const quickRows: { label: string; value: string }[] = dealerScope
+                    ? [
+                        {
+                          label: "Case / Movement",
+                          value: [sizeLabel(row.details?.caseSizeMm), row.details?.movementType]
+                            .filter(Boolean)
+                            .join(" · "),
+                        },
+                        { label: "Condition", value: row.condition ?? "" },
+                        { label: "Dial", value: row.details?.dialColorType ?? "" },
+                        { label: "Material", value: row.details?.caseMaterial ?? "" },
+                        { label: "Documentation", value: row.details?.documentation ?? "" },
+                      ].filter((r) => r.value.trim() !== "")
+                    : [];
+                  const hasQuick = quickRows.length > 0;
+                  const isQuickOpen = hasQuick && openQuickId === row.id;
                   return (
                     <Link
                       key={row.id}
                       href={listingHref(row.id)}
-                      className="group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[rgba(255,255,255,0.02)] md:p-7"
+                      className={`group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[rgba(255,255,255,0.02)] ${
+                        scan ? "md:p-4" : "md:p-7"
+                      }`}
                     >
                       {/* Dial / image area — v3.30: on mobile the well is a
                           short 4:3 frame at full card width (the old fixed
@@ -1667,7 +1715,11 @@ export default function BrowseClient({
                           The frame is the positioning context for image
                           badges, so they anchor to the photograph's frame —
                           never float over card padding. */}
-                      <div className="relative mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)] md:aspect-auto md:h-[140px]">
+                      <div
+                        className={`relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)] ${
+                          scan ? "mb-3" : "mb-4 md:aspect-auto md:h-[140px]"
+                        }`}
+                      >
                         {hero ? (
                           galleryFrameStyle ? (
                             <>
@@ -1727,7 +1779,82 @@ export default function BrowseClient({
                             {docBadge}
                           </span>
                         )}
+                        {/* Quick Specs loupe — an inspection invitation on the
+                            photograph's own frame. It toggles the panel and
+                            never navigates; the card around it remains one
+                            link to the listing. */}
+                        {hasQuick && (
+                          <button
+                            type="button"
+                            aria-label={`Quick Specs — ${title}`}
+                            aria-expanded={isQuickOpen}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenQuickId((prev) => (prev === row.id ? null : row.id));
+                            }}
+                            className={`absolute bottom-1.5 left-1.5 grid h-[27px] w-[27px] place-items-center rounded-full border bg-[rgba(12,11,9,0.75)] transition ${
+                              isQuickOpen
+                                ? "border-[var(--border-gold)] text-[var(--gold)]"
+                                : "border-[rgba(255,255,255,0.18)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                            }`}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              className="h-[15px] w-[15px]"
+                              aria-hidden="true"
+                            >
+                              <circle cx="10.5" cy="10.5" r="6" />
+                              <path d="m15 15 5.5 5.5" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
+                      {/* Quick Specs panel — floats over the photograph, a
+                          sibling of the frame so the frame's overflow-hidden
+                          can never clip it. Interactions inside stay inside:
+                          nothing here follows the card link. */}
+                      {isQuickOpen && (
+                        <div
+                          role="group"
+                          aria-label={`Quick specs for ${title}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          className="absolute left-4 top-4 z-40 w-[230px] max-w-[calc(100%-32px)] border border-[rgba(232,220,190,0.16)] bg-[var(--ink-deep)] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.42)]"
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="font-display text-[13px] font-light text-[var(--platinum)]">
+                              Quick Specs
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setOpenQuickId(null);
+                              }}
+                              aria-label="Close quick specs"
+                              className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+                            >
+                              Close
+                            </button>
+                          </div>
+                          {quickRows.map((s) => (
+                            <div
+                              key={s.label}
+                              className="flex items-baseline justify-between gap-3 border-t border-[var(--border-faint)] py-1 text-[11px] tracking-[0.3px]"
+                            >
+                              <span className="shrink-0 text-[var(--muted)]">{s.label}</span>
+                              <span className="text-right text-[var(--slate)]">{s.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Brand */}
                       <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
@@ -1735,7 +1862,11 @@ export default function BrowseClient({
                       </div>
 
                       {/* Model */}
-                      <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
+                      <div
+                        className={`mb-1 font-display font-light leading-[1.25] text-[var(--platinum)] ${
+                          scan ? "text-[13px]" : "text-[15px]"
+                        }`}
+                      >
                         {row.model ?? row.brand}
                       </div>
 
@@ -1748,13 +1879,21 @@ export default function BrowseClient({
                           wraps. Still plainly secondary: the model is 15px
                           display in --platinum and the price 17px above it. */}
                       {meta && (
-                        <div className="mb-3 text-[13px] leading-[1.5] tracking-[0.2px] text-[var(--slate)]">
+                        <div
+                          className={`leading-[1.5] tracking-[0.2px] text-[var(--slate)] ${
+                            scan ? "mb-2 text-[11px]" : "mb-3 text-[13px]"
+                          }`}
+                        >
                           {attrs ? `${meta} · ${attrs}` : meta}
                         </div>
                       )}
 
                       {/* Price */}
-                      <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
+                      <div
+                        className={`font-display font-light text-[var(--platinum-dim)] ${
+                          scan ? "text-[14px]" : "text-[17px]"
+                        }`}
+                      >
                         {formatPrice(row.asking_price, row.asking_currency)}
                       </div>
 

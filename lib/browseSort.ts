@@ -22,13 +22,15 @@
    relative order. Equal prices therefore produce one deterministic sequence,
    not an arbitrary one that shuffles between renders. */
 
-export type BrowseSort = "default" | "priceAsc" | "priceDesc";
+export type BrowseSort = "default" | "priceAsc" | "priceDesc" | "brandAsc";
 
 /** URL truth → sort mode. Anything unrecognised is the default order, so a
     hand-edited or stale link degrades to the room's normal behaviour rather
     than an error. */
 export function parseBrowseSort(raw: string | null | undefined): BrowseSort {
-  return raw === "priceAsc" || raw === "priceDesc" ? raw : "default";
+  return raw === "priceAsc" || raw === "priceDesc" || raw === "brandAsc"
+    ? raw
+    : "default";
 }
 
 /** The asking price if it can carry an ordering, else null. Rejects NaN and
@@ -42,11 +44,26 @@ export function usablePrice(value: unknown): number | null {
     the room's existing ordering is preserved exactly when no price sort is
     selected. Never sorts in place: the caller's array is a memoized value that
     other readers (the result count, the related-identifier pass) still hold. */
-export function sortListings<T extends { asking_price?: number | null }>(
+export function sortListings<T extends { asking_price?: number | null; brand?: string }>(
   rows: readonly T[],
   sort: BrowseSort,
 ): readonly T[] {
   if (sort === "default") return rows;
+  /* Brand A–Z is a pure alphabetical order over the maker name — locale-aware
+     compare so "Élysée" and "Erard" interleave correctly. A row with no brand
+     (never expected in real data) sorts after named rows, mirroring the null
+     price law: absence has no alphabetical position. Stable sort keeps rows
+     within one brand in their default relative order. */
+  if (sort === "brandAsc") {
+    return [...rows].sort((a, b) => {
+      const left = a.brand?.trim() || null;
+      const right = b.brand?.trim() || null;
+      if (left === null && right === null) return 0;
+      if (left === null) return 1;
+      if (right === null) return -1;
+      return left.localeCompare(right, "en", { sensitivity: "base" });
+    });
+  }
   const direction = sort === "priceAsc" ? 1 : -1;
   return [...rows].sort((a, b) => {
     const left = usablePrice(a.asking_price);
