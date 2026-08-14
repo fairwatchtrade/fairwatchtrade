@@ -40,7 +40,13 @@ html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"] { color-scheme: dark; }
 [data-immersive-dark] { color-scheme: dark; }
 
-:root {
+/* light-dark() inside a CUSTOM PROPERTY resolves against the color-scheme
+   of the element where the property is DECLARED — not where var() uses it
+   (proven live on /vault: the wrapper's color-scheme alone left root-
+   declared tokens resolving light). So the token block is declared on the
+   immersive boundary as well: same single block, second declaring scope,
+   which re-resolves every token against the surface's pinned dark scheme. */
+:root, [data-immersive-dark] {
 
   /* ── READABILITY FLOOR RULES (v1.71 — global legibility pass) ──
      The bar is outdoor sunlight at full brightness, not a dark room.
@@ -434,7 +440,7 @@ html, body {
 
 /* ── MOBILE TYPOGRAPHY FLOOR ── */
 @media (max-width: 520px) {
-  :root {
+  :root, [data-immersive-dark] {
     /* Mobile legibility bump: each arm moves AWAY from its background —
        dark arm brighter (original #D8D4CC), light arm deeper. */
     --platinum-dim: light-dark(#34312A, #D8D4CC);
