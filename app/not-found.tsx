@@ -35,7 +35,7 @@ export default function NotFound() {
         <div className="flex flex-wrap items-center justify-center gap-2.5">
           <Link
             href="/"
-            className="bg-[var(--gold-fill)] px-[22px] py-2.5 font-[Inter] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)]"
+            className="bg-[var(--cta-fill)] px-[22px] py-2.5 font-[Inter] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-cta)]"
           >
             Return Home
           </Link>

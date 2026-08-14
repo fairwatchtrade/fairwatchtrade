@@ -326,7 +326,7 @@ export default function ListingCorrespondence({
                   type="button"
                   onClick={send}
                   disabled={sending || body.trim().length === 0}
-                  className="bg-[var(--gold-fill)] px-4 py-1.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition hover:opacity-90 disabled:opacity-40"
+                  className="bg-[var(--cta-fill)] px-4 py-1.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition hover:opacity-90 disabled:opacity-40"
                 >
                   {sending ? "Sending…" : "Send"}
                 </button>

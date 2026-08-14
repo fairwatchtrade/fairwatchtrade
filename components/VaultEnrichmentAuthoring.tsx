@@ -390,7 +390,7 @@ export default function VaultEnrichmentAuthoring() {
           type="button"
           onClick={build}
           disabled={!picked || building}
-          className="border border-[var(--gold)] bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition disabled:opacity-40"
+          className="border border-[var(--gold)] bg-[var(--cta-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition disabled:opacity-40"
         >
           {building ? "Building…" : "Build plan"}
         </button>

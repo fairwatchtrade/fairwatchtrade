@@ -952,7 +952,7 @@ export default function SellFlow() {
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
-                    className="bg-[var(--gold-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="bg-[var(--cta-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Continue
                   </button>
@@ -1704,7 +1704,7 @@ function CurationStep({
       <button
         onClick={check}
         disabled={!ready || busy}
-        className={`mt-6 flex items-center gap-2 bg-[var(--gold-fill)] px-6 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.9px] text-[var(--on-gold)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`mt-6 flex items-center gap-2 bg-[var(--cta-fill)] px-6 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.9px] text-[var(--on-cta)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
           busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
         }`}
       >

@@ -100,7 +100,7 @@ export default function InlinePurchaseRequest({
         setOpen((v) => !v);
       }}
       className={[
-        "bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
+        "bg-[var(--cta-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
         "text-[var(--on-gold)] transition hover:opacity-90",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         "focus-visible:outline-[var(--platinum)]",

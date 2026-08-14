@@ -534,7 +534,7 @@ export default function ReviewStep({
         <button
           onClick={publish}
           disabled={publishing || !admissionReady}
-          className={`flex items-center gap-2 bg-[var(--gold-fill)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`flex items-center gap-2 bg-[var(--cta-fill)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
             publishing ? "cursor-wait" : ""
           }`}
         >

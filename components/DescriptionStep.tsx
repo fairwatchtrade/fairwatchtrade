@@ -140,7 +140,7 @@ export default function DescriptionStep({
           <div className="mt-3 flex justify-center gap-3">
             <button
               onClick={() => setFlag(null)}
-              className="bg-[var(--gold-fill)] px-5 py-[13px] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)] hover:opacity-90"
+              className="bg-[var(--cta-fill)] px-5 py-[13px] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-cta)] hover:opacity-90"
             >
               Revise it
             </button>
@@ -158,7 +158,7 @@ export default function DescriptionStep({
         <button
           onClick={checkAndContinue}
           disabled={busy}
-          className={`mt-5 flex items-center gap-2 bg-[var(--gold-fill)] px-5 py-[13px] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)] hover:opacity-90 disabled:opacity-40 ${
+          className={`mt-5 flex items-center gap-2 bg-[var(--cta-fill)] px-5 py-[13px] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-cta)] hover:opacity-90 disabled:opacity-40 ${
             busy ? "cursor-wait" : ""
           }`}
         >

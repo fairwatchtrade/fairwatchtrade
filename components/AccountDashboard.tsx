@@ -1321,7 +1321,7 @@ export default function AccountDashboard({
               </div>
               <Link
                 href="/sell"
-                className="bg-[var(--gold-fill)] px-4 py-[7px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.4px] text-[var(--on-gold)]"
+                className="bg-[var(--cta-fill)] px-4 py-[7px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.4px] text-[var(--on-cta)]"
               >
                 Create Listing
               </Link>

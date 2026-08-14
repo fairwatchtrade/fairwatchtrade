@@ -136,17 +136,29 @@ html[data-theme="dark"] { color-scheme: dark; }
   --gold-fill:    light-dark(#B08A2E, #C9A84C);
   --on-gold:      light-dark(#211D14, #0D0F14);
 
+  /* THE PRIMARY CONTROL. Gold is a jewel at small scale and a brass plaque at
+     large scale — poured across a whole button on ivory it reads mustard, and
+     no amount of hue-tuning removes that, because on paper a gold fill is
+     DARKER than its surroundings and gains weight instead of light. So in
+     Daylight the primary action is deep warm ink with ivory engraving, the way
+     good print does it: the block is dark, the foil is an accent. Gold keeps
+     its real job here — the hairline, the kicker, the active mark, the small
+     indicator. Dark is untouched: the arm below is the original gold plate. */
+  --cta-fill:     light-dark(#2A241B, #C9A84C);
+  --on-cta:       light-dark(#F7F4EC, #0D0F14);
+
   /* Disabled must stay READABLE and must still look like THE SAME BUTTON.
      Alpha alone bleached the label away on ivory (Signup's CREATE ACCOUNT),
      but a neutral putty block loses the family resemblance entirely — the
      enabled and disabled states then read as two unrelated objects, which is
      what made Sign In and Create Account look like different pages. So
-     disabled is a dimmed GOLD plate in both appearances: obviously the same
-     control, obviously not ready. The dark surface is the exact composite the
-     old opacity:.4 produced, so the silhouette is unchanged there; only its
-     label was lifted to a legible weight. */
-  --disabled-surface: light-dark(#E8DFC4, #584C2A);
-  --disabled-text:    light-dark(#6E5F3A, #BFB392);
+     disabled therefore keeps the enabled silhouette and simply loses its
+     charge: a warm stone block in Daylight, the dimmed gold plate in Dark
+     (that dark value is the exact composite the old opacity:.4 produced, so
+     the silhouette is unchanged there; only its label was lifted to a legible
+     weight). Same object, obviously not ready. */
+  --disabled-surface: light-dark(#C9C2B4, #584C2A);
+  --disabled-text:    light-dark(#4F4A42, #BFB392);
 
   --danger:       light-dark(#A03B33, #E07070);  /* deep restrained red, not candy */
   --success:      light-dark(#2E7D4F, #70C090);  /* deep muted green, not emerald */
@@ -400,8 +412,8 @@ html, body {
   text-transform: uppercase;
   font-weight: 400;
   padding: 13px 24px;
-  background: var(--gold-fill);
-  color: var(--on-gold);
+  background: var(--cta-fill);
+  color: var(--on-cta);
   border: none;
   cursor: pointer;
   transition: opacity var(--ease), background var(--ease), color var(--ease);

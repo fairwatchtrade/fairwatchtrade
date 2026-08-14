@@ -89,7 +89,7 @@ export default function DealerAcceleratorEntry({
       <div className="mt-5 flex flex-col gap-2.5 md:mt-0">
         <a
           href={CONTACT_HREF}
-          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--gold-fill)] px-4 py-3 text-center text-[12px] font-semibold text-[var(--on-gold)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--cta-fill)] px-4 py-3 text-center text-[12px] font-semibold text-[var(--on-cta)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
         >
           Ask FairWatchTrade to prepare your inventory
         </a>

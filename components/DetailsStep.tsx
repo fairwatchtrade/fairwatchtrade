@@ -967,7 +967,7 @@ export default function DetailsStep({
             type="button"
             onClick={handleContinue}
             disabled={reviewing || d.crownPresent === undefined || admissionHolds}
-            className={`flex items-center gap-2 bg-[var(--gold-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex items-center gap-2 bg-[var(--cta-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               reviewing ? "cursor-wait" : ""
             }`}
           >

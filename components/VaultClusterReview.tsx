@@ -283,7 +283,7 @@ export default function VaultClusterReview({
                       <button
                         onClick={() => approve(b.id)}
                         disabled={isBusy}
-                        className="bg-[var(--gold-fill)] px-5 py-2 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-wait disabled:opacity-40"
+                        className="bg-[var(--cta-fill)] px-5 py-2 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-wait disabled:opacity-40"
                       >
                         {isBusy ? "Saving\u2026" : "Approve"}
                       </button>

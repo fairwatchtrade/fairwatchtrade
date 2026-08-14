@@ -48,7 +48,7 @@ export default function ErrorBoundary({
           <button
             type="button"
             onClick={() => reset()}
-            className="bg-[var(--gold-fill)] px-[22px] py-2.5 font-[Inter] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)]"
+            className="bg-[var(--cta-fill)] px-[22px] py-2.5 font-[Inter] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-cta)]"
           >
             Try Again
           </button>

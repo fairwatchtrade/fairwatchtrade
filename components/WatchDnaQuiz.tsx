@@ -154,7 +154,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
         <div className="mt-7 flex justify-center gap-3">
           <button
             onClick={share}
-            className="rounded-md bg-[var(--gold-fill)] px-4 py-2 text-[13px] font-medium text-[var(--on-gold)] hover:opacity-90"
+            className="rounded-md bg-[var(--cta-fill)] px-4 py-2 text-[13px] font-medium text-[var(--on-cta)] hover:opacity-90"
           >
             Share
           </button>

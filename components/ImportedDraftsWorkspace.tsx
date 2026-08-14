@@ -1216,7 +1216,7 @@ export default function ImportedDraftsWorkspace() {
                         ? "Availability must be In Stock to submit."
                         : undefined
                   }
-                  className="bg-[var(--gold-fill)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[var(--on-gold)] transition disabled:cursor-not-allowed disabled:opacity-35"
+                  className="bg-[var(--cta-fill)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[var(--on-cta)] transition disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting
                     ? "Submitting…"

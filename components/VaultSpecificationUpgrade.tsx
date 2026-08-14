@@ -244,7 +244,7 @@ function sortItems(list: WorkItem[]): WorkItem[] {
 const BTN =
   "border border-[var(--border-mid)] px-3 py-2 font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40";
 const BTN_GOLD =
-  "bg-[var(--gold-fill)] px-3 py-2 font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40";
+  "bg-[var(--cta-fill)] px-3 py-2 font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function VaultSpecificationUpgrade({
   serverContract,

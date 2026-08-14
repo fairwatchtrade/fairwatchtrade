@@ -431,7 +431,7 @@ export default function CameraCapture({
             <button
               type="button"
               onClick={retryStart}
-              className="bg-[var(--gold-fill)] px-6 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition-opacity hover:opacity-90"
+              className="bg-[var(--cta-fill)] px-6 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition-opacity hover:opacity-90"
             >
               Retry
             </button>
@@ -573,7 +573,7 @@ export default function CameraCapture({
               type="button"
               onClick={usePhoto}
               disabled={phase === "uploading"}
-              className="bg-[var(--gold-fill)] px-7 py-3 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="bg-[var(--cta-fill)] px-7 py-3 text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {phase === "uploading" ? "Uploading…" : "Use Photo"}
             </button>

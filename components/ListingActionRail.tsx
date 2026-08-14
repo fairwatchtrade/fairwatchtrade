@@ -121,7 +121,7 @@ export default function ListingActionRail({
     if (ctaState === "owner") return null;
     if (ctaState === "open") {
       const barCta =
-        "shrink-0 bg-[var(--gold-fill)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90";
+        "shrink-0 bg-[var(--cta-fill)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90";
 
       /* Where the form is already on the page, this bar opens it instead of
          navigating away — leaving the listing to make an offer on it is the
@@ -220,7 +220,7 @@ export default function ListingActionRail({
         <Link
           href={`/listings/${listingId}/purchase-request`}
           className={[
-            "bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
+            "bg-[var(--cta-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
             "text-[var(--on-gold)] transition hover:opacity-90",
             variant === "rail" ? "block text-center" : "inline-block",
           ].join(" ")}
