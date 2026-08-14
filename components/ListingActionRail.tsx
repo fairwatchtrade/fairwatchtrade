@@ -221,7 +221,7 @@ export default function ListingActionRail({
           href={`/listings/${listingId}/purchase-request`}
           className={[
             "bg-[var(--cta-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
-            "text-[var(--on-gold)] transition hover:opacity-90",
+            "text-[var(--on-cta)] transition hover:opacity-90",
             variant === "rail" ? "block text-center" : "inline-block",
           ].join(" ")}
         >

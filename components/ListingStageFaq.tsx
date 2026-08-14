@@ -65,7 +65,18 @@ function renderCopy(text: string) {
   ));
 }
 
-export default function ListingStageFaq({ sellerName }: { sellerName: string }) {
+export default function ListingStageFaq({
+  sellerName,
+  isOwner = false,
+}: {
+  sellerName: string;
+  /* The seller of THIS watch never sees the buyer controls — no Ask
+     Seller button, no message bar (ListingCorrespondence returns null
+     for owners). Telling them to use a bar that will never render is
+     the page contradicting itself, so the one hand-authored interface
+     answer speaks to whoever is actually reading it. */
+  isOwner?: boolean;
+}) {
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
   const toggle = (id: string) =>
     setOpenIds((prev) => {
@@ -80,8 +91,16 @@ export default function ListingStageFaq({ sellerName }: { sellerName: string }) 
     {
       // Interface copy about THIS page's own controls — not marketplace policy.
       id: "stage-contact",
-      question: "How do I ask about this watch?",
-      answer: (
+      question: isOwner
+        ? "How do buyers ask about this watch?"
+        : "How do I ask about this watch?",
+      answer: isOwner ? (
+        <>
+          A buyer asks from this page, and the conversation lives with this
+          watch rather than in a separate inbox — so every question about it,
+          and every answer you give, stays right here beside the listing.
+        </>
+      ) : (
         <>
           Use{" "}
           <strong className="font-medium text-[var(--platinum)]">

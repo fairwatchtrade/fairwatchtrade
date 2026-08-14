@@ -109,8 +109,12 @@ export default function ListingGallery({
      chevron and the edge differ. */
   const arrowClass =
     "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center " +
-    "rounded-full border border-white/10 bg-black/30 text-white/45 backdrop-blur-[4px] " +
-    "transition hover:border-white/20 hover:bg-black/50 hover:text-white/80 " +
+    /* On-photo chrome: the control sits over the photograph AND, at ordinary
+       widths, over the pale stage beside it. A 30%-black disc with 45%-white
+       glyph read as a grey smudge on ivory — reachable only if you knew it was
+       there. Solid scrim, bright glyph, theme-neutral in both appearances. */
+    "rounded-full border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] backdrop-blur-[4px] " +
+    "transition hover:border-[var(--on-photo-gold-line)] hover:bg-[rgba(12,11,9,0.9)] hover:text-[var(--on-photo-gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
     "focus-visible:outline-[var(--gold)]";
 

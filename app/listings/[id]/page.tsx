@@ -918,7 +918,7 @@ export default async function ListingDetailPage({
             published FAQ copy, with the full room one click away. The
             seller's own view keeps it too: it describes the marketplace,
             not the viewer. */}
-        <ListingStageFaq sellerName={sellerName} />
+        <ListingStageFaq sellerName={sellerName} isOwner={isOwner} />
         </div>
         {/* end LOWER FLOW */}
       </div>
