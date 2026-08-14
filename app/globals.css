@@ -144,7 +144,7 @@ html[data-theme="dark"] { color-scheme: dark; }
      good print does it: the block is dark, the foil is an accent. Gold keeps
      its real job here — the hairline, the kicker, the active mark, the small
      indicator. Dark is untouched: the arm below is the original gold plate. */
-  --cta-fill:     light-dark(#2A241B, #C9A84C);
+  --cta-fill:     light-dark(#3B3327, #C9A84C);
   --on-cta:       light-dark(#F7F4EC, #0D0F14);
 
   /* Disabled must stay READABLE and must still look like THE SAME BUTTON.
