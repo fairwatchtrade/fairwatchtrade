@@ -303,10 +303,10 @@ export default function HelpBubble({
       >
         <span
           aria-hidden="true"
-          className={`flex h-5 w-5 items-center justify-center rounded-full border bg-[#151a22] font-display text-[13px] font-semibold leading-none transition-colors ${
+          className={`flex h-5 w-5 items-center justify-center rounded-full border bg-[var(--surface-2)] font-display text-[13px] font-semibold leading-none transition-colors ${
             open
-              ? "border-[rgba(201,168,76,0.52)] bg-[#1b2028] text-[var(--gold)]"
-              : "border-transparent text-[var(--gold-dim)] group-hover:border-[rgba(201,168,76,0.42)] group-focus-visible:border-[rgba(201,168,76,0.42)]"
+              ? "border-[var(--border-gold-strong)] bg-[var(--surface-2)] text-[var(--gold)]"
+              : "border-transparent text-[var(--gold-dim)] group-hover:border-[var(--border-gold-strong)] group-focus-visible:border-[var(--border-gold-strong)]"
           }`}
         >
           ?
@@ -336,7 +336,7 @@ export default function HelpBubble({
             ...(placeAbove ? { top: "auto", bottom: "calc(100% + 10px)" } : null),
             ...(shiftX !== 0 ? { transform: `translateX(${-shiftX}px)` } : null),
           }}
-          className={`absolute z-30 border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:p-[18px] ${
+          className={`absolute z-30 border border-[var(--border-gold-strong)] bg-[var(--surface-2)] p-4 shadow-[0_18px_55px_var(--panel-shadow-color)] sm:p-[18px] ${
             bubbleClassName ?? "left-0 right-0 top-[calc(100%+10px)] sm:left-auto sm:right-0 sm:w-[390px]"
           }`}
         >
@@ -352,7 +352,7 @@ export default function HelpBubble({
                 ? { transform: `translateX(${shiftX}px) rotate(45deg)` }
                 : undefined
             }
-            className={`absolute h-[18px] w-[18px] rotate-45 border-[rgba(201,168,76,0.48)] bg-[#12161e] ${
+            className={`absolute h-[18px] w-[18px] rotate-45 border-[var(--border-gold-strong)] bg-[var(--surface-2)] ${
               placeAbove
                 ? "bottom-[-10px] border-b border-r"
                 : "top-[-10px] border-l border-t"
