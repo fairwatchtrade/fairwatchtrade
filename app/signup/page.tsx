@@ -268,10 +268,10 @@ export default function SignUpPage() {
       <div className="flex min-h-screen bg-[var(--ink)]">
         {leftPanel}
         <div className="flex flex-1 flex-col">
-          <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
+          <div className="border-b border-[var(--border-faint)] bg-[var(--gold-whisper)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
             Create Account
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center bg-[var(--ink-deep)] px-11 py-9">
+          <div className="flex flex-1 flex-col items-center justify-center px-11 py-12">
             <div className="w-full max-w-[320px]">
               <div className="mb-[6px] text-center font-display text-[26px] font-light text-[var(--platinum)]">
                 Check your email.
@@ -309,7 +309,7 @@ export default function SignUpPage() {
               </button>
 
               {verifyError && (
-                <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+                <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 text-[13px] text-[var(--danger)]">
                   {verifyError}
                 </div>
               )}
@@ -344,11 +344,11 @@ export default function SignUpPage() {
 
       {/* ── RIGHT PANEL — Sign Up ── */}
       <div className="flex flex-1 flex-col">
-        <div className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.015)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
+        <div className="border-b border-[var(--border-faint)] bg-[var(--gold-whisper)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
           Create Account
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center bg-[var(--ink-deep)] px-11 py-9">
+        <div className="flex flex-1 flex-col items-center justify-center px-11 py-12">
           <div className="w-full max-w-[320px]">
             <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
               Join FairWatchTrade.
@@ -361,7 +361,7 @@ export default function SignUpPage() {
             {/* v2.56 — "What your account gives you" approved wording.
                 Literal about channel, timing, and no-batch; honest that it is not
                 yet Catalogue-targeted. The manifesto (left panel) stays unchanged. */}
-            <div className="mb-6 border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.015)] p-4">
+            <div className="mb-6 border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
               <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
                 What your account gives you
               </div>
@@ -468,7 +468,7 @@ export default function SignUpPage() {
             </button>
 
             {error && (
-              <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+              <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 text-[13px] text-[var(--danger)]">
                 {error}
               </div>
             )}

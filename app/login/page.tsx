@@ -255,7 +255,7 @@ export default function LoginPage() {
             </form>
 
             {error && (
-              <div className="mt-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+              <div className="mt-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 text-[13px] text-[var(--danger)]">
                 {error}
               </div>
             )}

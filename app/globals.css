@@ -136,11 +136,17 @@ html[data-theme="dark"] { color-scheme: dark; }
   --gold-fill:    light-dark(#B08A2E, #C9A84C);
   --on-gold:      light-dark(#211D14, #0D0F14);
 
-  /* Disabled must stay READABLE — a disabled control still has to say what it
-     is. Alpha alone over ivory bleaches the label away (Signup's CREATE
-     ACCOUNT at opacity .4), so disabled gets real surface + text values. */
-  --disabled-surface: light-dark(#E4DFD3, rgba(255,255,255,0.06));
-  --disabled-text:    light-dark(#777063, #7C8394);
+  /* Disabled must stay READABLE and must still look like THE SAME BUTTON.
+     Alpha alone bleached the label away on ivory (Signup's CREATE ACCOUNT),
+     but a neutral putty block loses the family resemblance entirely — the
+     enabled and disabled states then read as two unrelated objects, which is
+     what made Sign In and Create Account look like different pages. So
+     disabled is a dimmed GOLD plate in both appearances: obviously the same
+     control, obviously not ready. The dark surface is the exact composite the
+     old opacity:.4 produced, so the silhouette is unchanged there; only its
+     label was lifted to a legible weight. */
+  --disabled-surface: light-dark(#E8DFC4, #584C2A);
+  --disabled-text:    light-dark(#6E5F3A, #BFB392);
 
   --danger:       light-dark(#A03B33, #E07070);  /* deep restrained red, not candy */
   --success:      light-dark(#2E7D4F, #70C090);  /* deep muted green, not emerald */
