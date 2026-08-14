@@ -74,18 +74,18 @@ export default async function WatchDnaPage({
   const initialArchetype = isArchetypeKey(dna) ? dna : null;
 
   return (
-    <div className="flex min-h-screen bg-[#0D0F14]">
+    <div className="flex min-h-screen bg-[var(--ink)]">
       <CatalogueRail />
       <main className="flex flex-1 justify-center px-4 py-12">
         <div className="w-full max-w-xl text-center">
           <div className="mb-7 text-center">
-            <div className="text-[11px] uppercase tracking-[0.25em] text-[#8A8F9E]">
+            <div className="text-[11px] uppercase tracking-[0.25em] text-[var(--muted)]">
               FairWatchTrade
             </div>
-            <h1 className="mt-2 text-[28px] font-semibold text-[#E8E4DC]">
+            <h1 className="mt-2 text-[28px] font-semibold text-[var(--platinum)]">
               What&apos;s your Watch DNA?
             </h1>
-            <p className="mt-2 text-[14px] text-[#8A8F9E]">
+            <p className="mt-2 text-[14px] text-[var(--muted)]">
               Five questions. No wrong answers — just what&apos;s true for you.
             </p>
           </div>

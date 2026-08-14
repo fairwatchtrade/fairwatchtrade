@@ -103,20 +103,20 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
   if (archetype) {
     const a = archetype;
     return (
-      <div className="rounded-xl border border-white/10 bg-[#13151C] p-7 text-center">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-[#8A8F9E]">
+      <div className="rounded-xl border border-[var(--border-mid)] bg-[var(--surface)] p-7 text-center">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">
           Your Watch DNA
         </div>
-        <div className="mt-2 text-[26px] font-semibold text-[#E8E4DC]">
+        <div className="mt-2 text-[26px] font-semibold text-[var(--platinum)]">
           {a.name}
         </div>
-        <div className="mt-1 text-[14px] italic text-[#C9A84C]">{a.tagline}</div>
-        <p className="mt-4 text-center text-[14px] leading-relaxed text-[#B7BAC4]" style={{textAlign: 'center'}}>
+        <div className="mt-1 text-[14px] italic text-[var(--gold)]">{a.tagline}</div>
+        <p className="mt-4 text-center text-[14px] leading-relaxed text-[var(--slate)]" style={{textAlign: 'center'}}>
           {a.description}
         </p>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-[0.15em] text-[#8A8F9E]">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-[var(--muted)]">
             In your orbit
           </div>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
@@ -127,7 +127,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
                  no count, no dimming, and no "soon". */
               const stored = brandLookup.get(b.trim().toLowerCase());
               const pill =
-                "rounded-full border border-white/10 px-3 py-1 text-[12px] text-[#E8E4DC]";
+                "rounded-full border border-[var(--border-mid)] px-3 py-1 text-[12px] text-[var(--platinum)]";
 
               if (!stored) {
                 return (
@@ -142,7 +142,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
                   key={b}
                   href={buildBrowseBrandHref(stored)}
                   aria-label={`Browse ${b} watches`}
-                  className={`${pill} cursor-pointer transition-colors hover:border-[#C9A84C]/60 hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C9A84C]`}
+                  className={`${pill} cursor-pointer transition-colors hover:border-[var(--border-gold-strong)] hover:text-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--gold)]`}
                 >
                   {b}
                 </Link>
@@ -154,13 +154,13 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
         <div className="mt-7 flex justify-center gap-3">
           <button
             onClick={share}
-            className="rounded-md bg-[#C9A84C] px-4 py-2 text-[13px] font-medium text-black hover:opacity-90"
+            className="rounded-md bg-[var(--gold)] px-4 py-2 text-[13px] font-medium text-[var(--ink)] hover:opacity-90"
           >
             Share
           </button>
           <button
             onClick={restart}
-            className="rounded-md border border-white/15 px-4 py-2 text-[13px] text-[#E8E4DC] hover:bg-white/5"
+            className="rounded-md border border-[var(--border-mid)] px-4 py-2 text-[13px] text-[var(--platinum)] hover:bg-[var(--hover-wash)]"
           >
             Retake
           </button>
@@ -172,31 +172,31 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
   /* ── Question screen ───────────────────────────────────────────────── */
   const q = QUESTIONS[step];
   return (
-    <div className="rounded-xl border border-white/10 bg-[#13151C] p-7 text-center">
-      <div className="flex items-center justify-between text-[11px] text-[#8A8F9E]">
+    <div className="rounded-xl border border-[var(--border-mid)] bg-[var(--surface)] p-7 text-center">
+      <div className="flex items-center justify-between text-[11px] text-[var(--muted)]">
         <span>
           Question {step + 1} of {QUESTIONS.length}
         </span>
         {step > 0 && (
-          <button onClick={back} className="hover:text-[#E8E4DC]">
+          <button onClick={back} className="hover:text-[var(--platinum)]">
             ← Back
           </button>
         )}
       </div>
 
       {/* progress */}
-      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[var(--control-wash)]">
         <div
-          className="h-full rounded-full bg-[#C9A84C] transition-all duration-300"
+          className="h-full rounded-full bg-[var(--gold)] transition-all duration-300"
           style={{ width: `${(step / QUESTIONS.length) * 100}%` }}
         />
       </div>
 
-      <h2 className="mt-5 text-[19px] font-medium leading-snug text-[#E8E4DC]">
+      <h2 className="mt-5 text-[19px] font-medium leading-snug text-[var(--platinum)]">
         {q.prompt}
       </h2>
       {q.subtext && (
-        <p className="mt-2 text-[13px] italic leading-relaxed text-[#8A8F9E]">
+        <p className="mt-2 text-[13px] italic leading-relaxed text-[var(--muted)]">
           {q.subtext}
         </p>
       )}
@@ -206,7 +206,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
           <button
             key={opt.id}
             onClick={() => pick(opt)}
-            className="w-full rounded-lg border border-white/12 px-4 py-3 text-left text-[14px] text-[#E8E4DC] transition-colors hover:border-[#C9A84C] hover:bg-white/5"
+            className="w-full rounded-lg border border-[var(--border-mid)] px-4 py-3 text-left text-[14px] text-[var(--platinum)] transition-colors hover:border-[var(--gold)] hover:bg-[var(--hover-wash)]"
           >
             {opt.label}
           </button>
