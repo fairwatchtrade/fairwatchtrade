@@ -141,7 +141,7 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
       >
         <span
           id={titleId}
-          className="text-[9px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
+          className="text-[11px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
         >
           Market Evidence
           <span className="ml-2 normal-case tracking-normal text-[var(--muted)]">

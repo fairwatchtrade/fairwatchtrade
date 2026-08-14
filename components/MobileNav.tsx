@@ -332,14 +332,14 @@ export default function MobileNav({
                 <Link
                   href="/signup"
                   onClick={onClose}
-                  className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-center text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
+                  className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-center text-[12px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
                 >
                   Create account
                 </Link>
                 <Link
                   href="/login"
                   onClick={onClose}
-                  className="px-4 py-1 text-center text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+                  className="px-4 py-1 text-center text-[12px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
                 >
                   Sign in
                 </Link>

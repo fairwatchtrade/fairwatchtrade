@@ -149,7 +149,7 @@ export default function NotificationsBell({
         </svg>
         {hasUnread && (
           <span
-            className="absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full px-1 text-[9px] font-medium leading-none"
+            className="absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full px-1 text-[11px] font-medium leading-none"
             style={{ background: "#C9A84C", color: "var(--ink)", minWidth: 16, height: 16 }}
           >
             {badge}
@@ -167,7 +167,7 @@ export default function NotificationsBell({
               <button
                 type="button"
                 onClick={markAllRead}
-                className="text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
+                className="text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
               >
                 Mark all read
               </button>

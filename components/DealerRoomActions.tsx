@@ -97,7 +97,7 @@ export function DealerContactPanel({
           <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
                   Contact {businessName}
                 </div>
                 <p className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">
@@ -137,7 +137,7 @@ export function DealerContactPanel({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <span className="text-[9px] text-[var(--muted)]">—</span>
+                          <span className="text-[11px] text-[var(--muted)]">—</span>
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -149,7 +149,7 @@ export function DealerContactPanel({
                           {item.reference}
                         </span>
                       </span>
-                      <span className="shrink-0 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                      <span className="shrink-0 text-[11px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
                         Ask about this watch →
                       </span>
                     </Link>
@@ -167,7 +167,7 @@ export function DealerContactPanel({
 export function DealerTrustMark() {
   return (
     <span className="flex items-center gap-0.5">
-      <span className="inline-flex min-h-[28px] items-center border border-[var(--border-subtle)] px-2 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)]">
+      <span className="inline-flex min-h-[28px] items-center border border-[var(--border-subtle)] px-2 py-1 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)]">
         FairWatchTrade Dealer
       </span>
       {/* The ? and its speech bubble are the shared pattern. Anchoring is

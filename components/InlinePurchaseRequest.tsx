@@ -100,8 +100,8 @@ export default function InlinePurchaseRequest({
         setOpen((v) => !v);
       }}
       className={[
-        "bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
-        "text-[var(--ink)] transition hover:opacity-90",
+        "bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
+        "text-[var(--on-gold)] transition hover:opacity-90",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         "focus-visible:outline-[var(--platinum)]",
         isRail ? "block w-full text-center" : "inline-block",
@@ -117,7 +117,7 @@ export default function InlinePurchaseRequest({
     return (
       <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
         <div className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
-          <div className="text-[9px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+          <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
             {view === "success"
               ? "Request sent"
               : view === "changed"
@@ -209,7 +209,7 @@ export default function InlinePurchaseRequest({
           {/* offer amount */}
           <label
             htmlFor={`${panelId}-offer`}
-            className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
+            className="mb-2 block text-[11px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
           >
             Your offer
           </label>
@@ -237,7 +237,7 @@ export default function InlinePurchaseRequest({
           </div>
           <div
             id={`${panelId}-help`}
-            className="mt-2 text-[9px] leading-[1.5]"
+            className="mt-2 text-[11px] leading-[1.5]"
             style={{ color: showOfferError ? BAD : "var(--muted)" }}
           >
             {showOfferError
@@ -248,7 +248,7 @@ export default function InlinePurchaseRequest({
           {/* optional message */}
           <label
             htmlFor={`${panelId}-message`}
-            className="mb-2 mt-4 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
+            className="mb-2 mt-4 block text-[11px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]"
           >
             Note with your offer{" "}
             {/* Readable at arm's length: the 8px ghost whisper this replaces
@@ -276,7 +276,7 @@ export default function InlinePurchaseRequest({
             </div>
           )}
 
-          <p className="mt-4 text-[9px] leading-[1.55] text-[var(--muted)]">
+          <p className="mt-4 text-[11px] leading-[1.55] text-[var(--muted)]">
             No payment is collected at this step. Sending a purchase request does not complete the
             purchase — the seller may accept or decline it.
           </p>
@@ -286,14 +286,14 @@ export default function InlinePurchaseRequest({
               type="button"
               onClick={submit}
               disabled={busy || !parsed.ok}
-              className="min-h-[40px] border border-[var(--gold)] bg-transparent px-4 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-[40px] border border-[var(--gold)] bg-transparent px-4 text-[11px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? "Sending…" : "Send Purchase Request"}
             </button>
             <button
               type="button"
               onClick={close}
-              className="min-h-[40px] px-2 text-[9px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)]"
+              className="min-h-[40px] px-2 text-[11px] uppercase tracking-[1.2px] text-[var(--muted)] transition hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--platinum)]"
             >
               Cancel
             </button>
@@ -305,4 +305,4 @@ export default function InlinePurchaseRequest({
 }
 
 const linkAction =
-  "inline-flex min-h-[36px] items-center justify-center border border-[var(--gold)] bg-transparent px-3 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]";
+  "inline-flex min-h-[36px] items-center justify-center border border-[var(--gold)] bg-transparent px-3 text-[11px] font-bold uppercase tracking-[1.2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--platinum)]";

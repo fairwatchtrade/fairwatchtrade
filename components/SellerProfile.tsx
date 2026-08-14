@@ -102,19 +102,19 @@ export default function SellerProfile({
     <main className="flex min-h-screen flex-col bg-[var(--ink)] text-[var(--platinum)]">
       {/* Ticker — static metals (Phase 2 live values) */}
       <div className="flex shrink-0 items-center gap-7 border-b border-[var(--border-faint)] px-8 py-2">
-        <div className="flex items-center gap-1.5 text-[9px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold)] opacity-50" />
+        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
+          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
           Au <span className="text-[var(--muted)]">$4,091</span>
         </div>
-        <div className="flex items-center gap-1.5 text-[9px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold)] opacity-50" />
+        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
+          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
           Ag <span className="text-[var(--muted)]">$59.30</span>
         </div>
-        <div className="flex items-center gap-1.5 text-[9px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold)] opacity-50" />
+        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
+          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
           Pt <span className="text-[var(--muted)]">$1,625</span>
         </div>
-        <div className="ml-auto text-[9px] text-[var(--muted)]">
+        <div className="ml-auto text-[11px] text-[var(--muted)]">
           Phillips Geneva &ensp;·&ensp; <span className="text-[var(--slate)]">4d 16h</span>
         </div>
       </div>
@@ -129,7 +129,7 @@ export default function SellerProfile({
             <Link
               key={l.href}
               href={l.href}
-              className="text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+              className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
             >
               {l.label}
             </Link>
@@ -139,13 +139,13 @@ export default function SellerProfile({
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 border-b border-[var(--border-faint)] px-8 py-3">
-        <Link href="/browse" className="text-[9px] tracking-[0.5px] text-[var(--muted)] hover:text-[var(--muted)]">
+        <Link href="/browse" className="text-[11px] tracking-[0.5px] text-[var(--muted)] hover:text-[var(--muted)]">
           Browse
         </Link>
-        <span className="text-[9px] text-[var(--void)]">›</span>
-        <span className="text-[9px] tracking-[0.5px] text-[var(--muted)]">Sellers</span>
-        <span className="text-[9px] text-[var(--void)]">›</span>
-        <span className="text-[9px] tracking-[0.5px] text-[var(--muted)]">{seller.displayName}</span>
+        <span className="text-[11px] text-[var(--void)]">›</span>
+        <span className="text-[11px] tracking-[0.5px] text-[var(--muted)]">Sellers</span>
+        <span className="text-[11px] text-[var(--void)]">›</span>
+        <span className="text-[11px] tracking-[0.5px] text-[var(--muted)]">{seller.displayName}</span>
       </div>
 
       {/* Body — two columns */}

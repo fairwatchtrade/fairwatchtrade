@@ -1117,14 +1117,14 @@ export default function MobileWizard({
   const handBackChip =
     serverDraftId && serverPhase === "idle" && !batonAway && stage !== "published" ? (
       <div className="mb-6 flex min-h-[44px] items-center justify-between gap-3 border-b border-[var(--border-faint)] pb-2">
-        <span className="text-[9px] uppercase tracking-[2.5px] text-[rgba(201,168,76,0.85)]">
+        <span className="text-[11px] uppercase tracking-[2.5px] text-[rgba(201,168,76,0.85)]">
           Editing on phone
         </span>
         <button
           type="button"
           onClick={handBackToDesktop}
           disabled={handingBack}
-          className="flex min-h-[44px] items-center text-[10px] uppercase tracking-[2px] text-[var(--platinum)] transition-colors hover:text-[var(--gold)] disabled:opacity-60"
+          className="flex min-h-[44px] items-center text-[11px] uppercase tracking-[1.6px] text-[var(--platinum)] transition-colors hover:text-[var(--gold)] disabled:opacity-60"
         >
           {handingBack ? "Saving…" : "Resume on desktop"}
         </button>
@@ -1426,7 +1426,7 @@ export default function MobileWizard({
                 type="button"
                 disabled={!askingParse.ok}
                 onClick={() => setDraft((d) => ({ ...d, askingConfirmed: true }))}
-                className={`mt-3 w-full border px-3.5 py-2.5 text-[10px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`mt-3 w-full border px-3.5 py-2.5 text-[11px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   draft.askingConfirmed
                     ? "border-[rgba(76,175,125,0.5)] text-[#7bc49c]"
                     : "border-[var(--gold)] text-[var(--gold)]"
@@ -1460,14 +1460,14 @@ export default function MobileWizard({
                   setPreflight({ state: "idle" });
                   startCapture();
                 }}
-                className="border border-[rgba(255,255,255,0.28)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]"
+                className="border border-[rgba(255,255,255,0.28)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)]"
               >
                 Continue anyway
               </button>
               <button
                 type="button"
                 onClick={() => setPreflight({ state: "idle" })}
-                className="px-2 py-2 text-[10px] uppercase tracking-[2px] text-[#8A8F9E]"
+                className="px-2 py-2 text-[11px] uppercase tracking-[1.6px] text-[#8A8F9E]"
               >
                 Adjust details
               </button>
@@ -1569,7 +1569,7 @@ export default function MobileWizard({
           <button
             type="button"
             onClick={skipCurrent}
-            className="border border-[rgba(255,255,255,0.28)] px-4 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+            className="border border-[rgba(255,255,255,0.28)] px-4 py-3 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
           >
             Skip
           </button>
@@ -1823,7 +1823,7 @@ export default function MobileWizard({
           <button
             type="button"
             onClick={startOver}
-            className="text-[10px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
+            className="text-[11px] uppercase tracking-[1.6px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
           >
             List another watch
           </button>
@@ -1867,7 +1867,7 @@ function StepCrumb({ label }: { label: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <div className="mb-2 text-[9px] uppercase tracking-[2.5px] text-[#8A8F9E]">{label}</div>
+      <div className="mb-2 text-[11px] uppercase tracking-[2.5px] text-[#8A8F9E]">{label}</div>
       {children}
     </div>
   );
@@ -1876,7 +1876,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function SummaryRow({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between border-b border-[var(--border-faint)] pb-2">
-      <dt className="text-[9px] uppercase tracking-[2px] text-[#8A8F9E]">{k}</dt>
+      <dt className="text-[11px] uppercase tracking-[2px] text-[#8A8F9E]">{k}</dt>
       <dd className="text-[13px] text-[var(--platinum-dim)]">{v}</dd>
     </div>
   );
@@ -1887,7 +1887,7 @@ function BackLink({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mt-6 block text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+      className="mt-6 block text-[11px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
     >
       ← Back
     </button>

@@ -56,7 +56,7 @@ const EMPTY: Draft = {
 
 const inputCls =
   "w-full border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-3 py-2 text-[13px] text-[var(--platinum)] outline-none focus:border-[var(--border-gold)]";
-const labelCls = "mb-1 block text-[9px] uppercase tracking-[2px] text-[var(--muted)]";
+const labelCls = "mb-1 block text-[11px] uppercase tracking-[2px] text-[var(--muted)]";
 
 function toLocalInput(iso: string): string {
   // ISO → the value a datetime-local input accepts (minute precision, local)
@@ -211,7 +211,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
       {/* ── editable draft — the human decides every field ── */}
       {draft && (
         <div className="mt-8 border border-[var(--border-subtle)] p-4">
-          <div className="mb-4 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             Review the draft — nothing is saved until you say so
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -275,7 +275,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
             </button>
             <button type="button"
               onClick={() => { setDraft(null); setConflict(null); setNote(null); }}
-              className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
               Discard
             </button>
           </div>
@@ -285,12 +285,12 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
       {/* ── 409 diff — explicit choice, never silent ── */}
       {conflict && draft && (
         <div className="mt-6 border border-[var(--border-gold)] p-4">
-          <div className="mb-3 text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-3 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             This event already exists — review the difference
           </div>
           <table className="w-full text-[12px]">
             <thead>
-              <tr className="text-left text-[9px] uppercase tracking-[1px] text-[var(--muted)]">
+              <tr className="text-left text-[11px] uppercase tracking-[1px] text-[var(--muted)]">
                 <th className="py-1 pr-2">Field</th>
                 <th className="py-1 pr-2">Existing</th>
                 <th className="py-1">Your draft</th>
@@ -321,7 +321,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
               Update existing row
             </button>
             <button type="button" onClick={() => setConflict(null)}
-              className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
               Keep both cancelled — go back
             </button>
           </div>
@@ -330,7 +330,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
 
       {/* ── rows already in the table ── */}
       <div className="mt-12">
-        <div className="mb-3 text-[9px] uppercase tracking-[3px] text-[var(--muted)]">
+        <div className="mb-3 text-[11px] uppercase tracking-[3px] text-[var(--muted)]">
           auction_events · {rows.length} row{rows.length === 1 ? "" : "s"}
         </div>
         {rows.length === 0 ? (

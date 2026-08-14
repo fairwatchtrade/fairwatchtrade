@@ -41,7 +41,7 @@ export default async function ContactPage() {
   return (
     <main className="min-h-screen bg-[var(--ink)]">
       <div className="mx-auto w-full max-w-[1450px] px-[34px] pb-[70px] pt-[32px]">
-        <div className="mb-[8px] text-[10px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+        <div className="mb-[8px] text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
           Help &amp; Information
         </div>
         <h1 className="mb-[8px] font-display text-[36px] font-normal leading-[42px] text-[var(--platinum)]">

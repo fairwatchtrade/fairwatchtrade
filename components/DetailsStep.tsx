@@ -186,7 +186,7 @@ const CROSS_GROUP_CONTRADICTIONS: {
 
 const inputCls =
   "w-full border-b border-[rgba(201,168,76,0.40)] bg-transparent px-2 py-2 text-[14px] text-[var(--platinum)] placeholder:text-[var(--void)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--gold)] focus:outline-none transition";
-const labelCls = "mb-1 block text-[10px] uppercase tracking-[2px] text-[var(--muted)]";
+const labelCls = "mb-1 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]";
 
 /* Final Review support type — the shape the /api/validate-provenance route
    returns when it has near-certain corrections to offer. */
@@ -747,7 +747,7 @@ export default function DetailsStep({
               role="alert"
               className="mt-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 text-[12px] leading-relaxed text-[var(--muted)]"
             >
-              <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+              <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
                 These two answers disagree
               </div>
               <ul className="mt-2 space-y-1">
@@ -967,7 +967,7 @@ export default function DetailsStep({
             type="button"
             onClick={handleContinue}
             disabled={reviewing || d.crownPresent === undefined || admissionHolds}
-            className={`flex items-center gap-2 bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex items-center gap-2 bg-[var(--gold-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               reviewing ? "cursor-wait" : ""
             }`}
           >
@@ -1064,7 +1064,7 @@ function Toggle({
             : "border-[rgba(201,168,76,0.40)] bg-[rgba(255,255,255,0.04)]"
         }`}
       >
-        {checked && <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-80" />}
+        {checked && <div className="h-[5px] w-[5px] bg-[var(--gold-fill)] opacity-80" />}
       </div>
       {label}
     </label>

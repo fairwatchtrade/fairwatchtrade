@@ -34,7 +34,7 @@ function Spinner({ size = 26 }: { size?: number }) {
    offers retry — the shot is never lost to a network blip. SHA-256 of the
    captured blob is computed client-side and handed up as originalHash
    (metadata for duplicate/retry identity — the server's independent
-   recompute is the authoritative trust layer, per the GPT ruling).
+   recompute is the authoritative trust layer, per the security ruling).
 
    Composition seam: this component owns camera → blob → confirm → upload,
    then reports { url, pathname, originalHash, width, height } via
@@ -431,7 +431,7 @@ export default function CameraCapture({
             <button
               type="button"
               onClick={retryStart}
-              className="bg-[var(--gold)] px-6 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition-opacity hover:opacity-90"
+              className="bg-[var(--gold-fill)] px-6 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition-opacity hover:opacity-90"
             >
               Retry
             </button>
@@ -440,7 +440,7 @@ export default function CameraCapture({
             <button
               type="button"
               onClick={onCancel}
-              className="border border-[var(--border-mid)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+              className="border border-[var(--border-mid)] px-5 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
             >
               ← Back
             </button>
@@ -449,7 +449,7 @@ export default function CameraCapture({
             <button
               type="button"
               onClick={onExit}
-              className="px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
+              className="px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[#8A8F9E] transition-colors hover:text-[var(--slate)]"
             >
               Leave — draft saved
             </button>
@@ -540,7 +540,7 @@ export default function CameraCapture({
               <button
                 type="button"
                 onClick={onCancel}
-                className="w-16 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+                className="w-16 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
               >
                 Back
               </button>
@@ -565,7 +565,7 @@ export default function CameraCapture({
               type="button"
               onClick={retake}
               disabled={phase === "uploading"}
-              className="border border-[var(--border-mid)] px-6 py-3 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)] disabled:opacity-40"
+              className="border border-[var(--border-mid)] px-6 py-3 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)] disabled:opacity-40"
             >
               Retake
             </button>
@@ -573,7 +573,7 @@ export default function CameraCapture({
               type="button"
               onClick={usePhoto}
               disabled={phase === "uploading"}
-              className="bg-[var(--gold)] px-7 py-3 text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="bg-[var(--gold-fill)] px-7 py-3 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {phase === "uploading" ? "Uploading…" : "Use Photo"}
             </button>

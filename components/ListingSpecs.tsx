@@ -68,7 +68,7 @@ function SpecGrid({ rows }: { rows: Array<{ label: string; value: string; href?:
     <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
       {rows.map((row) => (
         <div key={row.label} className="flex flex-col">
-          <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+          <dt className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
             {row.label}
           </dt>
           <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">
@@ -179,7 +179,7 @@ export default function ListingSpecs({
         <section className="mt-8">
           <div className="pt-8">
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
+            <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               Collector Snapshot
             </span>
           </div>
@@ -194,7 +194,7 @@ export default function ListingSpecs({
         <section className="mt-6">
           <div className="pt-8">
             <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
+            <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               Technical Specifications
             </span>
           </div>

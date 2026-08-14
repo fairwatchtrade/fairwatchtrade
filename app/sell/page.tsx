@@ -34,7 +34,7 @@ export default function SellPage() {
               right here. The wizard is a choice, not a funnel. */}
           <Link
             href="/sell/mobile"
-            className="mt-5 inline-flex items-center gap-2 border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)] md:hidden"
+            className="mt-5 inline-flex items-center gap-2 border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)] md:hidden"
           >
             List from Phone →
           </Link>

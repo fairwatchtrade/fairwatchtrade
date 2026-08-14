@@ -186,7 +186,7 @@ export default function MobileCollectorsDrawer({
   const titleCls =
     "block font-display text-[13px] min-[470px]:text-[14px] md:text-[15px] leading-[1.25] text-[var(--platinum)]";
   const noteCls =
-    "mt-1 block text-[8.5px] min-[470px]:text-[9px] md:text-[10px] leading-[1.45] text-[var(--platinum-dim)]";
+    "mt-1 block text-[8.5px] min-[470px]:text-[11px] md:text-[10px] leading-[1.45] text-[var(--platinum-dim)]";
 
   return (
     <>

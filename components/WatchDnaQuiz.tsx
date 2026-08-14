@@ -154,7 +154,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
         <div className="mt-7 flex justify-center gap-3">
           <button
             onClick={share}
-            className="rounded-md bg-[var(--gold)] px-4 py-2 text-[13px] font-medium text-[var(--ink)] hover:opacity-90"
+            className="rounded-md bg-[var(--gold-fill)] px-4 py-2 text-[13px] font-medium text-[var(--on-gold)] hover:opacity-90"
           >
             Share
           </button>
@@ -187,7 +187,7 @@ export default function WatchDnaQuiz({ availableBrands, initialArchetype }: Prop
       {/* progress */}
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[var(--control-wash)]">
         <div
-          className="h-full rounded-full bg-[var(--gold)] transition-all duration-300"
+          className="h-full rounded-full bg-[var(--gold-fill)] transition-all duration-300"
           style={{ width: `${(step / QUESTIONS.length) * 100}%` }}
         />
       </div>

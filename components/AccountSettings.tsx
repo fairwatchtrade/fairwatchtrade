@@ -505,7 +505,7 @@ export default function AccountSettings({
             >
               <span
                 className={`absolute top-[3px] h-3 w-3 transition-all ${
-                  notifyEmail ? "left-[22px] bg-[var(--gold)]" : "left-[3px] bg-[var(--ghost)]"
+                  notifyEmail ? "left-[22px] bg-[var(--gold-fill)]" : "left-[3px] bg-[var(--ghost)]"
                 }`}
               />
             </button>
@@ -553,7 +553,7 @@ export default function AccountSettings({
             >
               <span
                 className={`absolute top-[3px] h-3 w-3 transition-all ${
-                  notifySms ? "left-[22px] bg-[var(--gold)]" : "left-[3px] bg-[var(--ghost)]"
+                  notifySms ? "left-[22px] bg-[var(--gold-fill)]" : "left-[3px] bg-[var(--ghost)]"
                 }`}
               />
             </button>

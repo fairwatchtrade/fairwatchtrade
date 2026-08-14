@@ -46,7 +46,7 @@ export default function SignInRequired() {
         <div className="relative z-[1] flex flex-wrap items-center justify-center gap-2.5">
           <Link
             href="/login"
-            className="bg-[var(--gold)] px-[22px] py-2.5 font-[Inter] text-[9px] font-normal uppercase tracking-[2.5px] text-[var(--ink)]"
+            className="bg-[var(--gold-fill)] px-[22px] py-2.5 font-[Inter] text-[9px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)]"
           >
             Sign In
           </Link>

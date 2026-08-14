@@ -611,7 +611,7 @@ export default async function ListingDetailPage({
             components stacked in sequence. Nothing here is boxed. */}
         <section className="mt-6">
           {showMaker && (
-            <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[12px]">
+            <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[12px]">
               {maker}
             </div>
           )}
@@ -625,7 +625,7 @@ export default async function ListingDetailPage({
               graphite. Absent reference omits the whole signature cleanly. */}
           {(reference || fingerprintLines.length > 0) && (
             <div className="mt-[22px] max-w-[760px] sm:mt-[27px]">
-              <span className="mb-2 block text-[10px] uppercase tracking-[0.24em] text-[var(--gold)]">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--gold)]">
                 Reference
               </span>
               {/* Founder composition ruling (2026-08-12, delivered in MS
@@ -688,7 +688,7 @@ export default async function ListingDetailPage({
                 <path d="M4 1.5h6l4 4v11H4z" stroke="currentColor" />
                 <path d="M10 1.5v4h4M6.5 9h5M6.5 12h5" stroke="currentColor" />
               </svg>
-              <span className="text-[10px] uppercase tracking-[0.22em]">
+              <span className="text-[11px] uppercase tracking-[0.22em]">
                 Collector Dossier
               </span>
               <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
@@ -716,7 +716,7 @@ export default async function ListingDetailPage({
             <p className="mt-6 font-display text-[32px] font-light leading-none text-[var(--platinum)]">
               {priceText}
             </p>
-            <p className="mt-1.5 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
+            <p className="mt-1.5 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
               Asking Price
             </p>
           </div>
@@ -746,7 +746,7 @@ export default async function ListingDetailPage({
             <div className="mt-3 flex items-start gap-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
               <span className="mt-[2px] text-[var(--gold)] opacity-80" aria-hidden="true">🛡️</span>
               <div>
-                <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                   In Hand Verified
                   {listing.verified_at && (
                     <span className="ml-2 text-[var(--muted)]">
@@ -818,7 +818,7 @@ export default async function ListingDetailPage({
         {/* SECTION 5 — From the Seller */}
         {listing.description && (
           <section className="mt-8">
-            <div className="border-t border-[var(--border-faint)] pt-6 text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
+            <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               From the Seller
             </div>
             <p className="mt-3 mb-8 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">

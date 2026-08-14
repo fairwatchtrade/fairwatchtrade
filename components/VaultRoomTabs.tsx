@@ -37,7 +37,7 @@ export default function VaultRoomTabs({
         </div>
         <Link
           href="/admin"
-          className="border border-[var(--border-mid)] px-4 py-2.5 font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+          className="border border-[var(--border-mid)] px-4 py-2.5 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
         >
           &larr; Admin Home
         </Link>
@@ -51,9 +51,9 @@ export default function VaultRoomTabs({
             key={room.key}
             href={room.href}
             aria-current={active === room.key ? "page" : undefined}
-            className={`px-4 py-2.5 font-[Inter] text-[10px] uppercase tracking-[2px] transition ${
+            className={`px-4 py-2.5 font-[Inter] text-[11px] uppercase tracking-[1.6px] transition ${
               active === room.key
-                ? "bg-[var(--gold)] text-[var(--ink)]"
+                ? "bg-[var(--gold-fill)] text-[var(--on-gold)]"
                 : "border border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
             }`}
           >

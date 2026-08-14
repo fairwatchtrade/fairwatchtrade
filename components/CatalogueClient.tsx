@@ -480,7 +480,7 @@ function WatchOfferGroup({
           </div>
           {/* Current status — the dominant state */}
           <div className="shrink-0 text-right">
-            <div className="text-[10px] uppercase tracking-[2px]" style={{ color: TONE_COLOR[tone] }}>
+            <div className="text-[11px] uppercase tracking-[1.6px]" style={{ color: TONE_COLOR[tone] }}>
               {label}
             </div>
           </div>
@@ -518,7 +518,7 @@ function WatchOfferGroup({
               e.stopPropagation();
               onRequestWithdraw(current.id, e.currentTarget);
             }}
-            className="mt-2.5 inline-flex min-h-[44px] items-center text-[10px] uppercase tracking-[2px] text-[var(--muted)] underline-offset-4 transition-colors hover:text-[var(--danger)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+            className="mt-2.5 inline-flex min-h-[44px] items-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] underline-offset-4 transition-colors hover:text-[var(--danger)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
           >
             Withdraw offer
           </button>
@@ -741,7 +741,7 @@ function MyOffersSection({
                 type="button"
                 disabled={withdrawing}
                 onClick={closePrompt}
-                className="min-h-[44px] border border-[var(--border-subtle)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
+                className="min-h-[44px] border border-[var(--border-subtle)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
               >
                 Keep offer active
               </button>
@@ -749,7 +749,7 @@ function MyOffersSection({
                 type="button"
                 disabled={withdrawing}
                 onClick={confirmWithdraw}
-                className="min-h-[44px] border border-[var(--border-mid)] bg-[#0b0f15] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--muted)] transition-colors hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
+                className="min-h-[44px] border border-[var(--border-mid)] bg-[#0b0f15] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
               >
                 {withdrawing ? "Withdrawing…" : "Withdraw offer"}
               </button>
@@ -1069,7 +1069,7 @@ export default function CatalogueClient({
                           : ""}
                       </span>
                       {unread && (
-                        <span className="h-[6px] w-[6px] rounded-full bg-[var(--gold)]" />
+                        <span className="h-[6px] w-[6px] rounded-full bg-[var(--gold-fill)]" />
                       )}
                     </span>
                   </Link>
@@ -1135,7 +1135,7 @@ export default function CatalogueClient({
                         <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
                           {/* Exact vs. adjacent must be unmistakable: the
                               exact label is the section's one gold accent. */}
-                          <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px]">
+                          <div className="px-7 pt-4 text-[11px] uppercase tracking-[1.5px]">
                             <span className="text-[var(--gold)]">Exact match</span>
                             <span className="text-[var(--muted)]">
                               {" "}· from &ldquo;{card.searchNames.join("”, “")}&rdquo;
@@ -1163,7 +1163,7 @@ export default function CatalogueClient({
                     <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
                       {adjacentMatches.map((card) => (
                         <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
-                          <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                          <div className="px-7 pt-4 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
                             Close to &ldquo;{card.searchNames.join("”, “")}&rdquo;
                           </div>
                           <ListingCard row={card.listing} />

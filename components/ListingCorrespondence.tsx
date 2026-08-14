@@ -326,7 +326,7 @@ export default function ListingCorrespondence({
                   type="button"
                   onClick={send}
                   disabled={sending || body.trim().length === 0}
-                  className="bg-[var(--gold)] px-4 py-1.5 text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:opacity-40"
+                  className="bg-[var(--gold-fill)] px-4 py-1.5 text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition hover:opacity-90 disabled:opacity-40"
                 >
                   {sending ? "Sending…" : "Send"}
                 </button>
@@ -387,13 +387,13 @@ export default function ListingCorrespondence({
                   <div key={m.id} className="border-b border-[rgba(255,255,255,0.03)] pb-4">
                     <div className="mb-1 flex items-baseline justify-between">
                       <span
-                        className={`text-[10px] uppercase tracking-[1.5px] ${
+                        className={`text-[11px] uppercase tracking-[1.5px] ${
                           m.isMine ? "text-[var(--gold-subtle)]" : "text-[var(--slate)]"
                         }`}
                       >
                         {m.isMine ? "You" : m.senderName}
                       </span>
-                      <span className="text-[9px] text-[var(--muted)]">
+                      <span className="text-[11px] text-[var(--muted)]">
                         {timeAgo(m.createdAt)}
                       </span>
                     </div>
@@ -417,7 +417,7 @@ export default function ListingCorrespondence({
               className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
             />
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-[9px] text-[var(--muted)]">{body.length}/2000</span>
+              <span className="text-[11px] text-[var(--muted)]">{body.length}/2000</span>
               <div className="flex items-center gap-3">
                 {confirmation && (
                   <span className="font-display text-[12px] italic text-[var(--success)]">

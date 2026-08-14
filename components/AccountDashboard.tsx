@@ -362,7 +362,7 @@ function ListingRow({
         <div className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
           {row.model ?? row.brand}
         </div>
-        <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--muted)]">
+        <div className="mt-[2px] text-[11px] tracking-[0.3px] text-[var(--muted)]">
           Ref. {row.reference}
         </div>
       </div>
@@ -408,7 +408,7 @@ function ListingRow({
               onSubmitForReview(row.id);
             }}
             disabled={submitting}
-            className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="border border-[var(--border-gold)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? "Submitting…" : "Submit for Review"}
           </button>
@@ -675,7 +675,7 @@ function MessagesView({
                 {title}
               </div>
               {threadMeta.listing && (
-                <div className="text-[9px] tracking-[0.3px] text-[var(--muted)]">
+                <div className="text-[11px] tracking-[0.3px] text-[var(--muted)]">
                   Ref. {threadMeta.listing.reference} · with {threadMeta.otherName}
                 </div>
               )}
@@ -705,13 +705,13 @@ function MessagesView({
               <div key={m.id} className="border-b border-[var(--border-faint)] pb-4">
                 <div className="mb-1 flex items-baseline justify-between">
                   <span
-                    className={`text-[10px] uppercase tracking-[1.5px] ${
+                    className={`text-[11px] uppercase tracking-[1.5px] ${
                       m.isMine ? "text-[var(--gold-subtle)]" : "text-[var(--slate)]"
                     }`}
                   >
                     {m.isMine ? "You" : m.senderName}
                   </span>
-                  <span className="text-[9px] text-[var(--muted)]">{timeAgo(m.createdAt)}</span>
+                  <span className="text-[11px] text-[var(--muted)]">{timeAgo(m.createdAt)}</span>
                 </div>
                 <p className="whitespace-pre-line text-[13px] leading-[1.7] text-[var(--platinum-dim)]">
                   {m.body}
@@ -731,14 +731,14 @@ function MessagesView({
             className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-[9px] text-[var(--muted)]">{reply.length}/2000</span>
+            <span className="text-[11px] text-[var(--muted)]">{reply.length}/2000</span>
             <div className="flex items-center gap-3">
               {sendError && <span className="text-[11px] text-[var(--danger)]">{sendError}</span>}
               <button
                 type="button"
                 onClick={sendReply}
                 disabled={sending || reply.trim().length === 0}
-                className={`border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition ${
+                className={`border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition ${
                   sending || reply.trim().length === 0
                     ? "cursor-not-allowed opacity-40"
                     : "hover:bg-[var(--gold-whisper)]"
@@ -809,7 +809,7 @@ function MessagesView({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[9px] text-[var(--muted)]">{timeAgo(t.updatedAt)}</span>
+                  <span className="text-[11px] text-[var(--muted)]">{timeAgo(t.updatedAt)}</span>
                   {/* Account Status Colorway Parity — Correspondence carries
                       only the two states the repository actually supports:
                       unread (published/green family) and read (neutral, the
@@ -996,7 +996,7 @@ function RequestsView({
                       </span>
                     </div>
                     {listing && (
-                      <div className="mt-[2px] text-[9px] tracking-[0.3px] text-[var(--muted)]">
+                      <div className="mt-[2px] text-[11px] tracking-[0.3px] text-[var(--muted)]">
                         Ref. {listing.reference}
                       </div>
                     )}
@@ -1039,7 +1039,7 @@ function RequestsView({
                           type="button"
                           onClick={() => act(r.id, "accepted")}
                           disabled={busyId === r.id}
-                          className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="border border-[var(--border-gold)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {busyId === r.id ? "Working…" : "Accept"}
                         </button>
@@ -1047,7 +1047,7 @@ function RequestsView({
                           type="button"
                           onClick={() => act(r.id, "declined")}
                           disabled={busyId === r.id}
-                          className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="border border-[var(--border-mid)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Decline
                         </button>
@@ -1321,7 +1321,7 @@ export default function AccountDashboard({
               </div>
               <Link
                 href="/sell"
-                className="bg-[var(--gold)] px-4 py-[7px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.4px] text-[var(--ink)]"
+                className="bg-[var(--gold-fill)] px-4 py-[7px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.4px] text-[var(--on-gold)]"
               >
                 Create Listing
               </Link>

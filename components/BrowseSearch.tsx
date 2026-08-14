@@ -206,7 +206,7 @@ export default function BrowseSearch({
     >
       <div className={dealerRoomMode ? "w-full" : "mx-auto w-full max-w-[940px]"}>
         {dealerRoomMode && (
-          <div className="mb-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+          <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
             Search This Dealer
           </div>
         )}
@@ -333,7 +333,7 @@ export default function BrowseSearch({
           <button
             type="button"
             onClick={() => commit(text)}
-            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
           >
             Go
           </button>
@@ -347,7 +347,7 @@ export default function BrowseSearch({
               className={
                 legibilityMode
                   ? "text-[11px] uppercase tracking-[0.14em] text-[var(--slate)]"
-                  : "text-[10px] uppercase tracking-[0.17em] text-[var(--muted)]"
+                  : "text-[11px] uppercase tracking-[0.17em] text-[var(--muted)]"
               }
             >
               Your Search
@@ -387,7 +387,7 @@ export default function BrowseSearch({
                       className={`flex-none uppercase tracking-[0.1em] ${
                         legibilityMode
                           ? "text-[10px] text-[var(--slate)]"
-                          : "text-[9px] text-[var(--muted)]"
+                          : "text-[11px] text-[var(--muted)]"
                       }`}
                     >
                       {chip.source === "filter" ? "Filter" : "Search"}

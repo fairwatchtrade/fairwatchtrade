@@ -807,7 +807,7 @@ export default function SellFlow() {
           <button
             type="button"
             onClick={resumeOnDesktop}
-            className="mt-6 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
+            className="mt-6 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
           >
             Resume on desktop
           </button>
@@ -952,7 +952,7 @@ export default function SellFlow() {
                   <button
                     onClick={() => canProceed && setStep(step + 1)}
                     disabled={!canProceed}
-                    className="bg-[var(--gold)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="bg-[var(--gold-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Continue
                   </button>
@@ -1653,7 +1653,7 @@ function CurationStep({
       {profile && (
         <div className="mt-5">
           <div className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+            <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
               {profile.brand} profile active
             </div>
             <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
@@ -1704,7 +1704,7 @@ function CurationStep({
       <button
         onClick={check}
         disabled={!ready || busy}
-        className={`mt-6 flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] font-[Inter] text-[10px] font-normal uppercase tracking-[2.5px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`mt-6 flex items-center gap-2 bg-[var(--gold-fill)] px-6 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[1.9px] text-[var(--on-gold)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
           busy ? "cursor-wait" : !ready ? "cursor-not-allowed" : ""
         }`}
       >

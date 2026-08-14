@@ -2045,7 +2045,7 @@ export default function VaultGalaxy({
                   setQuery(chip.toLowerCase());
                   runSearch(chip.toLowerCase());
                 }}
-                className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+                className="cursor-pointer border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-2.5 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
               >
                 {chip}
               </button>
@@ -2069,7 +2069,7 @@ export default function VaultGalaxy({
               <span className="text-[13px] leading-none text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
                 ←
               </span>
-              <span className="text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
+              <span className="text-[11px] uppercase tracking-[2px] text-[var(--slate)] transition-colors group-hover:text-[var(--gold)]">
                 Return to Galaxy
               </span>
             </button>
@@ -2082,7 +2082,7 @@ export default function VaultGalaxy({
             heroHidden ? "-translate-y-4 opacity-0" : "opacity-100"
           }`}
         >
-          <div className="mb-[18px] text-[9px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
+          <div className="mb-[18px] text-[11px] uppercase tracking-[5px] text-[var(--gold-subtle)]">
             The FairWatchTrade Vault
           </div>
           <h1 className="mb-3 font-display text-[42px] font-light leading-[1.15] text-[var(--platinum)]">
@@ -2123,7 +2123,7 @@ export default function VaultGalaxy({
                   {selectedVariant.name}
                 </h2>
                 {variantFamily && (
-                  <div className="mb-2 text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                  <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
                     {variantFamily.name}
                   </div>
                 )}
@@ -2264,7 +2264,7 @@ export default function VaultGalaxy({
                     {selectedBrand.description}
                   </p>
                 )}
-                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[10px] uppercase tracking-[1px] text-[var(--muted)] max-sm:hidden">
+                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[11px] uppercase tracking-[1px] text-[var(--muted)] max-sm:hidden">
                   <div className="flex justify-between py-1">
                     <span>Collections</span>
                     <span className="text-[var(--platinum-dim)]">
@@ -2289,7 +2289,7 @@ export default function VaultGalaxy({
             view !== "brands" ? "max-sm:hidden" : ""
           }`}
         >
-          <label className="mb-[10px] block text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <label className="mb-[10px] block text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             What interests you today?
           </label>
           <div className="flex flex-wrap gap-[10px]">
@@ -2323,7 +2323,7 @@ export default function VaultGalaxy({
         </div>
 
         {/* Quiet disclosure line */}
-        <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[9px] italic text-[var(--muted)]">
+        <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[11px] italic text-[var(--muted)]">
           {brands.length} manufacturers. A living catalogue of independent and
           heritage watchmaking.
         </div>
@@ -2362,7 +2362,7 @@ export default function VaultGalaxy({
               <Link
                 href="/browse"
                 aria-label="Return to the marketplace"
-                className="text-[9px] uppercase tracking-[2px] text-[#4A4F5C] transition-colors hover:text-[var(--slate)]"
+                className="text-[11px] uppercase tracking-[2px] text-[#4A4F5C] transition-colors hover:text-[var(--slate)]"
               >
                 ← Marketplace
               </Link>
@@ -2700,7 +2700,7 @@ export default function VaultGalaxy({
                   aria-label="Enter the FairWatchTrade Vault"
                 >
                   <div className="h-8 w-px bg-gradient-to-b from-transparent to-[rgba(201,168,76,0.3)]" />
-                  <div className="py-2 text-[9px] uppercase tracking-[6px] text-[rgba(201,168,76,0.55)]">
+                  <div className="py-2 text-[11px] uppercase tracking-[6px] text-[rgba(201,168,76,0.55)]">
                     Enter
                   </div>
                   <div className="h-5 w-px bg-gradient-to-b from-[rgba(201,168,76,0.25)] to-transparent" />

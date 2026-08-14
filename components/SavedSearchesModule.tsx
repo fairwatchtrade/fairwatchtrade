@@ -333,7 +333,7 @@ export default function SavedSearchesModule() {
           <button
             type="button"
             onClick={() => router.push("/browse")}
-            className="mt-5 min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
+            className="mt-5 min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
           >
             Browse watches
           </button>
@@ -372,7 +372,7 @@ export default function SavedSearchesModule() {
                           blue-grey), both from the canonical --lc-* tokens
                           rather than a near-miss literal rgba. */}
                       <span
-                        className="border px-[7px] py-[4px] text-[9px] uppercase tracking-[1.5px]"
+                        className="border px-[7px] py-[4px] text-[11px] uppercase tracking-[1.5px]"
                         style={
                           status === "Watching"
                             ? {
@@ -410,7 +410,7 @@ export default function SavedSearchesModule() {
                         </span>
                       )}
                       {entry.row.include_adjacent && (
-                        <span className="border border-[var(--border-subtle)] px-[7px] py-[4px] text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                        <span className="border border-[var(--border-subtle)] px-[7px] py-[4px] text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
                           Close matches on
                         </span>
                       )}
@@ -443,7 +443,7 @@ export default function SavedSearchesModule() {
                         onClick={() => seeMatches(entry)}
                         aria-expanded={matchesOpen}
                         aria-controls={`saved-search-matches-${entry.row.id}`}
-                        className="min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] sm:min-h-[40px]"
+                        className="min-h-[44px] border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] sm:min-h-[40px]"
                       >
                         {counts.total === 1 ? "See match" : "See matches"}
                       </button>
@@ -451,7 +451,7 @@ export default function SavedSearchesModule() {
                     <button
                       type="button"
                       onClick={() => openResults(entry)}
-                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] sm:min-h-[40px]"
+                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] sm:min-h-[40px]"
                     >
                       Open results
                     </button>
@@ -459,7 +459,7 @@ export default function SavedSearchesModule() {
                       type="button"
                       onClick={() => togglePause(entry)}
                       disabled={busyId === entry.row.id}
-                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
+                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
                     >
                       {entry.row.paused ? "Resume" : "Pause"}
                     </button>
@@ -469,7 +469,7 @@ export default function SavedSearchesModule() {
                       type="button"
                       onClick={() => toggleAdjacent(entry)}
                       disabled={busyId === entry.row.id}
-                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
+                      className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] disabled:opacity-50 sm:min-h-[40px]"
                     >
                       {entry.row.include_adjacent ? "Stop close matches" : "Show close matches"}
                     </button>
@@ -481,7 +481,7 @@ export default function SavedSearchesModule() {
                       onClick={() => {
                         setConfirmingId(entry.row.id);
                       }}
-                      className="min-h-[44px] px-2 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--danger)] sm:min-h-[40px]"
+                      className="min-h-[44px] px-2 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--danger)] sm:min-h-[40px]"
                     >
                       Delete
                     </button>
@@ -495,7 +495,7 @@ export default function SavedSearchesModule() {
                     className="mt-4 border border-[var(--border-subtle)] bg-[var(--surface)]"
                   >
                     <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
-                      <h4 className="text-[10px] uppercase tracking-[2px] text-[var(--platinum-dim)]">
+                      <h4 className="text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)]">
                         What FairWatchTrade found
                       </h4>
                       <button
@@ -543,7 +543,7 @@ export default function SavedSearchesModule() {
                                 row — the collector never infers whether we
                                 found the watch or something nearby. */}
                             <div
-                              className={`mb-1 text-[9px] uppercase tracking-[1.5px] ${
+                              className={`mb-1 text-[11px] uppercase tracking-[1.5px] ${
                                 m.matchKind === "exact"
                                   ? "text-[var(--gold)]"
                                   : "text-[var(--muted)]"
@@ -567,7 +567,7 @@ export default function SavedSearchesModule() {
                               {m.foundText}
                             </div>
                             <div
-                              className={`mt-1 text-[9px] uppercase tracking-[1.5px] ${
+                              className={`mt-1 text-[11px] uppercase tracking-[1.5px] ${
                                 m.available ? "text-[var(--success)]" : "text-[var(--muted)]"
                               }`}
                             >
@@ -577,7 +577,7 @@ export default function SavedSearchesModule() {
                           {m.href && (
                             <a
                               href={m.href}
-                              className="col-span-2 mt-1 inline-flex min-h-[44px] items-center justify-center border border-[var(--border-subtle)] px-3 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] sm:col-span-1 sm:mt-0 sm:min-h-[40px] sm:self-center"
+                              className="col-span-2 mt-1 inline-flex min-h-[44px] items-center justify-center border border-[var(--border-subtle)] px-3 text-[11px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] sm:col-span-1 sm:mt-0 sm:min-h-[40px] sm:self-center"
                             >
                               Open listing
                             </a>
@@ -603,7 +603,7 @@ export default function SavedSearchesModule() {
                           setConfirmingId(null);
                           setFocusTarget({ kind: "delete", id: entry.row.id });
                         }}
-                        className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] sm:min-h-[40px]"
+                        className="min-h-[44px] border border-[var(--border-subtle)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum-dim)] sm:min-h-[40px]"
                       >
                         Cancel
                       </button>
@@ -611,7 +611,7 @@ export default function SavedSearchesModule() {
                         type="button"
                         onClick={() => confirmDelete(entry)}
                         disabled={busyId === entry.row.id}
-                        className="min-h-[44px] border border-[rgba(224,112,112,0.55)] bg-[rgba(224,112,112,0.08)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--danger)] disabled:opacity-50 sm:min-h-[40px]"
+                        className="min-h-[44px] border border-[rgba(224,112,112,0.55)] bg-[rgba(224,112,112,0.08)] px-3 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--danger)] disabled:opacity-50 sm:min-h-[40px]"
                       >
                         Delete saved search
                       </button>

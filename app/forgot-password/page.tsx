@@ -198,7 +198,7 @@ export default function ForgotPasswordPage() {
                 {/* v2.0f: "Remember it?" stays here — the user hasn't started a
                     reset yet, so a path back to sign-in is useful (unlike
                     reset-password, where it abandons a live recovery session). */}
-                <div className="text-center text-[9px] text-[var(--muted)]">
+                <div className="text-center text-[11px] text-[var(--muted)]">
                   Remember it?{" "}
                   <Link href="/login" className="text-[var(--slate)]">
                     Sign in →

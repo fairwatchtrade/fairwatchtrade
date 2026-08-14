@@ -654,7 +654,7 @@ export default function ImportedDraftsWorkspace() {
                 onClick={() => selectListing(l.id)}
                 className={`relative flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-5 py-[14px] text-left transition hover:bg-[var(--hover-wash)] ${
                   isSel
-                    ? "bg-[var(--gold-whisper)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold)]"
+                    ? "bg-[var(--gold-whisper)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold-fill)]"
                     : ""
                 }`}
               >
@@ -663,7 +663,7 @@ export default function ImportedDraftsWorkspace() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-[9px] text-[var(--muted)]">—</span>
+                    <span className="text-[11px] text-[var(--muted)]">—</span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -686,7 +686,7 @@ export default function ImportedDraftsWorkspace() {
                       ? formatMoney(l.asking_price, l.asking_currency)
                       : "—"}
                   </div>
-                  <div className={`mt-[4px] text-[9px] uppercase tracking-[1.2px] ${m.cls}`}>
+                  <div className={`mt-[4px] text-[11px] uppercase tracking-[1.2px] ${m.cls}`}>
                     {m.label}
                   </div>
                 </div>
@@ -716,7 +716,7 @@ export default function ImportedDraftsWorkspace() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border-faint)] pb-4">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+                <div className="text-[11px] uppercase tracking-[1.9px] text-[var(--gold-dim)]">
                   {selected.brand}
                 </div>
                 <h3 className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
@@ -727,14 +727,14 @@ export default function ImportedDraftsWorkspace() {
                     different watch, so the value never sits below the label. */}
                 <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1">
                   <span className="text-[13px] text-[var(--platinum-dim)]">
-                    <span className="mr-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                    <span className="mr-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
                       Reference
                     </span>
                     {selected.reference}
                   </span>
                   {selected.year && (
                     <span className="text-[13px] text-[var(--platinum-dim)]">
-                      <span className="mr-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                      <span className="mr-2 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
                         Year
                       </span>
                       {selected.year}
@@ -742,7 +742,7 @@ export default function ImportedDraftsWorkspace() {
                   )}
                 </div>
               </div>
-              <span className={`shrink-0 border border-current px-2 py-1 text-[9px] uppercase tracking-[1.5px] ${meta.cls}`}>
+              <span className={`shrink-0 border border-current px-2 py-1 text-[11px] uppercase tracking-[1.5px] ${meta.cls}`}>
                 {meta.label}
               </span>
             </div>
@@ -851,7 +851,7 @@ export default function ImportedDraftsWorkspace() {
                   </span>
                 )}
                 {photoUrls.length > 0 && (
-                  <span className="absolute bottom-3 left-3 border border-[var(--border-gold)] bg-[rgba(10,11,15,0.85)] px-2 py-1 text-[9px] uppercase tracking-[1.5px] text-[var(--platinum-dim)]">
+                  <span className="absolute bottom-3 left-3 border border-[var(--border-gold)] bg-[rgba(10,11,15,0.85)] px-2 py-1 text-[11px] uppercase tracking-[1.5px] text-[var(--platinum-dim)]">
                     Imported photograph {activePhoto + 1} of {photoUrls.length}
                   </span>
                 )}
@@ -921,7 +921,7 @@ export default function ImportedDraftsWorkspace() {
                 type="button"
                 disabled={!editable || uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="border border-[var(--border-mid)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {uploading ? "Uploading…" : "Replace imported photographs"}
               </button>
@@ -1181,7 +1181,7 @@ export default function ImportedDraftsWorkspace() {
                 type="button"
                 onClick={() => saveDraft()}
                 disabled={!editable || !dirty || saving}
-                className={`border px-4 py-2 text-[10px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
+                className={`border px-4 py-2 text-[11px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
                   justSaved
                     ? "border-[var(--border-gold)] text-[var(--gold)] disabled:opacity-100"
                     : "border-[var(--border-mid)] text-[var(--muted)] hover:text-[var(--platinum)] disabled:opacity-40"
@@ -1193,14 +1193,14 @@ export default function ImportedDraftsWorkspace() {
                 <button
                   type="button"
                   disabled
-                  className="cursor-not-allowed border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] opacity-40"
+                  className="cursor-not-allowed border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] opacity-40"
                 >
                   Awaiting FairWatchTrade Review
                 </button>
               ) : selected.status === "published" ? (
                 <a
                   href={`/listings/${selected.id}`}
-                  className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
+                  className="border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
                 >
                   View Published Listing
                 </a>
@@ -1216,7 +1216,7 @@ export default function ImportedDraftsWorkspace() {
                         ? "Availability must be In Stock to submit."
                         : undefined
                   }
-                  className="bg-[var(--gold)] px-5 py-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[var(--ink)] transition disabled:cursor-not-allowed disabled:opacity-35"
+                  className="bg-[var(--gold-fill)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[var(--on-gold)] transition disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting
                     ? "Submitting…"
@@ -1275,7 +1275,7 @@ function Field({
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span
-          className={`text-[10px] uppercase tracking-[1.5px] ${
+          className={`text-[11px] uppercase tracking-[1.5px] ${
             attention ? "font-semibold text-[var(--danger)]" : "text-[var(--platinum-dim)]"
           }`}
         >

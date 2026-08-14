@@ -12,7 +12,7 @@ export default function NotFound() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--ink)] px-6 py-24 text-center">
       {/* Breadcrumb */}
-      <div className="absolute left-6 top-6 z-[1] flex items-center gap-1.5 text-[9px] tracking-[0.5px] text-[var(--void)] sm:left-8">
+      <div className="absolute left-6 top-6 z-[1] flex items-center gap-1.5 text-[11px] tracking-[0.5px] text-[var(--void)] sm:left-8">
         <Link href="/" className="text-[var(--muted)] transition-colors hover:text-[var(--muted)]">
           Home
         </Link>
@@ -35,19 +35,19 @@ export default function NotFound() {
         <div className="flex flex-wrap items-center justify-center gap-2.5">
           <Link
             href="/"
-            className="bg-[var(--gold)] px-[22px] py-2.5 font-[Inter] text-[9px] font-normal uppercase tracking-[2.5px] text-[var(--ink)]"
+            className="bg-[var(--gold-fill)] px-[22px] py-2.5 font-[Inter] text-[11px] font-normal uppercase tracking-[2.5px] text-[var(--on-gold)]"
           >
             Return Home
           </Link>
           <Link
             href="/browse"
-            className="border border-[var(--border-subtle)] bg-transparent px-[18px] py-[9px] font-[Inter] text-[9px] uppercase tracking-[2px] text-[var(--slate)]"
+            className="border border-[var(--border-subtle)] bg-transparent px-[18px] py-[9px] font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--slate)]"
           >
             Browse Watches
           </Link>
           <Link
             href="/account"
-            className="font-[Inter] text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]"
+            className="font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]"
           >
             Open My Catalogue
           </Link>

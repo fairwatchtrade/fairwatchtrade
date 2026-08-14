@@ -182,7 +182,7 @@ export default function NavBar({
                     onClick={() => setJoinOpen((v) => !v)}
                     aria-expanded={joinOpen}
                     aria-haspopup="menu"
-                    className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                    className={`text-[12px] uppercase tracking-[1.8px] transition-colors ${
                       joinOpen
                         ? "text-[var(--gold)]"
                         : "text-[var(--slate)] hover:text-[var(--platinum)]"
@@ -226,7 +226,7 @@ export default function NavBar({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                className={`text-[12px] uppercase tracking-[1.8px] transition-colors ${
                   pathname === item.href
                     ? "text-[var(--gold)]"
                     : "text-[var(--slate)] hover:text-[var(--platinum)]"
@@ -245,7 +245,7 @@ export default function NavBar({
           {!authed ? (
             <Link
               href="/login"
-              className="flex items-center gap-2 text-[10px] uppercase tracking-[2.5px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
+              className="flex items-center gap-2 text-[12px] uppercase tracking-[1.8px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
             >
               <AccountIcon />
               Sign In / Register
@@ -257,7 +257,7 @@ export default function NavBar({
                 onClick={() => setAccountOpen((v) => !v)}
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
-                className={`flex items-center gap-2 text-[10px] uppercase tracking-[2.5px] transition-colors ${
+                className={`flex items-center gap-2 text-[12px] uppercase tracking-[1.8px] transition-colors ${
                   accountOpen ? "text-[var(--gold-subtle)]" : "text-[var(--muted)] hover:text-[var(--gold)]"
                 }`}
               >
@@ -294,28 +294,28 @@ export default function NavBar({
                   <Link
                     href="/account?module=dashboard"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[12px] uppercase tracking-[1.8px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     My Account
                   </Link>
                   <Link
                     href="/sell"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[12px] uppercase tracking-[1.8px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     Sell a Watch
                   </Link>
                   <Link
                     href="/account"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[12px] uppercase tracking-[1.8px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     My Listings
                   </Link>
                   <Link
                     href="/account/settings"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
+                    className="block px-4 py-2 text-[12px] uppercase tracking-[1.8px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                   >
                     Account Settings
                   </Link>
@@ -323,7 +323,7 @@ export default function NavBar({
                     <Link
                       href="/admin"
                       onClick={() => setAccountOpen(false)}
-                      className="block px-4 py-2 text-[10px] uppercase tracking-[2.5px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
+                      className="block px-4 py-2 text-[12px] uppercase tracking-[1.8px] text-[var(--slate)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--platinum)]"
                     >
                       Admin
                     </Link>
@@ -332,7 +332,7 @@ export default function NavBar({
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="block w-full px-4 py-2 text-left text-[10px] uppercase tracking-[2.5px] text-[var(--muted)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--danger)]"
+                    className="block w-full px-4 py-2 text-left text-[12px] uppercase tracking-[1.8px] text-[var(--muted)] transition-colors hover:bg-[var(--hover-wash)] hover:text-[var(--danger)]"
                   >
                     Sign Out
                   </button>

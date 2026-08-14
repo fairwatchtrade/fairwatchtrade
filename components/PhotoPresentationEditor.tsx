@@ -86,7 +86,7 @@ export function PhotoPresentationEntry({
         ref={buttonRef}
         type="button"
         onClick={onOpen}
-        className="inline-flex items-center gap-[7px] whitespace-nowrap bg-transparent py-[3px] text-[9px] font-semibold uppercase leading-none tracking-[0.12em] text-[#d8c273] transition hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[#ead37e]"
+        className="inline-flex items-center gap-[7px] whitespace-nowrap bg-transparent py-[3px] text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-[#d8c273] transition hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[#ead37e]"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className="shrink-0 opacity-[0.92]">
           <path
@@ -320,7 +320,7 @@ export default function PhotoPresentationEditor({
               Center the watch for buyers
             </h3>
           </div>
-          <div className="text-right text-[9px] leading-[1.4] text-[var(--muted)]">
+          <div className="text-right text-[11px] leading-[1.4] text-[var(--muted)]">
             Original upload preserved
             <br />
             Presentation metadata only
@@ -352,12 +352,12 @@ export default function PhotoPresentationEditor({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.photo.url} alt="" draggable={false} className="h-full w-full select-none object-cover" />
                       {isHero && (
-                        <span className="absolute left-0 top-0 bg-[var(--gold)] px-[3px] text-[7px] font-semibold leading-[1.4] text-[var(--ink)]">
+                        <span className="absolute left-0 top-0 bg-[var(--gold-fill)] px-[3px] text-[7px] font-semibold leading-[1.4] text-[var(--on-gold)]">
                           HERO
                         </span>
                       )}
                       {framed && !isHero && (
-                        <span className="absolute right-0 top-0 bg-[rgba(197,170,85,0.85)] px-[3px] text-[7px] leading-[1.4] text-[var(--ink)]">
+                        <span className="absolute right-0 top-0 bg-[rgba(197,170,85,0.85)] px-[3px] text-[7px] leading-[1.4] text-[var(--on-gold)]">
                           ✓
                         </span>
                       )}
@@ -533,7 +533,7 @@ export default function PhotoPresentationEditor({
             </div>
 
             {/* Metadata — reserved two-line block, truncating, never taller. */}
-            <div className="mt-2 h-[44px] overflow-hidden border-t border-[#292c33] pt-2 text-[9px] leading-[1.5] text-[#89919f]">
+            <div className="mt-2 h-[44px] overflow-hidden border-t border-[#292c33] pt-2 text-[11px] leading-[1.5] text-[#89919f]">
               <div className="truncate">
                 focal_x={frame.focalX.toFixed(3)} · focal_y={frame.focalY.toFixed(3)} · zoom=
                 {frame.zoom.toFixed(2)} · rot={sanitizeRotation(frame.rotationDeg)}°
@@ -625,7 +625,7 @@ export default function PhotoPresentationEditor({
         <div className="border-t border-[var(--border-subtle)] px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <span className="h-px flex-1 bg-[rgba(201,168,76,0.32)]" aria-hidden="true" />
-            <span className="text-center text-[9px] leading-[1.4] text-[var(--muted)]">
+            <span className="text-center text-[11px] leading-[1.4] text-[var(--muted)]">
               Photo roles govern gallery order. Your source photographs are unchanged.
             </span>
             <span className="h-px flex-1 bg-[rgba(201,168,76,0.32)]" aria-hidden="true" />

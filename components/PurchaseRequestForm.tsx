@@ -239,7 +239,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 <div className="pt-6">
                   {/* offer amount */}
                   <div className="mb-5">
-                    <label htmlFor="offer" className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
+                    <label htmlFor="offer" className="mb-2 block text-[11px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
                       Your offer
                     </label>
                     <div className="relative">
@@ -272,7 +272,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                         {offerErrorText}
                       </div>
                     ) : (
-                      <div id="offerHelp" className="mt-2 text-[9px] leading-[1.5] text-[var(--muted)]">
+                      <div id="offerHelp" className="mt-2 text-[11px] leading-[1.5] text-[var(--muted)]">
                         {comparison ??
                           `Offers are made in the listing's currency — ${currency.displayName} (${currency.code}).`}
                       </div>
@@ -281,7 +281,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
 
                   {/* optional message */}
                   <div className="mb-5">
-                    <label htmlFor="message" className="mb-2 block text-[10px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
+                    <label htmlFor="message" className="mb-2 block text-[11px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
                       Note with your offer{" "}
                       <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
                         — optional
@@ -299,7 +299,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       // shares the size by inheritance, so no state jump.
                       className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
                     />
-                    <div className="mt-1.5 text-[9px] leading-[1.5] text-[var(--muted)]">
+                    <div className="mt-1.5 text-[11px] leading-[1.5] text-[var(--muted)]">
                       Ask a concise question or share a short note with the seller.
                     </div>
                   </div>
@@ -320,7 +320,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     >
                       {busy ? "Sending…" : "Send Purchase Request"}
                     </button>
-                    <div className="max-w-[480px] text-[9px] leading-[1.55] text-[var(--muted)]">
+                    <div className="max-w-[480px] text-[11px] leading-[1.55] text-[var(--muted)]">
                       <strong className="font-medium text-[var(--platinum-dim)]">
                         Sending a purchase request does not complete the purchase.
                       </strong>{" "}

@@ -242,9 +242,9 @@ function sortItems(list: WorkItem[]): WorkItem[] {
 }
 
 const BTN =
-  "border border-[var(--border-mid)] px-3 py-2 font-[Inter] text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40";
+  "border border-[var(--border-mid)] px-3 py-2 font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40";
 const BTN_GOLD =
-  "bg-[var(--gold)] px-3 py-2 font-[Inter] text-[10px] uppercase tracking-[1.5px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40";
+  "bg-[var(--gold-fill)] px-3 py-2 font-[Inter] text-[11px] uppercase tracking-[1.5px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function VaultSpecificationUpgrade({
   serverContract,
@@ -1052,7 +1052,7 @@ export default function VaultSpecificationUpgrade({
       <section className="mb-6 border border-[var(--border-subtle)] bg-[var(--surface)] px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+            <div className="text-[11px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
               Active governing specification
             </div>
             {contract === null ? (
@@ -1090,7 +1090,7 @@ export default function VaultSpecificationUpgrade({
             )}
           </div>
           <div className="text-right">
-            <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+            <div className="text-[11px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
               Work queue
             </div>
             <div className="mt-2 text-[13px] text-[var(--platinum-dim)]">
@@ -1231,9 +1231,9 @@ export default function VaultSpecificationUpgrade({
               type="button"
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
-              className={`px-3 py-1.5 font-[Inter] text-[10px] uppercase tracking-[1.5px] transition ${
+              className={`px-3 py-1.5 font-[Inter] text-[11px] uppercase tracking-[1.5px] transition ${
                 filter === f.key
-                  ? "bg-[var(--gold)] text-[var(--ink)]"
+                  ? "bg-[var(--gold-fill)] text-[var(--on-gold)]"
                   : "border border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
               }`}
             >
@@ -1251,7 +1251,7 @@ export default function VaultSpecificationUpgrade({
             <div className="font-display text-[15px] font-light text-[var(--platinum)]">
               Input Files
             </div>
-            <div className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+            <div className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
               {filtered.length} shown &middot; {selection.size} selected
             </div>
           </div>
@@ -1265,7 +1265,7 @@ export default function VaultSpecificationUpgrade({
             ) : (
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                  <tr className="text-left text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
                     <th className="w-8 px-3 py-2"></th>
                     <th className="px-2 py-2">Name</th>
                     <th className="px-2 py-2">Status</th>
@@ -1328,7 +1328,7 @@ export default function VaultSpecificationUpgrade({
                         </td>
                         <td className="px-2 py-2.5 align-top">
                           <span
-                            className={`flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-[1px] ${
+                            className={`flex flex-wrap items-center gap-1.5 text-[11px] uppercase tracking-[1px] ${
                               progress || isAnalyzing
                                 ? "text-[var(--gold)]"
                                 : isQueued
@@ -1365,7 +1365,7 @@ export default function VaultSpecificationUpgrade({
                           {progress ? (
                             <button
                               type="button"
-                              className="mt-0.5 block text-[10px] uppercase tracking-[1px] text-[var(--muted)] underline hover:text-[var(--platinum)]"
+                              className="mt-0.5 block text-[11px] uppercase tracking-[1px] text-[var(--muted)] underline hover:text-[var(--platinum)]"
                               onClick={() =>
                                 cancelCompletion(item.sourceSha256)
                               }
@@ -1492,7 +1492,7 @@ export default function VaultSpecificationUpgrade({
             <div className="font-display text-[15px] font-light text-[var(--platinum)]">
               Updated Candidates
             </div>
-            <div className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+            <div className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
               {candidates.length} candidate{candidates.length === 1 ? "" : "s"}
             </div>
           </div>
@@ -1506,7 +1506,7 @@ export default function VaultSpecificationUpgrade({
             ) : (
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                  <tr className="text-left text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
                     <th className="px-4 py-2">Candidate</th>
                     <th className="px-2 py-2">Result</th>
                   </tr>
@@ -1534,7 +1534,7 @@ export default function VaultSpecificationUpgrade({
                             <div className="break-all text-[12px] text-[var(--platinum)]">
                               {cand.filename}
                             </div>
-                            <div className="mt-0.5 font-mono text-[9px] text-[var(--muted)]">
+                            <div className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">
                               {cand.sha256.slice(0, 16)}&hellip; &middot;{" "}
                               {formatBytes(cand.byteLength)}
                             </div>
@@ -1542,7 +1542,7 @@ export default function VaultSpecificationUpgrade({
                         </td>
                         <td className="px-2 py-2.5 align-top">
                           <span
-                            className={`text-[10px] uppercase tracking-[1px] ${meta.className}`}
+                            className={`text-[11px] uppercase tracking-[1px] ${meta.className}`}
                           >
                             {meta.glyph} {meta.label}
                           </span>
@@ -1806,7 +1806,7 @@ function ReviewSurface({
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
         <div>
-          <div className="text-[9px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+          <div className="text-[11px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
             Change Review
           </div>
           <div className="mt-1 font-display text-[17px] font-light text-[var(--platinum)]">
@@ -1991,9 +1991,9 @@ function ReviewSurface({
             type="button"
             onClick={() => onTab(t.key)}
             aria-pressed={tab === t.key}
-            className={`px-3 py-1.5 font-[Inter] text-[10px] uppercase tracking-[1.5px] transition ${
+            className={`px-3 py-1.5 font-[Inter] text-[11px] uppercase tracking-[1.5px] transition ${
               tab === t.key
-                ? "bg-[var(--gold)] text-[var(--ink)]"
+                ? "bg-[var(--gold-fill)] text-[var(--on-gold)]"
                 : "border border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
             }`}
           >
@@ -2103,7 +2103,7 @@ function ReviewSurface({
                         {d.path}
                       </div>
                       <div
-                        className={`text-[9px] uppercase tracking-[1.5px] ${
+                        className={`text-[11px] uppercase tracking-[1.5px] ${
                           d.scope === "STRUCTURAL"
                             ? "text-[var(--danger)]"
                             : "text-[#779ec8]"
@@ -2122,7 +2122,7 @@ function ReviewSurface({
                     </div>
                     {d.options.length > 0 && (
                       <div className="mt-2.5 space-y-1.5">
-                        <div className="text-[9px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                        <div className="text-[11px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
                           Evidence supports
                         </div>
                         {d.options.map((o, oi) => (
@@ -2167,7 +2167,7 @@ function ReviewSurface({
             ) : (
               <table className="w-full min-w-[640px] border-collapse text-[11px]">
                 <thead>
-                  <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                  <tr className="text-left text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
                     <th className="px-2 py-2">Path</th>
                     <th className="px-2 py-2">Outcome</th>
                     <th className="px-2 py-2">Value applied</th>
@@ -2191,7 +2191,7 @@ function ReviewSurface({
                         }`}
                       >
                         {p.outcome}
-                        <div className="text-[9px] uppercase tracking-[1px] text-[var(--slate)]">
+                        <div className="text-[11px] uppercase tracking-[1px] text-[var(--slate)]">
                           {p.pass} pass
                         </div>
                       </td>
@@ -2235,7 +2235,7 @@ function ReviewSurface({
             {ledgerRows.length > 0 ? (
               <table className="w-full min-w-[640px] border-collapse text-[11px]">
                 <thead>
-                  <tr className="text-left text-[9px] uppercase tracking-[2px] text-[var(--muted)]">
+                  <tr className="text-left text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
                     <th className="px-2 py-2">Path</th>
                     <th className="px-2 py-2">Action</th>
                     <th className="px-2 py-2">Before</th>
@@ -2456,7 +2456,7 @@ function SummaryCard({
 }) {
   return (
     <div className="border border-[var(--border-faint)] px-4 py-3">
-      <div className="text-[9px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+      <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
         {label}
       </div>
       <div className="mt-1 font-display text-[22px] font-light text-[var(--platinum)]">
@@ -2478,7 +2478,7 @@ function SourceDetail({
 }) {
   return (
     <div>
-      <dt className="text-[9px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+      <dt className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
         {label}
       </dt>
       <dd

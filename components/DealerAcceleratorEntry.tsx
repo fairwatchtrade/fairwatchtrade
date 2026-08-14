@@ -46,7 +46,7 @@ export default function DealerAcceleratorEntry({
       className="border border-[var(--border-mid)] bg-[linear-gradient(180deg,light-dark(#FBF8F1,#101620),light-dark(#EFEAE0,#0d121a))] p-6 md:grid md:grid-cols-[1.4fr_0.6fr] md:items-center md:gap-6"
     >
       <div>
-        <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--gold)]">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold)]">
           Dealer Accelerator
         </div>
         <h2 className="mb-2.5 mt-2 font-display text-[24px] font-light leading-[1.15] text-[var(--platinum)] sm:text-[27px]">
@@ -89,7 +89,7 @@ export default function DealerAcceleratorEntry({
       <div className="mt-5 flex flex-col gap-2.5 md:mt-0">
         <a
           href={CONTACT_HREF}
-          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--gold)] px-4 py-3 text-center text-[12px] font-semibold text-[var(--ink)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--gold-fill)] px-4 py-3 text-center text-[12px] font-semibold text-[var(--on-gold)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
         >
           Ask FairWatchTrade to prepare your inventory
         </a>

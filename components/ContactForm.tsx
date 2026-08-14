@@ -18,7 +18,7 @@ import { useState } from "react";
 
 const INPUT =
   "w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2.5 text-[14px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60";
-const LABEL = "mb-1.5 block text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]";
+const LABEL = "mb-1.5 block text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]";
 
 export default function ContactForm({
   initialEmail = "",

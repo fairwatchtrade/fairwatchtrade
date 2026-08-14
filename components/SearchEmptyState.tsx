@@ -216,7 +216,7 @@ export default function SearchEmptyState({
             watch that was asked for. */}
       {exactIdentifier && (related?.length ?? 0) > 0 && (
         <div className="mt-6 border-t border-[var(--border-subtle)] pt-4">
-          <h3 className="mb-1 text-[10px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
+          <h3 className="mb-1 text-[11px] uppercase tracking-[1.9px] text-[var(--gold-dim)]">
             Related references
           </h3>
           <p className="mb-3 text-[12px] text-[var(--muted)]">

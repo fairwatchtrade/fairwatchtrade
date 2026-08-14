@@ -165,9 +165,9 @@ export default function VaultClusterReview({
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 font-[Inter] text-[10px] uppercase tracking-[2px] transition ${
+              className={`px-3 py-1.5 font-[Inter] text-[11px] uppercase tracking-[1.6px] transition ${
                 filter === f
-                  ? "bg-[var(--gold)] text-[var(--ink)]"
+                  ? "bg-[var(--gold-fill)] text-[var(--on-gold)]"
                   : "border border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
               }`}
             >
@@ -275,7 +275,7 @@ export default function VaultClusterReview({
                     {isReviewed ? (
                       <button
                         onClick={() => edit(b.id)}
-                        className="border border-[var(--border-mid)] px-4 py-2 font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+                        className="border border-[var(--border-mid)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
                       >
                         Edit
                       </button>
@@ -283,7 +283,7 @@ export default function VaultClusterReview({
                       <button
                         onClick={() => approve(b.id)}
                         disabled={isBusy}
-                        className="bg-[var(--gold)] px-5 py-2 font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90 disabled:cursor-wait disabled:opacity-40"
+                        className="bg-[var(--gold-fill)] px-5 py-2 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition hover:opacity-90 disabled:cursor-wait disabled:opacity-40"
                       >
                         {isBusy ? "Saving\u2026" : "Approve"}
                       </button>

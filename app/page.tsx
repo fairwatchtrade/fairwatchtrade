@@ -180,7 +180,7 @@ export default function Home() {
       {/* ── ZONE 2 — WAITLIST ── */}
       <div className="relative z-[1] flex flex-col items-center px-6">
 
-        <p className="mb-5 text-center text-[10px] uppercase tracking-[3px] text-[var(--muted)]">
+        <p className="mb-5 text-center text-[11px] uppercase tracking-[2.2px] text-[var(--muted)]">
           Launching Soon — Get Early Access
         </p>
 
@@ -233,7 +233,7 @@ export default function Home() {
 
       {/* ── FOOTER TAGLINE — guaranteed 48px below button row ── */}
       <p
-        className="relative z-[1] text-center text-[9px] uppercase tracking-[3px] text-[var(--muted)]"
+        className="relative z-[1] text-center text-[11px] uppercase tracking-[3px] text-[var(--muted)]"
         style={{ marginTop: '48px', paddingBottom: '48px' }}
       >
         For independent &amp; boutique watchmakers

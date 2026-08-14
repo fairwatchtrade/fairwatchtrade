@@ -62,7 +62,7 @@ export default function GenerateCollectorDossierButton({
         type="button"
         onClick={generate}
         disabled={busy}
-        className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-3 text-[9px] uppercase tracking-[2.6px] text-[var(--gold)] transition-colors hover:border-[var(--border-gold-strong)] disabled:cursor-not-allowed disabled:text-[var(--ghost)]"
+        className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-3 text-[11px] uppercase tracking-[2.6px] text-[var(--gold)] transition-colors hover:border-[var(--border-gold-strong)] disabled:cursor-not-allowed disabled:text-[var(--ghost)]"
       >
         {busy ? "Generating…" : "Generate Collector Dossier"}
       </button>

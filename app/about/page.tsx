@@ -51,7 +51,7 @@ export default function AboutPage() {
         <div className="absolute bottom-[-1px] left-[-1px] h-[14px] w-[14px] border-b border-l border-[var(--border-gold-strong)]" />
 
         {/* Eyebrow — Inter, display moment */}
-        <div className="mb-6 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+        <div className="mb-6 font-[Inter] text-[11px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           The Story Behind the Platform
         </div>
 
@@ -130,7 +130,7 @@ export default function AboutPage() {
           notification language; the targeted saved-search match promise stays
           reserved until that capability is built. Quiet stanzas, not a feature grid. */}
       <div className="relative z-[1] mt-16 w-full max-w-[560px] text-center">
-        <div className="mb-7 font-[Inter] text-[10px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+        <div className="mb-7 font-[Inter] text-[11px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
           What FairWatchTrade Does Differently
         </div>
         <div className="flex flex-col gap-6 font-display text-[14px] font-light leading-[1.5] sm:text-[16px]">
@@ -162,7 +162,7 @@ export default function AboutPage() {
       </div>
 
       {/* Tagline — intentional whisper at --ghost (decorative, not instructional) */}
-      <div className="mt-12 text-[10px] uppercase tracking-[4px] text-[var(--muted)]">
+      <div className="mt-12 text-[11px] uppercase tracking-[4px] text-[var(--muted)]">
         Collect with confidence
       </div>
     </main>

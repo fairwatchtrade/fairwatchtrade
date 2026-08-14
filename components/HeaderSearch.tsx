@@ -84,7 +84,7 @@ export default function HeaderSearch({
       <button
         type="submit"
         aria-label="Search"
-        className={`shrink-0 text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--gold)] ${
+        className={`shrink-0 text-[11px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--gold)] ${
           isRow ? "min-h-[44px] px-1" : ""
         }`}
       >

@@ -88,7 +88,7 @@ export default function ContinueRedeem({ token }: { token: string }) {
         <button
           type="button"
           onClick={signInWithCorrectAccount}
-          className="mt-5 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
+          className="mt-5 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
         >
           Sign in with the correct account
         </button>
@@ -111,7 +111,7 @@ export default function ContinueRedeem({ token }: { token: string }) {
       <p className="mt-2 text-[12px] leading-[1.5] text-[var(--muted)]">{backToDesktop}</p>
       <Link
         href="/sell"
-        className="mt-5 inline-block w-full border border-[var(--border-subtle)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
+        className="mt-5 inline-block w-full border border-[var(--border-subtle)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
       >
         Go to Sell
       </Link>

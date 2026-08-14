@@ -106,7 +106,7 @@ export default function FaqRoom() {
       {/* ── Header + search ── */}
       <div className="flex flex-col gap-6 border-b border-[var(--border-faint)] pb-6 md:flex-row md:items-end md:justify-between md:gap-[30px]">
         <div className="min-w-0">
-          <div className="mb-[8px] text-[10px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+          <div className="mb-[8px] text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
             Help &amp; Information
           </div>
           <h1 className="mb-[8px] font-display text-[36px] font-normal leading-[42px] text-[var(--platinum)]">
@@ -143,7 +143,7 @@ export default function FaqRoom() {
         {/* Subjects. Below the desktop breakpoint this becomes a full-width
             selector above the questions rather than a narrow column. */}
         <aside className="h-max border border-[var(--border-faint)] bg-[var(--surface)] p-[9px] md:sticky md:top-6">
-          <div className="px-[11px] pb-[8px] pt-[10px] text-[10px] uppercase leading-[14px] tracking-[2px] text-[var(--muted)]">
+          <div className="px-[11px] pb-[8px] pt-[10px] text-[11px] uppercase leading-[14px] tracking-[1.6px] text-[var(--muted)]">
             Subjects
           </div>
           {FAQ_SUBJECTS.map((s) => {
@@ -193,7 +193,7 @@ export default function FaqRoom() {
                 {/* Selected-subject header (also the group heading when a
                     search spans more than one subject). */}
                 <div className="mb-[14px]">
-                  <div className="text-[10px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+                  <div className="text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
                     Subject
                   </div>
                   <h2 className="mt-1 font-display text-[28px] font-normal leading-[34px] text-[var(--platinum)]">

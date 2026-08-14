@@ -390,7 +390,7 @@ function FacetGroup({
       <div
         className={
           dealerLegibility
-            ? "mb-3 text-[10px] uppercase tracking-[1.8px] text-[var(--muted)]"
+            ? "mb-3 text-[11px] uppercase tracking-[1.8px] text-[var(--muted)]"
             : "mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]"
         }
       >
@@ -426,7 +426,7 @@ function FacetGroup({
                 }`}
               >
                 {isActive && (
-                  <div className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />
+                  <div className="h-[5px] w-[5px] bg-[var(--gold-fill)] opacity-100" />
                 )}
               </div>
               <span
@@ -1152,7 +1152,7 @@ export default function BrowseClient({
   const dealerFacetList = dealerScope ? (
     <div>
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-3 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
           Inventory Brands
         </div>
         <button
@@ -1190,7 +1190,7 @@ export default function BrowseClient({
       </div>
 
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-[6px] text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div className="mb-[6px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
           Refine This Dealer
         </div>
         <p className="font-display text-[14px] font-light italic leading-[1.6] text-[var(--slate)]">
@@ -1272,7 +1272,7 @@ export default function BrowseClient({
           )}
         </div>
         <div className="min-w-0">
-          <div className="mb-1 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+          <div className="mb-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
             Browse · Sellers · Dealer Room
           </div>
           <h1 className="font-display text-[22px] font-light text-[var(--platinum)] sm:truncate">
@@ -1292,7 +1292,7 @@ export default function BrowseClient({
       </div>
       <div className="flex shrink-0 flex-col gap-2 sm:items-end">
         <div className="flex items-baseline justify-between gap-3 text-left sm:block sm:text-right">
-          <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+          <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
             Public inventory
           </div>
           <div className="font-display text-[18px] font-light text-[var(--platinum-dim)] sm:mt-1">
@@ -1569,7 +1569,7 @@ export default function BrowseClient({
               Dealer-scoped catalogue
             </p>
           </div>
-          <div className="text-[10px] uppercase tracking-[2px] text-[var(--slate)]">
+          <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
             {filtered.length} {filtered.length === 1 ? "watch" : "watches"}
           </div>
         </div>
@@ -1603,7 +1603,7 @@ export default function BrowseClient({
             dealerScope && listings.length === 0 ? (
               <section className="py-8 sm:py-12">
                 <div className="max-w-xl border-l border-[var(--border-gold)] pl-5">
-                  <div className="mb-2 text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                  <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
                     Dealer inventory
                   </div>
                   <h2 className="font-display text-[24px] font-light text-[var(--platinum)]">
@@ -1774,7 +1774,7 @@ export default function BrowseClient({
                              ONLY is status text a collector reads. On a phone
                              it reads at 10px on one line inside the wider
                              two-column frame; desktop keeps its 8px badge. */
-                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[10px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
+                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[11px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
                             {docBadge}
                           </span>
                         )}
@@ -1838,7 +1838,7 @@ export default function BrowseClient({
                                 setOpenQuickId(null);
                               }}
                               aria-label="Close quick specs"
-                              className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+                              className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
                             >
                               Close
                             </button>
@@ -2018,7 +2018,7 @@ export default function BrowseClient({
                           type="button"
                           onClick={() => toggleSnapshot(row.id)}
                           aria-expanded={isSnapshotOpen}
-                          className="mt-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                          className="mt-3 inline-flex items-center gap-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
                         >
                           <span className={`transition-transform ${isSnapshotOpen ? "rotate-180" : ""}`}>▼</span>
                           Collector Snapshot
@@ -2047,7 +2047,7 @@ export default function BrowseClient({
                           type="button"
                           onClick={() => toggleCompare(row.id)}
                           aria-pressed={isCompared}
-                          className={`flex w-full items-center gap-2 border px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] transition ${
+                          className={`flex w-full items-center gap-2 border px-[10px] py-[7px] text-[11px] uppercase tracking-[1.5px] transition ${
                             isCompared
                               ? "border-[var(--border-gold)] text-[var(--gold)]"
                               : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
@@ -2060,7 +2060,7 @@ export default function BrowseClient({
                                 : "border-[var(--slate)] bg-[var(--control-wash)]"
                             }`}
                           >
-                            {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />}
+                            {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold-fill)] opacity-100" />}
                           </span>
                           Compare
                         </button>
@@ -2073,7 +2073,7 @@ export default function BrowseClient({
                           type="button"
                           onClick={() => handleAddToCatalogue(row.id)}
                           disabled={savedIds.has(row.id)}
-                          className={`mt-[10px] flex w-full items-center gap-1 border px-[10px] py-[7px] text-[10px] uppercase tracking-[1.5px] transition ${
+                          className={`mt-[10px] flex w-full items-center gap-1 border px-[10px] py-[7px] text-[11px] uppercase tracking-[1.5px] transition ${
                             savedIds.has(row.id)
                               ? "cursor-default border-[var(--border-gold)] text-[var(--gold)]"
                               : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
@@ -2112,7 +2112,7 @@ export default function BrowseClient({
                             type="button"
                             onClick={() => toggleSnapshot(row.id)}
                             aria-label="Close snapshot"
-                            className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
+                            className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--slate)]"
                           >
                             Close
                           </button>

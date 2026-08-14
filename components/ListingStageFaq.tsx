@@ -101,7 +101,7 @@ export default function ListingStageFaq({ sellerName }: { sellerName: string }) 
 
   return (
     <section aria-label="Questions about buying" className="mt-12 border-t border-[var(--border-faint)] pt-8">
-      <h2 className="text-[10px] uppercase tracking-[2.5px] text-[var(--muted)]">
+      <h2 className="text-[11px] uppercase tracking-[1.9px] text-[var(--muted)]">
         Questions about buying
       </h2>
       <div className="mt-4 border-t border-[var(--border-faint)]">

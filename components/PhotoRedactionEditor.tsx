@@ -192,7 +192,7 @@ export default function PhotoRedactionEditor({
   }
 
   const btn =
-    "border text-[9px] uppercase tracking-[0.1em] transition disabled:opacity-40 " +
+    "border text-[11px] uppercase tracking-[0.1em] transition disabled:opacity-40 " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e]";
 
   return (
@@ -220,7 +220,7 @@ export default function PhotoRedactionEditor({
               Hide private details — {categoryLabel}
             </h3>
           </div>
-          <div className="text-right text-[9px] leading-[1.4] text-[var(--muted)]">
+          <div className="text-right text-[11px] leading-[1.4] text-[var(--muted)]">
             Original preserved privately
             <br />
             Buyers see the redacted photo

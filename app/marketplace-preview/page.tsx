@@ -154,7 +154,7 @@ export default function MarketplaceHome() {
           </Link>
           <Link
             href="/sell"
-            className="cursor-pointer whitespace-nowrap border border-[var(--border-mid)] bg-transparent px-8 py-[13px] font-[Inter] text-[10px] uppercase tracking-[2.5px] text-[var(--slate)]"
+            className="cursor-pointer whitespace-nowrap border border-[var(--border-mid)] bg-transparent px-8 py-[13px] font-[Inter] text-[11px] uppercase tracking-[1.9px] text-[var(--slate)]"
           >
             List a Watch
           </Link>
@@ -164,7 +164,7 @@ export default function MarketplaceHome() {
       {/* SECTION DIVIDER */}
       <div className="mb-9 flex items-center gap-5 px-10">
         <div className="h-px flex-1 bg-[var(--border-faint)]" />
-        <div className="whitespace-nowrap text-[10px] uppercase tracking-[4px] text-[var(--muted)]">
+        <div className="whitespace-nowrap text-[11px] uppercase tracking-[4px] text-[var(--muted)]">
           Featured Listings
         </div>
         <div className="h-px flex-1 bg-[var(--border-faint)]" />
@@ -190,13 +190,13 @@ export default function MarketplaceHome() {
               <text x="50" y="38" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="6" fill="light-dark(rgba(122,95,32,0.48),rgba(201,168,76,0.35))" letterSpacing="1">PF</text>
             </svg>
           </div>
-          <div className="mb-[7px] text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-[7px] text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             Parmigiani Fleurier
           </div>
           <div className="mb-[5px] font-display text-[17px] font-light leading-[1.25] text-[var(--platinum)]">
             Tonda Métrographe
           </div>
-          <div className="mb-[22px] text-[9px] tracking-[0.4px] text-[var(--muted)]">
+          <div className="mb-[22px] text-[11px] tracking-[0.4px] text-[var(--muted)]">
             PFC274 · Abyss Blue
           </div>
           <div className="flex items-end justify-between">
@@ -226,13 +226,13 @@ export default function MarketplaceHome() {
               <text x="50" y="38" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="6" fill="light-dark(rgba(122,95,32,0.48),rgba(201,168,76,0.35))" letterSpacing="1">FPJ</text>
             </svg>
           </div>
-          <div className="mb-[7px] text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-[7px] text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             F.P. Journe
           </div>
           <div className="mb-[5px] font-display text-[17px] font-light leading-[1.25] text-[var(--platinum)]">
             Chronomètre Bleu
           </div>
-          <div className="mb-[22px] text-[9px] tracking-[0.4px] text-[var(--muted)]">
+          <div className="mb-[22px] text-[11px] tracking-[0.4px] text-[var(--muted)]">
             CBT · Tantalum
           </div>
           <div className="flex items-end justify-between">
@@ -262,13 +262,13 @@ export default function MarketplaceHome() {
               <text x="50" y="38" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="6" fill="light-dark(rgba(122,95,32,0.48),rgba(201,168,76,0.35))" letterSpacing="1">HM</text>
             </svg>
           </div>
-          <div className="mb-[7px] text-[9px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-[7px] text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
             H. Moser &amp; Cie
           </div>
           <div className="mb-[5px] font-display text-[17px] font-light leading-[1.25] text-[var(--platinum)]">
             Streamliner
           </div>
-          <div className="mb-[22px] text-[9px] tracking-[0.4px] text-[var(--muted)]">
+          <div className="mb-[22px] text-[11px] tracking-[0.4px] text-[var(--muted)]">
             6200-0100 · Fumé
           </div>
           <div className="flex items-end justify-between">

@@ -121,7 +121,7 @@ export default function ListingActionRail({
     if (ctaState === "owner") return null;
     if (ctaState === "open") {
       const barCta =
-        "shrink-0 bg-[var(--gold)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--ink)] transition hover:opacity-90";
+        "shrink-0 bg-[var(--gold-fill)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--on-gold)] transition hover:opacity-90";
 
       /* Where the form is already on the page, this bar opens it instead of
          navigating away — leaving the listing to make an offer on it is the
@@ -220,8 +220,8 @@ export default function ListingActionRail({
         <Link
           href={`/listings/${listingId}/purchase-request`}
           className={[
-            "bg-[var(--gold)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
-            "text-[var(--ink)] transition hover:opacity-90",
+            "bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[2px]",
+            "text-[var(--on-gold)] transition hover:opacity-90",
             variant === "rail" ? "block text-center" : "inline-block",
           ].join(" ")}
         >
@@ -237,7 +237,7 @@ export default function ListingActionRail({
       <>
         <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
           <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
-          <p className="mt-1 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
+          <p className="mt-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
             Asking Price
           </p>
           {/* The lg→xl band has no rail composer, so the question door is a
@@ -283,7 +283,7 @@ export default function ListingActionRail({
         <p className="mt-3 font-display text-[28px] font-light leading-none text-[var(--platinum)]">
           {priceText}
         </p>
-        <p className="mt-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+        <p className="mt-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
           Asking Price
         </p>
         {purchaseBlock && <div className="mt-4">{purchaseBlock}</div>}

@@ -41,11 +41,11 @@ type PlanResult = {
   plan_file_name: string;
 };
 
-const LABEL = "block font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--slate)]";
+const LABEL = "block font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]";
 const INPUT =
   "fw-input mt-1.5 w-full border border-[var(--border-mid)] bg-[var(--ink-2,#111)] px-3 py-2.5 font-[Inter] text-[13px] text-[var(--platinum)] outline-none focus:border-[var(--gold)]";
 const BTN =
-  "border border-[var(--border-mid)] px-4 py-2.5 font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--slate)] transition hover:border-[var(--gold)] hover:text-[var(--platinum)] disabled:opacity-40 disabled:hover:border-[var(--border-mid)] disabled:hover:text-[var(--slate)]";
+  "border border-[var(--border-mid)] px-4 py-2.5 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition hover:border-[var(--gold)] hover:text-[var(--platinum)] disabled:opacity-40 disabled:hover:border-[var(--border-mid)] disabled:hover:text-[var(--slate)]";
 
 function CopyBlock({ title, body, filename }: { title: string; body: string; filename?: string }) {
   const [copied, setCopied] = useState(false);
@@ -64,7 +64,7 @@ function CopyBlock({ title, body, filename }: { title: string; body: string; fil
   return (
     <div className="mt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h4 className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">{title}</h4>
+        <h4 className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">{title}</h4>
         <div className="flex gap-2">
           {filename ? (
             <button type="button" onClick={download} className={BTN}>
@@ -170,7 +170,7 @@ export default function VaultEnrichmentAuthoring() {
     <div className="pb-24">
       {/* ── 1 · target ─────────────────────────────────────────────────── */}
       <section className="border border-[var(--border-subtle)] p-5">
-        <h3 className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">
+        <h3 className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
           1 · The reference
         </h3>
         <p className="mt-1.5 font-[Inter] text-[12px] text-[var(--slate)]">
@@ -192,7 +192,7 @@ export default function VaultEnrichmentAuthoring() {
 
         {picked ? (
           <div className="mt-4 border border-[var(--gold-dim)] p-4">
-            <div className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">
+            <div className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
               Selected
             </div>
             <div className="mt-1.5 font-display text-[18px] font-light text-[var(--platinum)]">
@@ -245,7 +245,7 @@ export default function VaultEnrichmentAuthoring() {
 
       {/* ── 2 · the fact ───────────────────────────────────────────────── */}
       <section className="mt-6 border border-[var(--border-subtle)] p-5">
-        <h3 className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">
+        <h3 className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
           2 · The specification
         </h3>
 
@@ -304,7 +304,7 @@ export default function VaultEnrichmentAuthoring() {
 
       {/* ── 3 · evidence ───────────────────────────────────────────────── */}
       <section className="mt-6 border border-[var(--border-subtle)] p-5">
-        <h3 className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">
+        <h3 className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
           3 · The evidence
         </h3>
         <p className="mt-1.5 font-[Inter] text-[12px] text-[var(--slate)]">
@@ -390,7 +390,7 @@ export default function VaultEnrichmentAuthoring() {
           type="button"
           onClick={build}
           disabled={!picked || building}
-          className="border border-[var(--gold)] bg-[var(--gold)] px-6 py-3 font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--ink)] transition disabled:opacity-40"
+          className="border border-[var(--gold)] bg-[var(--gold-fill)] px-6 py-3 font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--on-gold)] transition disabled:opacity-40"
         >
           {building ? "Building…" : "Build plan"}
         </button>
@@ -409,9 +409,9 @@ export default function VaultEnrichmentAuthoring() {
         <section className="mt-8 border border-[var(--border-subtle)] p-5">
           <div className="flex flex-wrap items-center gap-3">
             <span
-              className={`px-3 py-1.5 font-[Inter] text-[10px] uppercase tracking-[2px] ${
+              className={`px-3 py-1.5 font-[Inter] text-[11px] uppercase tracking-[1.6px] ${
                 plan.classification === "IMPORT"
-                  ? "bg-[var(--gold)] text-[var(--ink)]"
+                  ? "bg-[var(--gold-fill)] text-[var(--on-gold)]"
                   : "border border-[var(--border-mid)] text-[var(--platinum)]"
               }`}
             >
@@ -433,7 +433,7 @@ export default function VaultEnrichmentAuthoring() {
           {plan.classification === "IMPORT" && plan.planJson && plan.planSha256Upper ? (
             <>
               <div className="mt-5">
-                <div className="font-[Inter] text-[10px] uppercase tracking-[2px] text-[var(--gold)]">
+                <div className="font-[Inter] text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
                   Plan SHA-256
                 </div>
                 <div className="mt-1.5 break-all font-mono text-[13px] text-[var(--platinum)]">

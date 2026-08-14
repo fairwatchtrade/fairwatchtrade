@@ -106,7 +106,7 @@ function StatusPill({ status }: { status: string }) {
   };
   return (
     <span
-      className={`border px-2 py-0.5 text-[9px] uppercase tracking-[1.5px] ${
+      className={`border px-2 py-0.5 text-[11px] uppercase tracking-[1.5px] ${
         colors[status] ?? "border-[var(--border-subtle)] text-[var(--muted)]"
       }`}
     >
@@ -119,7 +119,7 @@ function StatusPill({ status }: { status: string }) {
 function ComingSoonSection({ title }: { title: string }) {
   return (
     <section className="mt-8">
-      <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+      <div className="mb-4 text-[11px] uppercase tracking-[2.5px] text-[var(--muted)]">
         {title}
       </div>
       <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
@@ -273,13 +273,13 @@ export default function AdminDashboard({
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/admin/vault-review"
-            className="border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+            className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
           >
             ◈ Vault Review →
           </Link>
           <Link
             href="/account"
-            className="border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[var(--gold-whisper)]"
+            className="border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[var(--gold-whisper)]"
           >
             ← Back to Seller Workspace
           </Link>
@@ -297,7 +297,7 @@ export default function AdminDashboard({
         >
           <div className="px-5 py-3">
             <div
-              className={`text-[9px] uppercase tracking-[2.5px] ${
+              className={`text-[11px] uppercase tracking-[2.5px] ${
                 attentionItems.length
                   ? "text-[var(--danger)]"
                   : "text-[var(--gold-dim)]"
@@ -319,7 +319,7 @@ export default function AdminDashboard({
                     </span>
                     <Link
                       href={item.firstId ? `/admin/listings/${item.firstId}` : "#explorer"}
-                      className="border border-[var(--border-subtle)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-subtle)] hover:text-[var(--gold)]"
+                      className="border border-[var(--border-subtle)] px-3 py-1 text-[11px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-subtle)] hover:text-[var(--gold)]"
                     >
                       Review →
                     </Link>
@@ -336,7 +336,7 @@ export default function AdminDashboard({
         </section>
 
         {/* ── ZONE 2: MARKETPLACE HEALTH — informational cards ── */}
-        <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+        <div className="mb-4 text-[11px] uppercase tracking-[2.5px] text-[var(--muted)]">
           Marketplace Health
         </div>
         {/* Stat cards — 2 col mobile, 3 tablet, 6 desktop */}
@@ -362,7 +362,7 @@ export default function AdminDashboard({
 
         {/* ── ZONE 3: MARKETPLACE EXPLORER — the operator table ── */}
         <section id="explorer" className="mt-10">
-          <div className="mb-4 text-[9px] uppercase tracking-[2.5px] text-[var(--muted)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[2.5px] text-[var(--muted)]">
             Marketplace Explorer · {listings.length} listing
             {listings.length === 1 ? "" : "s"} · {sortCaption}
           </div>

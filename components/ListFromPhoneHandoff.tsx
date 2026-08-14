@@ -154,7 +154,7 @@ export default function ListFromPhoneHandoff({
           <button
             type="button"
             onClick={copy}
-            className="mt-4 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
+            className="mt-4 w-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition-colors hover:bg-[color:light-dark(rgba(122,95,32,0.12),rgba(201,168,76,0.1))]"
           >
             {copied ? "Link copied" : "Copy link"}
           </button>

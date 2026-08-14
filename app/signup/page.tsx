@@ -221,7 +221,7 @@ export default function SignUpPage() {
 
         <div className="mb-8">
           <div className="mb-[14px] flex items-start gap-3">
-            <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">I</div>
+            <div className="mt-[3px] w-4 shrink-0 text-[11px] text-[var(--gold-dim)]">I</div>
             <div className="flex-1">
               <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Capital Efficiency
@@ -232,7 +232,7 @@ export default function SignUpPage() {
             </div>
           </div>
           <div className="mb-[14px] flex items-start gap-3">
-            <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">II</div>
+            <div className="mt-[3px] w-4 shrink-0 text-[11px] text-[var(--gold-dim)]">II</div>
             <div className="flex-1">
               <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Collector-First Discovery
@@ -243,7 +243,7 @@ export default function SignUpPage() {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="mt-[3px] w-4 shrink-0 text-[8px] text-[var(--gold-dim)]">III</div>
+            <div className="mt-[3px] w-4 shrink-0 text-[11px] text-[var(--gold-dim)]">III</div>
             <div className="flex-1">
               <div className="mb-[2px] text-[11px] uppercase tracking-[1.2px] text-[var(--slate)]">
                 Authenticity-First
@@ -314,7 +314,7 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              <div className="text-center text-[9px] text-[var(--muted)]">
+              <div className="text-center text-[11px] text-[var(--muted)]">
                 Didn&apos;t get a code?{" "}
                 <button
                   type="button"
@@ -473,14 +473,14 @@ export default function SignUpPage() {
               </div>
             )}
 
-            <div className="text-center text-[9px] text-[var(--muted)]">
+            <div className="text-center text-[11px] text-[var(--muted)]">
               Already a member?{" "}
               <Link href="/login" className="text-[var(--slate)]">
                 Sign in →
               </Link>
             </div>
 
-            <div className="mt-3 text-center text-[8px] leading-[1.6] text-[var(--muted)]">
+            <div className="mt-3 text-center text-[11px] leading-[1.6] text-[var(--muted)]">
               By joining you agree to our{" "}
               <Link href="/terms" className="text-[var(--muted)]">
                 Terms of Service

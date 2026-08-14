@@ -260,7 +260,7 @@ export default function SellerListingsRoom({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 border-b-2 px-4 py-[10px] text-[10px] uppercase tracking-[1.5px] transition ${
+                className={`shrink-0 border-b-2 px-4 py-[10px] text-[11px] uppercase tracking-[1.5px] transition ${
                   isActive
                     ? "border-[var(--gold)] text-[var(--platinum)]"
                     : "border-transparent text-[var(--muted)] hover:text-[var(--slate)]"
@@ -309,7 +309,7 @@ export default function SellerListingsRoom({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={thumb} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-[9px] text-[var(--muted)]">—</span>
+                      <span className="text-[11px] text-[var(--muted)]">—</span>
                     )}
                   </div>
 
@@ -323,7 +323,7 @@ export default function SellerListingsRoom({
                     <div className="line-clamp-2 font-display text-[15px] font-light leading-[1.2] text-[var(--platinum)]">
                       {row.model ?? row.brand}
                     </div>
-                    <div className="mt-[2px] truncate text-[9px] tracking-[0.3px] text-[var(--muted)]">
+                    <div className="mt-[2px] truncate text-[11px] tracking-[0.3px] text-[var(--muted)]">
                       Ref. {row.reference}
                     </div>
                   </div>
@@ -473,7 +473,7 @@ export default function SellerListingsRoom({
                       <div className="mt-1 font-display text-[20px] font-light text-[var(--platinum)]">
                         {selectedThreadCount}
                       </div>
-                      <div className="mt-0.5 text-[9px] text-[var(--muted)]">
+                      <div className="mt-0.5 text-[11px] text-[var(--muted)]">
                         {selectedThreadCount === 0
                           ? "No conversations yet"
                           : selectedThreadCount === 1
@@ -493,12 +493,12 @@ export default function SellerListingsRoom({
                 {selected.status === "published" || selected.status === "reserved" ? (
                   <Link
                     href={`/listings/${selected.id}`}
-                    className="border border-[rgba(201,168,76,0.34)] bg-[rgba(201,168,76,0.045)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.09)]"
+                    className="border border-[rgba(201,168,76,0.34)] bg-[rgba(201,168,76,0.045)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.09)]"
                   >
                     {selected.status === "reserved" ? "View Sale-Pending Listing" : "View Listing"}
                   </Link>
                 ) : (
-                  <div className="border border-[var(--border-faint)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Not publicly visible
                   </div>
                 )}
@@ -601,18 +601,18 @@ export default function SellerListingsRoom({
                   <button
                     type="button"
                     onClick={onOpenImportedDrafts}
-                    className="border border-[var(--border-gold)] px-3 py-[11px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
+                    className="border border-[var(--border-gold)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
                   >
                     Edit in Imported Drafts
                   </button>
                 ) : (
                   <div
                     aria-disabled="true"
-                    className="cursor-not-allowed border border-dashed border-[var(--border-mid)] px-3 py-[9px] text-center text-[10px] uppercase tracking-[1.6px] text-[var(--muted)] opacity-80"
+                    className="cursor-not-allowed border border-dashed border-[var(--border-mid)] px-3 py-[9px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] opacity-80"
                     title="Listing editing is not available yet."
                   >
                     Edit Listing
-                    <span className="mt-0.5 block text-[9px] normal-case tracking-[0.5px] text-[var(--muted)]">
+                    <span className="mt-0.5 block text-[11px] normal-case tracking-[0.5px] text-[var(--muted)]">
                       Not available yet
                     </span>
                   </div>

@@ -453,7 +453,7 @@ export default function ReviewStep({
                   <div className="text-[13px] text-[var(--platinum)]">
                     Required photographs
                   </div>
-                  <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--danger)]">
+                  <span className="text-[11px] uppercase tracking-[1.5px] text-[var(--danger)]">
                     Blocked
                   </span>
                 </div>
@@ -471,7 +471,7 @@ export default function ReviewStep({
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[13px] text-[var(--platinum)]">{g.title}</div>
                   <span
-                    className={`whitespace-nowrap text-[10px] uppercase tracking-[1.5px] ${
+                    className={`whitespace-nowrap text-[11px] uppercase tracking-[1.5px] ${
                       g.status === "pass"
                         ? "text-[#7bc49c]"
                         : g.status === "needs_confirmation"
@@ -534,7 +534,7 @@ export default function ReviewStep({
         <button
           onClick={publish}
           disabled={publishing || !admissionReady}
-          className={`flex items-center gap-2 bg-[var(--gold)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--ink)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`flex items-center gap-2 bg-[var(--gold-fill)] px-6 py-[13px] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-gold)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
             publishing ? "cursor-wait" : ""
           }`}
         >

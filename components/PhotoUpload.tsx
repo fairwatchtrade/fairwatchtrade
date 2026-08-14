@@ -623,7 +623,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                             );
                             setPublishWarnFor(null);
                           }}
-                          className="mt-3 border border-[var(--gold)] px-3.5 py-2 text-[9px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+                          className="mt-3 border border-[var(--gold)] px-3.5 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
                         >
                           I checked it — show it publicly
                         </button>
