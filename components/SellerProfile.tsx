@@ -78,12 +78,7 @@ function memberSince(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-const NAV_LINKS = [
-  { label: "Browse", href: "/browse" },
-  { label: "Sell", href: "/sell" },
-  { label: "Account", href: "/account" },
-  { label: "About", href: "/about" },
-];
+
 
 export default function SellerProfile({
   seller,
@@ -100,43 +95,15 @@ export default function SellerProfile({
 
   return (
     <main className="flex min-h-screen flex-col bg-[var(--ink)] text-[var(--platinum)]">
-      {/* Ticker — static metals (Phase 2 live values) */}
-      <div className="flex shrink-0 items-center gap-7 border-b border-[var(--border-faint)] px-8 py-2">
-        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
-          Au <span className="text-[var(--muted)]">$4,091</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
-          Ag <span className="text-[var(--muted)]">$59.30</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] tracking-[1.2px] text-[var(--slate)]">
-          <span className="h-[3px] w-[3px] rounded-full bg-[var(--gold-fill)] opacity-50" />
-          Pt <span className="text-[var(--muted)]">$1,625</span>
-        </div>
-        <div className="ml-auto text-[11px] text-[var(--muted)]">
-          Phillips Geneva &ensp;·&ensp; <span className="text-[var(--slate)]">4d 16h</span>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <div className="flex items-center justify-between border-b border-[var(--border-faint)] px-8 py-4">
-        <Link href="/" className="font-display text-[15px] font-light text-[var(--platinum)]">
-          Fair<span className="text-[var(--gold)]">Watch</span>Trade
-        </Link>
-        <div className="hidden gap-7 md:flex">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
+      {/* F1 (2026-08-14): the nested legacy shell is gone. This route already
+          sits inside the canonical global shell (NavBar + MarketBar + search
+          from app/layout.tsx), so the second metals ticker, second wordmark
+          and second nav rendered here were a duplicate FairWatchTrade on top
+          of FairWatchTrade. The ticker was also quoting HARDCODED metal
+          prices (Au $4,091) directly beneath the real live bar — a fabricated
+          market number on a page whose whole promise is truth. Removed at the
+          source rather than hidden. The breadcrumb below is NOT duplicate
+          chrome — nothing in the global shell provides it — so it stays. */}
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 border-b border-[var(--border-faint)] px-8 py-3">
         <Link href="/browse" className="text-[11px] tracking-[0.5px] text-[var(--muted)] hover:text-[var(--muted)]">
