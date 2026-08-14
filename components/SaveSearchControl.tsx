@@ -198,13 +198,13 @@ export default function SaveSearchControl({
           disabled={phase === "saving"}
           maxLength={NAME_MAX}
           placeholder="Name this search…"
-          className="w-[190px] rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-[12px] text-[#E8E4DC] placeholder:italic placeholder:text-[var(--muted)] focus:border-[#C9A84C]/40 focus:outline-none"
+          className="w-[190px] rounded-md border border-[var(--border-mid)] bg-transparent px-3 py-1.5 text-[12px] text-[var(--platinum)] placeholder:italic placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
         />
         <button
           type="button"
           onClick={save}
           disabled={phase === "saving"}
-          className="rounded-md border border-[#C9A84C]/40 px-3 py-1.5 text-[12px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-wait disabled:opacity-50"
+          className="rounded-md border border-[var(--border-gold)] px-3 py-1.5 text-[12px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-wait disabled:opacity-50"
         >
           {phase === "saving" ? "Saving…" : "Save"}
         </button>
@@ -226,7 +226,7 @@ export default function SaveSearchControl({
             checked={closeMatches}
             onChange={(e) => setCloseMatches(e.target.checked)}
             disabled={phase === "saving"}
-            className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[#C9A84C]"
+            className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[var(--gold)]"
           />
           <span className="text-[12px] leading-[1.5] text-[var(--slate)]">
             <span className="text-[var(--platinum-dim)]">Show me close matches too</span>
@@ -248,7 +248,7 @@ export default function SaveSearchControl({
     <button
       type="button"
       onClick={begin}
-      className="inline-flex items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] transition hover:border-[#C9A84C]/40"
+      className="inline-flex items-center rounded-md border border-[var(--border-mid)] px-3 py-1.5 text-[12px] text-[var(--platinum)] transition hover:border-[var(--border-gold)]"
     >
       Save this search
     </button>

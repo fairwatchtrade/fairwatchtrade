@@ -60,17 +60,25 @@ function prePaintScript(family: RailFamily): string {
    renders — one law, byte-for-byte. */
 const RAIL_CSS = `
 .fwt-rail{
-  --rl-muted:#8f97a8;
-  --rl-ghost:#8A8F9E;
-  --rl-dim:#c9c4b8;
-  --rl-line:rgba(232,226,214,.10);
-  --rl-line-strong:rgba(232,226,214,.17);
-  --rl-focus:rgba(201,168,76,.75);
+  /* Appearance foundation (v4.58): the rail keeps its own text floor
+     (contrast law: nothing dimmer than the dark arm's #8A8F9E) but each
+     local token now resolves per appearance, same light-dark() mechanism
+     as the global tokens. The light rail is the room's slightly deeper
+     warm stone — architecturally distinct from the page, never a dark
+     island on paper. */
+  --rl-muted:light-dark(#5B564D,#8f97a8);
+  --rl-ghost:light-dark(#6E685F,#8A8F9E);
+  --rl-dim:light-dark(#3B382F,#c9c4b8);
+  --rl-line:light-dark(rgba(62,54,38,.14),rgba(232,226,214,.10));
+  --rl-line-strong:light-dark(rgba(62,54,38,.22),rgba(232,226,214,.17));
+  --rl-focus:light-dark(rgba(122,95,32,.8),rgba(201,168,76,.75));
   width:238px;flex-shrink:0;align-self:stretch;min-height:100%;
   display:flex;flex-direction:column;
   border-right:1px solid var(--rl-line);
   padding:22px 12px 18px;
-  background:linear-gradient(90deg,rgba(20,22,28,.62),rgba(13,15,20,.98));
+  background:linear-gradient(90deg,
+    light-dark(rgba(236,231,221,.85),rgba(20,22,28,.62)),
+    light-dark(rgba(230,224,212,.98),rgba(13,15,20,.98)));
   /* v3.21b — the rail carries its OWN sans stack (the gate study's --sans)
      instead of inheriting the host page's font: on pages with wider body
      metrics, "Seller Workspace" at the locked 13px overflowed the 130px
@@ -88,7 +96,7 @@ const RAIL_CSS = `
 .fwt-rail-nav{display:block}
 .fwt-rail-section{margin-top:18px}
 .fwt-rail-section-label{padding:0 12px 8px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--rl-ghost);white-space:nowrap}
-.fwt-rail-section--exit{margin-top:26px;border-top:1px solid rgba(232,226,214,.06);padding-top:8px}
+.fwt-rail-section--exit{margin-top:26px;border-top:1px solid light-dark(rgba(62,54,38,.10),rgba(232,226,214,.06));padding-top:8px}
 .fwt-rail-item{
   width:100%;height:44px;
   display:grid;grid-template-columns:24px minmax(0,1fr) 36px;align-items:center;gap:12px;
@@ -97,16 +105,16 @@ const RAIL_CSS = `
   text-align:left;position:relative;margin:2px 0;
   font:inherit;text-decoration:none;cursor:pointer;
 }
-.fwt-rail-item:hover{background:rgba(232,226,214,.035);color:var(--rl-dim)}
+.fwt-rail-item:hover{background:light-dark(rgba(62,54,38,.05),rgba(232,226,214,.035));color:var(--rl-dim)}
 .fwt-rail-item:focus-visible{outline:1px solid var(--rl-focus);outline-offset:2px}
-.fwt-rail-item:active{background:rgba(201,168,76,.09);transform:translateY(1px)}
+.fwt-rail-item:active{background:light-dark(rgba(122,95,32,.10),rgba(201,168,76,.09));transform:translateY(1px)}
 .fwt-rail-item--active{
   color:var(--platinum);
-  background:rgba(201,168,76,.055);
-  border-color:rgba(201,168,76,.18);
-  box-shadow:inset 2px 0 0 var(--gold),inset 0 0 18px rgba(201,168,76,.025);
+  background:light-dark(rgba(122,95,32,.07),rgba(201,168,76,.055));
+  border-color:light-dark(rgba(122,95,32,.24),rgba(201,168,76,.18));
+  box-shadow:inset 2px 0 0 var(--gold),inset 0 0 18px light-dark(rgba(122,95,32,.03),rgba(201,168,76,.025));
 }
-.fwt-rail-item--active:hover{background:rgba(201,168,76,.055);color:var(--platinum)}
+.fwt-rail-item--active:hover{background:light-dark(rgba(122,95,32,.07),rgba(201,168,76,.055));color:var(--platinum)}
 .fwt-rail-item--soon{color:var(--rl-ghost);cursor:default}
 .fwt-rail-item--soon:hover{background:transparent;color:var(--rl-ghost)}
 .fwt-rail-item--soon:active{background:transparent;transform:none}
@@ -129,7 +137,7 @@ const RAIL_CSS = `
   display:flex;align-items:center;justify-content:center;
   font-size:16px;cursor:pointer;font:inherit;
 }
-.fwt-rail-collapse:hover{color:var(--gold);border-color:rgba(201,168,76,.25)}
+.fwt-rail-collapse:hover{color:var(--gold);border-color:light-dark(rgba(122,95,32,.35),rgba(201,168,76,.25))}
 .fwt-rail-collapse:focus-visible{outline:1px solid var(--rl-focus);outline-offset:2px}
 ` +
   (["account", "catalogue"] as const)

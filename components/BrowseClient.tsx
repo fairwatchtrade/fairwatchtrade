@@ -421,8 +421,8 @@ function FacetGroup({
               <div
                 className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border-[1.5px] ${
                   isActive
-                    ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                    : "border-[var(--slate)] bg-[rgba(255,255,255,0.07)]"
+                    ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
+                    : "border-[var(--slate)] bg-[var(--control-wash)]"
                 }`}
               >
                 {isActive && (
@@ -1379,7 +1379,7 @@ export default function BrowseClient({
         <button
           type="button"
           onClick={() => setIsFilterOpen((v) => !v)}
-          className="hidden items-center rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-[#E8E4DC] transition hover:border-[#C9A84C]/40 md:inline-flex"
+          className="hidden items-center rounded-md border border-[var(--border-mid)] px-3 py-1.5 text-[12px] text-[var(--platinum)] transition hover:border-[var(--border-gold)] md:inline-flex"
         >
           {isFilterOpen ? "Hide" : "Refine"}
         </button>
@@ -1514,7 +1514,6 @@ export default function BrowseClient({
               id="browse-sort"
               value={sort}
               onChange={(e) => setSort(parseBrowseSort(e.target.value))}
-              style={{ colorScheme: "dark" }}
               className={`border bg-[var(--ink-deep)] px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition md:text-[9px] ${
                 dealerScope ? "!text-[11px]" : ""
               } ${
@@ -1703,7 +1702,7 @@ export default function BrowseClient({
                     <Link
                       key={row.id}
                       href={listingHref(row.id)}
-                      className={`group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[rgba(255,255,255,0.02)] ${
+                      className={`group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[var(--hover-wash)] ${
                         scan ? "md:p-4" : "md:p-7"
                       }`}
                     >
@@ -1825,7 +1824,7 @@ export default function BrowseClient({
                             e.preventDefault();
                             e.stopPropagation();
                           }}
-                          className="absolute left-4 top-4 z-40 w-[230px] max-w-[calc(100%-32px)] border border-[rgba(232,220,190,0.16)] bg-[var(--ink-deep)] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.42)]"
+                          className="absolute left-4 top-4 z-40 w-[230px] max-w-[calc(100%-32px)] border border-[var(--panel-line)] bg-[var(--ink-deep)] p-4 shadow-[0_16px_40px_var(--panel-shadow-color)]"
                         >
                           <div className="mb-2 flex items-center justify-between">
                             <span className="font-display text-[13px] font-light text-[var(--platinum)]">
@@ -1925,7 +1924,7 @@ export default function BrowseClient({
                     // corners, no drop-shadow). The row is raised above its
                     // siblings ONLY while its snapshot is open, so the absolute
                     // overlay is never clipped by the row beneath it.
-                    className={`group relative grid grid-cols-[120px_minmax(0,1fr)] gap-4 p-5 shadow-[inset_0_0_0_1px_rgba(232,220,190,0.05)] transition md:flex ${
+                    className={`group relative grid grid-cols-[120px_minmax(0,1fr)] gap-4 p-5 shadow-[inset_0_0_0_1px_var(--row-perimeter-color)] transition md:flex ${
                       isSnapshotOpen ? "z-30" : "z-0"
                     }`}
                   >
@@ -2057,8 +2056,8 @@ export default function BrowseClient({
                           <span
                             className={`flex h-[13px] w-[13px] shrink-0 items-center justify-center border-[1.5px] ${
                               isCompared
-                                ? "border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)]"
-                                : "border-[var(--slate)] bg-[rgba(255,255,255,0.07)]"
+                                ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
+                                : "border-[var(--slate)] bg-[var(--control-wash)]"
                             }`}
                           >
                             {isCompared && <span className="h-[5px] w-[5px] bg-[var(--gold)] opacity-100" />}
@@ -2104,7 +2103,7 @@ export default function BrowseClient({
                         aesthetic refinement of this treatment is deferred to
                         the Design Gate, per the brief's out-of-scope list. */}
                     {isSnapshotOpen && (
-                      <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[rgba(232,220,190,0.16)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.42)]">
+                      <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[var(--panel-line)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_var(--panel-shadow-color)]">
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
                             Collector Snapshot · {row.model ?? row.brand}

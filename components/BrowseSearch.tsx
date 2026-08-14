@@ -212,7 +212,7 @@ export default function BrowseSearch({
         )}
         {/* ── Search field ───────────────────────────────────────────────── */}
         <div className={dealerRoomMode ? "grid grid-cols-[minmax(0,1fr)_64px] gap-2" : ""}>
-        <div className="relative flex min-w-0 min-h-[46px] items-center border border-[#343c49] bg-[#0a0d12] transition-colors focus-within:border-[#596473] sm:min-h-[50px]">
+        <div className="relative flex min-w-0 min-h-[46px] items-center border border-[var(--input-line)] bg-[var(--input-bg)] transition-colors focus-within:border-[var(--input-line-focus)] sm:min-h-[50px]">
           <div aria-hidden="true" className="w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]">
             ⌕
           </div>
@@ -264,10 +264,10 @@ export default function BrowseSearch({
           >
             <span
               aria-hidden="true"
-              className={`flex h-5 w-5 items-center justify-center rounded-full border bg-[#151a22] font-display text-[13px] font-semibold leading-none transition-colors ${
+              className={`flex h-5 w-5 items-center justify-center rounded-full border bg-[var(--surface-2)] font-display text-[13px] font-semibold leading-none transition-colors ${
                 helpOpen
-                  ? "border-[rgba(201,168,76,0.52)] bg-[#1b2028] text-[var(--gold)]"
-                  : "border-transparent text-[var(--gold-dim)] group-hover:border-[rgba(201,168,76,0.42)] group-focus-visible:border-[rgba(201,168,76,0.42)]"
+                  ? "border-[var(--border-gold-strong)] bg-[var(--surface-2)] text-[var(--gold)]"
+                  : "border-transparent text-[var(--gold-dim)] group-hover:border-[var(--border-gold-strong)] group-focus-visible:border-[var(--border-gold-strong)]"
               }`}
             >
               ?
@@ -290,11 +290,11 @@ export default function BrowseSearch({
                   if (!pinnedRef.current) closeHelp(false);
                 }, 220);
               }}
-              className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 border border-[rgba(201,168,76,0.48)] bg-[#12161e] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.5)] sm:left-auto sm:right-0 sm:w-[390px] sm:p-[18px]"
+              className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 border border-[var(--border-gold-strong)] bg-[var(--surface-2)] p-4 shadow-[0_18px_55px_var(--panel-shadow-color)] sm:left-auto sm:right-0 sm:w-[390px] sm:p-[18px]"
             >
               <span
                 aria-hidden="true"
-                className="absolute right-[23px] top-[-10px] h-[18px] w-[18px] rotate-45 border-l border-t border-[rgba(201,168,76,0.48)] bg-[#12161e]"
+                className="absolute right-[23px] top-[-10px] h-[18px] w-[18px] rotate-45 border-l border-t border-[var(--border-gold-strong)] bg-[var(--surface-2)]"
               />
               <button
                 type="button"
@@ -316,7 +316,7 @@ export default function BrowseSearch({
                     key={example}
                     type="button"
                     onClick={() => runExample(example)}
-                    className="border border-[var(--border-subtle)] bg-[#0c1016] px-[10px] py-[9px] text-left font-mono text-[12px] leading-[1.25] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-dim)] sm:text-[13px]"
+                    className="border border-[var(--border-subtle)] bg-[var(--input-bg)] px-[10px] py-[9px] text-left font-mono text-[12px] leading-[1.25] text-[var(--platinum-dim)] transition-colors hover:border-[var(--gold-dim)] sm:text-[13px]"
                   >
                     {example}
                   </button>
@@ -379,7 +379,7 @@ export default function BrowseSearch({
                 <div
                   key={chip.id}
                   className={`flex items-center justify-between gap-2 border bg-[var(--surface)] px-[10px] py-[10px] text-[12px] text-[var(--platinum-dim)] sm:w-auto sm:justify-start sm:px-[9px] sm:py-2 ${
-                    chip.source === "filter" ? "border-[#34495b]" : "border-[#4a4a3c]"
+                    chip.source === "filter" ? "border-[color:light-dark(#5D7186,#34495b)]" : "border-[color:light-dark(#6E6B52,#4a4a3c)]"
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-[7px]">

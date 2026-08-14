@@ -83,7 +83,7 @@ export function DealerContactPanel({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="dealer-contact-panel"
-        className="inline-flex min-h-[44px] w-full items-center justify-center border border-[var(--border-gold)] bg-[rgba(201,168,76,0.08)] px-5 py-2 text-[12px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.14)] sm:w-auto"
+        className="inline-flex min-h-[44px] w-full items-center justify-center border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[12px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[color:light-dark(rgba(122,95,32,0.16),rgba(201,168,76,0.14))] sm:w-auto"
       >
         Contact Dealer
       </button>
@@ -92,7 +92,7 @@ export function DealerContactPanel({
         <div
           id="dealer-contact-panel"
           ref={panelRef}
-          className="absolute left-0 right-0 top-full z-30 border-b border-l border-r border-[var(--border-gold)] bg-[var(--ink-deep)] px-6 py-5 shadow-[0_18px_40px_rgba(0,0,0,0.55)]"
+          className="absolute left-0 right-0 top-full z-30 border-b border-l border-r border-[var(--border-gold)] bg-[var(--ink-deep)] px-6 py-5 shadow-[0_18px_40px_var(--panel-shadow-color)]"
         >
           <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3">
             <div className="flex items-start justify-between gap-4">
@@ -130,7 +130,7 @@ export function DealerContactPanel({
                   <li key={item.id}>
                     <Link
                       href={`/listings/${item.id}?contact=1`}
-                      className="flex min-h-[56px] items-center gap-3 px-3 py-2 transition hover:bg-[rgba(255,255,255,0.03)]"
+                      className="flex min-h-[56px] items-center gap-3 px-3 py-2 transition hover:bg-[var(--hover-wash)]"
                     >
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-subtle)] bg-[var(--ink)]">
                         {item.thumbUrl ? (

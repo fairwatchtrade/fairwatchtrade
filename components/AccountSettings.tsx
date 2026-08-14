@@ -16,6 +16,21 @@ import { SUPPORTED_CURRENCIES, isSupportedCurrency } from "@/lib/supportedCurren
    --muted minimum.
    ──────────────────────────────────────────────────────────────────────── */
 
+/* Device-side appearance persistence. The cookie is what the server layout
+   reads to paint the first frame correctly; clearing it returns the device
+   to System. Module-level: cookie writes belong to the event, not the
+   render. */
+function writeAppearanceCookie(next: "system" | "light" | "dark") {
+  const root = document.documentElement;
+  if (next === "system") {
+    root.removeAttribute("data-theme");
+    document.cookie = "fwt-appearance=; path=/; max-age=0; samesite=lax";
+  } else {
+    root.setAttribute("data-theme", next);
+    document.cookie = `fwt-appearance=${next}; path=/; max-age=31536000; samesite=lax`;
+  }
+}
+
 function memberSince(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
@@ -37,6 +52,14 @@ export default function AccountSettings({
   const [displayName, setDisplayName] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Appearance — System is the default; an explicit choice overrides the
+  // device preference. The choice is applied in three coordinated places:
+  // the live document (data-theme), the device cookie the server layout
+  // reads for correct first paint, and the account row so a fresh device
+  // inherits it. "system" is stored as NULL — absence of an override.
+  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("system");
+  const [appearanceMsg, setAppearanceMsg] = useState<string | null>(null);
 
   // Security section
   const [currentPassword, setCurrentPassword] = useState("");
@@ -116,7 +139,7 @@ export default function AccountSettings({
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, notify_email, notify_sms, phone_number, preferred_listing_currency")
+        .select("display_name, notify_email, notify_sms, phone_number, preferred_listing_currency, appearance")
         .eq("id", userId)
         .single();
       if (active && profile) {
@@ -129,6 +152,13 @@ export default function AccountSettings({
             ? profile.preferred_listing_currency
             : ""
         );
+        // The document attribute (rendered by the server from cookie/account
+        // truth) is what the user is actually looking at — seed from it
+        // first so the control never contradicts the room around it.
+        const live = document.documentElement.getAttribute("data-theme");
+        if (live === "light" || live === "dark") setAppearance(live);
+        else if (profile.appearance === "light" || profile.appearance === "dark")
+          setAppearance(profile.appearance);
       }
       // Dealer identity — RLS scopes this read to the user's own listings.
       const { data: dealerMedia } = await supabase
@@ -155,6 +185,20 @@ export default function AccountSettings({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  async function applyAppearance(next: "system" | "light" | "dark") {
+    setAppearance(next);
+    setAppearanceMsg(null);
+    writeAppearanceCookie(next);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ appearance: next === "system" ? null : next })
+      .eq("id", userId);
+    // The room has already changed either way; the message only reports
+    // whether the account will remember it on other devices.
+    setAppearanceMsg(error ? "Applied here — could not save to your account" : "Saved");
+    setTimeout(() => setAppearanceMsg(null), 2500);
+  }
 
   async function saveProfile() {
     setProfileBusy(true);
@@ -299,6 +343,49 @@ export default function AccountSettings({
               </span>
             )}
           </div>
+        </section>
+
+        <div className="fw-rule mb-10" />
+
+        {/* ── Section — Appearance ── */}
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="text-[8px] uppercase tracking-[3px] text-[var(--muted)]">
+              Appearance
+            </span>
+            {appearanceMsg && (
+              <span className="text-[11px] italic text-[var(--success)]">{appearanceMsg}</span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Appearance">
+            {(
+              [
+                { key: "system", label: "System" },
+                { key: "light", label: "Light" },
+                { key: "dark", label: "Dark" },
+              ] as const
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={appearance === key}
+                onClick={() => applyAppearance(key)}
+                className={`border px-4 py-2 text-[11px] uppercase tracking-[2px] transition ${
+                  appearance === key
+                    ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--gold)]"
+                    : "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+            System follows your device&apos;s setting. Choosing Light or Dark keeps
+            FairWatchTrade that way on every visit.
+          </p>
         </section>
 
         <div className="fw-rule mb-10" />
@@ -501,7 +588,7 @@ export default function AccountSettings({
               setPrefCurrency(e.target.value);
               savePreferredCurrency(e.target.value);
             }}
-            className="fw-input [&>option]:bg-[#141821] [&>option]:text-[#E8E4DC]"
+            className="fw-input [&>option]:bg-[var(--surface-2)] [&>option]:text-[var(--platinum)]"
           >
             <option value="">No preference — USD suggested when you list</option>
             {SUPPORTED_CURRENCIES.map((c) => (

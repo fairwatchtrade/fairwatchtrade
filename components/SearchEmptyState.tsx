@@ -118,7 +118,7 @@ export default function SearchEmptyState({
   return (
     <section
       aria-labelledby="search-empty-heading"
-      className="mx-auto mt-[18px] w-full max-w-[940px] border border-[var(--border-subtle)] bg-[#0d1118] px-5 py-[22px]"
+      className="mx-auto mt-[18px] w-full max-w-[940px] border border-[var(--border-subtle)] bg-[var(--surface)] px-5 py-[22px]"
     >
       <p className="text-[14px] leading-[1.6] text-[var(--muted)]">
         <strong
@@ -162,7 +162,7 @@ export default function SearchEmptyState({
           checked={closeMatches}
           onChange={(e) => setCloseMatches(e.target.checked)}
           disabled={state === "saving" || state === "saved"}
-          className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[#C9A84C]"
+          className="mt-[2px] h-[14px] w-[14px] shrink-0 accent-[var(--gold)]"
         />
         <span className="text-[12px] leading-[1.5] text-[var(--slate)]">
           <span className="text-[var(--platinum-dim)]">Show me close matches too</span>
@@ -227,7 +227,7 @@ export default function SearchEmptyState({
               <li key={r.id}>
                 <Link
                   href={r.href}
-                  className="flex items-baseline justify-between gap-4 py-2.5 transition hover:bg-[rgba(255,255,255,0.02)]"
+                  className="flex items-baseline justify-between gap-4 py-2.5 transition hover:bg-[var(--hover-wash)]"
                 >
                   <span className="min-w-0">
                     <span className="mr-2 text-[9px] uppercase tracking-[2px] text-[var(--gold-subtle)]">

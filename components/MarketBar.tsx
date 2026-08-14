@@ -94,18 +94,18 @@ export default function MarketBar() {
   const list = metals?.metals ?? PLACEHOLDER;
 
   return (
-    <div className="w-full border-b border-white/10 bg-[#13151C]">
+    <div className="w-full border-b border-[var(--border-mid)] bg-[var(--surface)]">
       <div className="mx-auto flex h-11 max-w-screen-2xl items-center gap-2 px-3">
         <div className="flex shrink-0 items-center gap-4 pr-3">
-          <span className="select-none text-[11px] tracking-wide text-[#C9A84C] [writing-mode:vertical-rl] rotate-180">
+          <span className="select-none text-[11px] tracking-wide text-[var(--gold)] [writing-mode:vertical-rl] rotate-180">
             London
           </span>
           {list.map((m) => (
             <div key={m.key} className="flex items-center gap-2">
               <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[m.key] ?? "bg-zinc-400"}`} />
               <div className="leading-tight">
-                <div className="text-[11px] text-[#8A8F9E]">{m.label}</div>
-                <div className="text-[13px] font-medium tabular-nums text-[#E8E4DC]">
+                <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
+                <div className="text-[13px] font-medium tabular-nums text-[var(--platinum)]">
                   {usd(m.price, m.key)}
                   {m.changePct != null && (
                     <span
@@ -129,12 +129,12 @@ export default function MarketBar() {
             nothing resurrected — the metals bar stands alone, intact. */}
         {ordered.length > 0 && (
           <>
-            <div className="my-2 w-px shrink-0 self-stretch bg-white/10" />
+            <div className="my-2 w-px shrink-0 self-stretch bg-[var(--border-mid)]" />
 
             <button
               onClick={() => scroll(-1)}
           aria-label="Scroll auctions left"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[#8A8F9E] hover:bg-white/5"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--border-mid)] text-[var(--muted)] hover:bg-[var(--hover-wash)]"
         >
           ‹
         </button>
@@ -151,16 +151,16 @@ export default function MarketBar() {
                 href={a.catalogUrl ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-w-[190px] shrink-0 items-center gap-2.5 rounded-md border border-white/10 px-3 py-1.5 hover:bg-white/5"
+                className="flex min-w-[190px] shrink-0 items-center gap-2.5 rounded-md border border-[var(--border-mid)] px-3 py-1.5 hover:bg-[var(--hover-wash)]"
               >
                 <span
                   className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                    live ? "animate-pulse bg-emerald-500" : "bg-[#3A3D45]"
+                    live ? "animate-pulse bg-emerald-500" : "bg-[var(--ghost)]"
                   }`}
                 />
                 <div className="min-w-0">
-                  <div className="whitespace-nowrap text-[13px] font-medium text-[#E8E4DC]">{a.house}</div>
-                  <div className="whitespace-nowrap text-[11px] text-[#8A8F9E]">
+                  <div className="whitespace-nowrap text-[13px] font-medium text-[var(--platinum)]">{a.house}</div>
+                  <div className="whitespace-nowrap text-[11px] text-[var(--muted)]">
                     {a.sale} · {a.city}
                   </div>
                 </div>
@@ -169,7 +169,7 @@ export default function MarketBar() {
                     <span className="text-[12px] font-medium text-emerald-400">Live now</span>
                   ) : (
                     <span
-                      className="text-[12px] font-medium tabular-nums text-[#E8E4DC]"
+                      className="text-[12px] font-medium tabular-nums text-[var(--platinum)]"
                       // v2.4z — server render and client hydrate read Date.now()
                       // moments apart; the countdown text may differ by a minute
                       // across that gap. Time-sensitive text is the textbook case
@@ -188,7 +188,7 @@ export default function MarketBar() {
         <button
           onClick={() => scroll(1)}
           aria-label="Scroll auctions right"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[#8A8F9E] hover:bg-white/5"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--border-mid)] text-[var(--muted)] hover:bg-[var(--hover-wash)]"
         >
           ›
         </button>

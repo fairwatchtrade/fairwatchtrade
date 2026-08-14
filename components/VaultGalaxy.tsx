@@ -1970,7 +1970,15 @@ export default function VaultGalaxy({
   }, [selectedVariant, selectedCollection]);
 
   return (
-    <div className="fixed inset-0 z-[60] h-screen w-full select-none overflow-hidden bg-[var(--ink-deep)]">
+    /* data-immersive-dark — the Galaxy is one of the two authorized
+       immersive-dark surfaces (appearance order §18). The attribute pins
+       color-scheme: dark at this surface boundary, so every shared token
+       below resolves to its night value regardless of the page appearance.
+       Nothing inside this subtree may carry its own local dark override. */
+    <div
+      data-immersive-dark=""
+      className="fixed inset-0 z-[60] h-screen w-full select-none overflow-hidden bg-[var(--ink-deep)]"
+    >
       <canvas
         ref={canvasRef}
         className="fixed inset-0 h-full w-full"

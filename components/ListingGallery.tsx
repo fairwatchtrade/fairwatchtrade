@@ -202,7 +202,12 @@ export default function ListingGallery({
           aria-label="Photo inspection"
           /* Opaque, deliberately: the desktop SEE-it showed page text bleeding
              through a 97% wash and competing with the photograph. In the
-             inspection state the image is the only interface. */
+             inspection state the image is the only interface.
+             data-immersive-dark — full-screen photo inspection is the second
+             authorized immersive-dark surface (appearance order §18): the
+             room around a photograph under inspection is always night, so
+             the overlay's tokens resolve dark in every page appearance. */
+          data-immersive-dark=""
           className="fixed inset-0 z-[70] flex flex-col bg-[#05060A]"
         >
           <div className="flex items-center justify-between px-4 py-3">
