@@ -119,7 +119,7 @@ export default function SellerProfile({
       {/* Body — two columns */}
       <div className="flex flex-1 flex-col md:flex-row">
         {/* LEFT — the person */}
-        <div className="flex w-full shrink-0 flex-col border-b border-[var(--border-faint)] px-6 py-7 md:w-[232px] md:border-r md:border-b-0">
+        <div className="flex w-full shrink-0 flex-col border-b border-[var(--border-faint)] px-7 py-7 md:w-[300px] md:border-r md:border-b-0 lg:w-[324px]">
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-gold)] bg-[var(--gold-whisper)]">
             <span className="font-display text-[16px] font-light text-[var(--gold)]">
               {initials}
@@ -193,7 +193,7 @@ export default function SellerProfile({
           </p>
 
           {/* Correspondence — pinned to bottom */}
-          <div className="mt-auto border-t border-[var(--border-faint)] pt-5">
+          <div className="mt-7 border-t border-[var(--border-faint)] pt-5">
             <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-70">
               Correspondence
             </div>
@@ -208,9 +208,6 @@ export default function SellerProfile({
             ) : (
               <span className="fw-btn-secondary inline-block opacity-40">Contact via listing</span>
             )}
-            <div className="mt-4 border-t border-[var(--border-faint)] pt-4 text-center text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
-              Private correspondence · Public standards
-            </div>
           </div>
         </div>
 
