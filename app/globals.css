@@ -173,6 +173,17 @@ html[data-theme="dark"] { color-scheme: dark; }
   --panel-shadow-color:  light-dark(rgba(60,50,30,0.16), rgba(0,0,0,0.42));
   --row-perimeter-color: light-dark(rgba(62,54,38,0.10), rgba(232,220,190,0.05));
 
+  /* ── DAYLIGHT SURFACE HIERARCHY (design ruling, 2026-08-13) ──
+     "Less dark surface area, not less warmth." In Daylight, ordinary
+     listing cards sit near-paper and the photograph's well is a quiet
+     neutral — hierarchy comes from spacing, hairlines, type and imagery,
+     not slabs of deeper beige. Both dark arms are deliberate no-ops:
+     transparent reproduces the card's current dark rendering exactly, and
+     the well keeps dark's original deep-ink value. Dark mode is unchanged
+     by construction. */
+  --card-surface: light-dark(#FAF7F0, transparent);
+  --image-well:   light-dark(#F1EDE3, #07080C);
+
   /* ── SPACING ── */
   --space-1:  4px;
   --space-2:  8px;

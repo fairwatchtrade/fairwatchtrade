@@ -1702,7 +1702,7 @@ export default function BrowseClient({
                     <Link
                       key={row.id}
                       href={listingHref(row.id)}
-                      className={`group relative block cursor-pointer border border-transparent p-3 transition hover:bg-[var(--hover-wash)] ${
+                      className={`group relative block cursor-pointer border border-transparent bg-[var(--card-surface)] p-3 transition hover:bg-[var(--hover-wash)] ${
                         scan ? "md:p-4" : "md:p-7"
                       }`}
                     >
@@ -1715,7 +1715,7 @@ export default function BrowseClient({
                           badges, so they anchor to the photograph's frame —
                           never float over card padding. */}
                       <div
-                        className={`relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)] ${
+                        className={`relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--image-well)] ${
                           scan ? "mb-3" : "mb-4 md:aspect-auto md:h-[140px]"
                         }`}
                       >
@@ -1936,7 +1936,7 @@ export default function BrowseClient({
                         revert to object-contain if any hero crops awkwardly. */}
                     <Link
                       href={listingHref(row.id)}
-                      className="relative row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
+                      className="relative row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--image-well)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element

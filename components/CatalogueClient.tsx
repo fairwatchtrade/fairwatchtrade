@@ -284,9 +284,9 @@ function ListingCard({ row }: { row: ListingRow }) {
   return (
     <Link
       href={`/listings/${row.id}`}
-      className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[rgba(255,255,255,0.02)]"
+      className="group relative block cursor-pointer border border-transparent bg-[var(--card-surface)] p-7 transition hover:bg-[var(--hover-wash)]"
     >
-      <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+      <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
@@ -458,7 +458,7 @@ function WatchOfferGroup({
     <div className="flex gap-4 px-4 py-4">
       {/* Watch thumbnail — appears once per group. Dial-first via heroUrl(),
           matching Discovery / Saved Watches visual identity. */}
-      <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+      <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden bg-[var(--image-well)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="h-full w-full object-contain" />
@@ -1132,7 +1132,7 @@ export default function CatalogueClient({
                     </div>
                     <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
                       {exactMatches.map((card) => (
-                        <div key={card.listing.id} className="flex flex-col">
+                        <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
                           {/* Exact vs. adjacent must be unmistakable: the
                               exact label is the section's one gold accent. */}
                           <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px]">
@@ -1162,7 +1162,7 @@ export default function CatalogueClient({
                     </p>
                     <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
                       {adjacentMatches.map((card) => (
-                        <div key={card.listing.id} className="flex flex-col">
+                        <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
                           <div className="px-7 pt-4 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
                             Close to &ldquo;{card.searchNames.join("”, “")}&rdquo;
                           </div>
