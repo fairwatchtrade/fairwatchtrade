@@ -235,7 +235,7 @@ export default function SellerProfile({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-px bg-[var(--border-faint)]">
+            <div className="grid grid-cols-2 gap-px bg-[var(--grid-gutter)]">
               {listings.map((row) => {
                 const hero = heroUrl(row.photos);
                 const meta = [row.condition, row.year].filter(Boolean).join(" · ");
@@ -253,9 +253,9 @@ export default function SellerProfile({
                   <Link
                     key={row.id}
                     href={`/listings/${row.id}`}
-                    className="group relative block cursor-pointer border border-transparent p-7 transition hover:bg-[var(--hover-wash)]"
+                    className="group relative block cursor-pointer border border-transparent bg-[var(--card-surface)] p-7 transition hover:bg-[var(--hover-wash)]"
                   >
-                    <div className="relative mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--ink-deep)]">
+                    <div className="relative mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={hero} alt="" className="h-full w-full object-contain" />
