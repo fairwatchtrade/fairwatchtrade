@@ -242,7 +242,11 @@ html[data-theme="dark"] { color-scheme: dark; }
      The plate's ghost rest state must whisper against ITS page: platinum
      lines on ink, warm charcoal lines on ivory. Completed/active golds take
      the printed daylight gold in light. */
-  --blueprint-ghost:     light-dark(rgba(62,54,38,0.16), rgba(232,228,220,0.09));
+  /* The plate must look intentionally present, never half-loaded. On ivory a
+     16% line disappeared, which also left the lit layers nowhere to rise
+     FROM — the Sell Step III reveal depends on ghost→completed→active being
+     three distinguishable weights. */
+  --blueprint-ghost:     light-dark(rgba(62,54,38,0.26), rgba(232,228,220,0.09));
   --blueprint-completed: light-dark(#8D6B1F, #c9a84c);
   --blueprint-active:    light-dark(#7A5E20, #e0c56f);
 

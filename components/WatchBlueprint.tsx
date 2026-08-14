@@ -210,9 +210,13 @@ export default function WatchBlueprint({
     height: "100%",
     overflow: "visible",
   };
+  /* The plate is a technical drawing, so its dial/movement surface belongs to
+     the paper it is drawn on: a whisper of tone in Daylight, the original
+     night surface in Dark. Hardcoded, this was a near-black disc sitting on
+     ivory — the one solid object in an otherwise line-drawn plate. */
   const surfaceStyle: CSSProperties = {
-    fill: "rgba(16,20,26,0.72)",
-    stroke: "rgba(232,228,220,0.07)",
+    fill: "light-dark(rgba(37,35,31,0.045), rgba(16,20,26,0.72))",
+    stroke: "light-dark(rgba(62,54,38,0.16), rgba(232,228,220,0.07))",
   };
   const G = { strokeWidth: 0.8, vectorEffect: "non-scaling-stroke" as const };
 
