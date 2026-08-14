@@ -11,6 +11,7 @@ import {
   type DealerContactItem,
 } from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
+import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { parseBrowseSort, sortListings, type BrowseSort } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
 import {
@@ -1671,7 +1672,12 @@ export default function BrowseClient({
                 const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
                 const attrs = parts.join(" · ") || null;
                 const doc = row.details?.documentation;
-                const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
+                /* Completeness is a FACT ABOUT THE WATCH, not a label that has
+                   to interrupt its photograph. All four states are honoured
+                   equally — a watch with no box says so in the same voice a
+                   full set does. */
+                const docBadge = documentationState(doc);
+                const docInline = docBadge ? inlineDocumentation(docBadge) : null;
 
                 // Gallery and Scan share one card anatomy; Scan is the same
                 // card read at shelf density — tighter type, squarer well,
@@ -1768,15 +1774,6 @@ export default function BrowseClient({
                           >
                             🛡️
                           </div>
-                        )}
-                        {docBadge && (
-                          /* 8px is a decorative size, and FULL SET / PAPERS
-                             ONLY is status text a collector reads. On a phone
-                             it reads at 10px on one line inside the wider
-                             two-column frame; desktop keeps its 8px badge. */
-                          <span className="absolute right-1.5 top-1.5 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[11px] uppercase tracking-[1.5px] text-[var(--on-photo-gold)]">
-                            {docBadge}
-                          </span>
                         )}
                         {/* Quick Specs loupe — an inspection invitation on the
                             photograph's own frame. It toggles the panel and
@@ -1883,7 +1880,7 @@ export default function BrowseClient({
                             scan ? "mb-2 text-[11px]" : "mb-3 text-[13px]"
                           }`}
                         >
-                          {attrs ? `${meta} · ${attrs}` : meta}
+                          {[meta, attrs, docInline].filter(Boolean).join(" · ")}
                         </div>
                       )}
 

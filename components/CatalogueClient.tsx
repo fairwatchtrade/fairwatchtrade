@@ -14,6 +14,7 @@ import {
 } from "@/components/rail/catalogueCardStyles";
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
+import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import {
   catalogueHeroState,
@@ -279,7 +280,10 @@ function ListingCard({ row }: { row: ListingRow }) {
   );
   const attrs = parts.join(" · ") || null;
   const doc = row.details?.documentation;
-  const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
+  /* Completeness leaves the photo plane and joins the scanning line —
+     the same ruling the Browse grid follows, from the same module. */
+  const docBadge = documentationState(doc);
+  const docInline = docBadge ? inlineDocumentation(docBadge) : null;
 
   return (
     <Link
@@ -295,11 +299,6 @@ function ListingCard({ row }: { row: ListingRow }) {
             No photo
           </div>
         )}
-        {docBadge && (
-          <span className="absolute right-3 top-3 rounded-full border border-[var(--on-photo-gold-line)] bg-[var(--on-photo-scrim)] px-2 py-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--on-photo-gold)]">
-            {docBadge}
-          </span>
-        )}
       </div>
 
       <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
@@ -313,7 +312,7 @@ function ListingCard({ row }: { row: ListingRow }) {
           in BrowseClient for why this is 13px rather than 10px. */}
       {meta && (
         <div className="mb-3 text-[13px] leading-[1.5] tracking-[0.2px] text-[var(--slate)]">
-          {attrs ? `${meta} · ${attrs}` : meta}
+          {[meta, attrs, docInline].filter(Boolean).join(" · ")}
         </div>
       )}
       <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
