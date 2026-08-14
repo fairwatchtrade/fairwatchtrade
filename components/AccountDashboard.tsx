@@ -299,7 +299,7 @@ function ListingRow({
       // Selection is Channel 4 and NEUTRAL (Hybrid C): the gold bar is gone so
       // gold no longer competes with Draft's lifecycle gold.
       style={selected ? { backgroundColor: "var(--lc-select-fill)" } : undefined}
-      className={`relative cursor-pointer border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px] transition hover:bg-[rgba(255,255,255,0.02)] ${
+      className={`relative cursor-pointer border-b border-[var(--border-faint)] px-6 py-[18px] transition hover:bg-[var(--hover-wash)] ${
         selected
           ? "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--lc-select-line)]"
           : ""
@@ -388,7 +388,7 @@ function ListingRow({
           founder's bounded note. Shown on drafts only (clarify returns the
           listing to draft); resubmitting answers it and clears the note. */}
       {row.status === "draft" && row.seller_clarification_note != null && (
-        <div className="mt-3 border-l border-[var(--border-gold)] bg-[rgba(201,168,76,0.04)] px-3 py-2 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
+        <div className="mt-3 border-l border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
           We need a little more information about one or more photographs before
           the listing can be published.
           {row.seller_clarification_note.trim() !== "" && (
@@ -408,7 +408,7 @@ function ListingRow({
               onSubmitForReview(row.id);
             }}
             disabled={submitting}
-            className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? "Submitting…" : "Submit for Review"}
           </button>
@@ -702,7 +702,7 @@ function MessagesView({
         ) : (
           <div className="space-y-5">
             {threadMessages.map((m) => (
-              <div key={m.id} className="border-b border-[rgba(255,255,255,0.03)] pb-4">
+              <div key={m.id} className="border-b border-[var(--border-faint)] pb-4">
                 <div className="mb-1 flex items-baseline justify-between">
                   <span
                     className={`text-[10px] uppercase tracking-[1.5px] ${
@@ -741,7 +741,7 @@ function MessagesView({
                 className={`border border-[var(--border-gold)] px-4 py-2 text-[10px] uppercase tracking-[2px] text-[var(--gold)] transition ${
                   sending || reply.trim().length === 0
                     ? "cursor-not-allowed opacity-40"
-                    : "hover:bg-[rgba(201,168,76,0.06)]"
+                    : "hover:bg-[var(--gold-whisper)]"
                 }`}
               >
                 {sending ? "Sending…" : "Send Reply"}
@@ -789,7 +789,7 @@ function MessagesView({
                 key={t.id}
                 type="button"
                 onClick={() => openThread(t)}
-                className="flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-6 py-[16px] text-left transition hover:bg-[rgba(255,255,255,0.02)]"
+                className="flex w-full items-center gap-3 border-b border-[var(--border-faint)] px-6 py-[16px] text-left transition hover:bg-[var(--hover-wash)]"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
@@ -970,7 +970,7 @@ function RequestsView({
                   : `${formatMoney(Math.abs(delta), r.proposed_currency)} under asking`;
 
             return (
-              <div key={r.id} className="border-b border-[rgba(255,255,255,0.03)] px-6 py-[18px]">
+              <div key={r.id} className="border-b border-[var(--border-faint)] px-6 py-[18px]">
                 <div className="flex items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
                     {thumb ? (
@@ -1039,7 +1039,7 @@ function RequestsView({
                           type="button"
                           onClick={() => act(r.id, "accepted")}
                           disabled={busyId === r.id}
-                          className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="border border-[var(--border-gold)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {busyId === r.id ? "Working…" : "Accept"}
                         </button>

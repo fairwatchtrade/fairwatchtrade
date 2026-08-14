@@ -211,7 +211,7 @@ export default function NotificationsBell({
                       if (!n.read) markRead([n.id]);
                       setOpen(false);
                     }}
-                    className="block border-b border-[var(--border-faint)] transition-colors last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+                    className="block border-b border-[var(--border-faint)] transition-colors last:border-b-0 hover:bg-[var(--hover-wash)]"
                   >
                     {inner}
                   </Link>
@@ -222,7 +222,7 @@ export default function NotificationsBell({
                     onClick={() => {
                       if (!n.read) markRead([n.id]);
                     }}
-                    className="block w-full border-b border-[var(--border-faint)] text-left transition-colors last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+                    className="block w-full border-b border-[var(--border-faint)] text-left transition-colors last:border-b-0 hover:bg-[var(--hover-wash)]"
                   >
                     {inner}
                   </button>

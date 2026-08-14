@@ -43,7 +43,7 @@ export default function DealerAcceleratorEntry({
   return (
     <section
       aria-label="Dealer Accelerator"
-      className="border border-[var(--border-mid)] bg-[linear-gradient(180deg,#101620,#0d121a)] p-6 md:grid md:grid-cols-[1.4fr_0.6fr] md:items-center md:gap-6"
+      className="border border-[var(--border-mid)] bg-[linear-gradient(180deg,light-dark(#FBF8F1,#101620),light-dark(#EFEAE0,#0d121a))] p-6 md:grid md:grid-cols-[1.4fr_0.6fr] md:items-center md:gap-6"
     >
       <div>
         <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--gold)]">
@@ -89,7 +89,7 @@ export default function DealerAcceleratorEntry({
       <div className="mt-5 flex flex-col gap-2.5 md:mt-0">
         <a
           href={CONTACT_HREF}
-          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--gold)] px-4 py-3 text-center text-[12px] font-semibold text-[#0a0d12] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          className="flex min-h-[46px] items-center justify-center border border-[var(--gold)] bg-[var(--gold)] px-4 py-3 text-center text-[12px] font-semibold text-[var(--ink)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
         >
           Ask FairWatchTrade to prepare your inventory
         </a>
@@ -100,7 +100,7 @@ export default function DealerAcceleratorEntry({
             <button
               type="button"
               onClick={onOpenImportedDrafts}
-              className="hidden min-h-[46px] items-center justify-center border border-[var(--border-mid)] bg-[#0b0f15] px-4 py-3 text-center text-[12px] text-[var(--platinum)] transition-colors hover:border-[var(--border-gold)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:flex"
+              className="hidden min-h-[46px] items-center justify-center border border-[var(--border-mid)] bg-[var(--surface-2)] px-4 py-3 text-center text-[12px] text-[var(--platinum)] transition-colors hover:border-[var(--border-gold)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:flex"
             >
               Review prepared drafts
             </button>
