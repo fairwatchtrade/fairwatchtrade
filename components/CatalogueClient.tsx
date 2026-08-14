@@ -1130,7 +1130,7 @@ export default function CatalogueClient({
                     <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                       Search Matches
                     </div>
-                    <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
+                    <div className={`grid grid-cols-1 gap-px bg-[var(--grid-gutter)] ${CARD_COLS[contentCols]}`}>
                       {exactMatches.map((card) => (
                         <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
                           {/* Exact vs. adjacent must be unmistakable: the
@@ -1160,7 +1160,7 @@ export default function CatalogueClient({
                       Not exact matches — watches meaningfully related to
                       searches where you asked to see close matches too.
                     </p>
-                    <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
+                    <div className={`grid grid-cols-1 gap-px bg-[var(--grid-gutter)] ${CARD_COLS[contentCols]}`}>
                       {adjacentMatches.map((card) => (
                         <div key={card.listing.id} className="flex flex-col bg-[var(--card-surface)]">
                           <div className="px-7 pt-4 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
@@ -1189,7 +1189,7 @@ export default function CatalogueClient({
                 Saved Watches
               </div>
               {savedListings.length > 0 ? (
-                <div className={`grid grid-cols-1 gap-px bg-[var(--border-faint)] ${CARD_COLS[contentCols]}`}>
+                <div className={`grid grid-cols-1 gap-px bg-[var(--grid-gutter)] ${CARD_COLS[contentCols]}`}>
                   {savedListings.map((row) => (
                     <ListingCard key={row.id} row={row} />
                   ))}

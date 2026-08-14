@@ -1651,7 +1651,7 @@ export default function BrowseClient({
                          Gallery: a third phone column would shrink each watch
                          to a postage stamp, which is exactly the defect the
                          Gallery mobile grid already corrected. */
-                      "grid gap-px bg-[var(--border-faint)] grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                      "grid gap-px bg-[var(--grid-gutter)] grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
                   : /* The column count is a DESKTOP density choice. A phone is
                        ~412px wide: three columns leave a 95px card holding a
                        44px watch, which is how the 4:3 frame could be correct
@@ -1659,7 +1659,7 @@ export default function BrowseClient({
                        grid is two columns — the frame doubles, the watch
                        doubles with it, and the thumbnail is occupied rather
                        than merely inhabited. Desktop keeps 3/4 exactly. */
-                    `grid gap-px bg-[var(--border-faint)] grid-cols-2 ${
+                    `grid gap-px bg-[var(--grid-gutter)] grid-cols-2 ${
                       gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"
                     }`
               }

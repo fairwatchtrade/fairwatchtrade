@@ -215,6 +215,13 @@ html[data-theme="dark"] { color-scheme: dark; }
      transparent reproduces the card's current dark rendering exactly, and
      the well keeps dark's original deep-ink value. Dark mode is unchanged
      by construction. */
+  /* The card grid draws its hairlines by letting the container show through
+     1px gaps — which means UNUSED cells in the last row show that colour as a
+     block. In Daylight the gutter is therefore the PAGE itself: the gaps still
+     read as fine lines between paper cards, and leftover space simply becomes
+     page again instead of the largest grey object on the screen. The dark arm
+     is the original --border-faint value, so dark is untouched. */
+  --grid-gutter:  light-dark(#F3F0E8, rgba(255,255,255,0.04));
   --card-surface: light-dark(#FAF7F0, transparent);
   --image-well:   light-dark(#F1EDE3, #07080C);
 
