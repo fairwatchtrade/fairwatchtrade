@@ -16,6 +16,7 @@ import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
+import { cardImageSrc } from "@/lib/media/cardImage";
 import {
   catalogueHeroState,
   groupCatalogueMatches,
@@ -293,7 +294,7 @@ function ListingCard({ row }: { row: ListingRow }) {
       <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt="" className="h-full w-full object-contain" />
+          <img src={cardImageSrc(hero)} alt="" className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
             No photo
@@ -460,7 +461,7 @@ function WatchOfferGroup({
       <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden bg-[var(--image-well)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero} alt="" className="h-full w-full object-contain" />
+          <img src={cardImageSrc(hero, { width: 240 })} alt="" className="h-full w-full object-contain" />
         ) : (
           <div className="text-[11px] tracking-[0.3px] text-[var(--muted)]">No photo</div>
         )}

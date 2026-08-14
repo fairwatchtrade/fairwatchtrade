@@ -149,6 +149,57 @@ export type DerivedThumb = {
   sourceHeight: number;
 };
 
+/** Widths a card context may ask for. An allowlist, not a free parameter:
+    an open width turns a derivation route into an unbounded render surface
+    and splinters the CDN cache across arbitrary keys. */
+export const ALLOWED_WIDTHS = [96, 240, 480, 720] as const;
+export type AllowedWidth = (typeof ALLOWED_WIDTHS)[number];
+
+export function clampWidth(raw: string | null): AllowedWidth {
+  const n = Number(raw);
+  return (ALLOWED_WIDTHS as readonly number[]).includes(n) ? (n as AllowedWidth) : THUMB_WIDTH;
+}
+
+/** Derive a GEOMETRY-PRESERVING derivative: EXIF-orient, resize, encode —
+    no trim, no crop.
+
+    Why this exists alongside deriveThumb: a seller-authored frame, and the
+    Collector row's rotation cover-scale, are coordinates expressed against
+    the photograph's own proportions. Trimming changes those proportions, so
+    a trimmed derivative would silently move framing the seller approved.
+    Those surfaces need the bytes to shrink while the picture stays exactly
+    the picture. Same law as its sibling: the stored original is never
+    rewritten, and nothing meaningful is ever subtracted — this one subtracts
+    nothing at all. */
+export async function deriveResized(
+  input: Buffer,
+  width: AllowedWidth = THUMB_WIDTH
+): Promise<DerivedThumb> {
+  const meta0 = await sharp(input, { failOn: "none" }).metadata();
+  const oriented =
+    (meta0.orientation ?? 1) === 1
+      ? input
+      : await sharp(input, { failOn: "none" }).rotate().png().toBuffer();
+  const meta = await sharp(oriented, { failOn: "none" }).metadata();
+  const srcW = meta.width ?? 0;
+  const srcH = meta.height ?? 0;
+  if (!srcW || !srcH) throw new Error("unreadable image");
+
+  const buffer = await sharp(oriented)
+    .resize({ width, withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+
+  return {
+    buffer,
+    contentType: "image/webp",
+    trimmed: false,
+    box: null,
+    sourceWidth: srcW,
+    sourceHeight: srcH,
+  };
+}
+
 /** Derive the presentation thumbnail: EXIF-orient, trim empty margins
     (up to two gated passes), re-add the safe margin, resize, encode.
     Never throws on bad image data the fallback can absorb — the caller

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
+import { cardImageSrc } from "@/lib/media/cardImage";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -255,7 +256,7 @@ export default function SellerProfile({
                     <div className="relative mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
                       {hero ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={hero} alt="" className="h-full w-full object-contain" />
+                        <img src={cardImageSrc(hero)} alt="" className="h-full w-full object-contain" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
                           No photo

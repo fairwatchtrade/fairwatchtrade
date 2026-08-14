@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DialReveal from "@/components/DialReveal";
+import { cardImageSrc } from "@/lib/media/cardImage";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING GALLERY — buyer-facing photo viewer (v1.23)
@@ -274,7 +275,11 @@ export default function ListingGallery({
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <img
+                src={cardImageSrc(url, { width: 240 })}
+                alt=""
+                className="h-full w-full object-cover"
+              />
                 </button>
               ))}
             </div>
@@ -298,7 +303,11 @@ export default function ListingGallery({
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
+              <img
+                src={cardImageSrc(url, { width: 240 })}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </button>
           ))}
         </div>

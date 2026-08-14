@@ -189,24 +189,79 @@ ok("EXIF-rotated sources are oriented first — the crop happens in displayed pi
 }
 ok("route: strict own-photos allowlist, redirect-to-original fallback, immutable CDN caching");
 
-/* ── 9 · Gallery wiring: thumbnails for unframed mobile only ─────────── */
+/* ── 9 · Card wiring: every card context derives; geometry is preserved
+      wherever a seller authored it ────────────────────────────────────────
+
+   Supersedes the earlier "mobile only" wiring. Desktop cards used to take
+   the untouched original through a <picture> source, so a nine-card Browse
+   page transferred 2.5MB to paint 341x140 wells. A card is a card at every
+   width; what changed is which surfaces derive, never what derivation is
+   allowed to remove.
+
+   The authored-frame branch previously bypassed derivation because trimming
+   moves a crop expressed in the photograph's own coordinates. It no longer
+   bypasses — it asks for "fit", which shrinks bytes and changes no geometry.
+   That mode existing is what makes deriving these surfaces safe, so the
+   assertions below pin the MODE, not merely the presence of derivation. */
 {
   const src = read("../components/BrowseClient.tsx");
-  const gStart = src.indexOf('if (viewMode === "gallery")');
+  /* Anchor on the condition itself, not on a punctuation-exact rendering of
+     it. The previous anchor was 'if (viewMode === "gallery")' with the paren
+     closed immediately — the day Scan view made that line
+     'viewMode === "gallery" || viewMode === "scan"' the anchor stopped
+     matching, indexOf returned -1, and every assertion below it ran against
+     an empty slice. A guard that cannot find its subject must fail loudly. */
+  const gStart = src.indexOf('viewMode === "gallery" || viewMode === "scan"');
   const gEnd = src.indexOf("Collector View research row");
+  assert.ok(gStart > 0, "gallery branch located — anchor still matches the source");
+  assert.ok(gEnd > gStart, "collector branch located after the gallery branch");
   const gallery = src.slice(gStart, gEnd);
-  assert.ok(gallery.includes("presentationThumbSrc(hero)"), "unframed mobile img loads the derived thumbnail");
-  assert.ok(gallery.includes('<source media="(min-width: 768px)" srcSet={hero} />'), "desktop downloads the untouched original");
-  assert.ok(gallery.includes('<picture className="contents">'), "picture is layout-transparent inside the 4:3 frame");
-  // The seller-approved crop still wins: the authored branch renders the
-  // original with the approved frame style, never the derived thumbnail.
-  const authored = gallery.slice(gallery.indexOf("galleryFrameStyle ? ("), gallery.indexOf("<picture"));
+
+  assert.ok(gallery.includes("presentationThumbSrc(hero)"), "unframed card loads the derived thumbnail");
+  assert.ok(
+    !gallery.includes("srcSet={hero}"),
+    "no breakpoint escapes to the untouched original"
+  );
+
+  // The seller-approved crop still wins: the authored branch derives in the
+  // geometry-preserving mode, so the frame lands exactly where it was drawn.
+  const authored = gallery.slice(gallery.indexOf("galleryFrameStyle ? ("), gallery.indexOf("Unframed photograph"));
   assert.ok(authored.includes("style={galleryFrameStyle}"));
-  assert.ok(!authored.includes("presentationThumbSrc"), "authored frames bypass derivation entirely");
-  assert.ok(src.includes('url.includes(".public.blob.vercel-storage.com/listings/")'), "client routes only our own photos through the thumb");
-  // Collector View untouched.
-  assert.ok(!src.slice(gEnd).includes("presentationThumbSrc"), "Collector View does not consume derivation");
+  assert.ok(
+    !/src=\{hero\}/.test(authored),
+    "authored frames no longer transfer the original"
+  );
+  assert.ok(
+    (authored.match(/mode: "fit"/g) ?? []).length === 2,
+    "both authored-frame images derive WITHOUT a trim — geometry is the seller's"
+  );
+
+  // Collector View's rotation cover-scale is also authored geometry.
+  const collector = src.slice(gEnd);
+  assert.ok(collector.includes('mode: "fit"'), "Collector View row derives without a trim");
+  assert.ok(!/src=\{hero\}\s/.test(collector), "Collector View row no longer transfers the original");
+
+  // One door for every surface, rather than a per-page URL habit.
+  const helper = read("../lib/media/cardImage.ts");
+  assert.ok(helper.includes('".public.blob.vercel-storage.com/listings/"'), "only our own photos derive");
+  assert.ok(helper.includes('".public.blob.vercel-storage.com/dealer-logos/"'), "dealer logos derive too");
+  for (const file of [
+    "../components/CatalogueClient.tsx",
+    "../components/SellerListingsRoom.tsx",
+    "../components/SellerProfile.tsx",
+    "../components/ListingGallery.tsx",
+  ]) {
+    assert.ok(read(file).includes("cardImageSrc"), `${file} asks through the shared helper`);
+  }
+
+  // Inspection keeps full resolution — the whole point of deriving cards is
+  // that the places built for looking closely are left alone.
+  const galleryComponent = read("../components/ListingGallery.tsx");
+  assert.ok(
+    galleryComponent.includes('src={heroUrl}'),
+    "listing hero and the inspection overlay still serve the original"
+  );
 }
-ok("gallery wiring: derived thumb only for unframed photos below md; authored crops and Collector View untouched");
+ok("card wiring: every card context derives; authored geometry derives in fit mode; inspection keeps the original");
 
 console.log(`\n  presentation-thumb: ${n} sections, all assertions passed`);

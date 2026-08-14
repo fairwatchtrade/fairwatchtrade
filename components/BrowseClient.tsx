@@ -11,6 +11,7 @@ import {
   type DealerContactItem,
 } from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
+import { cardImageSrc } from "@/lib/media/cardImage";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { parseBrowseSort, sortListings, type BrowseSort } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
@@ -280,12 +281,12 @@ function heroFrame(row: {
 /* The derived presentation thumbnail for one photograph — only our own
    public listing photos route through it; anything else renders as-is.
    The route itself re-validates and falls back to the original on any
-   failure, so a card can never lose its photograph to the derivation. */
-function presentationThumbSrc(url: string): string {
-  return url.includes(".public.blob.vercel-storage.com/listings/")
-    ? `/api/presentation-thumb?src=${encodeURIComponent(url)}`
-    : url;
-}
+   failure, so a card can never lose its photograph to the derivation.
+
+   Now the shared helper: this used to be local, and desktop bypassed it
+   entirely, which is how a nine-card Browse page came to transfer 2.5MB to
+   paint 341×140 wells. See lib/media/cardImage.ts. */
+const presentationThumbSrc = (url: string) => cardImageSrc(url);
 
 function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [string, number][] {
   const counts = new Map<string, number>();
@@ -1256,7 +1257,7 @@ export default function BrowseClient({
           {dealerScope.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={dealerScope.logoUrl}
+              src={cardImageSrc(dealerScope.logoUrl, { mode: "fit", width: 96 })}
               alt={`${dealerScope.businessName} logo`}
               className="h-full w-full object-contain"
             />
@@ -1731,35 +1732,42 @@ export default function BrowseClient({
                               {/* Seller-authored framing: the presentation
                                   editor's stage is 4:3, so this cover is the
                                   crop the seller approved — mobile only. */}
+                              {/* "fit": the seller's frame is coordinates in
+                                  the photograph's own proportions, so this
+                                  derivative shrinks the bytes and changes
+                                  nothing about the geometry. */}
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={hero}
+                                src={cardImageSrc(hero, { mode: "fit" })}
                                 alt=""
                                 style={galleryFrameStyle}
                                 className="h-full w-full md:hidden"
                               />
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={hero}
+                                src={cardImageSrc(hero, { mode: "fit" })}
                                 alt=""
                                 className="hidden h-full w-full object-contain md:block"
                               />
                             </>
                           ) : (
-                            /* Unframed photograph: mobile receives the derived
-                               presentation thumbnail (empty source margins
-                               trimmed, watch whole, safe margin retained —
-                               lib/media/presentationThumb.ts). Desktop keeps
-                               the untouched original. <picture> so each
-                               breakpoint downloads only its own source. */
-                            <picture className="contents">
-                              <source media="(min-width: 768px)" srcSet={hero} />
-                              <img
-                                src={presentationThumbSrc(hero)}
-                                alt=""
-                                className="h-full w-full object-contain p-1.5 md:p-0"
-                              />
-                            </picture>
+                            /* Unframed photograph: the derived presentation
+                               thumbnail (empty source margins trimmed, watch
+                               whole, safe margin retained —
+                               lib/media/presentationThumb.ts).
+
+                               Desktop used to take the untouched original
+                               through a <picture> source, which is how this
+                               341×140 well came to pull 1800×2400 bytes. The
+                               card's largest painted box is far under the
+                               derivative's width, so both breakpoints now
+                               want the same file and the <picture> that once
+                               split them has nothing left to split. */
+                            <img
+                              src={presentationThumbSrc(hero)}
+                              alt=""
+                              className="h-full w-full object-contain p-1.5 md:p-0"
+                            />
                           )
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
@@ -1936,8 +1944,15 @@ export default function BrowseClient({
                       className="relative row-span-2 flex h-[150px] w-[120px] shrink-0 items-center justify-center overflow-hidden bg-[var(--image-well)] transition hover:opacity-90 md:h-[190px] md:w-[150px]"
                     >
                       {hero ? (
+                        // "fit": heroStyle is a rotation cover-scale sized
+                        // against the photograph's own proportions.
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={hero} alt="" style={heroStyle} className="h-full w-full" />
+                        <img
+                          src={cardImageSrc(hero, { mode: "fit" })}
+                          alt=""
+                          style={heroStyle}
+                          className="h-full w-full"
+                        />
                       ) : (
                         <div className="text-center text-[11px] leading-tight tracking-[0.3px] text-[var(--muted)]">
                           No photo

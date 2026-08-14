@@ -14,6 +14,7 @@ const DECISION_LABEL: Record<string, string> = {
   returned_to_draft: "Returned to draft",
 };
 import { formatMoney } from "@/lib/formatMoney";
+import { cardImageSrc } from "@/lib/media/cardImage";
 
 /* ════════════════════════════════════════════════════════════════════════
    SELLER LISTINGS ROOM — v2.23, Seller Listings Design Gate (LOCKED)
@@ -307,7 +308,11 @@ export default function SellerListingsRoom({
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={cardImageSrc(thumb, { width: 240 })}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <span className="text-[11px] text-[var(--muted)]">—</span>
                     )}
@@ -421,7 +426,7 @@ export default function SellerListingsRoom({
                 {thumbUrl(selected.photos) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={thumbUrl(selected.photos)!}
+                    src={cardImageSrc(thumbUrl(selected.photos)!)}
                     alt={selected.model ?? selected.brand}
                     className="h-full w-full object-cover"
                   />
