@@ -1636,7 +1636,7 @@ function CurationStep({
               </button>
             </div>
           )}
-          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--muted)]">
+          <p className="mt-2 text-[11px] leading-[1.5] text-[var(--muted)]">
             No conversion is performed. Choose the currency in which this watch is actually being offered.
           </p>
         </div>

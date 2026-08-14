@@ -2023,7 +2023,7 @@ export default function VaultGalaxy({
             </Link>{" "}
             Vault
           </div>
-          <div className="max-w-[45vw] truncate text-right text-[8px] uppercase tracking-[1.6px] text-[var(--muted)] sm:max-w-none sm:text-[10px] sm:tracking-[2px]">
+          <div className="max-w-[45vw] truncate text-right text-[11px] uppercase tracking-[1.3px] text-[var(--muted)] sm:max-w-none sm:text-[12px] sm:tracking-[1.6px]">
             {crumb}
           </div>
         </div>
@@ -2219,7 +2219,7 @@ export default function VaultGalaxy({
                     ))}
                   </div>
                 )}
-                <div className="mt-3 text-[10px] italic text-[var(--muted)] max-sm:hidden">
+                <div className="mt-3 text-[11px] italic text-[var(--muted)] max-sm:hidden">
                   Choose a moon.
                 </div>
               </>

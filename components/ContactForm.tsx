@@ -135,7 +135,7 @@ export default function ContactForm({
           placeholder="What can we help with?"
           className={`${INPUT} leading-[22px]`}
         />
-        <div className="mt-1 text-right text-[10px] text-[var(--muted)]">
+        <div className="mt-1 text-right text-[11px] text-[var(--muted)]">
           {message.length} / 4000
         </div>
       </div>

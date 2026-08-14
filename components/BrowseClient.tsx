@@ -446,7 +446,7 @@ function FacetGroup({
                 className={`tabular-nums ${
                   dealerLegibility
                     ? "text-[11px] text-[var(--slate)]"
-                    : "text-[10px] text-[var(--muted)]"
+                    : "text-[11px] text-[var(--muted)]"
                 }`}
               >
                 {count}

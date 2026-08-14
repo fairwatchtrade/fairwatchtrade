@@ -263,7 +263,7 @@ export default function LoginPage() {
             {/* Same 1px lift and gold hover as above. Join carries the mirror
                 of this line at 9px/--slate; both deserve the same treatment,
                 but that page is this flight's reference, not its subject. */}
-            <div className="text-center text-[10px] text-[var(--muted)]">
+            <div className="text-center text-[12px] text-[var(--muted)]">
               New to FairWatchTrade?{" "}
               <Link
                 href="/signup"
