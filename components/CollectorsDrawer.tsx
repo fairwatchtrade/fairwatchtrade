@@ -312,6 +312,7 @@ export default function CollectorsDrawer({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
+        data-immersive-dark=""
         aria-controls="collectors-drawer-overlay"
         aria-label={
           expanded
@@ -323,11 +324,11 @@ export default function CollectorsDrawer({
           "group absolute inset-y-0 left-[-65px] z-[10] w-[48px] cursor-pointer",
           "border border-[rgba(232,226,214,0.15)] border-l-[rgba(232,226,214,0.07)]",
           "backdrop-blur-[16px]",
-          "[background:linear-gradient(180deg,rgba(229,225,215,0.035),transparent_24%),rgba(20,22,28,0.42)]",
+          "[background:linear-gradient(180deg,rgba(229,225,215,0.035),transparent_24%),light-dark(rgba(20,22,28,0.66),rgba(20,22,28,0.42))]",
           "transition-[background,border-color,box-shadow] duration-[180ms]",
           "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-[3px]",
           expanded
-            ? "border-r-[rgba(201,168,76,0.28)] shadow-[9px_0_28px_rgba(0,0,0,0.22),inset_-1px_0_rgba(201,168,76,0.24)] [background:linear-gradient(180deg,rgba(229,225,215,0.045),transparent_24%),rgba(20,22,28,0.34)]"
+            ? "border-r-[rgba(201,168,76,0.28)] shadow-[9px_0_28px_rgba(0,0,0,0.22),inset_-1px_0_rgba(201,168,76,0.24)] [background:linear-gradient(180deg,rgba(229,225,215,0.045),transparent_24%),light-dark(rgba(20,22,28,0.60),rgba(20,22,28,0.34))]"
             : "shadow-[9px_0_28px_rgba(0,0,0,0.22),inset_-1px_0_rgba(201,168,76,0.18)]",
         ].join(" ")}
       >
@@ -342,7 +343,7 @@ export default function CollectorsDrawer({
             the strokes survive any dial beneath the glass. */}
         <span
           aria-hidden="true"
-          className="absolute left-0 top-[119px] grid w-full text-[rgba(229,225,215,0.42)] transition-colors duration-[160ms] group-hover:text-[rgba(229,225,215,0.78)] group-focus-visible:text-[rgba(229,225,215,0.78)] [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.65))]"
+          className="absolute left-0 top-[119px] grid w-full text-[color:light-dark(rgba(240,236,226,0.78),rgba(229,225,215,0.42))] transition-colors duration-[160ms] group-hover:text-[color:light-dark(rgba(240,236,226,0.98),rgba(229,225,215,0.78))] group-focus-visible:text-[color:light-dark(rgba(240,236,226,0.98),rgba(229,225,215,0.78))] [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.65))]"
           style={{ gridTemplateRows: `repeat(${items.length}, 88px)` }}
         >
           {items.map((it, i) => (
@@ -376,7 +377,7 @@ export default function CollectorsDrawer({
             /* Open, the handle stops whispering: full gold says this rail is
                the thing that closes it, without adding permanent text to a
                48px spine. */
-            expanded ? "text-[var(--gold)]" : "text-[rgba(201,168,76,0.68)]",
+            expanded ? "text-[var(--gold)]" : "text-[color:light-dark(rgba(224,197,111,0.9),rgba(201,168,76,0.68))]",
           ].join(" ")}
         >
           <span
@@ -412,6 +413,7 @@ export default function CollectorsDrawer({
              smoked-glass overlay"). ── */}
       <div
         id="collectors-drawer-overlay"
+        data-immersive-dark=""
         aria-hidden={!expanded}
         className={[
           // v2.26a — Design Gate Option B: 390px at lg so an open drawer
@@ -422,7 +424,7 @@ export default function CollectorsDrawer({
           // 82/28 insets, tool zone, scroll region) is untouched.
           "absolute inset-y-0 left-0 z-[8] w-[390px] xl:w-[450px]",
           "border-r border-[var(--border-gold)]",
-          "bg-[rgba(20,22,28,0.35)] backdrop-blur-[16px]",
+          "bg-[color:light-dark(rgba(20,22,28,0.82),rgba(20,22,28,0.35))] backdrop-blur-[16px]",
           "shadow-[18px_0_42px_rgba(0,0,0,0.26)]",
           "transition-[opacity,transform,visibility] duration-[220ms] ease-out",
           expanded ? "visible translate-x-0 opacity-100" : "invisible -translate-x-4 opacity-0",

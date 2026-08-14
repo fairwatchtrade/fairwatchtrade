@@ -156,7 +156,11 @@ html[data-theme="dark"] { color-scheme: dark; }
   --lc-neutral-line:         var(--border-subtle);
   --lc-attn-edge:            light-dark(#2C7F88, #58B4BE);
   --lc-select-line:          light-dark(rgba(37,35,31,0.30), rgba(232,228,220,0.30));
-  --lc-select-fill:          light-dark(rgba(37,35,31,0.03), rgba(255,255,255,0.028));
+  /* Selected may use fill; selected must not become a slab. The light arm is
+     a literal one step below the card's own paper (#FAF7F0) so a selected
+     row reads as the SAME card, slightly settled — an alpha here composited
+     over the page instead landed a full tone darker than its siblings. */
+  --lc-select-fill:          light-dark(#F3EFE6, rgba(255,255,255,0.028));
   --lc-focus-ring:           light-dark(rgba(37,35,31,0.55), rgba(232,228,220,0.55));
 
   /* ── SHARED INTERACTION / PANEL TOKENS (v4.58) ──
