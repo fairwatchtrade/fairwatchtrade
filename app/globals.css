@@ -41,7 +41,7 @@
    Settings sees the finished site. An explicit Light choice still works
    (the repair/census workflow depends on it). To reopen the curtains when
    Daylight is done, restore this line to: color-scheme: light dark; */
-html { color-scheme: dark; }
+html { color-scheme: light dark; }
 html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"] { color-scheme: dark; }
 [data-immersive-dark] {
