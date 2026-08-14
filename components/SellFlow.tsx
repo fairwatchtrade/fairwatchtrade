@@ -1597,7 +1597,7 @@ function CurationStep({
           </div>
 
           {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
-            <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--gold-subtle)]">
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--gold-subtle)]">
               <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[11px] uppercase tracking-[1.2px]">
                 Recommended
               </span>
