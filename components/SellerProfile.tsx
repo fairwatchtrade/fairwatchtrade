@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
+import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 
 /* ────────────────────────────────────────────────────────────────────────
    SELLER PROFILE — components/SellerProfile.tsx   (v1.66)
@@ -242,7 +243,11 @@ export default function SellerProfile({
                   .filter(Boolean)
                   .join(" · ") || null;
                 const doc = row.details?.documentation;
-                const docBadge = doc === "Full Set" || doc === "Papers Only" ? doc : null;
+                /* F4: completeness leaves the photo plane here too — this
+                   route has its own card implementation, so the Browse fix
+                   did not reach it. Same shared vocabulary, all four states. */
+                const docBadge = documentationState(doc);
+                const docInline = docBadge ? inlineDocumentation(docBadge) : null;
 
                 return (
                   <Link
@@ -259,11 +264,6 @@ export default function SellerProfile({
                           No photo
                         </div>
                       )}
-                      {docBadge && (
-                        <span className="absolute right-3 top-3 rounded-full border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-2 py-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--gold)]">
-                          {docBadge}
-                        </span>
-                      )}
                     </div>
 
                     <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
@@ -274,7 +274,7 @@ export default function SellerProfile({
                     </div>
                     {meta && (
                       <div className="mb-3 text-[11px] tracking-[0.3px] text-[var(--muted)]">
-                        {attrs ? `${meta} · ${attrs}` : meta}
+                        {[meta, attrs, docInline].filter(Boolean).join(" · ")}
                       </div>
                     )}
                     <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
