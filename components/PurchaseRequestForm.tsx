@@ -294,10 +294,12 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Anything the seller should know about this offer."
                       spellCheck={false}
-                      // WS4 (2026-07-28) — Jason's ruled 1px increase to the
-                      // ENTERED message text at normal zoom; the placeholder
-                      // shares the size by inheritance, so no state jump.
-                      className="h-[132px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-4 py-3.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
+                      /* WS4 (2026-07-28) — Jason's ruled 1px increase to the
+                         ENTERED message text at normal zoom; the placeholder
+                         shares the size by inheritance, so no state jump.
+                         That 13px is now the shared correspondence size, so
+                         the ruling holds and every message body keeps it. */
+                      className="fw-correspondence h-[132px] resize-y"
                     />
                     <div className="mt-1.5 text-[11px] leading-[1.5] text-[var(--muted)]">
                       Ask a concise question or share a short note with the seller.

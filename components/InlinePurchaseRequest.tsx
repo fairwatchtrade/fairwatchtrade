@@ -267,7 +267,11 @@ export default function InlinePurchaseRequest({
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Anything the seller should know about this offer."
             spellCheck={false}
-            className="h-[86px] w-full resize-y border border-[var(--border-mid)] bg-[#10131a] px-3 py-2.5 text-[13px] leading-[1.55] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
+            /* The message body is a CORRESPONDENCE instrument and wears the
+               shared treatment. The offer amount beside it is a
+               TRANSACTIONAL instrument and deliberately does not — they are
+               different instruments and must not converge. */
+            className="fw-correspondence h-[86px] resize-y"
           />
 
           {formError && (

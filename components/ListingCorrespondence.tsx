@@ -312,7 +312,7 @@ export default function ListingCorrespondence({
                 onChange={(e) => setBody(e.target.value.slice(0, 2000))}
                 placeholder="Ask about condition, provenance, or request additional photos..."
                 rows={3}
-                className="mt-3 w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[12px] leading-[1.6] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
+                className="fw-correspondence mt-3"
               />
               <div className="mt-2 flex items-center justify-between gap-3">
                 <button
@@ -414,7 +414,7 @@ export default function ListingCorrespondence({
               onChange={(e) => setBody(e.target.value.slice(0, 2000))}
               placeholder="Ask about condition, provenance, or request additional photos..."
               rows={3}
-              className="w-full border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-[13px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
+              className="fw-correspondence"
             />
             <div className="mt-2 flex items-center justify-between">
               <span className="text-[11px] text-[var(--muted)]">{body.length}/2000</span>

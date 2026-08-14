@@ -491,6 +491,58 @@ html, body {
   transition: background-color 6000s ease-in-out 0s;
 }
 
+/* ── CORRESPONDENCE INSTRUMENT ───────────────────────────────────────────
+   The one treatment for every buyer↔seller free-text message body: Ask the
+   Seller, the thread composer, Note With Your Offer, the Correspondence
+   reply, dealer-contact bodies.
+
+   THREE ROLES, NOT ONE CONTROL. A money/offer amount input is a
+   TRANSACTIONAL instrument. The card or rail around it is a CONTAINER. This
+   is the CORRESPONDENCE instrument, and it must read as a writing surface
+   rather than a region of the card it sits in.
+
+   The two failure modes this replaces were both real and opposite:
+
+     · bg-transparent — the field dissolved into the ivory card behind it in
+       Daylight. Nothing said "write here"; there was only a hairline.
+     · a hardcoded near-black (#10131a) — Galaxy material dropped into a
+       Daylight room, a black hole in a warm ivory card.
+
+   Hence an explicit surface of its own in both appearances: paper lifted off
+   the card in light, a recess below it in dark. Either way the eye finds an
+   edge and knows where the writing goes.
+
+   Layout stays with the caller — height, rows, resize, spacing are the
+   composer's business. Everything a message field IS lives here. */
+.fw-correspondence {
+  width: 100%;
+  background: light-dark(#FFFDF8, #0F1117);
+  border: 1px solid light-dark(rgba(62,54,38,0.26), rgba(255,255,255,0.10));
+  border-radius: 0;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--platinum);
+  caret-color: var(--gold);
+  outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.fw-correspondence::placeholder {
+  color: var(--muted);
+}
+/* Focus is a statement, not a hairline shift: the border takes the strong
+   gold and a soft ring confirms the surface is live. Both arms are token
+   colours, so the ring never fights the appearance it lands in. */
+.fw-correspondence:focus {
+  border-color: var(--border-gold-strong);
+  box-shadow: 0 0 0 3px var(--gold-whisper);
+}
+.fw-correspondence:disabled {
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+
 /* ── NAV ── */
 .fw-nav {
   padding: 18px 32px;
