@@ -112,11 +112,33 @@ export default function BrowseCardInspector({
     closeRef.current?.focus();
   }, []);
 
+  /* A bare directional mark — no square, no circle, no button slab. The
+     filled silhouette is deliberate: fine line art dies at this size, a
+     solid shape survives it. The hit target stays generous (44px) while the
+     visible mark stays small, so the control is easy to press and quiet to
+     look at. Muted at rest, gold on hover — it reads as navigation without
+     becoming an object in its own right. */
   const arrow =
-    "absolute top-1/2 z-10 flex h-12 w-9 -translate-y-1/2 items-center justify-center " +
-    "border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] " +
-    "transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] " +
+    "group absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
+    "text-[var(--slate)] transition hover:text-[var(--gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]";
+
+  /* The mark itself. Drawn pointing right; `prev` mirrors it, so both
+     directions are one shape rather than two drawings that could drift. */
+  const Mark = ({ flip }: { flip?: boolean }) => (
+    <svg
+      width="15"
+      height="20"
+      viewBox="0 0 15 20"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+      style={flip ? { transform: "scaleX(-1)" } : undefined}
+      className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+    >
+      <path d="M1 0 L15 10 L1 20 C5.2 15.4 5.2 4.6 1 0 Z" />
+    </svg>
+  );
 
   return (
     <div
@@ -157,19 +179,25 @@ export default function BrowseCardInspector({
                 type="button"
                 onClick={() => step(-1)}
                 aria-label="Previous photo"
-                className={`${arrow} left-3`}
+                className={`${arrow} left-1`}
               >
-                ‹
+                <Mark flip />
               </button>
               <button
                 type="button"
                 onClick={() => step(1)}
                 aria-label="Next photo"
-                className={`${arrow} right-3`}
+                className={`${arrow} right-1`}
               >
-                ›
+                <Mark />
               </button>
-              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-[7px] border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] px-2 py-[5px]">
+
+              {/* Position, not narration. "Photo 1 / 2" told the collector
+                  something the bars already say and the photograph makes
+                  obvious. One bar per photograph, the current one gold —
+                  legible at a glance, secondary to the watch, and carrying
+                  no container of its own. */}
+              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-[5px]">
                 {photos.map((_, i) => (
                   <button
                     key={i}
@@ -177,16 +205,13 @@ export default function BrowseCardInspector({
                     onClick={() => onPhotoIndex(i)}
                     aria-label={`Photo ${i + 1}`}
                     aria-current={i === active}
-                    className={`h-[7px] w-[7px] rounded-full border transition ${
+                    className={`h-[2px] w-[18px] transition ${
                       i === active
-                        ? "border-[var(--gold)] bg-[var(--gold)]"
-                        : "border-[var(--on-photo-text)] bg-transparent"
+                        ? "bg-[var(--gold)]"
+                        : "bg-[var(--slate)] opacity-45 hover:opacity-80"
                     }`}
                   />
                 ))}
-              </div>
-              <div className="absolute bottom-3 left-3 border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] px-2 py-[5px] text-[10px] uppercase tracking-[1.2px] text-[var(--on-photo-text)]">
-                Photo {active + 1} / {count}
               </div>
             </>
           )}
