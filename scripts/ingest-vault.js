@@ -59,7 +59,24 @@ function normalizeBrand(data, filename) {
     name,
     slug: slugify(name),
     description: data.description || null,
-    search_aliases: isNewFormat ? [] : (data.search_aliases || []),
+    /* v3.2 CARRY (2026-08-15). This read `isNewFormat ? [] : ...`, so a
+       Vault-lock v3.2 file — the only format the Upgrade room now produces —
+       had its brand aliases thrown away at the door. Nivada Grenchen would
+       have entered the Vault unreachable by "Nivada" or "Croton Nivada
+       Grenchen"; Accutron unreachable by "Bulova Accutron". The column
+       exists, the file supplies the values, and the search law depends on
+       them. Both shapes are read now; neither is invented. */
+    search_aliases: data.search_aliases || [],
+    /* The remaining v3.2 brand facts that have a home in vault_brands.
+       Absent keys stay null — no penalty for missing data. Fields the
+       schema cannot hold (revival_status, revival_type,
+       historical_continuity) are deliberately NOT forced somewhere they
+       do not belong; they remain in the authoritative file. */
+    country_of_origin: data.country_of_origin || null,
+    region: data.region || null,
+    independent_status: data.independent_status || null,
+    cluster: data.cluster || null,
+    cluster_rationale: data.cluster_rationale || null,
     collections,
   };
 }
@@ -160,6 +177,11 @@ async function ingestBrand(brandData, filename) {
       name: brand.name,
       description: brand.description,
       search_aliases: brand.search_aliases,
+      country_of_origin: brand.country_of_origin,
+      region: brand.region,
+      independent_status: brand.independent_status,
+      cluster: brand.cluster,
+      cluster_rationale: brand.cluster_rationale,
     }, { onConflict: 'slug' })
     .select('id')
     .single();
@@ -295,25 +317,40 @@ async function main() {
     process.exit(1);
   }
 
-  let files;
-  try {
-    files = fs.readdirSync(VAULT_PATH).filter(f => {
-      if (!f.endsWith('.json')) return false;
-      if (SKIP_FILES.includes(f)) return false;
-      return true;
-    });
-  } catch (err) {
-    console.error(`❌ Cannot read vault folder: ${err.message}`);
-    process.exit(1);
-  }
+  /* Named files may be passed as arguments:
+       node scripts/ingest-vault.js "G:/…/Accutron.json"
+     Brand files no longer all live in one folder — later batches arrive in
+     their own dated directories — and a whole-folder sweep is the wrong
+     instrument when the task names its inputs. With no arguments the
+     original folder scan is unchanged. */
+  const named = process.argv.slice(2).filter((a) => a.endsWith('.json'));
 
-  console.log(`Found ${files.length} JSON files to ingest\n`);
+  let entries;
+  if (named.length) {
+    entries = named.map((p) => ({ file: path.basename(p), filePath: p }));
+    console.log(`Named files: ${entries.length}`);
+    for (const e of entries) console.log(`  · ${e.filePath}`);
+    console.log('');
+  } else {
+    let files;
+    try {
+      files = fs.readdirSync(VAULT_PATH).filter(f => {
+        if (!f.endsWith('.json')) return false;
+        if (SKIP_FILES.includes(f)) return false;
+        return true;
+      });
+    } catch (err) {
+      console.error(`❌ Cannot read vault folder: ${err.message}`);
+      process.exit(1);
+    }
+    entries = files.map((f) => ({ file: f, filePath: path.join(VAULT_PATH, f) }));
+    console.log(`Found ${entries.length} JSON files to ingest\n`);
+  }
 
   let success = 0;
   let failed = 0;
 
-  for (const file of files) {
-    const filePath = path.join(VAULT_PATH, file);
+  for (const { file, filePath } of entries) {
     try {
       const raw = fs.readFileSync(filePath, 'utf-8');
       const data = JSON.parse(raw);
