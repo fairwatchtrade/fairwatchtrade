@@ -267,6 +267,15 @@ export default function ImportedDraftsWorkspace() {
      restarts the two seconds instead of cutting them short. */
   const [justSaved, setJustSaved] = useState(false);
   const justSavedTimer = useRef<number | null>(null);
+  /* ── SUBMISSION ACKNOWLEDGEMENT MUST SURVIVE THE REFLOW ────────────────
+     Submitting reloads the queue, the card re-renders as pending_review and
+     the workbench reflows — which can carry the acknowledgement out of the
+     viewport before the dealer ever sees it. Jason submitted TD-0002 and had
+     to ask whether it had worked, because the only confirmation the product
+     gave him scrolled away as it appeared. A confirmation nobody sees is not
+     a confirmation. */
+  const ackRef = useRef<HTMLButtonElement | null>(null);
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   const [ceremony, setCeremony] = useState<Ceremony>(CEREMONY_CLEAR);
   const [submitting, setSubmitting] = useState(false);
@@ -520,12 +529,28 @@ export default function ImportedDraftsWorkspace() {
         return;
       }
       await load(true);
+      /* Set AFTER the reload: the acknowledgement does not exist in the DOM
+         until the reloaded row reports pending_review, so the scroll waits
+         for the element rather than racing it. */
+      setJustSubmitted(true);
     } catch {
       setSubmitError("Could not submit this listing for review.");
     } finally {
       setSubmitting(false);
     }
   }
+
+  /* Bring the acknowledgement into view once it actually renders. Runs only
+     on a submission this session — never on ordinary navigation to a listing
+     that happens to already be pending_review, which would yank the page for
+     no reason. */
+  useEffect(() => {
+    if (!justSubmitted) return;
+    const el = ackRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setJustSubmitted(false);
+  }, [justSubmitted, selected?.status]);
 
   /* ── Replace imported photographs — existing uploadPhoto() seam. ── */
   async function onFilesChosen(files: FileList | null) {
@@ -1005,22 +1030,43 @@ export default function ImportedDraftsWorkspace() {
                   confirmed={shownCeremony(ceremony.availability)}
                   onConfirm={(v) => setCeremony({ ...ceremony, availability: v })}
                   editable={editable}
+                  awaitingValue={!buffer.availability}
                   foot={
                     buffer.availability === "Not Currently Available"
                       ? "Stays a private draft — cannot be submitted"
                       : "Required for submission"
                   }
                 >
+                  {/* This is the ONE card asking the dealer to SUPPLY a value
+                      rather than approve one that arrived with the import,
+                      and it used to be dressed identically to the other
+                      three: a label, a value, a hairline. An unset control
+                      read as ruled stationery — a blank line someone else
+                      would fill — so the only thing that looked clickable
+                      was the confirmation checkbox, which did nothing for
+                      them. Empty now announces itself: a full border in the
+                      danger colour the card already wears, and placeholder
+                      text that names the action. */}
                   <select
                     value={buffer.availability}
                     disabled={!editable}
+                    aria-label="Availability"
                     onChange={(e) => {
                       edit({ availability: e.target.value });
                       setCeremony((c) => ({ ...c, availability: false }));
                     }}
-                    className="w-full border-b border-[var(--border-subtle)] bg-transparent py-1.5 text-[13px] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60 [&>option]:bg-[var(--ink)]"
+                    className={`w-full py-1.5 text-[13px] focus:outline-none disabled:opacity-60 [&>option]:bg-[var(--ink)] ${
+                      buffer.availability
+                        ? "border-b border-[var(--border-subtle)] bg-transparent text-[var(--platinum)] focus:border-[var(--border-gold)]"
+                        : "border border-[var(--danger)] bg-[var(--danger)]/[0.04] px-2 font-medium text-[var(--danger)] focus:border-[var(--border-gold)]"
+                    }`}
                   >
-                    <option value="">—</option>
+                    {/* Disabled, so the blank can never be chosen as an
+                        answer — it was previously selectable and sat above
+                        the two real options as though it were one. */}
+                    <option value="" disabled>
+                      Select availability…
+                    </option>
                     {AVAILABILITY_OPTIONS.map((a) => (
                       <option key={a} value={a}>
                         {a}
@@ -1191,6 +1237,7 @@ export default function ImportedDraftsWorkspace() {
               </button>
               {selected.status === "pending_review" ? (
                 <button
+                  ref={ackRef}
                   type="button"
                   disabled
                   className="cursor-not-allowed border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] opacity-40"
@@ -1247,6 +1294,7 @@ function Field({
   editable,
   foot,
   attention = false,
+  awaitingValue = false,
   children,
 }: {
   label: string;
@@ -1256,6 +1304,16 @@ function Field({
   foot: string;
   /** This field is one of the ones currently blocking submission. */
   attention?: boolean;
+  /* The imported value is MISSING, so there is nothing to confirm yet.
+     Every other card in this row asks the dealer to APPROVE a value that
+     arrived with the import; this one is asking them to SUPPLY one, and it
+     used to be dressed identically — same card, same enabled checkbox. A
+     dealer who had built this room still lost minutes to it, ticking the
+     only control that looked like a control and wondering why submission
+     stayed blocked. "Confirmed by dealer" against an empty field is also a
+     dealer attestation about nothing, which this platform should not be
+     able to record at all. */
+  awaitingValue?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1287,19 +1345,36 @@ function Field({
       </div>
       {children}
       <div className="mt-2 flex items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-[11px] text-[var(--platinum-dim)]">
+        <label
+          className={`flex items-center gap-2 text-[11px] ${
+            awaitingValue
+              ? "cursor-not-allowed text-[var(--ghost)]"
+              : "text-[var(--platinum-dim)]"
+          }`}
+        >
           <input
             type="checkbox"
-            checked={confirmed}
-            disabled={!editable}
+            checked={confirmed && !awaitingValue}
+            disabled={!editable || awaitingValue}
             onChange={(e) => onConfirm(e.target.checked)}
             className="h-4 w-4 accent-[var(--gold)]"
           />
           Confirmed by dealer
         </label>
         {/* Guidance the dealer is meant to READ — never --ghost, which the
-            token law reserves for disabled states and placeholders. */}
-        <span className="text-right text-[10px] text-[var(--muted)]">{foot}</span>
+            token law reserves for disabled states and placeholders.
+
+            While a value is missing the guidance says what to DO, in the
+            danger voice the card is already wearing. "Required for
+            submission" describes a rule; "Choose a value first" describes
+            the next action, which is what someone stuck actually needs. */}
+        <span
+          className={`text-right text-[10px] ${
+            awaitingValue ? "font-medium text-[var(--danger)]" : "text-[var(--muted)]"
+          }`}
+        >
+          {awaitingValue ? "Choose a value first" : foot}
+        </span>
       </div>
     </div>
   );
