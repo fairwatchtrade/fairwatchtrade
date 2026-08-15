@@ -491,6 +491,59 @@ html, body {
   transition: background-color 6000s ease-in-out 0s;
 }
 
+/* ── PRODUCT GRID REGION ─────────────────────────────────────────────────
+   Browse keeps a persistent left refine rail, so the viewport has never
+   described the space the cards actually have: usable region is viewport
+   minus roughly 240px, measured consistently at every width. Column count
+   therefore answers to the REGION, via container queries, not to the window.
+
+   What this repairs: above `md` nothing ever added a column or capped a
+   width, so three cards simply absorbed the whole desktop. Measured on
+   production before this change —
+
+     viewport 1440 → region 1200 → 3 cols → card 399   (right)
+     viewport 1920 → region 1680 → 3 cols → card 559   (too wide)
+     viewport 3072 → region 2832 → 3 cols → card 943   (an 885px well)
+
+   Growth belongs to the column count until the count is spent; after that it
+   belongs to the margins. Hence the max-widths: the region stops at the
+   width where four cards are still a useful size (~380px), and everything
+   past that becomes deliberate air rather than a wider card. That ceiling
+   binds the manual densities too, so 3-WIDE cannot re-inflate what the
+   ladder exists to prevent.
+
+   Thresholds are derived from the measurements above, not chosen for
+   roundness: 4-up must engage AFTER 1200 (where 3-up is at its best) and
+   before 3-up cards grow past ~410. */
+.fw-grid-region {
+  container-type: inline-size;
+  width: 100%;
+  margin-inline: auto;
+}
+/* Four useful cards wide, and no wider. */
+.fw-grid-region--auto,
+.fw-grid-region--4 { max-width: 1520px; }
+/* Three useful cards wide — the same card ceiling, one column fewer. */
+.fw-grid-region--3 { max-width: 1140px; }
+
+.fw-grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (min-width: 620px) {
+  .fw-grid-auto { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 1240px) {
+  .fw-grid-auto { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Scan is the dense shelf sweep, so its fourth column earns its place
+   earlier. Same region, same ceiling. */
+.fw-grid-scan { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (min-width: 620px) {
+  .fw-grid-scan { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 1000px) {
+  .fw-grid-scan { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 /* ── CORRESPONDENCE INSTRUMENT ───────────────────────────────────────────
    The one treatment for every buyer↔seller free-text message body: Ask the
    Seller, the thread composer, Note With Your Offer, the Correspondence

@@ -590,9 +590,20 @@ export default function BrowseClient({
   const setViewMode = (value: "gallery" | "collector" | "scan") =>
     setSingleParam("viewMode", value, defaultViewMode);
 
+  /* v4.93 — absent means AUTO, and auto is now a real layout rather than a
+     synonym for three. The default ladder answers to the width of the results
+     region itself (2 → 3 → 4), because Browse keeps a persistent refine rail
+     and the viewport therefore never describes the space the cards actually
+     have. 3-WIDE / 4-WIDE remain, as deliberate overrides; both still obey
+     the bounded region, so choosing a density can never re-inflate a card.
+     "auto" is a sentinel the URL never carries — an explicit 3 must survive
+     in the URL, or the collector's choice would be indistinguishable from
+     never having chosen. */
   const gridColsParam = searchParams.get("gridCols");
-  const gridCols: 3 | 4 = gridColsParam === "4" ? 4 : 3;
-  const setGridCols = (value: 3 | 4) => setSingleParam("gridCols", String(value), "3");
+  const gridCols: 3 | 4 | null =
+    gridColsParam === "4" ? 4 : gridColsParam === "3" ? 3 : null;
+  const setGridCols = (value: 3 | 4 | null) =>
+    setSingleParam("gridCols", value ? String(value) : "auto", "auto");
 
   const pageSizeParam = searchParams.get("pageSize");
   const pageSize: 20 | 40 | "all" =
@@ -1430,11 +1441,24 @@ export default function BrowseClient({
               3-WIDE / 4-WIDE would name a choice the phone does not offer. */}
           {viewMode === "gallery" && (
             <div className="hidden items-center gap-1 md:flex">
+              {/* v4.93 — these pin a density; unpinned, the region decides.
+                  Pressing the pinned one releases it back to the ladder, so
+                  the collector always has a way home without editing a URL.
+                  Neither lit is an honest state, not a missing one: it says
+                  the layout is answering to the space rather than to a past
+                  decision. Both pinned counts still obey the region's
+                  ceiling, so pinning can never re-inflate a card. */}
               {([3, 4] as const).map((n) => (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setGridCols(n)}
+                  aria-pressed={gridCols === n}
+                  title={
+                    gridCols === n
+                      ? `${n} across — press again to fit the column count to the space`
+                      : `Always ${n} across`
+                  }
+                  onClick={() => setGridCols(gridCols === n ? null : n)}
                   className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
                     "text-[11px]"
                   } ${
@@ -1644,6 +1668,26 @@ export default function BrowseClient({
               </p>
             )
           ) : (
+            /* v4.93 — THE RESULTS REGION. Card grids answer to this element's
+               width, never the window's: Browse keeps a persistent refine
+               rail, so the two numbers differ by ~240px and only this one
+               describes the space the cards have. It is also where growth
+               stops — see .fw-grid-region in globals.css. Collector View is a
+               stacked list, not a card grid, and is deliberately left out of
+               the ladder and the bound. */
+            <div
+              className={
+                viewMode === "collector"
+                  ? undefined
+                  : `fw-grid-region ${
+                      gridCols === 3
+                        ? "fw-grid-region--3"
+                        : gridCols === 4
+                          ? "fw-grid-region--4"
+                          : "fw-grid-region--auto"
+                    }`
+              }
+            >
             <div
               // v1.61 — Collector View: stacked block, not a grid. space-y-*
               // utilities don't apply inside `grid`, so Collector gets its
@@ -1654,22 +1698,27 @@ export default function BrowseClient({
                 viewMode === "collector"
                   ? "flex flex-col space-y-6 md:space-y-8"
                   : viewMode === "scan"
-                    ? /* Scan — the dense sweep of one dealer's shelf. Four
-                         columns on a wide desktop, three on a narrower one,
-                         and the phone keeps the same two-column floor as
-                         Gallery: a third phone column would shrink each watch
-                         to a postage stamp, which is exactly the defect the
-                         Gallery mobile grid already corrected. */
-                      "grid gap-px bg-[var(--grid-gutter)] grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                  : /* The column count is a DESKTOP density choice. A phone is
-                       ~412px wide: three columns leave a 95px card holding a
-                       44px watch, which is how the 4:3 frame could be correct
-                       and the watch still be a postage stamp. Below md the
-                       grid is two columns — the frame doubles, the watch
-                       doubles with it, and the thumbnail is occupied rather
-                       than merely inhabited. Desktop keeps 3/4 exactly. */
-                    `grid gap-px bg-[var(--grid-gutter)] grid-cols-2 ${
-                      gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"
+                    ? /* Scan — the dense sweep of one dealer's shelf. Its
+                         fourth column earns its place earlier than Gallery's
+                         because the cards are tighter by design. The phone
+                         keeps the same two-column floor as Gallery: a third
+                         phone column would shrink each watch to a postage
+                         stamp, which is exactly the defect the Gallery mobile
+                         grid already corrected. */
+                      "grid gap-px bg-[var(--grid-gutter)] fw-grid-scan"
+                  : /* The column count answers to the results region. A phone
+                       is ~412px wide: three columns leave a 95px card holding
+                       a 44px watch, which is how the 4:3 frame could be
+                       correct and the watch still be a postage stamp. Two
+                       columns is the floor everywhere; above it the ladder
+                       climbs 3 → 4 as the REGION earns them, and an explicit
+                       3-WIDE / 4-WIDE choice pins the count instead. */
+                    `grid gap-px bg-[var(--grid-gutter)] ${
+                      gridCols === 3
+                        ? "grid-cols-2 md:grid-cols-3"
+                        : gridCols === 4
+                          ? "grid-cols-2 md:grid-cols-4"
+                          : "fw-grid-auto"
                     }`
               }
             >
@@ -2166,6 +2215,7 @@ export default function BrowseClient({
                   </div>
                 );
               })}
+            </div>
             </div>
           )}
         </div>
