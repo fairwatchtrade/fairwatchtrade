@@ -141,7 +141,9 @@ import {
    every other photograph stays object-contain — the whole watch, always,
    never a blind centre-crop. Image badges (🛡️, FULL SET) anchor to the
    media frame itself, opposite corners, ending the card-corner collision.
-   Desktop ≥md keeps the h-[140px] contain well and p-7 card padding.
+   Desktop ≥md keeps p-7 card padding; its contain well became SQUARE in
+   v4.91 (was a 140px strip that capped the watch's height and stranded it
+   between two margins of empty well).
    v3.31 — Derived presentation thumbnails for unframed photographs. A
    source photo with large EMPTY margins baked into its bytes (a phone
    screenshot's letterbox bands, a studio backdrop) still rendered the
@@ -285,8 +287,13 @@ function heroFrame(row: {
 
    Now the shared helper: this used to be local, and desktop bypassed it
    entirely, which is how a nine-card Browse page came to transfer 2.5MB to
-   paint 341×140 wells. See lib/media/cardImage.ts. */
-const presentationThumbSrc = (url: string) => cardImageSrc(url);
+   paint 341×140 wells. See lib/media/cardImage.ts.
+
+   720 since v4.91: the square well paints the photograph at roughly 341 CSS
+   px, so 480 would have gone soft on a 1.25× display the moment the well
+   stopped being a 140px strip. Still a derivative, still far under the
+   original — the payload win survives the geometry repair. */
+const presentationThumbSrc = (url: string) => cardImageSrc(url, { width: 720 });
 
 function countBy(listings: ListingRow[], pick: (l: ListingRow) => string): [string, number][] {
   const counts = new Map<string, number>();
@@ -1717,13 +1724,27 @@ export default function BrowseClient({
                           short 4:3 frame at full card width (the old fixed
                           140px height turned into a tall letterboxed shaft
                           once the 3/4-column grid shrank each card on a
-                          phone). Desktop keeps the h-[140px] contain well.
+                          phone).
+
+                          v4.91 — desktop is SQUARE, not a 140px strip. A
+                          watch photograph is portrait or square; contained in
+                          a 341×140 well its height capped first and it
+                          painted about 105px wide, marooned between ~118px of
+                          empty well on either side. The photograph was not
+                          small — the well was shallow, so the watch could
+                          never be the subject of its own card.
+
+                          Square suits the real mix of sources (3:4, 1:1, and
+                          the occasional tall screenshot) without turning the
+                          grid into columns of slabs. Mobile's 4:3 is left
+                          exactly as ruled and device-passed.
+
                           The frame is the positioning context for image
                           badges, so they anchor to the photograph's frame —
                           never float over card padding. */}
                       <div
                         className={`relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--image-well)] ${
-                          scan ? "mb-3" : "mb-4 md:aspect-auto md:h-[140px]"
+                          scan ? "mb-3" : "mb-4 md:aspect-square"
                         }`}
                       >
                         {hero ? (
@@ -1738,14 +1759,14 @@ export default function BrowseClient({
                                   nothing about the geometry. */}
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={cardImageSrc(hero, { mode: "fit" })}
+                                src={cardImageSrc(hero, { mode: "fit", width: 720 })}
                                 alt=""
                                 style={galleryFrameStyle}
                                 className="h-full w-full md:hidden"
                               />
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={cardImageSrc(hero, { mode: "fit" })}
+                                src={cardImageSrc(hero, { mode: "fit", width: 720 })}
                                 alt=""
                                 className="hidden h-full w-full object-contain md:block"
                               />

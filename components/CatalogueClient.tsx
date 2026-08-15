@@ -291,10 +291,14 @@ function ListingCard({ row }: { row: ListingRow }) {
       href={`/listings/${row.id}`}
       className="group relative block cursor-pointer border border-transparent bg-[var(--card-surface)] p-7 transition hover:bg-[var(--hover-wash)]"
     >
-      <div className="mb-4 flex h-[140px] w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
+      {/* v4.91 — square, not a 140px strip. Contained in a 250×140 well a
+          portrait watch capped its height first and painted ~105px wide,
+          marooned in empty well. Same repair as the Browse card, same
+          reason; these two treatments are meant to match. */}
+      <div className="mb-4 flex aspect-square w-full items-center justify-center overflow-hidden bg-[var(--image-well)]">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cardImageSrc(hero)} alt="" className="h-full w-full object-contain" />
+          <img src={cardImageSrc(hero, { width: 720 })} alt="" className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] tracking-[0.3px] text-[var(--muted)]">
             No photo
