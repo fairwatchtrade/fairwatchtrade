@@ -1842,10 +1842,6 @@ export default function BrowseClient({
                   );
                   const setPhoto = (index: number) =>
                     setCardPhotoIndex((prev) => ({ ...prev, [row.id]: index }));
-                  const stepPhoto = (delta: number) => {
-                    if (photoUrls.length < 2) return;
-                    setPhoto((activePhoto + delta + photoUrls.length) % photoUrls.length);
-                  };
                   const specRows = quickSpecs(row);
 
                   if (inspectingId === row.id) {
@@ -1969,86 +1965,6 @@ export default function BrowseClient({
                           </div>
                         )}
 
-                        {/* ── ON-PHOTO INSPECTION CONTROLS ────────────────
-                            Every one of these lives inside the card's Link,
-                            so every one must refuse the navigation the Link
-                            would otherwise perform. A collector reaching for
-                            the next photograph has not asked to leave the
-                            results.
-
-                            Revealed on hover and on keyboard focus, never on
-                            neither: focus-within is what keeps these
-                            reachable without a mouse, which hover alone
-                            would quietly deny. */}
-                        {photoUrls.length > 1 && (
-                          <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-                            <button
-                              type="button"
-                              aria-label="Previous photo"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                stepPhoto(-1);
-                              }}
-                              className="pointer-events-auto absolute left-2 top-1/2 flex h-9 w-7 -translate-y-1/2 items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
-                            >
-                              ‹
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="Next photo"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                stepPhoto(1);
-                              }}
-                              className="pointer-events-auto absolute right-2 top-1/2 flex h-9 w-7 -translate-y-1/2 items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
-                            >
-                              ›
-                            </button>
-                            <div className="pointer-events-auto absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-[6px] border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] px-[7px] py-1">
-                              {photoUrls.map((_, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  aria-label={`Photo ${i + 1}`}
-                                  aria-current={i === activePhoto}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setPhoto(i);
-                                  }}
-                                  className={`h-[6px] w-[6px] rounded-full border transition ${
-                                    i === activePhoto
-                                      ? "border-[var(--gold)] bg-[var(--gold)]"
-                                      : "border-[var(--on-photo-text)] bg-transparent"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* The folding loupe. Quiet at rest in the corner of
-                            the photograph, exactly as the Design Gate drew
-                            it: a border and colour shift on hover, no scale,
-                            no performance. It opens the peek. */}
-                        {hero && (
-                          <button
-                            type="button"
-                            title="Quick Specs"
-                            aria-label={`Open Quick Specs for ${row.brand}${row.model ? ` ${row.model}` : ""}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setInspectingId(row.id);
-                            }}
-                            className="absolute bottom-2 right-2 z-[2] flex h-[34px] w-[34px] items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
-                          >
-                            <LoupeIcon size={19} />
-                          </button>
-                        )}
-
                         {row.in_hand_verified && (
                           <div
                             title="In Hand Verified"
@@ -2092,6 +2008,40 @@ export default function BrowseClient({
                           </button>
                         )}
                       </div>
+                      {/* ── THE LOUPE, OFF THE PHOTOGRAPH ──────────────
+                          Desktop SEE-it rejected this control living in a
+                          dark filled square on the evidence. A badge sitting
+                          on a watch is the platform talking over the object,
+                          and browser zoom only made it louder — the container
+                          grew while the watch did not.
+
+                          It sits on the card's own surface now, beneath the
+                          image at the head of the copy: still plainly about
+                          inspection, no longer on top of the thing being
+                          inspected.
+
+                          Same licensed asset as the Quick Specs heading,
+                          carried by currentColor into charcoal. There is no
+                          second loupe drawing anywhere in the product. The
+                          mark reads 18px; the pressable area is 32px, because
+                          a quiet mark still has to be easy to hit. */}
+                      {hero && (
+                        <div className="-mt-2 mb-1 flex justify-end">
+                          <button
+                            type="button"
+                            title="Quick Specs"
+                            aria-label={`Open Quick Specs for ${row.brand}${row.model ? ` ${row.model}` : ""}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setInspectingId(row.id);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center text-[var(--platinum)] opacity-65 transition hover:text-[var(--gold)] hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                          >
+                            <LoupeIcon size={18} />
+                          </button>
+                        </div>
+                      )}
                       {/* Quick Specs panel — floats over the photograph, a
                           sibling of the frame so the frame's overflow-hidden
                           can never clip it. Interactions inside stay inside:
