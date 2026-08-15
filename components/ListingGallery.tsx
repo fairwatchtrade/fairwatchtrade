@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DialReveal from "@/components/DialReveal";
+import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -108,14 +109,20 @@ export default function ListingGallery({
   /* Muted at rest, firmer on hover — legible over a dark caseback or a white
      dial without becoming furniture. Identical for both arrows; only the
      chevron and the edge differ. */
+  /* v4.98 — the disc is gone. It existed to guarantee a thin chevron stayed
+     visible over any photograph, and it paid for that with a slab of
+     platform chrome parked on the watch. The mark is a filled silhouette
+     now (see NavArrowMark), which carries itself at this size, so the
+     container is no longer earning anything. Its shadow does the disc's old
+     job without standing between the collector and the object.
+
+     z-10 vs DialReveal's z-30 is UNCHANGED and still deliberate: on a wide,
+     short photograph the vertically-centred right arrow can fall inside the
+     fader's column, and DialReveal must keep both the paint and the click
+     there. Removing the disc does not change that ordering. */
   const arrowClass =
-    "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center " +
-    /* On-photo chrome: the control sits over the photograph AND, at ordinary
-       widths, over the pale stage beside it. A 30%-black disc with 45%-white
-       glyph read as a grey smudge on ivory — reachable only if you knew it was
-       there. Solid scrim, bright glyph, theme-neutral in both appearances. */
-    "rounded-full border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] backdrop-blur-[4px] " +
-    "transition hover:border-[var(--on-photo-gold-line)] hover:bg-[rgba(12,11,9,0.9)] hover:text-[var(--on-photo-gold)] " +
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
+    "text-[var(--on-photo-text)] transition hover:text-[var(--on-photo-gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
     "focus-visible:outline-[var(--gold)]";
 
@@ -142,19 +149,7 @@ export default function ListingGallery({
             onClick={() => setActive((i) => Math.max(0, i - 1))}
             className={`${arrowClass} left-3`}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M15 18L9 12l6-6" />
-            </svg>
+            <NavArrowMark flip />
           </button>
         )}
 
@@ -166,19 +161,7 @@ export default function ListingGallery({
             onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
             className={`${arrowClass} right-3`}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
+            <NavArrowMark />
           </button>
         )}
       </div>
@@ -243,9 +226,7 @@ export default function ListingGallery({
                 onClick={() => setActive((i) => Math.max(0, i - 1))}
                 className={`${arrowClass} left-4`}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M15 18L9 12l6-6" />
-                </svg>
+                <NavArrowMark flip />
               </button>
             )}
             {hasNext && (
@@ -255,9 +236,7 @@ export default function ListingGallery({
                 onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
                 className={`${arrowClass} right-4`}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+                <NavArrowMark />
               </button>
             )}
           </div>

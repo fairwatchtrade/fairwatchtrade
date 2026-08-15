@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import LoupeIcon from "@/components/LoupeIcon";
+import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -123,22 +124,10 @@ export default function BrowseCardInspector({
     "text-[var(--slate)] transition hover:text-[var(--gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]";
 
-  /* The mark itself. Drawn pointing right; `prev` mirrors it, so both
-     directions are one shape rather than two drawings that could drift. */
-  const Mark = ({ flip }: { flip?: boolean }) => (
-    <svg
-      width="15"
-      height="20"
-      viewBox="0 0 15 20"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-      style={flip ? { transform: "scaleX(-1)" } : undefined}
-      className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-    >
-      <path d="M1 0 L15 10 L1 20 C5.2 15.4 5.2 4.6 1 0 Z" />
-    </svg>
-  );
+  /* The mark is shared with the listing gallery — see NavArrowMark. It lived
+     here first; keeping a private copy would have been two drawings to keep
+     in agreement, which is the drift this component's own arrows exist to
+     avoid. */
 
   return (
     <div
@@ -181,7 +170,7 @@ export default function BrowseCardInspector({
                 aria-label="Previous photo"
                 className={`${arrow} left-1`}
               >
-                <Mark flip />
+                <NavArrowMark flip />
               </button>
               <button
                 type="button"
@@ -189,7 +178,7 @@ export default function BrowseCardInspector({
                 aria-label="Next photo"
                 className={`${arrow} right-1`}
               >
-                <Mark />
+                <NavArrowMark />
               </button>
 
               {/* Position, not narration. "Photo 1 / 2" told the collector
