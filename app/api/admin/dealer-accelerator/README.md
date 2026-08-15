@@ -92,6 +92,73 @@ reason — that is the bypass. Use the RPC.
 
 ---
 
+## The dealer's submission leaves a history line
+
+`submit_listing_for_review()` has always stamped `dealer_attested_at`,
+`dealer_attested_by` and `dealer_attested_fingerprint` on the listing,
+atomically with the transition. The fingerprint is a SHA-256 over 14
+length-prefixed canonical frames — availability among them — mirrored
+byte-for-byte in `lib/attestation.ts`. **The attestation fact was never
+missing.**
+
+What was missing is **history**. Those three columns are current state: a
+resubmission overwrites them and the earlier attestation is gone. Meanwhile
+the accelerator log stopped at `item_draft_created`, and
+`listing_decision_events` only ever records reviewer decisions — there is no
+`submitted` decision type in it at all. The dealer's own step fell between
+two logs that each correctly cover something else.
+
+So a `listing_submitted_for_review` event is now written at that transition.
+
+**It is written by a trigger, not from inside the RPC, and that is
+deliberate.** `CREATE OR REPLACE` on `submit_listing_for_review` would mean
+retyping its canonical-text builder in order to append an unrelated INSERT,
+and one transcribed byte would silently change every fingerprint minted
+afterwards. The trigger fires in the same transaction, at the same instant,
+and touches none of it.
+
+Two properties that will look odd until you know why:
+
+- **It can skip.** `entity_kind='item'` requires a `batch_item_id`, and some
+  imported listings predate batches and have none. One of those is
+  `rejected`, which the RPC permits to resubmit — so this path is live. A
+  mandatory insert would violate the CHECK and abort the transaction, leaving
+  a dealer unable to submit because their audit row could not be shaped.
+- **It fails open.** The trigger sits on `public.listings`, where *every*
+  seller submission passes — not only dealer imports. The insert is wrapped
+  so that any fault loses the history line rather than the sale. A missing
+  event is recoverable from the attestation columns; a blocked submission is
+  not.
+
+The metadata carries the fingerprint rather than the six ceremony
+checkboxes. Those are ephemeral by design, and at a successful submission
+they are structurally always all true — recording them would preserve a
+constant instead of evidence. The fingerprint is falsifiable: it must equal
+the listing's stored one.
+
+```sql
+-- every dealer submission, with its evidence checked against the listing
+select e.created_at, l.public_code, e.prior_state, e.resulting_state,
+       e.actor_kind, e.metadata->>'availability' as availability,
+       e.metadata->>'fingerprint_version' as fp_version,
+       (e.metadata->>'attestation_fingerprint' = l.dealer_attested_fingerprint)
+         as fingerprint_matches
+from dealer_accelerator_lifecycle_events e
+join public.listings l on l.id = e.listing_id
+where e.event_type = 'listing_submitted_for_review'
+order by e.created_at desc;
+```
+
+**If `fingerprint_matches` is ever false, stop.** That is the whole point of
+recording a derivable artifact instead of a decorative flag — it can be
+checked, so check it.
+
+A submission with an attestation stamp but no event is not necessarily a bug:
+it may be a pre-batch listing, per the skip above. Compare
+`dealer_attested_at` against this table before concluding anything.
+
+---
+
 ## What "it has run" does and does not prove
 
 The chain has genuinely executed, repeatedly, and produced real listings. Do
@@ -107,11 +174,27 @@ So the honest statement is two things at once, and both matter:
 
 - the machinery is **proven** — evidence discovery, materialization, the
   atomic import RPC, and lifecycle logging have all done real work;
-- the dealer experience is **entirely unproven** — no external dealer has
-  ever started, or could start, one of these.
+- **entry** is still founder-only. No external dealer has ever started, or
+  could start, an import.
 
 A reader who takes the first half alone will assume the porch is open. It has
 never been opened; the founder walked through his own sealed door.
+
+### What IS now proven: the dealer's own half
+
+The **porch proof** (2026-08-15) closed the question the paragraph above used
+to leave open. Working from a dealer account — not the founder's — a real
+person opened an imported draft in the UI, set availability, made the
+attestation, and submitted it. The listing moved `draft → pending_review`,
+nothing auto-approved, nothing published, and every sibling draft kept its
+original timestamps.
+
+`DEALER_ACCELERATOR_PORCH_END_TO_END_PROVEN`
+
+So the boundary now sits in one place, precisely: **a dealer cannot start an
+import, but a dealer can carry an imported draft the rest of the way
+themselves.** Both halves of that sentence are load-bearing; do not collapse
+it into either "the dealer path works" or "nothing is proven."
 
 ```sql
 select s.id, s.dealer_profile_id, s.authorized_by,
