@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -701,6 +701,43 @@ export default function BrowseClient({
      Distinct from openQuickId above, which belongs to the Dealer Room's own
      Scan/Gallery loupe and is out of scope for this flight. */
   const [inspectingId, setInspectingId] = useState<string | null>(null);
+  /* ── WHY THE INSPECTION FLOATS INSTEAD OF EXPANDING ────────────────────
+     It used to be a grid item that grew across two columns, which read
+     beautifully standing still and broke the moment it was used. Closing it
+     repacked the grid UNDER THE POINTER: a collector who spotted another
+     watch and reached for it clicked where that watch had been, and landed
+     on whatever slid into the gap. The thing you click must remain the thing
+     you acted on.
+
+     So nothing moves now. The grid is frozen exactly as it was; the panel
+     floats above it, anchored to the card that opened it. The watch the
+     collector's eye found stays where their eye found it. */
+  const gridRegionRef = useRef<HTMLDivElement | null>(null);
+  const [inspectAnchor, setInspectAnchor] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  /* Measured at the moment of opening, against the region rather than the
+     window, so scroll position never enters the arithmetic. Two cards wide
+     where there is room, pulled back inside the region when the card that
+     opened it sits at the right edge. */
+  const openInspection = (rowId: string, source: HTMLElement) => {
+    const region = gridRegionRef.current;
+    const card = source.closest("a");
+    if (region && card) {
+      const r = region.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      const width = Math.min(c.width * 2 + 1, r.width);
+      let left = c.left - r.left;
+      if (left + width > r.width) left = Math.max(0, r.width - width);
+      setInspectAnchor({ top: c.top - r.top, left, width });
+    } else {
+      setInspectAnchor(null);
+    }
+    setInspectingId(rowId);
+  };
   /* Which photograph each card is showing. The collector may step a card's
      photographs from the card itself or from inside the inspection, and the
      position they left it at is the position it keeps when the panel
@@ -1737,10 +1774,11 @@ export default function BrowseClient({
                stacked list, not a card grid, and is deliberately left out of
                the ladder and the bound. */
             <div
+              ref={gridRegionRef}
               className={
                 viewMode === "collector"
                   ? undefined
-                  : `fw-grid-region ${
+                  : `relative fw-grid-region ${
                       gridCols === 2
                         ? "fw-grid-region--2"
                         : gridCols === 3
@@ -1844,27 +1882,6 @@ export default function BrowseClient({
                     setCardPhotoIndex((prev) => ({ ...prev, [row.id]: index }));
                   const specRows = quickSpecs(row);
 
-                  if (inspectingId === row.id) {
-                    return (
-                      <article
-                        key={row.id}
-                        className="relative z-[3] bg-[var(--card-surface)] md:col-span-2"
-                      >
-                        <BrowseCardInspector
-                          brand={row.brand}
-                          title={row.model ?? row.brand}
-                          meta={meta || null}
-                          priceText={formatPrice(row.asking_price, row.asking_currency)}
-                          photos={photoUrls}
-                          photoIndex={activePhoto}
-                          onPhotoIndex={setPhoto}
-                          specs={specRows}
-                          href={listingHref(row.id)}
-                          onClose={() => setInspectingId(null)}
-                        />
-                      </article>
-                    );
-                  }
 
                   /* Once the collector has stepped away from the seller's
                      hero, the authored frame no longer describes what is on
@@ -2034,7 +2051,7 @@ export default function BrowseClient({
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setInspectingId(row.id);
+                              openInspection(row.id, e.currentTarget);
                             }}
                             className="flex h-8 w-8 items-center justify-center text-[var(--platinum)] opacity-65 transition hover:text-[var(--gold)] hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
                           >
@@ -2371,6 +2388,56 @@ export default function BrowseClient({
                 );
               })}
             </div>
+
+            {/* ── THE INSPECTION BUBBLE ───────────────────────────────────
+                Floats above a grid that does not move. Anchored to the card
+                that opened it, sized to two cards where there is room, and
+                pulled back inside the region when that card sits at the
+                right edge.
+
+                Absolute within the region — not fixed, not a portal, not a
+                full-viewport scrim. The collector's place in the results is
+                still visible above, below and beside it, which is the peek
+                law intact; what changed is that the results no longer
+                rearrange themselves underneath the pointer when it closes. */}
+            {(() => {
+              if (viewMode === "collector" || !inspectingId || !inspectAnchor) return null;
+              const row = paginated.find((r) => r.id === inspectingId);
+              if (!row) return null;
+              const { urls, heroIndex } = cardPhotos(row);
+              const index = Math.min(
+                Math.max(cardPhotoIndex[row.id] ?? heroIndex, 0),
+                Math.max(urls.length - 1, 0)
+              );
+              return (
+                <div
+                  className="absolute z-40"
+                  style={{
+                    top: inspectAnchor.top,
+                    left: inspectAnchor.left,
+                    width: inspectAnchor.width,
+                  }}
+                >
+                  <BrowseCardInspector
+                    brand={row.brand}
+                    title={row.model ?? row.brand}
+                    meta={[row.condition, row.year].filter(Boolean).join(" · ") || null}
+                    priceText={formatPrice(row.asking_price, row.asking_currency)}
+                    photos={urls}
+                    photoIndex={index}
+                    onPhotoIndex={(i) =>
+                      setCardPhotoIndex((prev) => ({ ...prev, [row.id]: i }))
+                    }
+                    specs={quickSpecs(row)}
+                    href={listingHref(row.id)}
+                    onClose={() => {
+                      setInspectingId(null);
+                      setInspectAnchor(null);
+                    }}
+                  />
+                </div>
+              );
+            })()}
             </div>
           )}
         </div>
