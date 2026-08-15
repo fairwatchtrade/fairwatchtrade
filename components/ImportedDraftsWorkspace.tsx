@@ -677,7 +677,7 @@ export default function ImportedDraftsWorkspace() {
                 key={l.id}
                 type="button"
                 onClick={() => selectListing(l.id)}
-                className={`relative flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-5 py-[14px] text-left transition hover:bg-[var(--hover-wash)] ${
+                className={`relative flex w-full cursor-pointer items-center gap-3 border-b border-[rgba(255,255,255,0.03)] px-5 py-[14px] text-left transition hover:bg-[var(--hover-wash)] ${
                   isSel
                     ? "bg-[var(--gold-whisper)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-[var(--gold-fill)]"
                     : ""
@@ -888,7 +888,7 @@ export default function ImportedDraftsWorkspace() {
                       key={`${url}-${i}`}
                       type="button"
                       onClick={() => setActivePhoto(i)}
-                      className={`h-[64px] overflow-hidden border ${
+                      className={`h-[64px] cursor-pointer overflow-hidden border ${
                         i === activePhoto ? "border-[var(--gold)]" : "border-[var(--border-faint)]"
                       }`}
                     >
@@ -946,7 +946,7 @@ export default function ImportedDraftsWorkspace() {
                 type="button"
                 disabled={!editable || uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="border border-[var(--border-mid)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer border border-[var(--border-mid)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--muted)] transition hover:text-[var(--platinum)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {uploading ? "Uploading…" : "Replace imported photographs"}
               </button>
@@ -1227,7 +1227,7 @@ export default function ImportedDraftsWorkspace() {
                 type="button"
                 onClick={() => saveDraft()}
                 disabled={!editable || !dirty || saving}
-                className={`border px-4 py-2 text-[11px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
+                className={`cursor-pointer border px-4 py-2 text-[11px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
                   justSaved
                     ? "border-[var(--border-gold)] text-[var(--gold)] disabled:opacity-100"
                     : "border-[var(--border-mid)] text-[var(--muted)] hover:text-[var(--platinum)] disabled:opacity-40"
@@ -1263,7 +1263,13 @@ export default function ImportedDraftsWorkspace() {
                         ? "Availability must be In Stock to submit."
                         : undefined
                   }
-                  className="bg-[var(--cta-fill)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[var(--on-cta)] transition disabled:cursor-not-allowed disabled:opacity-35"
+                  /* cursor-pointer is not decoration here. This button spends
+                   most of its life disabled, and went straight from
+                   "not-allowed" to the browser's default arrow the moment it
+                   became usable — so the one state change that matters
+                   announced itself only by opacity. A control that has just
+                   become actionable should say so under the pointer. */
+                className="cursor-pointer bg-[var(--cta-fill)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[var(--on-cta)] transition disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting
                     ? "Submitting…"
