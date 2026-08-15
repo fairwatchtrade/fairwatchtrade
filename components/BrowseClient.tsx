@@ -12,6 +12,8 @@ import {
 } from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import LoupeIcon from "@/components/LoupeIcon";
+import BrowseCardInspector from "@/components/BrowseCardInspector";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { parseBrowseSort, sortListings, type BrowseSort } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
@@ -278,6 +280,53 @@ function heroFrame(row: {
        card falls back to object-contain: the whole watch, always. */
     galleryFrameStyle: isDefaultFrame(frame) ? null : frameStyle(frame, 4 / 3),
   };
+}
+
+/* Every publicly displayable photograph of one listing, in the SAME role
+   order the hero is chosen from, plus which of them the card is showing.
+   The carousel has to walk the identical sequence: a panel that opened on a
+   different photograph than the card displayed would make the loupe feel
+   like it changed the watch. Service Evidence stays excluded here exactly
+   as it is excluded from the hero. */
+function cardPhotos(row: {
+  photos: ListingPhoto[];
+  photo_presentation?: unknown;
+}): { urls: string[]; heroIndex: number } {
+  const raw = publiclyDisplayablePhotos(Array.isArray(row.photos) ? row.photos : []);
+  if (raw.length === 0) return { urls: [], heroIndex: 0 };
+  const photos = sortByPhotoRole(raw, (p) => p?.category);
+  const presentation = sanitizePhotoPresentation(row.photo_presentation);
+  const heroIndex = resolveHeroIndex(
+    photos.map((p) => p?.photo?.pathname ?? null),
+    presentation,
+    roleAutomaticHero(photos, (p) => p?.category)
+  );
+  const urls = photos.map((p) => p?.photo?.url).filter((u): u is string => typeof u === "string");
+  return { urls, heroIndex: Math.min(Math.max(heroIndex, 0), Math.max(urls.length - 1, 0)) };
+}
+
+/* Quick Specs — ONLY what this listing actually holds.
+   Values are rendered exactly as stored. This surface does not resolve
+   vocabulary: a display that "corrects" a stored value is asserting
+   something the record does not say, and canonical-when-known belongs to
+   whatever writes the record, never to the room that reads it. A field with
+   nothing behind it is omitted rather than shown empty — no penalty for
+   missing data, only a penalty for bad data. */
+function quickSpecs(row: ListingRow): { label: string; value: string }[] {
+  const d = row.details ?? {};
+  const candidates: [string, string | null | undefined][] = [
+    ["Case size", d.caseSizeMm],
+    ["Movement", d.movementType],
+    ["Dial", d.dialColorType],
+    ["Case material", d.caseMaterial],
+    ["Condition", row.condition],
+    ["Documentation", d.documentation],
+    ["Reference", row.reference],
+    ["Year", row.year],
+  ];
+  return candidates
+    .filter(([, value]) => typeof value === "string" && value.trim().length > 0)
+    .map(([label, value]) => ({ label, value: (value as string).trim() }));
 }
 
 /* The derived presentation thumbnail for one photograph — only our own
@@ -600,9 +649,9 @@ export default function BrowseClient({
      in the URL, or the collector's choice would be indistinguishable from
      never having chosen. */
   const gridColsParam = searchParams.get("gridCols");
-  const gridCols: 3 | 4 | null =
-    gridColsParam === "4" ? 4 : gridColsParam === "3" ? 3 : null;
-  const setGridCols = (value: 3 | 4 | null) =>
+  const gridCols: 2 | 3 | 4 | null =
+    gridColsParam === "4" ? 4 : gridColsParam === "3" ? 3 : gridColsParam === "2" ? 2 : null;
+  const setGridCols = (value: 2 | 3 | 4 | null) =>
     setSingleParam("gridCols", value ? String(value) : "auto", "auto");
 
   const pageSizeParam = searchParams.get("pageSize");
@@ -645,6 +694,18 @@ export default function BrowseClient({
      one-open-at-a-time law the Collector Snapshot established. Transient by
      design — never persisted to the URL. */
   const [openQuickId, setOpenQuickId] = useState<string | null>(null);
+  /* The folding loupe. One id, never a Set — opening one card's inspection
+     closes the previous, the same one-open-at-a-time law the Collector
+     Snapshot established. Deliberately NOT in the URL: a peek is not a
+     place, and it should not survive a reload or own a back-button step.
+     Distinct from openQuickId above, which belongs to the Dealer Room's own
+     Scan/Gallery loupe and is out of scope for this flight. */
+  const [inspectingId, setInspectingId] = useState<string | null>(null);
+  /* Which photograph each card is showing. The collector may step a card's
+     photographs from the card itself or from inside the inspection, and the
+     position they left it at is the position it keeps when the panel
+     closes — the card remembers what they were looking at. */
+  const [cardPhotoIndex, setCardPhotoIndex] = useState<Record<string, number>>({});
   // Compare is selection-only this phase (no compare screen yet). The Set is
   // the workflow-preparation surface the future compare view will read from.
   const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
@@ -1448,7 +1509,7 @@ export default function BrowseClient({
                   the layout is answering to the space rather than to a past
                   decision. Both pinned counts still obey the region's
                   ceiling, so pinning can never re-inflate a card. */}
-              {([3, 4] as const).map((n) => (
+              {([2, 3, 4] as const).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -1680,11 +1741,13 @@ export default function BrowseClient({
                 viewMode === "collector"
                   ? undefined
                   : `fw-grid-region ${
-                      gridCols === 3
-                        ? "fw-grid-region--3"
-                        : gridCols === 4
-                          ? "fw-grid-region--4"
-                          : "fw-grid-region--auto"
+                      gridCols === 2
+                        ? "fw-grid-region--2"
+                        : gridCols === 3
+                          ? "fw-grid-region--3"
+                          : gridCols === 4
+                            ? "fw-grid-region--4"
+                            : "fw-grid-region--auto"
                     }`
               }
             >
@@ -1714,11 +1777,13 @@ export default function BrowseClient({
                        climbs 3 → 4 as the REGION earns them, and an explicit
                        3-WIDE / 4-WIDE choice pins the count instead. */
                     `grid gap-px bg-[var(--grid-gutter)] ${
-                      gridCols === 3
-                        ? "grid-cols-2 md:grid-cols-3"
-                        : gridCols === 4
-                          ? "grid-cols-2 md:grid-cols-4"
-                          : "fw-grid-auto"
+                      gridCols === 2
+                        ? "grid-cols-2"
+                        : gridCols === 3
+                          ? "grid-cols-2 md:grid-cols-3"
+                          : gridCols === 4
+                            ? "grid-cols-2 md:grid-cols-4"
+                            : "fw-grid-auto"
                     }`
               }
             >
@@ -1761,6 +1826,58 @@ export default function BrowseClient({
                     : [];
                   const hasQuick = quickRows.length > 0;
                   const isQuickOpen = hasQuick && openQuickId === row.id;
+
+                  /* ── THE PEEK ────────────────────────────────────────────
+                     The inspection is an ordinary grid item that grew to
+                     two columns. Not an overlay, not a portal, not a fixed
+                     scrim: the collector keeps their place in the results,
+                     and the rest of the grid stays exactly where it was.
+                     It replaces the card's Link rather than nesting inside
+                     it — a panel full of buttons and a link inside a link
+                     is not a control anyone can use. */
+                  const { urls: photoUrls, heroIndex } = cardPhotos(row);
+                  const activePhoto = Math.min(
+                    Math.max(cardPhotoIndex[row.id] ?? heroIndex, 0),
+                    Math.max(photoUrls.length - 1, 0)
+                  );
+                  const setPhoto = (index: number) =>
+                    setCardPhotoIndex((prev) => ({ ...prev, [row.id]: index }));
+                  const stepPhoto = (delta: number) => {
+                    if (photoUrls.length < 2) return;
+                    setPhoto((activePhoto + delta + photoUrls.length) % photoUrls.length);
+                  };
+                  const specRows = quickSpecs(row);
+
+                  if (inspectingId === row.id) {
+                    return (
+                      <article
+                        key={row.id}
+                        className="relative z-[3] bg-[var(--card-surface)] md:col-span-2"
+                      >
+                        <BrowseCardInspector
+                          brand={row.brand}
+                          title={row.model ?? row.brand}
+                          meta={meta || null}
+                          priceText={formatPrice(row.asking_price, row.asking_currency)}
+                          photos={photoUrls}
+                          photoIndex={activePhoto}
+                          onPhotoIndex={setPhoto}
+                          specs={specRows}
+                          href={listingHref(row.id)}
+                          onClose={() => setInspectingId(null)}
+                        />
+                      </article>
+                    );
+                  }
+
+                  /* Once the collector has stepped away from the seller's
+                     hero, the authored frame no longer describes what is on
+                     screen — that crop was drawn for one photograph. The
+                     rest of the sequence is shown whole instead of wearing
+                     a frame that was never meant for it. */
+                  const steppedAway = photoUrls.length > 0 && activePhoto !== heroIndex;
+                  const shownPhoto = photoUrls[activePhoto] ?? hero;
+
                   return (
                     <Link
                       key={row.id}
@@ -1797,7 +1914,14 @@ export default function BrowseClient({
                         }`}
                       >
                         {hero ? (
-                          galleryFrameStyle ? (
+                          steppedAway && shownPhoto ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={cardImageSrc(shownPhoto, { mode: "fit", width: 720 })}
+                              alt=""
+                              className="h-full w-full object-contain p-1.5 md:p-0"
+                            />
+                          ) : galleryFrameStyle ? (
                             <>
                               {/* Seller-authored framing: the presentation
                                   editor's stage is 4:3, so this cover is the
@@ -1844,6 +1968,87 @@ export default function BrowseClient({
                             No photo
                           </div>
                         )}
+
+                        {/* ── ON-PHOTO INSPECTION CONTROLS ────────────────
+                            Every one of these lives inside the card's Link,
+                            so every one must refuse the navigation the Link
+                            would otherwise perform. A collector reaching for
+                            the next photograph has not asked to leave the
+                            results.
+
+                            Revealed on hover and on keyboard focus, never on
+                            neither: focus-within is what keeps these
+                            reachable without a mouse, which hover alone
+                            would quietly deny. */}
+                        {photoUrls.length > 1 && (
+                          <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                            <button
+                              type="button"
+                              aria-label="Previous photo"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                stepPhoto(-1);
+                              }}
+                              className="pointer-events-auto absolute left-2 top-1/2 flex h-9 w-7 -translate-y-1/2 items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                            >
+                              ‹
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Next photo"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                stepPhoto(1);
+                              }}
+                              className="pointer-events-auto absolute right-2 top-1/2 flex h-9 w-7 -translate-y-1/2 items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                            >
+                              ›
+                            </button>
+                            <div className="pointer-events-auto absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-[6px] border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] px-[7px] py-1">
+                              {photoUrls.map((_, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  aria-label={`Photo ${i + 1}`}
+                                  aria-current={i === activePhoto}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setPhoto(i);
+                                  }}
+                                  className={`h-[6px] w-[6px] rounded-full border transition ${
+                                    i === activePhoto
+                                      ? "border-[var(--gold)] bg-[var(--gold)]"
+                                      : "border-[var(--on-photo-text)] bg-transparent"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* The folding loupe. Quiet at rest in the corner of
+                            the photograph, exactly as the Design Gate drew
+                            it: a border and colour shift on hover, no scale,
+                            no performance. It opens the peek. */}
+                        {hero && (
+                          <button
+                            type="button"
+                            title="Quick Specs"
+                            aria-label={`Open Quick Specs for ${row.brand}${row.model ? ` ${row.model}` : ""}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setInspectingId(row.id);
+                            }}
+                            className="absolute bottom-2 right-2 z-[2] flex h-[34px] w-[34px] items-center justify-center border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim-deep)] text-[var(--on-photo-text)] transition hover:border-[var(--on-photo-gold-line)] hover:text-[var(--on-photo-gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                          >
+                            <LoupeIcon size={19} />
+                          </button>
+                        )}
+
                         {row.in_hand_verified && (
                           <div
                             title="In Hand Verified"

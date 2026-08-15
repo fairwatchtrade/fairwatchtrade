@@ -525,6 +525,9 @@ html, body {
 .fw-grid-region--4 { max-width: 1520px; }
 /* Three useful cards wide — the same card ceiling, one column fewer. */
 .fw-grid-region--3 { max-width: 1140px; }
+/* Two, for the collector who wants the photograph large. Same ceiling
+   again: a density choice buys fewer cards, never a bigger one. */
+.fw-grid-region--2 { max-width: 760px; }
 
 /* Every rung is chosen so the card never LOSES useful width by gaining a
    column: a threshold set too low buys density with the very thing this
