@@ -92,6 +92,40 @@ reason — that is the bypass. Use the RPC.
 
 ---
 
+## What "it has run" does and does not prove
+
+The chain has genuinely executed, repeatedly, and produced real listings. Do
+not read that as evidence the dealer path works.
+
+**Every source on record was founder-authorized.** Check `authorized_by` on
+`dealer_accelerator_sources`: it is the founder on all of them. One source's
+`dealer_profile_id` is the founder's own id — the founder importing to
+himself — and that id has no `dealer_profiles` row behind it at all. The
+other names a real dealer profile, but the founder still authorized it.
+
+So the honest statement is two things at once, and both matter:
+
+- the machinery is **proven** — evidence discovery, materialization, the
+  atomic import RPC, and lifecycle logging have all done real work;
+- the dealer experience is **entirely unproven** — no external dealer has
+  ever started, or could start, one of these.
+
+A reader who takes the first half alone will assume the porch is open. It has
+never been opened; the founder walked through his own sealed door.
+
+```sql
+select s.id, s.dealer_profile_id, s.authorized_by,
+       (s.dealer_profile_id = s.authorized_by) as founder_importing_to_self,
+       p.business_name
+from dealer_accelerator_sources s
+left join dealer_profiles p on p.seller_id = s.dealer_profile_id;
+```
+
+Note the join key: `dealer_profiles` is keyed by **`seller_id`**, not `id`.
+A source may reference a profile id that has no dealer profile row.
+
+---
+
 ## Check current state yourself
 
 Has the chain ever run, and how far?
