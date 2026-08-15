@@ -66,7 +66,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.redirect(src, 302);
     }
 
-    const thumb = fitOnly ? await deriveResized(source, width) : await deriveThumb(source);
+    /* Both paths honour the requested width. The trim path used to ignore it
+       and always emit THUMB_WIDTH, so a card asking for 720 received 480 and
+       the parameter did nothing but fragment the CDN cache. */
+    const thumb = fitOnly ? await deriveResized(source, width) : await deriveThumb(source, width);
     return new NextResponse(new Uint8Array(thumb.buffer), {
       status: 200,
       headers: {

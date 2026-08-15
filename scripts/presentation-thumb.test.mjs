@@ -186,8 +186,35 @@ ok("EXIF-rotated sources are oriented first — the crop happens in displayed pi
   assert.ok(route.includes("s-maxage=31536000, immutable"), "CDN-cached; safe because pathnames are unique per upload");
   assert.ok(!route.includes("BLOB_READ_WRITE_TOKEN"), "read-only route — the forbidden token never appears");
   assert.ok(route.includes('export const runtime = "nodejs"'), "sharp requires the node runtime");
+
+  /* A width the route accepts and ignores is worse than no width at all: the
+     caller believes it asked for sharper bytes, and the CDN cache splinters
+     across a key that changes nothing. deriveThumb shipped exactly that way
+     — it always emitted THUMB_WIDTH — so BOTH derivations must take it. */
+  assert.ok(
+    /deriveThumb\(source,\s*width\)/.test(route),
+    "the trim path honours the requested width"
+  );
+  assert.ok(
+    /deriveResized\(source,\s*width\)/.test(route),
+    "the fit path honours the requested width"
+  );
+
+  const lib = read("../lib/media/presentationThumb.ts");
+  assert.ok(
+    !/\.resize\(\{\s*width:\s*THUMB_WIDTH/.test(lib),
+    "no derivation hardcodes the default width past its parameter"
+  );
+  for (const fn of ["deriveThumb", "deriveResized"]) {
+    const at = lib.indexOf(`export async function ${fn}(`);
+    assert.ok(at > 0, `${fn} located`);
+    assert.ok(
+      /width:\s*AllowedWidth\s*=\s*THUMB_WIDTH/.test(lib.slice(at, at + 220)),
+      `${fn} takes an allowlisted width, defaulting to the card size`
+    );
+  }
 }
-ok("route: strict own-photos allowlist, redirect-to-original fallback, immutable CDN caching");
+ok("route: strict own-photos allowlist, redirect-to-original fallback, immutable CDN caching, width honoured on both paths");
 
 /* ── 9 · Card wiring: every card context derives; geometry is preserved
       wherever a seller authored it ────────────────────────────────────────

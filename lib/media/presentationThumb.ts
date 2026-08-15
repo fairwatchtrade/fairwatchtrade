@@ -204,7 +204,10 @@ export async function deriveResized(
     (up to two gated passes), re-add the safe margin, resize, encode.
     Never throws on bad image data the fallback can absorb — the caller
     should still try/catch and serve the original on any failure. */
-export async function deriveThumb(input: Buffer): Promise<DerivedThumb> {
+export async function deriveThumb(
+  input: Buffer,
+  width: AllowedWidth = THUMB_WIDTH
+): Promise<DerivedThumb> {
   /* Orientation first: the crop must happen in the same pixel space the
      browser displays. failOn:"none" keeps mildly-corrupt JPEGs renderable.
      The intermediate MUST be lossless (or the untouched input): a lossy
@@ -252,7 +255,7 @@ export async function deriveThumb(input: Buffer): Promise<DerivedThumb> {
     : sharp(oriented);
 
   const buffer = await pipeline
-    .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
+    .resize({ width, withoutEnlargement: true })
     .webp({ quality: 82 })
     .toBuffer();
 
