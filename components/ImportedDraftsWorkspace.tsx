@@ -276,6 +276,24 @@ export default function ImportedDraftsWorkspace() {
      a confirmation. */
   const ackRef = useRef<HTMLButtonElement | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
+  /* ── THE SUBMIT GATE ANSWERS INSTEAD OF REFUSING ───────────────────────
+     Submit used to sit greyed until everything was satisfied, and the only
+     explanation lived in a `title` attribute on the disabled button — which
+     browsers frequently never show, because hover events on disabled
+     controls are unreliable and touch has no hover at all. So the product
+     knew exactly what was outstanding and said nothing, one blocker at a
+     time, in a tooltip that may not appear.
+
+     Now the button is live and pressing it is a REQUEST FOR VALIDATION. If
+     anything is outstanding the form answers by marking every outstanding
+     thing at once, and each mark clears the moment that item is satisfied.
+
+     Deliberately asymmetric, and the asymmetry is the point:
+       · a missing VALUE is a fact about the data — availability carries its
+         danger border from the start, because the system already knows;
+       · an unticked CONFIRMATION is a fact about the person, and is not a
+         failure until they claim to be finished by pressing Submit. */
+  const [showBlockers, setShowBlockers] = useState(false);
 
   const [ceremony, setCeremony] = useState<Ceremony>(CEREMONY_CLEAR);
   const [submitting, setSubmitting] = useState(false);
@@ -332,6 +350,7 @@ export default function ImportedDraftsWorkspace() {
       setBuffer(next ? bufferFrom(next) : null);
       setDirty(false);
       setCeremony(CEREMONY_CLEAR);
+      setShowBlockers(false);
       setActivePhoto(0);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Could not load imported drafts.");
@@ -398,6 +417,7 @@ export default function ImportedDraftsWorkspace() {
     setSavedAt(null);
     setJustSaved(false);
     setCeremony(CEREMONY_CLEAR);
+    setShowBlockers(false);
     setActivePhoto(0);
   }
 
@@ -930,7 +950,7 @@ export default function ImportedDraftsWorkspace() {
                   checked={shownCeremony(ceremony.photos)}
                   disabled={!editable}
                   onChange={(e) => setCeremony({ ...ceremony, photos: e.target.checked })}
-                  className="h-4 w-4 accent-[var(--gold)]"
+                  className={`h-4 w-4 accent-[var(--gold)] ${showBlockers && !shownCeremony(ceremony.photos) ? "bg-[var(--danger)]/30 ring-2 ring-[var(--danger)]" : ""}`}
                 />
                 I confirm these photographs show the actual watch currently being offered.
               </label>
@@ -968,6 +988,7 @@ export default function ImportedDraftsWorkspace() {
                   label="Asking Price"
                   attention={flagged("price")}
                   confirmed={shownCeremony(ceremony.price)}
+                  outstanding={showBlockers && !shownCeremony(ceremony.price)}
                   onConfirm={(v) => setCeremony({ ...ceremony, price: v })}
                   editable={editable}
                   /* The old foot printed a flat "USD" under every amount —
@@ -1001,6 +1022,7 @@ export default function ImportedDraftsWorkspace() {
                   label="Condition"
                   attention={flagged("condition")}
                   confirmed={shownCeremony(ceremony.condition)}
+                  outstanding={showBlockers && !shownCeremony(ceremony.condition)}
                   onConfirm={(v) => setCeremony({ ...ceremony, condition: v })}
                   editable={editable}
                   foot="Required"
@@ -1028,6 +1050,7 @@ export default function ImportedDraftsWorkspace() {
                   label="Availability"
                   attention={flagged("availability")}
                   confirmed={shownCeremony(ceremony.availability)}
+                  outstanding={showBlockers && !shownCeremony(ceremony.availability)}
                   onConfirm={(v) => setCeremony({ ...ceremony, availability: v })}
                   editable={editable}
                   awaitingValue={!buffer.availability}
@@ -1058,7 +1081,17 @@ export default function ImportedDraftsWorkspace() {
                     className={`w-full py-1.5 text-[13px] focus:outline-none disabled:opacity-60 [&>option]:bg-[var(--ink)] ${
                       buffer.availability
                         ? "border-b border-[var(--border-subtle)] bg-transparent text-[var(--platinum)] focus:border-[var(--border-gold)]"
-                        : "border border-[var(--danger)] bg-[var(--danger)]/[0.04] px-2 font-medium text-[var(--danger)] focus:border-[var(--border-gold)]"
+                        : /* Unset shows a danger BORDER and nothing else. The
+                             first pass stacked a border, a tint and bold red
+                             text — three signals for one fact, which starts
+                             shouting the moment the novelty wears off. One
+                             signal is enough to say "start here", and it is
+                             the only thing red before the dealer has pressed
+                             anything, because a missing VALUE is a fact about
+                             the data. An unticked confirmation is a fact about
+                             the person, and does not become a failure until
+                             they claim to be finished — see showBlockers. */
+                          "border border-[var(--danger)] bg-transparent px-2 text-[var(--muted)] focus:border-[var(--border-gold)]"
                     }`}
                   >
                     {/* Disabled, so the blank can never be chosen as an
@@ -1080,6 +1113,7 @@ export default function ImportedDraftsWorkspace() {
                   label="Reference Number"
                   attention={flagged("reference")}
                   confirmed={shownCeremony(ceremony.reference)}
+                  outstanding={showBlockers && !shownCeremony(ceremony.reference)}
                   onConfirm={(v) => setCeremony({ ...ceremony, reference: v })}
                   editable={editable}
                   foot="Check against the watch or its documentation"
@@ -1195,7 +1229,7 @@ export default function ImportedDraftsWorkspace() {
                   checked={shownCeremony(ceremony.description)}
                   disabled={!editable}
                   onChange={(e) => setCeremony({ ...ceremony, description: e.target.checked })}
-                  className="h-4 w-4 accent-[var(--gold)]"
+                  className={`h-4 w-4 accent-[var(--gold)] ${showBlockers && !shownCeremony(ceremony.description) ? "bg-[var(--danger)]/30 ring-2 ring-[var(--danger)]" : ""}`}
                 />
                 Confirmed by dealer
               </label>
@@ -1254,15 +1288,19 @@ export default function ImportedDraftsWorkspace() {
               ) : (
                 <button
                   type="button"
-                  onClick={submitForReview}
-                  disabled={!canSubmit}
-                  title={
-                    !ceremonyComplete
-                      ? "Confirm every imported value and the photographs first."
-                      : buffer.availability !== "In Stock"
-                        ? "Availability must be In Stock to submit."
-                        : undefined
-                  }
+                  /* Live unless genuinely busy. Pressing it while incomplete
+                     is not an error — it is how the dealer ASKS what is left,
+                     and the form answers by marking everything outstanding at
+                     once instead of naming one blocker in a tooltip that a
+                     disabled button may never manage to show. */
+                  onClick={() => {
+                    if (canSubmit) {
+                      submitForReview();
+                      return;
+                    }
+                    setShowBlockers(true);
+                  }}
+                  disabled={submitting || saving || !editable}
                   /* cursor-pointer is not decoration here. This button spends
                    most of its life disabled, and went straight from
                    "not-allowed" to the browser's default arrow the moment it
@@ -1301,6 +1339,7 @@ function Field({
   foot,
   attention = false,
   awaitingValue = false,
+  outstanding = false,
   children,
 }: {
   label: string;
@@ -1320,6 +1359,12 @@ function Field({
      dealer attestation about nothing, which this platform should not be
      able to record at all. */
   awaitingValue?: boolean;
+  /* The dealer pressed Submit while this confirmation was still unticked.
+     Marks the box itself and nothing else — the fix Jason asked for is a
+     checkbox that turns red inside, not a page that turns into a warning.
+     Clears the instant the box is ticked, because a form that keeps
+     complaining about something already fixed teaches people to ignore it. */
+  outstanding?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1363,7 +1408,11 @@ function Field({
             checked={confirmed && !awaitingValue}
             disabled={!editable || awaitingValue}
             onChange={(e) => onConfirm(e.target.checked)}
-            className="h-4 w-4 accent-[var(--gold)]"
+            className={`h-4 w-4 accent-[var(--gold)] ${
+              outstanding
+                ? "bg-[var(--danger)]/30 ring-2 ring-[var(--danger)]"
+                : ""
+            }`}
           />
           Confirmed by dealer
         </label>
