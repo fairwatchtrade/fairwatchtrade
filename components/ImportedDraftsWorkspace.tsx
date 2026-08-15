@@ -711,27 +711,47 @@ export default function ImportedDraftsWorkspace() {
                     <span className="text-[11px] text-[var(--muted)]">—</span>
                   )}
                 </div>
+                {/* ── IDENTITY FIRST, PRICE SECOND, STATE THIRD ──────────
+                    The status used to share the horizontal band with the
+                    identity, and "Needs Attention" is wide enough at this
+                    size to take roughly half a 300px rail — so the rows that
+                    most needed acting on were exactly the rows whose brand,
+                    model and reference collapsed to ellipses. Rows in other
+                    states kept their identity purely because their labels
+                    were shorter. The dealer was left scanning by price to
+                    tell two Calibre Nords apart.
+
+                    The state now has its own line and the identity gets the
+                    full width. Two things were deliberately NOT done to
+                    achieve it: the label was not shortened, because the
+                    Admin Dashboard uses the same words for the same
+                    condition and two dialects for one state is worse than a
+                    taller row; and the 300px queue was not widened, because
+                    the width was never the problem. Every row keeps the same
+                    geometry in every state, so nothing shifts as a listing
+                    moves through the workflow. */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[9.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
-                    {l.brand}
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-[9.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                      {l.brand}
+                    </span>
+                    <span className="shrink-0 font-display text-[13px] font-light text-[var(--platinum-dim)]">
+                      {l.asking_price !== null
+                        ? formatMoney(l.asking_price, l.asking_currency)
+                        : "—"}
+                    </span>
                   </div>
                   <div className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
                     {l.model ?? l.reference}
                   </div>
                   {/* The reference is the promise this room is built around —
-                      it does not get set smaller than the brand above it. */}
-                  <div className="mt-[3px] flex gap-2.5 truncate text-[11px] text-[var(--platinum-dim)]">
-                    <span className="truncate">Ref. {l.reference}</span>
-                    {l.year && <span className="shrink-0 text-[var(--muted)]">{l.year}</span>}
+                      it does not get set smaller than the brand above it, and
+                      it no longer gets truncated by a status badge either. */}
+                  <div className="mt-[3px] truncate text-[11px] text-[var(--platinum-dim)]">
+                    Ref. {l.reference}
+                    {l.year && <span className="text-[var(--muted)]"> · {l.year}</span>}
                   </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="font-display text-[13px] font-light text-[var(--platinum-dim)]">
-                    {l.asking_price !== null
-                      ? formatMoney(l.asking_price, l.asking_currency)
-                      : "—"}
-                  </div>
-                  <div className={`mt-[4px] text-[11px] uppercase tracking-[1.2px] ${m.cls}`}>
+                  <div className={`mt-[5px] text-[11px] uppercase tracking-[1.2px] ${m.cls}`}>
                     {m.label}
                   </div>
                 </div>
