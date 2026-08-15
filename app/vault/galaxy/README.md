@@ -134,18 +134,11 @@ select slug, name, galaxy_visible, search_aliases, country_of_origin, cluster
 from vault_brands where slug = 'your-brand-slug';
 ```
 
-**Snapshot at 2026-08-15**, immediately after ingesting Nivada Grenchen and
-Accutron, purely as a worked example of what the gap looks like:
+The gap between a total and its visible count is unpublished inventory. When
+an ingestion has just run, that gap equals exactly what it added.
 
-| Level | Total | Visible | Unpublished |
-|---|---|---|---|
-| Brands | 193 | 191 | 2 |
-| Collections | 422 | 396 | 26 |
-| Families | 620 | 579 | 41 |
-| Variants | 796 | 710 | 86 |
-| References | 468 | 388 | 80 |
-
-Every unpublished number there is exactly what that one ingestion added.
+*(No counts appear in this file on purpose. A number written into a document
+is true for a day and misleading afterwards — run the query.)*
 
 ---
 

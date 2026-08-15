@@ -38,3 +38,33 @@ reproduce environments unless the changed surface can realistically require it.
 When uncertain, prefer the simpler path — unless the change can realistically
 damage data, money, authentication, publication state, security, or other
 difficult-to-reverse system state.
+
+# Complex Piping Documentation Law
+
+Any complex piping feature — Vault ingestion, Vault Upgrade Room, Galaxy
+publication, Dealer Accelerator, taxonomy resolution, or similar multi-layer
+architecture — must have a repo-local README attached to its machinery.
+Written when the architecture is fresh, updated when it changes, deliberately
+labeled about what will and won't age.
+
+**The test:** if losing session context would require 30+ minutes to
+rediscover how this system works, it earns a README.
+
+**Location:** colocated with the code (`app/[feature]/README.md`), not in a
+separate docs folder where it gets forgotten.
+
+**Format:** architecture properties (durable) plus queries/commands to verify
+current state (self-refreshing). Never hardcoded counts, line numbers, or
+specifics that rot.
+
+Practical notes earned the hard way:
+
+- Lead with the misconception the file exists to kill.
+- Record where the behaviour actually lives when that is non-obvious — a view
+  definition, a column default, an RLS policy. That is what costs the hours.
+- Say what is deliberately NOT built, and why. "Nothing in the application
+  ever writes this column" was the single most valuable line in the first one.
+- Write it in the session where the understanding is fresh. Written later, it
+  is itself a reconstruction — the exact thing being avoided.
+
+First instance: `app/vault/galaxy/README.md`.
