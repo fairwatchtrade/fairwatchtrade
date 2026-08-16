@@ -25,7 +25,9 @@ import { currencyMeta } from "@/lib/supportedCurrencies";
      exactly once, guaranteed by construction, not by join semantics.
    · Needs Attention is COMPUTED from incomplete draft truth. Never stored.
      There is deliberately no manual "mark needs attention" action.
-   · The six confirmation checkboxes are UI ceremony — ephemeral by design.
+   · The THREE confirmation checkboxes are UI ceremony — ephemeral by design
+     (reduced from six; see the Ceremony type for which survived and why).
+     ⚠ The RPC does NOT inspect them — they gate the button, not the write.
      The DURABLE attestation is stamped by submit_listing_for_review()
      atomically with the transition; its validity is COMPOSED at read time
      by recomputing the 13-field fingerprint (lib/attestation.ts) against
@@ -108,21 +110,46 @@ const AVAILABILITY_OPTIONS = ["In Stock", "Not Currently Available"] as const;
 const REJECTION_FALLBACK =
   "This listing was returned for revision. Contact FairWatchTrade if no requested change is shown.";
 
+/* ── THREE ATTESTATIONS, NOT SIX CLICKS ──────────────────────────────────
+   The ceremony was six identical checkboxes. Ruled down to three, on
+   evidence rather than instinct: the RPC never inspected any of them, and
+   the fingerprint hashes all fourteen fields regardless of how many boxes
+   were ticked — so the box count added nothing to what was captured.
+
+   Six identical checkboxes is the textbook way to train click-through.
+   People stop reading around three and start hunting the pattern, which
+   destroys the only thing an attestation is for. An attestation nobody read
+   is worse than none, because it leaves a record implying they did.
+
+   What survives are the facts FairWatchTrade cannot determine for itself and
+   the dealer uniquely can:
+
+     photos    — nothing but a human can say these pictures show the watch
+                 actually being offered. The fingerprint proves WHICH urls
+                 were submitted; it cannot prove what they depict.
+     price     — imported pricing goes stale; only the dealer knows if it
+                 still stands.
+     condition — subjective, and can change between import and submission.
+
+   Removed, and why each was redundant rather than merely tedious:
+
+     availability — already an explicit required selection, and the RPC
+                    itself refuses an imported submission unless it reads
+                    'In Stock'. A checkbox on top asserted nothing new.
+     reference    — a fixed identifier the dealer cannot verify without the
+                    watch in hand. Stays prominent and editable; the
+                    submitted value is fingerprinted either way.
+     description  — platform-written prose. A ritual tick does not make
+                    anyone read it. */
 type Ceremony = {
   price: boolean;
   condition: boolean;
-  availability: boolean;
-  reference: boolean;
-  description: boolean;
   photos: boolean;
 };
 
 const CEREMONY_CLEAR: Ceremony = {
   price: false,
   condition: false,
-  availability: false,
-  reference: false,
-  description: false,
   photos: false,
 };
 
@@ -969,6 +996,7 @@ export default function ImportedDraftsWorkspace() {
                   type="checkbox"
                   checked={shownCeremony(ceremony.photos)}
                   disabled={!editable}
+                  data-blocker={showBlockers && !shownCeremony(ceremony.photos) ? true : undefined}
                   onChange={(e) => setCeremony({ ...ceremony, photos: e.target.checked })}
                   className={`h-4 w-4 accent-[var(--gold)] ${showBlockers && !shownCeremony(ceremony.photos) ? "bg-[var(--danger)]/30 ring-2 ring-[var(--danger)]" : ""}`}
                 />
@@ -1069,9 +1097,6 @@ export default function ImportedDraftsWorkspace() {
                 <Field
                   label="Availability"
                   attention={flagged("availability")}
-                  confirmed={shownCeremony(ceremony.availability)}
-                  outstanding={showBlockers && !shownCeremony(ceremony.availability)}
-                  onConfirm={(v) => setCeremony({ ...ceremony, availability: v })}
                   editable={editable}
                   awaitingValue={!buffer.availability}
                   foot={
@@ -1094,6 +1119,7 @@ export default function ImportedDraftsWorkspace() {
                     value={buffer.availability}
                     disabled={!editable}
                     aria-label="Availability"
+                    data-blocker={showBlockers && !buffer.availability ? true : undefined}
                     onChange={(e) => {
                       edit({ availability: e.target.value });
                       setCeremony((c) => ({ ...c, availability: false }));
@@ -1132,11 +1158,8 @@ export default function ImportedDraftsWorkspace() {
                 <Field
                   label="Reference Number"
                   attention={flagged("reference")}
-                  confirmed={shownCeremony(ceremony.reference)}
-                  outstanding={showBlockers && !shownCeremony(ceremony.reference)}
-                  onConfirm={(v) => setCeremony({ ...ceremony, reference: v })}
                   editable={editable}
-                  foot="Check against the watch or its documentation"
+                  foot="Imported — correct it here if it is wrong"
                 >
                   <input
                     value={buffer.reference}
@@ -1243,16 +1266,6 @@ export default function ImportedDraftsWorkspace() {
                     : "border-[var(--border-subtle)] bg-transparent"
                 }`}
               />
-              <label className="mt-2 flex items-center gap-2.5 text-[12px] text-[var(--platinum-dim)]">
-                <input
-                  type="checkbox"
-                  checked={shownCeremony(ceremony.description)}
-                  disabled={!editable}
-                  onChange={(e) => setCeremony({ ...ceremony, description: e.target.checked })}
-                  className={`h-4 w-4 accent-[var(--gold)] ${showBlockers && !shownCeremony(ceremony.description) ? "bg-[var(--danger)]/30 ring-2 ring-[var(--danger)]" : ""}`}
-                />
-                Confirmed by dealer
-              </label>
             </div>
           </div>
 
@@ -1319,6 +1332,16 @@ export default function ImportedDraftsWorkspace() {
                       return;
                     }
                     setShowBlockers(true);
+                    /* Marking everything is only half the answer — the first
+                       outstanding item is often above the fold the dealer is
+                       looking at. Take them to it, and focus it so a keyboard
+                       user lands there too. */
+                    requestAnimationFrame(() => {
+                      const first = document.querySelector<HTMLElement>("[data-blocker]");
+                      if (!first) return;
+                      first.scrollIntoView({ block: "center", behavior: "smooth" });
+                      first.focus({ preventScroll: true });
+                    });
                   }}
                   disabled={submitting || saving || !editable}
                   /* cursor-pointer is not decoration here. This button spends
@@ -1363,8 +1386,12 @@ function Field({
   children,
 }: {
   label: string;
-  confirmed: boolean;
-  onConfirm: (v: boolean) => void;
+  /* Optional: a card with no onConfirm renders NO confirmation row at all.
+     Availability, Reference and Description are reviewed and edited like
+     ordinary fields now — only the three facts a dealer can uniquely attest
+     to still ask for a signature. */
+  confirmed?: boolean;
+  onConfirm?: (v: boolean) => void;
   editable: boolean;
   foot: string;
   /** This field is one of the ones currently blocking submission. */
@@ -1416,6 +1443,7 @@ function Field({
       </div>
       {children}
       <div className="mt-2 flex items-center justify-between gap-3">
+        {onConfirm ? (
         <label
           className={`flex items-center gap-2 text-[11px] ${
             awaitingValue
@@ -1425,8 +1453,9 @@ function Field({
         >
           <input
             type="checkbox"
-            checked={confirmed && !awaitingValue}
+            checked={Boolean(confirmed) && !awaitingValue}
             disabled={!editable || awaitingValue}
+            data-blocker={outstanding || undefined}
             onChange={(e) => onConfirm(e.target.checked)}
             className={`h-4 w-4 accent-[var(--gold)] ${
               outstanding
@@ -1436,6 +1465,9 @@ function Field({
           />
           Confirmed by dealer
         </label>
+        ) : (
+          <span />
+        )}
         {/* Guidance the dealer is meant to READ — never --ghost, which the
             token law reserves for disabled states and placeholders.
 
