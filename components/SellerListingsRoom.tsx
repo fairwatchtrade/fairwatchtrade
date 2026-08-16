@@ -118,6 +118,76 @@ function hasAttention(row: {
   );
 }
 
+/** One sortable column label. A real <button>, so it is reachable by keyboard
+    and announces its own state rather than looking pressable and not being. */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: 1 | -1 };
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      aria-label={`Sort by ${label}`}
+      aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
+      className={`group flex cursor-pointer items-center gap-1 text-[11px] uppercase tracking-[1.7px] transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] ${
+        align === "right" ? "justify-end" : ""
+      } ${active ? "text-[var(--platinum-dim)]" : "text-[var(--muted)] hover:text-[var(--slate)]"}`}
+    >
+      {label}
+      {/* The arrow belongs to the active column only. Inactive columns show a
+          hover-only mark so the affordance is discoverable without printing
+          six arrows across a header that is meant to stay quiet. */}
+      <span
+        aria-hidden="true"
+        className={`text-[10px] ${
+          active ? "text-[var(--gold)]" : "opacity-0 transition-opacity group-hover:opacity-60"
+        }`}
+      >
+        {active ? (sort.dir === 1 ? "↑" : "↓") : "↕"}
+      </span>
+    </button>
+  );
+}
+
+/* ── ARRANGEMENT ────────────────────────────────────────────────────────
+   IMAGE and ACTIONS are not sortable: one is a photograph and the other is
+   a set of controls, and neither answers "how is this arranged?". */
+type SortKey = "listing" | "listed" | "price" | "status";
+
+const WORKBENCH_STATE_KEY = "fwt.listings.workbench";
+
+/** Oldest→newest reads as ascending. An unknown date is not "the beginning of
+    time" — it sorts to the END in both directions, so reversing the column
+    never parades the listings whose date we do not know. */
+function compareListed(a: string | null, b: string | null, dir: 1 | -1): number {
+  if (a === b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return (a < b ? -1 : 1) * dir;
+}
+
+/** Numeric, on the canonical amount — never the formatted string, where
+    "US$9,000" sorts below "US$800" because '9' > '8' at the second character.
+    A null price is UNSET truth, not zero, so it sorts to the end like an
+    unknown date rather than pretending to be the cheapest watch. */
+function comparePrice(a: number | null, b: number | null, dir: 1 | -1): number {
+  if (a === b) return 0;
+  if (a === null || a === undefined) return 1;
+  if (b === null || b === undefined) return -1;
+  return (a - b) * dir;
+}
+
 function thumbUrl(photos?: ListingPhoto[]): string | null {
   if (!Array.isArray(photos) || photos.length === 0) return null;
   const dial = photos.find((p) => p?.category === "Dial");
@@ -127,6 +197,7 @@ function thumbUrl(photos?: ListingPhoto[]): string | null {
 export default function SellerListingsRoom({
   listings,
   decisions = [],
+  publishedAt = {},
   threadStats,
   threadsLoaded,
   onSubmitForReview,
@@ -138,6 +209,11 @@ export default function SellerListingsRoom({
   listings: AccountListing[];
   /** Adjudication history for these listings, newest first. */
   decisions?: AccountDecisionEvent[];
+  /** listing id → ISO timestamp it was FIRST published. Composed at read time
+      from the decision events; absent means the listing has never been
+      published, or was published before that record existed. Never derived
+      from created_at. */
+  publishedAt?: Record<string, string>;
   /** listing ids of the seller's RLS-scoped correspondence threads (one entry per thread). */
   threadStats: ListingThreadStat[];
   /** false until /api/messages has answered — an unanswered source must not render as 0. */
@@ -149,8 +225,61 @@ export default function SellerListingsRoom({
   submitErrorId?: string | null;
   submitErrorMsg?: string | null;
 }) {
+  /* ── FILTERS ASK WHICH INVENTORY; HEADERS ASK HOW IT IS ARRANGED ────────
+     The tabs above stay filters and are never converted into sort controls.
+     The two questions are different and the room answers both.
+
+     Both survive together. A dealer who set PUBLISHED + LISTED DATE ↑, opened
+     a watch and came back was previously returned to ALL in default order —
+     their working position discarded by the act of using it. sessionStorage
+     rather than the URL: a sort is how you are working, not where you are,
+     and it should not own a back-button step or be inherited by a shared
+     link. It restores on remount and expires with the tab. ── */
   const [activeTab, setActiveTab] = useState<TabId>("all");
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "listed",
+    dir: -1,
+  });
+  const [restored, setRestored] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(WORKBENCH_STATE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { tab?: TabId; key?: SortKey; dir?: 1 | -1 };
+        if (saved.tab) setActiveTab(saved.tab);
+        if (saved.key && (saved.dir === 1 || saved.dir === -1)) {
+          setSort({ key: saved.key, dir: saved.dir });
+        }
+      }
+    } catch {
+      /* a workbench position is never worth a crash */
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    // Only after restore, so the first render's defaults cannot overwrite the
+    // saved position before it has been read back.
+    if (!restored) return;
+    try {
+      sessionStorage.setItem(
+        WORKBENCH_STATE_KEY,
+        JSON.stringify({ tab: activeTab, key: sort.key, dir: sort.dir })
+      );
+    } catch {
+      /* private mode, quota — the room still works, it just forgets */
+    }
+  }, [restored, activeTab, sort]);
+
+  /* First press of a header takes its natural reading order: A→Z for words,
+     oldest→newest for the date per the order, low→high for money. A second
+     press reverses. */
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: (prev.dir === 1 ? -1 : 1) as 1 | -1 } : { key, dir: 1 }
+    );
 
   /* Decision history readers. `decisions` arrives newest-first, so the first
      match for a listing is its current one and anything after it is genuinely
@@ -214,10 +343,29 @@ export default function SellerListingsRoom({
     { id: "rejected", label: "Rejected", count: counts.rejected },
   ];
 
-  const visible = useMemo(
-    () => (activeTab === "all" ? listings : listings.filter((l) => l.status === activeTab)),
-    [listings, activeTab]
-  );
+  const visible = useMemo(() => {
+    const filtered =
+      activeTab === "all" ? listings : listings.filter((l) => l.status === activeTab);
+    const { key, dir } = sort;
+    /* A copy — the prop belongs to the server page and sorting it in place
+       would mutate what the shell holds. */
+    return [...filtered].sort((a, b) => {
+      if (key === "price") return comparePrice(a.asking_price, b.asking_price, dir);
+      if (key === "listed") {
+        return compareListed(publishedAt[a.id] ?? null, publishedAt[b.id] ?? null, dir);
+      }
+      if (key === "status") {
+        /* The status the SELLER reads, so the arrangement matches the words
+           on screen. Plain A→Z: no workflow-priority doctrine is invented
+           here, because none has been ruled. */
+        const c = sellerLabel(a.status).localeCompare(sellerLabel(b.status));
+        return (c !== 0 ? c : a.brand.localeCompare(b.brand)) * dir;
+      }
+      // listing: brand first, model as the tie-breaker.
+      const c = a.brand.localeCompare(b.brand);
+      return (c !== 0 ? c : (a.model ?? "").localeCompare(b.model ?? "")) * dir;
+    });
+  }, [listings, activeTab, sort, publishedAt]);
 
   /* First VISIBLE listing selects by default; if the current selection
      leaves the filtered view, selection follows to the new first row. The
@@ -280,12 +428,35 @@ export default function SellerListingsRoom({
           </div>
         ) : (
           <div>
-            {/* Column guide — quiet, uppercase, from the locked artifact. */}
-            <div className="hidden gap-3 px-7 py-2 text-[11px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_110px_150px]">
+            {/* Column guide. Inactive headers stay as quiet as the guide has
+                always been and reveal their affordance on approach; only the
+                ACTIVE sort carries a persistent arrow, so the row reads as a
+                label with one live indicator rather than a strip of arrows. */}
+            <div className="hidden gap-3 px-7 py-2 text-[11px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_104px_110px_120px_84px]">
               <span>Image</span>
-              <span>Listing</span>
-              <span className="text-right">Price</span>
-              <span className="text-right">Status · Actions</span>
+              <SortHeader label="Listing" sortKey="listing" sort={sort} onSort={toggleSort} />
+              <SortHeader
+                label="Listed Date"
+                sortKey="listed"
+                sort={sort}
+                onSort={toggleSort}
+                align="right"
+              />
+              <SortHeader
+                label="Price"
+                sortKey="price"
+                sort={sort}
+                onSort={toggleSort}
+                align="right"
+              />
+              <SortHeader
+                label="Status"
+                sortKey="status"
+                sort={sort}
+                onSort={toggleSort}
+                align="right"
+              />
+              <span className="text-right">Actions</span>
             </div>
 
             {/* Hybrid C — each listing is its own container carrying its
@@ -302,7 +473,7 @@ export default function SellerListingsRoom({
                   key={row.id}
                   onClick={() => setSelectedId(row.id)}
                   style={lifecycleContainerStyle(row.status, { selected: isSel, attention: attn })}
-                  className="relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border px-4 py-[12px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(0,1fr)_110px_150px]"
+                  className="relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border px-4 py-[12px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(0,1fr)_104px_110px_120px_84px]"
                 >
                   {/* Real listing photograph */}
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
@@ -320,7 +491,10 @@ export default function SellerListingsRoom({
 
                   {/* Identity — brand · model/collector identity · full reference */}
                   <div className="min-w-0">
-                    <div className="text-[8.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                    {/* The maker's name was set at 8.5px — smaller than every
+                        piece of status language around it, on the one line
+                        that says whose watch this is. */}
+                    <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                       {row.brand}
                     </div>
                     {/* The identity is the star — it WRAPS (two lines max)
@@ -333,19 +507,46 @@ export default function SellerListingsRoom({
                     </div>
                   </div>
 
+                  {/* LISTED DATE — the day this watch became visible to
+                      collectors, and nothing else.
+
+                      A dash is not a gap to be filled. A draft has never been
+                      listed, so it has no listed date; substituting the day
+                      the row was created would tell a dealer their unpublished
+                      watch has been on the market for weeks. Published rows
+                      from before the decision record existed are unknown for
+                      the same reason, and are shown as unknown. */}
+                  <div className="hidden text-right text-[12px] tabular-nums text-[var(--platinum-dim)] md:block">
+                    {publishedAt[row.id] ? (
+                      new Date(publishedAt[row.id]).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    ) : (
+                      <span className="text-[var(--muted)]">—</span>
+                    )}
+                  </div>
+
                   {/* Price */}
                   <div className="hidden text-right font-display text-[16px] font-light text-[var(--platinum-dim)] md:block">
                     {price(row)}
                   </div>
 
-                  {/* Status + restrained real actions */}
-                  <div className="hidden items-center justify-end gap-2 md:flex">
+                  {/* Status — its own column now, so it can be sorted and so
+                      the badge stops sharing a cell with the controls. */}
+                  <div className="hidden items-center justify-end md:flex">
                     <span
                       className="border px-2 py-[3px] text-[11px] uppercase tracking-[1.2px]"
                       style={statusBadgeStyle(row.status)}
                     >
                       {badge}
                     </span>
+                  </div>
+
+                  {/* Actions — real behaviour only; never a control that does
+                      nothing on a row that cannot do it. */}
+                  <div className="hidden items-center justify-end gap-2 md:flex">
                     {(row.status === "published" || row.status === "reserved") && (
                       <Link
                         href={`/listings/${row.id}`}

@@ -1081,11 +1081,15 @@ function RequestsView({
 export default function AccountDashboard({
   listings,
   decisions = [],
+  publishedAt = {},
 }: {
   listings: AccountListing[];
   /** Adjudication history for these listings, newest first. Optional so any
       other caller keeps working without it. */
   decisions?: AccountDecisionEvent[];
+  /** listing id -> ISO timestamp of the decision that first published it.
+      Absent = never published, or published before the event table existed. */
+  publishedAt?: Record<string, string>;
 }) {
   /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
      ?module=saved deep link becomes the general convention: every real
@@ -1385,6 +1389,7 @@ export default function AccountDashboard({
                 <SellerListingsRoom
                   listings={searchFiltered}
                   decisions={decisions}
+                  publishedAt={publishedAt}
                   threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                   threadsLoaded={threadsLoaded}
                   onSubmitForReview={submitForReview}

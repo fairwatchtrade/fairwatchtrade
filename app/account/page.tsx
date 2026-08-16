@@ -69,5 +69,41 @@ export default async function AccountPage() {
     decisions = (Array.isArray(events) ? events : []) as AccountDecisionEvent[];
   }
 
-  return <AccountDashboard listings={listings} decisions={decisions} />;
+  /* ── WHEN A LISTING WAS ACTUALLY LISTED ─────────────────────────────────
+     There is no published_at column on listings, and row creation time is
+     NOT a substitute: a draft that sat for eighteen days before publication
+     has not been publicly listed for eighteen days. The only record of the
+     moment a listing went live is the decision event that put it there.
+
+     Composed at read time rather than stored — the event table already holds
+     this truth and a second copy could disagree with it.
+
+     Deliberately a separate query from `decisions` above, which is capped at
+     60 rows for status explanation. A cap is harmless for an explanation and
+     silently wrong for a date column: the 61st event would simply make a
+     listing's date vanish. This one is bounded by the seller's own published
+     listings instead, and asks only for what it needs.
+
+     ⚠ Listings published before the event table existed (2026-08-07) have no
+     row here and therefore no known listed date. That absence is reported as
+     unknown, never backfilled from created_at. */
+  const publishedAt: Record<string, string> = {};
+  if (ids.length > 0) {
+    const { data: pubs } = await supabase
+      .from("listing_decision_events")
+      .select("listing_id, created_at")
+      .in("listing_id", ids)
+      .eq("resulting_status", "published")
+      .order("created_at", { ascending: true });
+    for (const row of Array.isArray(pubs) ? pubs : []) {
+      const r = row as { listing_id: string; created_at: string };
+      // Ascending, so the FIRST seen is the earliest — a relisting never
+      // overwrites the date the watch originally reached collectors.
+      if (!publishedAt[r.listing_id]) publishedAt[r.listing_id] = r.created_at;
+    }
+  }
+
+  return (
+    <AccountDashboard listings={listings} decisions={decisions} publishedAt={publishedAt} />
+  );
 }
