@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
@@ -33,6 +33,38 @@ import { cardImageSrc } from "@/lib/media/cardImage";
    card's, so it asks for the larger allowlisted width; full resolution
    still belongs to the listing hero and photo inspection, where looking
    closely is the whole purpose.
+
+   ── WHY THE PHOTOGRAPHS ARE LAYERS, NOT ONE SWAPPING src ───────────────
+   Stepping used to look broken: several clicks with no visible change, then
+   a photograph would suddenly appear, and the bars could disagree with what
+   was on screen.
+
+   The cause was not state, and it was not duplicate photographs. Both were
+   checked before anything was written. The panel's index arithmetic advances
+   exactly once per action, and the primary repro — the Tonda Métrographe —
+   holds six entries and six DISTINCT urls, so nothing here deduplicates
+   seller evidence.
+
+   The cause is that a single <img> keeps painting its PREVIOUS picture until
+   the new src finishes loading, and this src is a derivative generated on
+   demand: measured against production, ~2.2s cold and ~0.25s warm. So the
+   index moved, the bars moved, and the photograph stayed — for two seconds —
+   showing the collector one watch photo while the interface asserted
+   another.
+
+   Layers fix the correspondence at its root instead of racing it. Every
+   photograph gets its own element and its own load state, and a layer is
+   only visible when it is BOTH the active index AND actually loaded. A
+   photograph that has not arrived shows nothing rather than showing the
+   wrong one — the panel can be a moment behind, but it can never lie about
+   which photograph it is showing.
+
+   Only the active photograph and its two neighbours are mounted. That is
+   what makes the wait disappear in practice: stepping either direction lands
+   on something already fetched, and the derivative carries a 24h immutable
+   cache, so a revisit is instant. Mounting all of them would fire a cold
+   generation for every photograph the moment a panel opened, to save a wait
+   the collector was never going to have.
    ──────────────────────────────────────────────────────────────────────── */
 
 export type QuickSpec = { label: string; value: string };
@@ -69,6 +101,23 @@ export default function BrowseCardInspector({
     if (count < 2) return;
     onPhotoIndex((active + delta + count) % count);
   };
+
+  /* Keyed by url, not by index: the same photograph is the same fetch no
+     matter where it sits, and an index-keyed record would go stale the
+     moment a listing's photographs were reordered. */
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({});
+
+  /* The active photograph and its two neighbours — the ones a next or
+     previous press can reach without waiting. Wraps, because stepping does.
+     A single-photograph panel mounts exactly one. */
+  const mounted = new Set<number>();
+  if (count > 0) {
+    mounted.add(active);
+    if (count > 1) {
+      mounted.add((active + 1) % count);
+      mounted.add((active - 1 + count) % count);
+    }
+  }
 
   /* Escape closes; the arrows walk the photographs. Bound to the document
      because the collector's hands may be anywhere on the page — but never
@@ -151,15 +200,37 @@ export default function BrowseCardInspector({
       <div className="grid flex-1 grid-cols-1 md:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.82fr)]">
         {/* The photograph */}
         <div className="relative flex min-h-[300px] items-center justify-center overflow-hidden border-b border-[var(--border-faint)] bg-[var(--image-well)] md:border-b-0 md:border-r">
-          {photos[active] ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={cardImageSrc(photos[active], { width: 720 })}
-              alt=""
-              className="h-full w-full object-contain"
-            />
-          ) : (
+          {count === 0 ? (
             <span className="text-[11px] tracking-[0.3px] text-[var(--muted)]">No photo</span>
+          ) : (
+            <>
+              {photos.map((url, i) =>
+                mounted.has(i) ? (
+                  /* Keyed by url so a photograph keeps its element — and its
+                     loaded state — for as long as it stays mounted.
+                     eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={url}
+                    src={cardImageSrc(url, { width: 720 })}
+                    alt=""
+                    onLoad={() => setLoaded((prev) => (prev[url] ? prev : { ...prev, [url]: true }))}
+                    className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${
+                      i === active && loaded[url] ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                ) : null
+              )}
+
+              {/* Shown only in the gap between asking for a photograph and
+                  having it. It is a real sentence rather than a spinner
+                  because it is telling the collector something true about
+                  the panel's state, and functional text is not decoration. */}
+              {!loaded[photos[active]] && (
+                <span className="text-[11px] tracking-[0.3px] text-[var(--muted)]">
+                  Loading photograph…
+                </span>
+              )}
+            </>
           )}
 
           {count > 1 && (

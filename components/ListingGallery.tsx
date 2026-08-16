@@ -31,9 +31,9 @@ import { cardImageSrc } from "@/lib/media/cardImage";
 
    ── ARROWS SIT BELOW DIAL REVEAL (z-10 vs z-30) ────────────────────────
    Deliberate, not incidental. DialReveal's anchor and fader are z-30 and hug
-   the hero's lower-right; the right arrow is vertically centred at the same
-   edge. On a tall hero they never meet, but `max-h-[60vh]` + object-contain
-   means a wide/short photo yields a SHORT container, where the vertical
+   the photograph's lower-right; the right arrow is vertically centred in the
+   stage at the same edge. On a tall photograph they never meet, but a wide,
+   short one sits short inside the governed stage, and the arrow's vertical
    centre can fall inside the fader's 146px column. z-10 guarantees the fader
    and square keep both the paint and the click in that overlap — Dial Reveal
    stays fully operable, and a fader drag can never leak into "next photo".
@@ -131,15 +131,61 @@ export default function ListingGallery({
       {/* Hero — large, full-width. The photograph itself carries no click
           handler: clicking it does nothing, by design. */}
       <div className="relative w-full overflow-hidden rounded-lg border border-[var(--border-mid)] bg-[color:light-dark(#F1EDE3,#14161C)] p-2 sm:p-3">
-        {dialUrl && heroUrl === dialUrl ? (
-          <DialReveal
-            photoUrl={heroUrl}
-            className="max-h-[60vh] w-full rounded-lg object-contain transition-[filter] duration-200"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroUrl} alt="" className="max-h-[60vh] w-full rounded-lg object-contain" />
-        )}
+        {/* ── THE GOVERNED STAGE ────────────────────────────────────────────
+            The stage owns the height. The photograph does not.
+
+            Before this, the hero image was `w-full max-h-[60vh]`, so its
+            height was width ÷ source aspect ratio, capped. The element's
+            height therefore CHANGED with every photograph, and everything
+            below it — OMEGA, Seamaster, REFERENCE, the reference value, the
+            case diameter, Collector Snapshot — rode up and down with the
+            proportions of whatever the collector happened to click.
+
+            Measured on the Omega Seamaster before the repair: 255px of
+            anchor movement across its six thumbnails at 375px wide. It read
+            as stable on a 1512×950 desktop, but only by arithmetic accident
+            — there the cap engages for any photograph narrower than 1.663:1,
+            and every photograph on that listing is 1.333:1 or narrower. A
+            single 16:9 photograph would have moved it there too. A defect
+            that hides behind the aspect ratios a listing happens to contain
+            is not absent; it is waiting.
+
+            So the height is now a constant per viewport, and the photograph
+            adapts inside it. 60vh is the SAME height the tallest photograph
+            already occupied, so the roomiest case is unchanged; what changed
+            is that a short photograph no longer pulls the facts up to meet
+            it.
+
+            This also removes the transient jump: the stage is sized before
+            any image loads, so nothing reflows when a new one arrives —
+            cold cache or warm.
+
+            max-h/max-w rather than h-full/w-full is deliberate. It makes the
+            image element hug the photograph itself, which is what Dial
+            Reveal's controls anchor to; h-full would stretch the element
+            across the whole stage and carry the muted-gold square off into a
+            letterbox margin, away from the lower-right corner of the hero
+            image where its law puts it. Every real listing photograph is
+            wider than this stage, so the fit is identical to before.
+
+            NOT solved by cropping, by moving a fact, or by touching a seller
+            photo record. The photograph is still whole, still object-contain,
+            still full resolution into Inspect. ── */}
+        <div className="relative flex h-[60vh] items-center justify-center">
+          {dialUrl && heroUrl === dialUrl ? (
+            <DialReveal
+              photoUrl={heroUrl}
+              className="max-h-full max-w-full rounded-lg object-contain transition-[filter] duration-200"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={heroUrl}
+              alt=""
+              className="max-h-full max-w-full rounded-lg object-contain"
+            />
+          )}
+        </div>
 
         {/* Previous — rendered only when there is a previous photo. */}
         {hasPrev && (
