@@ -105,9 +105,24 @@ function revealFilter(level: number): string {
 export default function DialReveal({
   photoUrl,
   className,
+  frameClassName,
 }: {
   photoUrl: string;
   className?: string;
+  /* The frame the photograph and its controls live in. Optional, and the
+     default is the original bare `relative` — a caller that says nothing
+     gets exactly what it got before this prop existed.
+
+     It exists because a caller may hand this component a stage with a
+     governed height (the listing hero does). The photograph's own
+     `max-h-full` is a PERCENTAGE, and a percentage resolves to nothing
+     against a height-auto parent — so inside such a stage the frame must
+     carry the height down, or the photograph silently renders at its full
+     natural size and gets clipped by whatever is above it. Passing the
+     height through here keeps the frame hugging the photograph, which is
+     what the controls anchor to: the muted-gold square belongs in the
+     lower-right corner of the HERO IMAGE, not of a letterbox margin. */
+  frameClassName?: string;
 }) {
   const [active, setActive] = useState(false);
   const [level, setLevel] = useState(FADER_DEFAULT);
@@ -173,7 +188,7 @@ export default function DialReveal({
   }
 
   return (
-    <div className="relative" data-dial-reveal>
+    <div className={frameClassName ?? "relative"} data-dial-reveal>
       <style>{`
         .fwt-dial-fader{-webkit-appearance:none;appearance:none;background:transparent;cursor:ns-resize}
         .fwt-dial-fader::-webkit-slider-runnable-track{height:2px;background:rgba(232,228,220,.20);border:0}

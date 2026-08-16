@@ -173,9 +173,19 @@ export default function ListingGallery({
             still full resolution into Inspect. ── */}
         <div className="relative flex h-[60vh] items-center justify-center">
           {dialUrl && heroUrl === dialUrl ? (
+            /* The frame carries the stage's height down to the photograph.
+               Without it, `h-full` inside DialReveal's own height-auto
+               wrapper resolves against nothing and a tall photograph — a
+               phone screenshot at 0.448, say — renders at full natural size
+               and is clipped by the hero's overflow. Caught in production
+               measurement, not in review: the anchor held perfectly while
+               the photograph was quietly being cropped. `w-fit` keeps the
+               frame hugging the photograph so Dial Reveal's square stays in
+               the corner of the hero image. */
             <DialReveal
               photoUrl={heroUrl}
-              className="max-h-full max-w-full rounded-lg object-contain transition-[filter] duration-200"
+              frameClassName="relative h-full w-fit"
+              className="h-full w-auto max-w-full rounded-lg object-contain transition-[filter] duration-200"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
