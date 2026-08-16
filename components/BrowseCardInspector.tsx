@@ -77,6 +77,7 @@ export default function BrowseCardInspector({
   photos,
   photoIndex,
   onPhotoIndex,
+  onPhotoStep,
   specs,
   href,
   onClose,
@@ -88,6 +89,15 @@ export default function BrowseCardInspector({
   photos: string[];
   photoIndex: number;
   onPhotoIndex: (index: number) => void;
+  /* Stepping asks for a DIRECTION, not a destination.
+     `onPhotoIndex(active + 1)` computes the destination from the index this
+     render was given, so two presses landing in the same batch both compute
+     from the same starting point and one of them is lost. A human cannot
+     press twice inside a single browser task, and at 300ms nothing is
+     dropped — but "advances exactly once per action" should be true because
+     of how it is written, not because people are slow. The owner of the
+     value resolves the direction against its own current state. */
+  onPhotoStep: (delta: number) => void;
   specs: QuickSpec[];
   href: string;
   onClose: () => void;
@@ -99,7 +109,7 @@ export default function BrowseCardInspector({
   const active = count > 0 ? Math.min(Math.max(photoIndex, 0), count - 1) : 0;
   const step = (delta: number) => {
     if (count < 2) return;
-    onPhotoIndex((active + delta + count) % count);
+    onPhotoStep(delta);
   };
 
   /* Keyed by url, not by index: the same photograph is the same fetch no

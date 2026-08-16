@@ -2428,6 +2428,22 @@ export default function BrowseClient({
                     onPhotoIndex={(i) =>
                       setCardPhotoIndex((prev) => ({ ...prev, [row.id]: i }))
                     }
+                    /* Resolved against the value's own current state, so a
+                       press cannot be computed from a stale render and
+                       silently lost when two land in one batch. Wrapping is
+                       unchanged — the ends of the gallery behave exactly as
+                       they did. */
+                    onPhotoStep={(delta) =>
+                      setCardPhotoIndex((prev) => {
+                        const n = urls.length;
+                        if (n < 2) return prev;
+                        const current = Math.min(
+                          Math.max(prev[row.id] ?? heroIndex, 0),
+                          n - 1
+                        );
+                        return { ...prev, [row.id]: (current + delta + n) % n };
+                      })
+                    }
                     specs={quickSpecs(row)}
                     href={listingHref(row.id)}
                     onClose={() => {
