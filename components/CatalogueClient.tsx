@@ -672,7 +672,7 @@ function MyOffersSection({
           </div>
           <Link
             href="/browse"
-            className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]"
+            className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold-on-tint)] transition hover:text-[var(--platinum)]"
           >
             Explore the Marketplace →
           </Link>
@@ -983,7 +983,7 @@ export default function CatalogueClient({
               to 2.83:1 — measured on production Daylight, not estimated. The
               token is not globally wrong; it is wrong on a light surface this
               pale. Corrected at the instance, per the order. */}
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)]">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold-on-tint)]">
             Catalogue Match
           </div>
           {heroState === "matches" ? (
@@ -1217,17 +1217,17 @@ export default function CatalogueClient({
                     Save a watch that speaks to you, and your Catalogue will begin to take shape.
                   </div>
                   <div className="flex flex-col items-center gap-3">
-                    <Link href="/browse" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]">
+                    <Link href="/browse" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold-on-tint)] transition hover:text-[var(--platinum)]">
                       Explore the Marketplace →
                     </Link>
-                    <Link href="/vault" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]">
+                    <Link href="/vault" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold-on-tint)] transition hover:text-[var(--platinum)]">
                       Explore the Vault →
                     </Link>
                     {/* v3.21 — LIVE link (v3 order §6.3): Watch DNA is a
                         working module; no surface may claim it is Soon. */}
                     <Link
                       href="/watch-dna"
-                      className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]"
+                      className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold-on-tint)] transition hover:text-[var(--platinum)]"
                     >
                       Watch DNA Quiz →
                     </Link>

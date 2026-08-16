@@ -121,6 +121,21 @@ html[data-theme="dark"] { color-scheme: dark; }
      on ivory, so the light arm carries the burnished hue instead. */
   --gold-whisper: light-dark(rgba(176,138,46,0.13), rgba(201,168,76,0.08));
 
+  /* GOLD ON A GOLD-TINTED SURFACE.
+
+     --gold is correct on the ordinary page. On a surface that is ITSELF a
+     pale gold wash — the --gold-whisper hero, the rail cards — the two sit
+     close enough in luminance that a small uppercase label stops resolving:
+     measured on production Daylight, --gold-subtle came to 2.83:1 there and
+     plain --gold only reached 3.85:1, both under the 4.5 floor.
+
+     This is the same hue carried darker, for that case only. It measures
+     5.09:1 on the hero and 5.73:1 on the cards, and is still recognisably
+     gold rather than brown. The dark arm is UNCHANGED — the problem does not
+     exist there, and gold is not globally darkened to solve a light-mode
+     collision. Reach for this only when gold must read against a gold tint. */
+  --gold-on-tint: light-dark(#745A1A, #C9A84C);
+
   /* GOLD HIERARCHY RULE: --gold is used ONCE per section.
      It marks the single most important element in that zone.
      Supporting gold uses --gold-dim or --gold-subtle only.
