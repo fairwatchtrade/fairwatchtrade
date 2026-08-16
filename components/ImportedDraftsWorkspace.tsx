@@ -723,7 +723,7 @@ export default function ImportedDraftsWorkspace() {
             placeholder="Search brand, model, or reference…"
             className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
           />
-          <div className="mt-2 flex items-baseline justify-between gap-2 text-[10px] tracking-[0.5px] text-[var(--muted)]">
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[12px] tracking-[0.5px] text-[var(--muted)]">
             <span>
               {filtered.length} imported draft{filtered.length === 1 ? "" : "s"}
               {filtered.length !== rows.length ? ` of ${rows.length}` : ""}
@@ -784,7 +784,7 @@ export default function ImportedDraftsWorkspace() {
                     moves through the workflow. */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[9.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                    <span className="truncate text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
                       {l.brand}
                     </span>
                     <span className="shrink-0 font-display text-[13px] font-light text-[var(--platinum-dim)]">
@@ -1051,7 +1051,7 @@ export default function ImportedDraftsWorkspace() {
                 <h4 className="font-display text-[16px] font-light text-[var(--platinum)]">
                   Commercial Details
                 </h4>
-                <span className="text-[10px] text-[var(--muted)]">
+                <span className="text-[12px] text-[var(--muted)]">
                   Imported values require dealer confirmation
                 </span>
               </div>
@@ -1201,7 +1201,7 @@ export default function ImportedDraftsWorkspace() {
                 <h4 className="font-display text-[16px] font-light text-[var(--platinum)]">
                   Included Items &amp; Documentation
                 </h4>
-                <span className="text-[10px] text-[var(--muted)]">
+                <span className="text-[12px] text-[var(--muted)]">
                   Confirm what actually ships with this watch
                 </span>
               </div>
@@ -1242,7 +1242,7 @@ export default function ImportedDraftsWorkspace() {
                   <label className="font-display text-[16px] font-light text-[var(--platinum)]">
                     Additional Included Item Notes
                   </label>
-                  <span className="text-[10px] text-[var(--muted)]">
+                  <span className="text-[12px] text-[var(--muted)]">
                     {buffer.includedNotes.length} / 300
                   </span>
                 </div>
@@ -1269,7 +1269,7 @@ export default function ImportedDraftsWorkspace() {
                 >
                   Description
                 </h4>
-                <span className="text-[10px] text-[var(--muted)]">
+                <span className="text-[12px] text-[var(--muted)]">
                   {buffer.description.length} / 1800
                 </span>
               </div>
@@ -1457,7 +1457,7 @@ function Field({
         >
           {label}
         </span>
-        <span className="border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 text-[8px] uppercase tracking-[1px] text-[var(--gold-dim)]">
+        <span className="border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 text-[10px] uppercase tracking-[1px] text-[var(--gold-dim)]">
           Imported
         </span>
       </div>
@@ -1496,7 +1496,9 @@ function Field({
             submission" describes a rule; "Choose a value first" describes
             the next action, which is what someone stuck actually needs. */}
         <span
-          className={`text-right text-[10px] ${
+          /* This carries requirements and the danger-state instruction a
+             stuck dealer reads. It was the smallest type in the room. */
+          className={`text-right text-[12px] ${
             awaitingValue ? "font-medium text-[var(--danger)]" : "text-[var(--muted)]"
           }`}
         >

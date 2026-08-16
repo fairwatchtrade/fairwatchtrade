@@ -655,16 +655,40 @@ export default function AccountSettings({
                     maxLength={120}
                   />
                 </label>
-                <label>
+                {/* ── PUBLIC ROOM ADDRESS ───────────────────────────────────
+                    It read as a routing value because the fixed part was
+                    styled exactly like the LABEL above it — same 11px, same
+                    --muted — so "/sellers/" looked like more field furniture
+                    and the whole control looked like a debug string someone
+                    had left on screen.
+
+                    Two changes, both presentation. The fixed part now says
+                    what it is: a real address, domain included, in the room's
+                    reading colour rather than label grey. And the seller's own
+                    portion is the emphasised half — larger, brighter, medium
+                    weight — so the division between what FairWatchTrade owns
+                    and what the dealer owns is visible before it is read.
+
+                    Given the whole width because an address is a single long
+                    value and wrapping it into a half-column is what left the
+                    slug floating in empty space.
+
+                    Behaviour is untouched: same state, same onChange, same
+                    maxLength, same save path, same uniqueness and validation.
+                    No slug lifecycle rule is invented here. ── */}
+                <label className="sm:col-span-2">
                   <span className="mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
                     Public room address
                   </span>
-                  <div className="flex items-center border border-[var(--border-subtle)] bg-[var(--surface)] px-3 focus-within:border-[var(--border-gold)]">
-                    <span className="shrink-0 text-[11px] text-[var(--muted)]">/sellers/</span>
+                  <div className="flex items-baseline border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5 focus-within:border-[var(--border-gold)]">
+                    <span className="shrink-0 select-none text-[13px] text-[var(--slate)]">
+                      fairwatchtrade.com/sellers/
+                    </span>
                     <input
                       value={dealerSlug}
                       onChange={(event) => setDealerSlug(event.target.value)}
-                      className="min-w-0 flex-1 bg-transparent py-3 text-[13px] text-[var(--platinum)] outline-none"
+                      aria-label="Your public room address"
+                      className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[var(--platinum)] outline-none"
                       maxLength={80}
                     />
                   </div>
