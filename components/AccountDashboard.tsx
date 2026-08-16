@@ -1049,7 +1049,18 @@ function RequestsView({
                       <span className="font-display text-[16px] font-light text-[var(--platinum-dim)]">
                         {proposed}
                       </span>
-                      <span className="text-[10px] text-[var(--muted)]">
+                      {/* The comparison is the reason the offer means
+                          anything — US$6,800 says little until it sits next
+                          to US$7,250 asking and US$450 under. It was set at
+                          10px --muted, the smallest and faintest text in a
+                          row about money.
+
+                          Raised to 12px --slate: readable, and still clearly
+                          subordinate to the 16px offer beside it. The offer
+                          keeps its size and weight, so the row does not get
+                          louder — the quiet half simply stops being
+                          microprint. */}
+                      <span className="text-[12px] text-[var(--slate)]">
                         vs. {asking} asking{deltaLabel ? ` · ${deltaLabel}` : ""}
                       </span>
                     </div>
