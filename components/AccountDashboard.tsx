@@ -1033,9 +1033,15 @@ function RequestsView({
                         {STATUS_LABEL[r.status] ?? r.status}
                       </span>
                     </div>
-                    {listing && (
+                    {/* Gated on the RESOLVED reference, not on the embed.
+                        Reading `listing` here was the last dependency on the
+                        live row: a terminal request whose listing is gone
+                        would have dropped its reference line entirely, losing
+                        the one identifier that distinguishes two otherwise
+                        identical watches. */}
+                    {reference && (
                       <div className="mt-[2px] text-[11px] tracking-[0.3px] text-[var(--muted)]">
-                        Ref. {listing.reference}
+                        Ref. {reference}
                       </div>
                     )}
 
