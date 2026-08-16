@@ -293,6 +293,25 @@ function getStarImagePath(slug: string): string {
   return STAR_POOL[index];
 }
 
+/* ── MOON TEXTURES ──────────────────────────────────────────────────────
+   Eight approved photographs. They are the production pool and they are not
+   to be regenerated, recoloured, cropped, filtered or otherwise altered —
+   the bytes in public/moons are the bytes that were approved.
+
+   Assignment is deterministic on the VARIANT ID, which is the moon's stable
+   identity everywhere else in this file (the selected-moon indicator already
+   matches on it). So a given reference shows the same moon on every render,
+   refresh, viewport and session, and only a change to that id can move it.
+   No Math.random, no render-order counter, no session or viewport input. */
+const MOON_POOL: string[] = Array.from(
+  { length: 8 },
+  (_, index) => `/moons/Moon-0${index + 1}.png`,
+);
+
+function getMoonImagePath(variantId: string): string {
+  return MOON_POOL[hashSlug(variantId) % MOON_POOL.length];
+}
+
 // Collection planets have their own texture layer. Brand stars — including
 // Parmigiani Fleurier's dedicated exception — remain on the star pool above.
 const COLLECTION_PLANET_POOL: string[] = Array.from(
@@ -411,6 +430,10 @@ export default function VaultGalaxy({
   const collectionPlanetImagesRef = useRef<Map<string, HTMLImageElement>>(
     new Map(),
   );
+  // Moons (variants) keep their own texture map, separate from the brand
+  // stars and the collection planets — three pools, three layers, no shared
+  // state between them.
+  const moonImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   useEffect(() => {
     const allPaths = [
@@ -436,6 +459,17 @@ export default function VaultGalaxy({
       collectionPlanetImagesRef.current.set(path, img);
     });
     const mapAtMount = collectionPlanetImagesRef.current;
+    return () => mapAtMount.clear();
+  }, []);
+
+  // Moon textures, preloaded exactly as the stars and planets above are.
+  useEffect(() => {
+    MOON_POOL.forEach((path) => {
+      const img = new Image();
+      img.src = path;
+      moonImagesRef.current.set(path, img);
+    });
+    const mapAtMount = moonImagesRef.current;
     return () => mapAtMount.clear();
   }, []);
   const [viewportVersion, setViewportVersion] = useState(0);
@@ -1401,18 +1435,45 @@ export default function VaultGalaxy({
             ctx.fill();
           }
         } else {
-          // Models/moons — unchanged procedural render.
-          ctx.fillStyle =
-            o.type === "model" ? "rgba(232,228,220,.88)" : "rgba(201,168,76,.9)";
-          ctx.beginPath();
-          ctx.arc(
-            p.x,
-            p.y,
-            Math.max(isMobileViewport() ? 1.6 : 2.2, p.r),
-            0,
-            Math.PI * 2,
-          );
-          ctx.fill();
+          /* ── Moons ────────────────────────────────────────────────────
+             The approved photograph where one resolves; the original
+             procedural body wherever it does not.
+
+             Radius arithmetic is copied from the branch it replaces and the
+             draw size is that radius doubled — the same diameter the circle
+             occupied, at the same centre — so apparent scale, orbital
+             position, z-order and the selected-moon indicator below are all
+             unmoved. Only the fill changed.
+
+             The fallback is not a timing shortcut: an image that simply has
+             not decoded yet fails this test for a frame and paints the
+             circle, exactly as the star and planet layers already do, and
+             takes the photograph the moment it is ready. A missing or broken
+             asset therefore leaves a moon, never a hole. */
+          const moonRadius = Math.max(isMobileViewport() ? 1.6 : 2.2, p.r);
+          const moonImg =
+            o.type === "model" && o.variant
+              ? moonImagesRef.current.get(getMoonImagePath(o.variant.id))
+              : undefined;
+
+          if (moonImg && moonImg.complete && moonImg.naturalWidth > 0) {
+            const drawSize = moonRadius * 2;
+            ctx.drawImage(
+              moonImg,
+              p.x - drawSize / 2,
+              p.y - drawSize / 2,
+              drawSize,
+              drawSize,
+            );
+          } else {
+            ctx.fillStyle =
+              o.type === "model"
+                ? "rgba(232,228,220,.88)"
+                : "rgba(201,168,76,.9)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, moonRadius, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           /* ── v2.4t · selected-moon horological indicator ──────────────
              Identity-attached: exact variant id match, never position or
