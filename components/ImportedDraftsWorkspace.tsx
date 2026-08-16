@@ -25,13 +25,20 @@ import { currencyMeta } from "@/lib/supportedCurrencies";
      exactly once, guaranteed by construction, not by join semantics.
    · Needs Attention is COMPUTED from incomplete draft truth. Never stored.
      There is deliberately no manual "mark needs attention" action.
-   · The THREE confirmation checkboxes are UI ceremony — ephemeral by design
-     (reduced from six; see the Ceremony type for which survived and why).
-     ⚠ The RPC does NOT inspect them — they gate the button, not the write.
+   · The THREE confirmation checkboxes are SERVER-REQUIRED as of v5.12 (see
+     the Ceremony type for which three survived the cut from six, and why).
+     Their local state is still ephemeral, but they are no longer local:
+     submit sends them, and submit_listing_for_review() refuses an imported
+     transition unless all three are asserted. ⚠ Until v5.12 the RPC did not
+     inspect them — comments claiming that are stale, not describing a
+     second path. What the dealer answered is recorded on the row as
+     dealer_attested_acts and in the append-only lifecycle event.
      The DURABLE attestation is stamped by submit_listing_for_review()
      atomically with the transition; its validity is COMPOSED at read time
      by recomputing the 13-field fingerprint (lib/attestation.ts) against
-     the stored one. Stale ⇒ ceremony reappears. Nothing to un-flip.
+     the stored one. ⚠ The acts sit BESIDE the fingerprint, never inside it —
+     the canonical frames are unchanged, so every fingerprint minted before
+     v5.12 verifies exactly as it did. Stale ⇒ ceremony reappears.
    · Save Draft updates ONLY commercial-truth columns — the v2.21 column
      grants make everything else unwritable from this session anyway.
    · Replacement photos upload via the existing uploadPhoto() seam and are
@@ -567,8 +574,26 @@ export default function ImportedDraftsWorkspace() {
         const ok = await saveDraft();
         if (!ok) return;
       }
+      /* The three acts travel WITH the submission. Until v5.12 they gated
+         only this button, which meant the confirmations were a habit the
+         interface asked for rather than something the platform required —
+         any path that reached the route without this room skipped them and
+         still earned a fingerprint stamp. The function now refuses without
+         them, and these are what it reads.
+
+         Key names are the server's, not the local state's: `photos` here,
+         `photographs` on the wire, because that is what the record and the
+         refusal message say. */
       const res = await fetch(`/api/listings/${selected.id}/submit-for-review`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attestedActs: {
+            photographs: ceremony.photos,
+            price: ceremony.price,
+            condition: ceremony.condition,
+          },
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -1122,7 +1147,6 @@ export default function ImportedDraftsWorkspace() {
                     data-blocker={showBlockers && !buffer.availability ? true : undefined}
                     onChange={(e) => {
                       edit({ availability: e.target.value });
-                      setCeremony((c) => ({ ...c, availability: false }));
                     }}
                     className={`w-full py-1.5 text-[13px] focus:outline-none disabled:opacity-60 [&>option]:bg-[var(--ink)] ${
                       buffer.availability
@@ -1164,10 +1188,7 @@ export default function ImportedDraftsWorkspace() {
                   <input
                     value={buffer.reference}
                     disabled={!editable}
-                    onChange={(e) => {
-                      edit({ reference: e.target.value });
-                      setCeremony((c) => ({ ...c, reference: false }));
-                    }}
+                    onChange={(e) => edit({ reference: e.target.value })}
                     className="w-full border-b border-[var(--border-subtle)] bg-transparent py-1.5 text-[14px] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60"
                   />
                 </Field>
@@ -1257,7 +1278,6 @@ export default function ImportedDraftsWorkspace() {
                 disabled={!editable}
                 onChange={(e) => {
                   edit({ description: e.target.value.slice(0, 1800) });
-                  setCeremony((c) => ({ ...c, description: false }));
                 }}
                 rows={5}
                 className={`w-full border px-3 py-2 text-[13px] leading-[1.7] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none disabled:opacity-60 ${

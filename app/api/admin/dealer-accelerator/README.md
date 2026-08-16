@@ -130,17 +130,17 @@ Two properties that will look odd until you know why:
   event is recoverable from the attestation columns; a blocked submission is
   not.
 
-The metadata carries the fingerprint rather than the six ceremony
-checkboxes. Those are ephemeral by design, and at a successful submission
-they are structurally always all true — recording them would preserve a
-constant instead of evidence. The fingerprint is falsifiable: it must equal
-the listing's stored one.
+The metadata carries the fingerprint rather than the ceremony checkbox
+states. The fingerprint is falsifiable: it must equal the listing's stored
+one. It also carries `attested_acts` — see the next section, which is where
+the checkbox story ends up somewhere other than where it started.
 
 ```sql
 -- every dealer submission, with its evidence checked against the listing
 select e.created_at, l.public_code, e.prior_state, e.resulting_state,
        e.actor_kind, e.metadata->>'availability' as availability,
        e.metadata->>'fingerprint_version' as fp_version,
+       e.metadata->'attested_acts' as attested_acts,
        (e.metadata->>'attestation_fingerprint' = l.dealer_attested_fingerprint)
          as fingerprint_matches
 from dealer_accelerator_lifecycle_events e
@@ -156,6 +156,68 @@ checked, so check it.
 A submission with an attestation stamp but no event is not necessarily a bug:
 it may be a pre-batch listing, per the skip above. Compare
 `dealer_attested_at` against this table before concluding anything.
+
+---
+
+## The three confirmations are a server requirement, not a UI habit
+
+**The misconception this section exists to kill:** that the confirmation
+checkboxes in the Imported Drafts workspace are decoration. They were, until
+v5.12, and older comments in that component said so.
+
+The history is worth keeping because it is the whole argument. Submission
+originally asked for six identical confirmations, and the RPC read none of
+them — they gated the React button and nothing else. v5.11 cut them to three
+on the finding that the count added nothing to what was captured, and that
+six identical ticks is the textbook way to train click-through. The three
+kept are the facts the platform cannot determine for itself and the dealer
+uniquely can: **photographs, price, condition**.
+
+v5.12 made those three real. `submit_listing_for_review(uuid, jsonb)` now
+refuses an imported transition unless all three arrive asserted, naming the
+missing ones in the exception, and records the act set on the row as
+`dealer_attested_acts`.
+
+Three things about that are load-bearing:
+
+- **The acts sit beside the fingerprint, never inside it.** No canonical
+  frame moved. Every fingerprint minted before v5.12 verifies against the
+  same `lib/attestation.ts` it always did. The alternative — folding the
+  acts into a v3 frame — would mean a third canonical version mirrored
+  byte-for-byte in TypeScript and retyping machinery already proven through
+  a real dealer account. Do not do it without a specific reason this fails.
+- **The function was DROPped and recreated, not replaced.** `CREATE OR
+  REPLACE` cannot add a parameter, and an overload would have left the
+  one-argument form alive as an unattested door into the same transition.
+  DROP discards grants; the migration re-issues them. If `EXECUTE` on this
+  function ever appears missing, that is the first place to look.
+- **Ordinary sellers are untouched.** `p_attested_acts` defaults to NULL and
+  is read only on the imported path. `AccountDashboard` sends no body at all
+  and submits manual drafts exactly as before.
+
+The visible consequence, and it is intended: an **imported** draft submitted
+from the ordinary Listings tab now fails with `attestation_incomplete`
+rather than quietly succeeding, because that surface has no confirmations to
+make. The route answers with where to go instead of what is missing when all
+three are absent, since naming all three there would be true and useless.
+
+What this can and cannot establish: the server can prove the act was
+performed, by this caller, against this exact listing state — the acts are
+written in the same transaction as the fingerprint that binds the payload.
+It cannot prove the claim is true. Nothing can. That the photographs show
+the actual watch is a fact only the dealer holds; what is recorded is that
+they were asked, and answered, about this specific submission.
+
+```sql
+-- what each imported listing's current attestation asked of its dealer
+select public_code, dealer_attested_at, dealer_attested_acts
+from public.listings
+where dealer_attested_fingerprint is not null
+order by dealer_attested_at desc;
+```
+
+A NULL `dealer_attested_acts` on a row attested before v5.12 is the
+truthful record, not a gap: that submission genuinely was not asked.
 
 ---
 

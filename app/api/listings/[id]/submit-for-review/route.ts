@@ -36,13 +36,33 @@ import { sendSubmissionReceivedEmail } from "@/lib/listingDecisionEmail";
    NO NOTIFICATION SIDE EFFECT — unchanged: notify_on_listing_publish()
    acts only when NEW.status = 'published'. Submission stays silent.
 
+   THE THREE ATTESTED ACTS (this route's only new responsibility)
+
+   An imported submission now carries a body naming the acts the dealer
+   performed. This route does not judge them — it forwards them and lets the
+   function refuse, because a check that lives only here could be walked
+   around by any other caller. The route's job is to turn the function's
+   refusal back into a sentence a dealer can act on.
+
+   The body is OPTIONAL by design. AccountDashboard submits ordinary manual
+   drafts with no body at all and must keep working exactly as before; the
+   function reads the acts only on the imported path.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
 export const dynamic = "force-dynamic";
 
+/* Human names for the act keys, so a refusal reads as English rather than
+   as the wire format. Order follows the function's, which is fixed. */
+const ACT_LABEL: Record<string, string> = {
+  photographs: "the photographs",
+  price: "the asking price",
+  condition: "the condition",
+};
+
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -66,8 +86,31 @@ export async function POST(
     );
   }
 
+  /* A missing, empty, or unparseable body is not an error here — it is an
+     ordinary manual submission. Only the three known keys are forwarded, and
+     only when literally true, so nothing else a caller invents reaches the
+     function. */
+  let attestedActs: Record<string, boolean> | null = null;
+  try {
+    const body = (await request.json()) as unknown;
+    if (body && typeof body === "object") {
+      const acts = (body as { attestedActs?: unknown }).attestedActs;
+      if (acts && typeof acts === "object") {
+        const a = acts as Record<string, unknown>;
+        attestedActs = {
+          photographs: a.photographs === true,
+          price: a.price === true,
+          condition: a.condition === true,
+        };
+      }
+    }
+  } catch {
+    /* no body, or not JSON — stays null */
+  }
+
   const { data, error } = await supabase.rpc("submit_listing_for_review", {
     p_listing_id: id,
+    p_attested_acts: attestedActs,
   });
 
   if (error) {
@@ -108,6 +151,33 @@ export async function POST(
           detail:
             "Availability must be confirmed as In Stock before an imported listing can be submitted.",
         },
+        { status: 409 }
+      );
+    }
+    if (msg.includes("attestation_incomplete")) {
+      /* The function names exactly which acts were not asserted. Two
+         different situations arrive here and they deserve different
+         sentences:
+
+         · none asserted — almost always an imported draft submitted from
+           the ordinary Listings tab, which has no confirmations to make.
+           Naming all three would be true and useless; the useful answer is
+           where to go.
+         · some asserted — a real incomplete attestation. Name the ones
+           still outstanding. */
+      const missing = (msg.split("attestation_incomplete:")[1] ?? "")
+        .trim()
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => k in ACT_LABEL);
+
+      const detail =
+        missing.length === 3 || missing.length === 0
+          ? "Imported listings are submitted from Imported Drafts, where you confirm the photographs, price, and condition."
+          : `Confirm ${missing.map((k) => ACT_LABEL[k]).join(" and ")} before submitting.`;
+
+      return NextResponse.json(
+        { error: "attestation_incomplete", detail, missing },
         { status: 409 }
       );
     }
