@@ -247,7 +247,15 @@ type PurchaseRequestListing = {
 
 type PurchaseRequestSummary = {
   id: string;
-  listing_id: string;
+  /* Nullable: a terminal request outlives its listing. Stage 5 moves this FK
+     to ON DELETE SET NULL, so the row must already read correctly without it. */
+  listing_id: string | null;
+  /* v2.27 identity snapshot — the AUTHORITATIVE source for what watch this
+     request concerned. Captured at write time precisely so the request stays
+     intelligible when the listing is gone. */
+  listing_brand: string | null;
+  listing_model: string | null;
+  listing_reference: string | null;
   proposed_purchase_price: number;
   listing_price: number;
   // Stage A snapshot columns — null on requests made before Stage B deployed.
@@ -959,10 +967,26 @@ function RequestsView({
       ) : (
         <div>
           {visible.map((r) => {
+            /* The live listing is an ENHANCEMENT, never the source of
+               identity. It supplies the current photograph while it exists;
+               everything a seller needs to understand which watch this offer
+               was for comes from the snapshot captured at request time.
+
+               Before this, an absent embed rendered the title as the literal
+               word "Listing" — which is what a terminal request would have
+               shown for the rest of its life once Stage 5 nulls the FK. */
             const listing = Array.isArray(r.listings) ? r.listings[0] : r.listings;
-            const title = listing
-              ? `${listing.brand}${listing.model ? " " + listing.model : ""}`
-              : "Listing";
+            const brand = r.listing_brand ?? listing?.brand ?? null;
+            const model = r.listing_model ?? listing?.model ?? null;
+            const reference = r.listing_reference ?? listing?.reference ?? null;
+            const title = brand
+              ? `${brand}${model ? " " + model : ""}`
+              : reference
+                ? `Ref. ${reference}`
+                : "Watch no longer listed";
+            /* Optional by construction. No listing imagery is ever copied
+               into the durable request record — when the photograph is gone
+               it is simply gone, and the row degrades to text. */
             const thumb = listing ? dialThumbUrl(listing.photos) : null;
             /* Money Truth Stage B — both snapshot amounts render through the
                shared formatter with their SNAPSHOT currencies. Requests made
@@ -1189,8 +1213,15 @@ export default function AccountDashboard({
 
       const { data, error } = await supabase
         .from("purchase_requests")
+        /* Identity comes from the SNAPSHOT columns, not from the embed. The
+           listings(...) join is retained for one thing only — current
+           imagery — and is explicitly optional: Stage 5 moves this FK to
+           ON DELETE SET NULL, after which a terminal request has no listing
+           to embed and must still read correctly. */
         .select(
-          `id, listing_id, proposed_purchase_price, listing_price, proposed_currency, listing_currency, shipping_terms, included_items, notes, status, created_at,
+          `id, listing_id, listing_brand, listing_model, listing_reference,
+           proposed_purchase_price, listing_price, proposed_currency, listing_currency,
+           shipping_terms, included_items, notes, status, created_at,
            listings ( brand, model, reference, photos )`
         )
         .eq("seller_id", user.id)

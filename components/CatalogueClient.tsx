@@ -449,17 +449,21 @@ function WatchOfferGroup({
   // authoritative snapshot so the watch identity is never lost — only the
   // navigation/photo are withheld. "Listing unavailable" remains solely for the
   // genuine no-identity case.
+  /* SNAPSHOT IS AUTHORITATIVE, live listing is enhancement.
+     Inverted from the original preference, on two grounds. Historically: the
+     snapshot records what the buyer actually made an offer on, while a live
+     listing edited afterwards would report identity the offer never
+     concerned. Structurally: Stage 5 moves this FK to ON DELETE SET NULL, so
+     a terminal request will routinely have no listing to read — reading it
+     first would make the common case the fallback path. */
   const snapshotTitle = current.listing_brand
     ? current.listing_model
       ? `${current.listing_brand} ${current.listing_model}`
       : current.listing_brand
     : null;
-  const title = l
-    ? l.model
-      ? `${l.brand} ${l.model}`
-      : l.brand
-    : snapshotTitle ?? "Listing unavailable";
-  const reference = l?.reference ?? current.listing_reference ?? null;
+  const liveTitle = l ? (l.model ? `${l.brand} ${l.model}` : l.brand) : null;
+  const title = snapshotTitle ?? liveTitle ?? "Watch no longer listed";
+  const reference = current.listing_reference ?? l?.reference ?? null;
   const hero = l ? heroUrl(l.photos) : null;
   const currentPrice = offerPrice(current);
   const currentWhen = relativeTime(current.created_at);
