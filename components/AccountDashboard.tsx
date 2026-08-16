@@ -1079,9 +1079,21 @@ function RequestsView({
                             {r.included_items}
                           </div>
                         )}
+                        {/* The note is the only part of this row a person
+                            actually wrote. Shipping and Included are
+                            structured terms and may stay compact; a message
+                            from the buyer is prose the seller has to read,
+                            and it was rendering at the same 11px --muted as
+                            the metadata around it.
+
+                            The "Note:" label stays quiet and the message
+                            itself takes the body floor — the label recedes,
+                            the words do not. */}
                         {r.notes && (
-                          <div className="text-[11px] text-[var(--muted)]">
-                            <span className="text-[var(--muted)]">Note: </span>
+                          <div className="text-[13px] leading-[1.6] text-[var(--platinum-dim)]">
+                            <span className="text-[11px] uppercase tracking-[1px] text-[var(--muted)]">
+                              Note:{" "}
+                            </span>
                             {r.notes}
                           </div>
                         )}
