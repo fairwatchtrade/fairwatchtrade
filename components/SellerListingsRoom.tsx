@@ -630,13 +630,19 @@ export default function SellerListingsRoom({
               <div className="mb-2 text-[11px] uppercase tracking-[2.2px] text-[var(--gold)]">
                 Market Pulse
               </div>
+              {/* The status was truthful and stayed truthful; the words were
+                  the compliance argument FOR the status rather than the thing
+                  itself. A seller does not need the evidence policy recited
+                  to understand that something is not built yet.
+                  "Coming soon" per the order — same future state, human voice.
+                  Still promises no valuation, no pricing recommendation, and
+                  no live functionality. */}
               <div className="font-display text-[17px] font-light text-[var(--platinum-dim)]">
-                Not available yet
+                Coming soon
               </div>
-              <p className="mt-1.5 text-[10px] leading-[1.55] text-[var(--muted)]">
-                Aggregate market context will appear here only when it can be supported by
-                verified comparable listings, completed-sale evidence, and broad
-                non-identifying demand signals.
+              <p className="mt-1.5 text-[13px] leading-[1.6] text-[var(--muted)]">
+                A clearer view of the watch market—bringing together verified
+                listings, completed sales, and broader market activity.
               </p>
             </div>
           </div>

@@ -306,7 +306,7 @@ function ListingCard({ row }: { row: ListingRow }) {
         )}
       </div>
 
-      <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+      <div className="mb-[5px] text-[11px] font-medium uppercase tracking-[1.6px] text-[var(--gold)]">
         {row.brand}
       </div>
       <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
@@ -664,13 +664,15 @@ function MyOffersSection({
           <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
             You haven&apos;t made any offers yet.
           </div>
-          <div className="mb-6 font-display text-[11px] italic text-[var(--muted)]">
+          {/* Functional collector-facing information, and the large empty
+              region around it made 11px read as a caption on nothing. */}
+          <div className="mb-6 font-display text-[13px] italic leading-[1.6] text-[var(--muted)]">
             When you start a purchase request, it will appear here — every offer,
             across every listing, in one place.
           </div>
           <Link
             href="/browse"
-            className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+            className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]"
           >
             Explore the Marketplace →
           </Link>
@@ -977,7 +979,11 @@ export default function CatalogueClient({
             else — the hero's dominance over the sections beneath it is
             unchanged. */}
         <div className="mt-6 border border-[rgba(201,168,76,0.28)] bg-[var(--gold-whisper)] px-7 py-5">
-          <div className="mb-2 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
+          {/* --gold-subtle is 72% gold, and on this ivory hero it composited
+              to 2.83:1 — measured on production Daylight, not estimated. The
+              token is not globally wrong; it is wrong on a light surface this
+              pale. Corrected at the instance, per the order. */}
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)]">
             Catalogue Match
           </div>
           {heroState === "matches" ? (
@@ -1203,21 +1209,25 @@ export default function CatalogueClient({
                   <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
                     Every great library begins with a single volume.
                   </div>
-                  <div className="mb-6 font-display text-[11px] italic text-[var(--muted)]">
+                  {/* The literary line above may stay quiet. This sentence is
+                      the one that tells a collector what the room is FOR, so
+                      it reads at the body floor rather than as a footnote to
+                      the sentence it explains. */}
+                  <div className="mb-6 font-display text-[13px] italic leading-[1.6] text-[var(--muted)]">
                     Save a watch that speaks to you, and your Catalogue will begin to take shape.
                   </div>
                   <div className="flex flex-col items-center gap-3">
-                    <Link href="/browse" className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                    <Link href="/browse" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]">
                       Explore the Marketplace →
                     </Link>
-                    <Link href="/vault" className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]">
+                    <Link href="/vault" className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]">
                       Explore the Vault →
                     </Link>
                     {/* v3.21 — LIVE link (v3 order §6.3): Watch DNA is a
                         working module; no surface may claim it is Soon. */}
                     <Link
                       href="/watch-dna"
-                      className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                      className="text-[11px] font-medium uppercase tracking-[1.4px] text-[var(--gold)] transition hover:text-[var(--platinum)]"
                     >
                       Watch DNA Quiz →
                     </Link>

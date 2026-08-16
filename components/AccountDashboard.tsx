@@ -771,7 +771,10 @@ function MessagesView({
 
       {visible.length === 0 ? (
         <div className="mx-6 border border-[var(--border-faint)] px-6 py-10 text-center">
-          <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+          {/* WORKSPACE EMPTY STATE — see the note on the Purchase Requests
+              copy below; the two are the same defect and take the same
+              treatment, so they must not drift apart again. */}
+          <p className="mx-auto max-w-[46ch] font-display text-[15px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
             {showArchived
               ? "No archived correspondence."
               : "No correspondence yet. When a collector writes about one of your watches, it appears here."}
@@ -936,7 +939,18 @@ function RequestsView({
 
       {visible.length === 0 ? (
         <div className="mx-6 border border-[var(--border-faint)] px-6 py-10 text-center">
-          <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+          {/* WORKSPACE EMPTY STATE.
+              This is the seller being told the state of their own business,
+              standing alone in a 10-unit-tall empty panel, and it was styled
+              as a decorative footnote: 13px, weight 300, italic, --muted.
+              Each choice is defensible; stacked, the only sentence in the
+              room asked to be read last.
+
+              Raised to 15px and --platinum-dim, italic and font-display kept
+              so the voice is unchanged. max-w-[46ch] because a centred line
+              running the full panel width is its own legibility problem.
+              Correspondence carries the identical treatment. */}
+          <p className="mx-auto max-w-[46ch] font-display text-[15px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
             {showResolved
               ? "No resolved requests yet."
               : "No pending requests. When a collector proposes a purchase on one of your listings, it appears here."}
@@ -1316,7 +1330,20 @@ export default function AccountDashboard({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search your listings…"
-                  className="w-full border-b border-[var(--border-faint)] bg-transparent py-1.5 text-[11px] text-[var(--platinum)] placeholder:text-[var(--muted)] focus:border-[var(--border-gold)] focus:outline-none"
+                  /* WORKSPACE SEARCH — unboxed, underline only. No box, no
+                     fill, no pill, ever.
+
+                     The resting line was --border-faint, the same value the
+                     room's structural dividers use, so a control read as
+                     another horizontal rule. It now rests fainter than any
+                     divider and earns strength only on approach: hover
+                     clarifies, focus is strongest.
+
+                     The TEXT does not recede with the line. It went the other
+                     way — 11px to 13px — because a quieter underline makes
+                     the control harder to find, and answering that by fading
+                     the words too would hide the thing itself. */
+                  className="w-full border-b border-[color:light-dark(rgba(62,54,38,0.13),rgba(232,226,214,0.09))] bg-transparent py-1.5 text-[13px] text-[var(--platinum)] transition-colors placeholder:text-[var(--muted)] hover:border-[var(--border-mid)] focus:border-[var(--border-gold)] focus:outline-none"
                 />
               </div>
               <Link
