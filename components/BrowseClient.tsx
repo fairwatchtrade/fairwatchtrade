@@ -12,6 +12,7 @@ import {
 } from "@/components/DealerRoomActions";
 import { formatMoney } from "@/lib/formatMoney";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import { caseDiameterLabel } from "@/lib/caseDiameter";
 import LoupeIcon from "@/components/LoupeIcon";
 import BrowseCardInspector from "@/components/BrowseCardInspector";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
@@ -1829,7 +1830,16 @@ export default function BrowseClient({
                 const { url: hero, style: heroStyle, galleryFrameStyle } = heroFrame(row);
                 const title = row.model ? `${row.brand} ${row.model}` : row.brand;
                 const meta = [row.condition, row.year].filter(Boolean).join(" · ");
-                const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(Boolean);
+                /* Case diameter leads the attribute run: of the three facts
+                   here it is the one a collector scans for fit, and it stops
+                   requiring a Quick Specs open to answer. Composed into the
+                   existing line rather than given a badge, pill or row of its
+                   own — the card gains a word, not a layer. */
+                const parts = [
+                  caseDiameterLabel(row.details?.caseSizeMm),
+                  row.details?.dialColorType,
+                  row.details?.caseMaterial,
+                ].filter(Boolean);
                 const attrs = parts.join(" · ") || null;
                 const doc = row.details?.documentation;
                 /* Completeness is a FACT ABOUT THE WATCH, not a label that has
@@ -2124,7 +2134,13 @@ export default function BrowseClient({
                           tone. 13px in --slate, with room to breathe when it
                           wraps. Still plainly secondary: the model is 15px
                           display in --platinum and the price 17px above it. */}
-                      {meta && (
+                      {/* Gated on the COMPOSED line, not on `meta` alone. The
+                          old gate hid the whole run whenever condition and
+                          year were both absent — which would have quietly
+                          swallowed a diameter that was present and known.
+                          No listing published today is in that state; the
+                          card should not depend on that staying true. */}
+                      {[meta, attrs, docInline].filter(Boolean).length > 0 && (
                         <div
                           className={`leading-[1.5] tracking-[0.2px] text-[var(--slate)] ${
                             scan ? "mb-2 text-[11px]" : "mb-3 text-[13px]"

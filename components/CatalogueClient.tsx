@@ -17,6 +17,7 @@ import { formatMoney } from "@/lib/formatMoney";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import { caseDiameterLabel } from "@/lib/caseDiameter";
 import {
   catalogueHeroState,
   groupCatalogueMatches,
@@ -276,9 +277,13 @@ function heroUrl(photos: ListingPhoto[]): string | null {
 function ListingCard({ row }: { row: ListingRow }) {
   const hero = heroUrl(row.photos);
   const meta = [row.condition, row.year].filter(Boolean).join(" · ");
-  const parts = [row.details?.dialColorType, row.details?.caseMaterial].filter(
-    Boolean
-  );
+  /* Diameter in the same position as the Browse card, through the same
+     formatter — these two grids are read the same way and must not drift. */
+  const parts = [
+    caseDiameterLabel(row.details?.caseSizeMm),
+    row.details?.dialColorType,
+    row.details?.caseMaterial,
+  ].filter(Boolean);
   const attrs = parts.join(" · ") || null;
   const doc = row.details?.documentation;
   /* Completeness leaves the photo plane and joins the scanning line —
@@ -315,7 +320,8 @@ function ListingCard({ row }: { row: ListingRow }) {
       {/* Same scanning line as the Browse card, kept identical on purpose:
           the two grids are read the same way and must not drift. See the note
           in BrowseClient for why this is 13px rather than 10px. */}
-      {meta && (
+      {/* Gated on the composed line, matching Browse — see the note there. */}
+      {[meta, attrs, docInline].filter(Boolean).length > 0 && (
         <div className="mb-3 text-[13px] leading-[1.5] tracking-[0.2px] text-[var(--slate)]">
           {[meta, attrs, docInline].filter(Boolean).join(" · ")}
         </div>
