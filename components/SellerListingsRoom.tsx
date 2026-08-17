@@ -583,10 +583,10 @@ export default function SellerListingsRoom({
                         telling apart watches that are otherwise identical on
                         screen, and a Draft or Removed row needs that as much
                         as a Published one. */}
+                    {/* Rendered exactly as the database issued it — lower
+                        case. The code is the listing's name, not a label about
+                        it, and case-shifting a name is a small lie. */}
                     {row.public_code && (
-                      {/* Rendered exactly as the database issued it — lower
-                          case. The code is the listing's name, not a label
-                          about it, and case-shifting a name is a small lie. */}
                       <div className="mt-[3px] truncate font-mono text-[11px] tracking-[1.1px] text-[var(--gold-dim)]">
                         {row.public_code}
                       </div>
