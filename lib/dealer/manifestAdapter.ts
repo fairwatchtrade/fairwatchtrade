@@ -173,6 +173,116 @@ async function loadApprovedOrigins(db: Db, sourceId: string): Promise<GovernedOr
   }));
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   DEALER PHOTOGRAPH RETRY  (founder ruling, Build A, 2026-08-17)
+
+   The retrieval half of TRY AGAIN. The database half
+   (dealer_accelerator_retry_item_photographs) re-arms this item's
+   failed/terminal photographs back to 'declared' and writes the
+   photograph_retry_requested event; this function then fetches them under
+   exactly the laws a worker slice fetches under — same pinned connection,
+   same governed origins, same magic-byte validation, same content-addressed
+   create-only archive, same recording RPCs.
+
+   It lives in this file ON PURPOSE: the fetch/archive laws have one home,
+   and a retry that reimplemented them in a route would eventually drift
+   from them.
+
+   What it deliberately does NOT do:
+   · no batch, source, or authorization is created or touched;
+   · no other item is looked at;
+   · no retry loop — one explicit attempt per photograph per call. A
+     retryable transport failure records retrieval_failed and the dealer
+     may press again; a non-retryable one records retrieval_terminal and
+     the button remains honest about what happened.
+   ════════════════════════════════════════════════════════════════════════ */
+
+export interface PhotographRetryReport {
+  rearmed: number;
+  retrieved: number;
+  failedRetryable: number;
+  failedTerminal: number;
+  /** First failure code, for the dealer-facing sentence. */
+  failureSample: string | null;
+}
+
+export async function retryItemPhotographs(opts: {
+  batchItemId: string;
+  /** The dealer performing the retry. Ownership is proven in the database. */
+  actorUserId: string;
+}): Promise<PhotographRetryReport> {
+  const db = createServiceClient();
+
+  // Re-arm. Raises not_item_owner / item_not_blocked / no_failed_photographs
+  // — the caller maps those to product sentences.
+  const rearmedRows = await rpc<
+    Array<{ photograph_id: string; source_url: string; prior_state: string; source_id: string }>
+  >(db, "dealer_accelerator_retry_item_photographs", {
+    p_batch_item_id: opts.batchItemId,
+    p_actor_user_id: opts.actorUserId,
+  });
+  const rearmed = Array.isArray(rearmedRows) ? rearmedRows : [];
+  if (rearmed.length === 0) {
+    return { rearmed: 0, retrieved: 0, failedRetryable: 0, failedTerminal: 0, failureSample: null };
+  }
+
+  const origins = await loadApprovedOrigins(db, rearmed[0].source_id);
+  const report: PhotographRetryReport = {
+    rearmed: rearmed.length,
+    retrieved: 0,
+    failedRetryable: 0,
+    failedTerminal: 0,
+    failureSample: null,
+  };
+
+  for (const ph of rearmed) {
+    try {
+      const res = await pinnedFetch(ph.source_url, origins, "photographs");
+      if (!hasImageMagicBytes(res.body)) {
+        throw new PinnedFetchError("http_error", 415); // terminal: not an image
+      }
+      const hash = sha256hex(res.body);
+      const path = `photographs/sha256/${hash}`;
+      await archiveCreateOnly(db, path, res.body, res.contentType || "application/octet-stream");
+      await rpc(db, "dealer_accelerator_record_photograph_retrieval", {
+        p_photograph_id: ph.photograph_id,
+        p_retrieved_at: new Date().toISOString(),
+        p_content_hash: hash,
+        p_storage_path: path,
+        // The dealer asked for this fetch; the log says so.
+        p_actor_kind: "dealer",
+        p_actor_user_id: opts.actorUserId,
+      });
+      report.retrieved++;
+    } catch (e) {
+      const retryable = e instanceof PinnedFetchError && isRetryableFailure(e);
+      const code = e instanceof PinnedFetchError
+        ? `${e.code}${e.statusCode ? `_${e.statusCode}` : ""}`
+        : "archive_or_record_failed";
+      if (report.failureSample === null) report.failureSample = code;
+      if (retryable) {
+        await rpc(db, "dealer_accelerator_record_photograph_retrieval_failure", {
+          p_photograph_id: ph.photograph_id,
+          p_reason_code: code,
+          p_actor_kind: "dealer",
+          p_actor_user_id: opts.actorUserId,
+        });
+        report.failedRetryable++;
+      } else {
+        await rpc(db, "dealer_accelerator_record_photograph_retrieval_terminal", {
+          p_photograph_id: ph.photograph_id,
+          p_reason_code: code,
+          p_actor_kind: "dealer",
+          p_actor_user_id: opts.actorUserId,
+        });
+        report.failedTerminal++;
+      }
+    }
+  }
+
+  return report;
+}
+
 interface BatchRow {
   id: string;
   status: string;

@@ -808,6 +808,7 @@ export default function DealerAcceleratorRoom({
               state={state}
               onDrafts={() => setTab("drafts")}
               onBack={() => setStep(state?.run?.advanceable ? "running" : "ready")}
+              onStateRefresh={loadState}
             />
           )}
 
@@ -1262,12 +1263,87 @@ function AttentionPanel({
   state,
   onDrafts,
   onBack,
+  onStateRefresh,
 }: {
   state: RoomState | null;
   onDrafts: () => void;
   onBack: () => void;
+  /** Re-reads durable state after a retry so the list reflects what really
+      happened, rather than this panel editing its own copy of the truth. */
+  onStateRefresh: () => Promise<RoomState | null>;
 }) {
   const items = state?.needsAttention ?? [];
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  /** Per-item outcome sentence from the LAST retry — kept when the item
+      stays in the list (still failing) and rendered as success when it has
+      just left it. */
+  const [retryNotes, setRetryNotes] = useState<Record<string, { ok: boolean; text: string }>>({});
+
+  /* ── TRY AGAIN ──────────────────────────────────────────────────────────
+     Supported now, so shown now: the engine re-arms this item's failed
+     photographs (an explicit governed act, recorded append-only), fetches
+     them under the same laws a worker fetch runs under, and — if the
+     evidence is complete — materializes through the normal path. One item,
+     one click, nothing else restarted. */
+  const retryItem = async (i: AttentionItem) => {
+    setRetryingId(i.batchItemId);
+    try {
+      const res = await fetch("/api/dealer-accelerator/retry-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchItemId: i.batchItemId }),
+      });
+      const data = (await res.json()) as {
+        ok: boolean;
+        message?: string;
+        outcome?: string;
+        retry?: { retrieved: number; stillFailing: number; failureSample: string | null };
+        blockedReason?: string | null;
+      };
+      if (!data.ok) {
+        setRetryNotes((n) => ({
+          ...n,
+          [i.batchItemId]: {
+            ok: false,
+            text: data.message ?? "The retry could not start. Nothing was changed.",
+          },
+        }));
+        return;
+      }
+      if (data.outcome === "DRAFT_CREATED" || data.outcome === "ALREADY_MATERIALIZED") {
+        setRetryNotes((n) => ({
+          ...n,
+          [i.batchItemId]: {
+            ok: true,
+            text: "Prepared. This watch is now in your imported drafts.",
+          },
+        }));
+      } else {
+        const still = data.retry?.stillFailing ?? 0;
+        setRetryNotes((n) => ({
+          ...n,
+          [i.batchItemId]: {
+            ok: false,
+            text:
+              still > 0
+                ? `FairWatchTrade still could not retrieve ${still === 1 ? "one photograph" : `${still} photographs`} from your website. The new attempt is recorded — correct the source and try again.`
+                : `The photographs arrived, but this watch still could not be prepared${data.blockedReason ? ` (${data.blockedReason})` : ""}.`,
+          },
+        }));
+      }
+      await onStateRefresh();
+    } catch {
+      setRetryNotes((n) => ({
+        ...n,
+        [i.batchItemId]: {
+          ok: false,
+          text: "The retry did not complete. Reload the page to see the current state before trying again.",
+        },
+      }));
+    } finally {
+      setRetryingId(null);
+    }
+  };
   return (
     <section className="border border-[var(--border-mid)] bg-[var(--surface)] p-6">
       <div className="relative mb-2 flex items-start gap-2">
@@ -1302,18 +1378,51 @@ function AttentionPanel({
       </p>
 
       <ul className="mt-5 flex flex-col gap-2.5">
-        {items.map((i) => (
-          <li
-            key={i.batchItemId}
-            className="border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4"
-          >
-            <p className="font-mono text-[12px] text-[var(--gold-subtle)]">{i.sourceItemKey}</p>
-            <p className="mt-1.5 text-[13px] leading-[1.6] text-[var(--platinum)]">
-              {blockedCopy(i.reasonCode)}
-            </p>
-          </li>
-        ))}
+        {items.map((i) => {
+          const note = retryNotes[i.batchItemId];
+          return (
+            <li
+              key={i.batchItemId}
+              className="border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[12px] text-[var(--gold-subtle)]">{i.sourceItemKey}</p>
+                  <p className="mt-1.5 text-[13px] leading-[1.6] text-[var(--platinum)]">
+                    {blockedCopy(i.reasonCode)}
+                  </p>
+                </div>
+                <Secondary
+                  onClick={() => retryItem(i)}
+                  disabled={retryingId !== null}
+                >
+                  {retryingId === i.batchItemId ? "Trying again…" : "Try again"}
+                </Secondary>
+              </div>
+              {note && (
+                <p
+                  className={`mt-2.5 border-t border-[var(--border-subtle)] pt-2.5 text-[12px] leading-[1.6] ${
+                    note.ok ? "text-[var(--gold-subtle)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  {note.text}
+                </p>
+              )}
+            </li>
+          );
+        })}
       </ul>
+
+      {/* A retry that succeeded removes its item from the list above; its
+          success sentence would vanish with it. Rendered here instead, from
+          the notes of items no longer present. */}
+      {Object.entries(retryNotes)
+        .filter(([id, n]) => n.ok && !items.some((i) => i.batchItemId === id))
+        .map(([id, n]) => (
+          <div key={id} className="mt-3">
+            <Notice title="Watch prepared." body={n.text} />
+          </div>
+        ))}
 
       {items.length > 0 && (
         <div className="mt-5">
