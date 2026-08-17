@@ -2,47 +2,73 @@
 
 **The misconception this file exists to kill:**
 
-> "The Dealer Accelerator looks unbuilt — there's no page where a dealer
-> starts an import."
+> "The dealer path is the part that isn't built."
 
-There is no such page, and that is not an oversight. The machinery behind it
-is real, has run end-to-end in production, and is **deliberately
-founder-invoked**. What a dealer sees is a doorway that sends an email.
+It is built, as of v5.49. A dealer signs in, opens **Dealer Accelerator** from
+the Seller Workspace rail, types their own website, authorizes the source
+themselves, and starts a real preparation run that continues after they close
+the tab. No founder, no SQL, no hidden route.
+
+**This file previously said the opposite**, at length and on purpose: "There is
+no such page, and that is not an oversight… What a dealer sees is a doorway
+that sends an email." That was true for months and is now false. If you are
+reading a comment anywhere in this codebase that says dealer intake is
+deliberately absent, it is stale — check git history for v5.49 before acting on
+it.
 
 ---
 
 ## Who can start an ingestion
 
-**Nobody but the founder.** All three routes here are gated by a hardcoded
-founder literal *inside each route file* — not a shared constant, not a role
-lookup, not a UI condition. The comment in the spine says why: "a non-founder
-is rejected regardless of any UI."
+**The dealer, for their own authorized source.** The founder can still do
+everything by hand, and the three `admin/` routes here are unchanged — still
+gated by a hardcoded founder literal inside each route file, still invoked
+manually.
 
-Two consequences worth stating plainly:
+What changed is that a second, dealer-facing entrance now exists beside them:
 
-- A dealer cannot start, queue, or trigger an import. There is no self-serve
-  intake, and no table for one — search `information_schema` for `%intake%`
-  and you will find nothing.
-- **Nothing in the application calls these routes.** Grep `app/` and
-  `components/` for `dealer-accelerator` — the only hits are the route files
-  themselves. They are invoked by hand. There is no admin page for the
-  Accelerator (`app/admin/` has auctions, listings, vault-enrichment,
-  vault-review, vault-upgrade — and no accelerator).
+| Route | Who | Gate |
+|---|---|---|
+| `app/api/admin/dealer-accelerator/{manifest-run,materialize,import}` | founder only | hardcoded UID literal per file |
+| `app/api/dealer-accelerator/{check-website,connect,start,state}` | any authenticated seller, scoped to their own rows | session + ownership re-proven from the stored row |
+| `app/api/dealer-accelerator/worker` | the database's scheduler | bearer token validated *inside* Postgres |
+
+**The founder gate was never in the database.** `dealer_accelerator_authorize_source`
+and the batch/item RPCs have always accepted any dealer and any actor; the
+restriction lived only in those three route files. So opening the dealer path
+required **no new tables and no RLS change** — the accelerator tables still
+grant `service_role` nothing but `SELECT`, and every write still goes through a
+`SECURITY DEFINER` function owned by `dealer_accelerator_writer`.
+
+If you are tempted to expose these tables to `authenticated` to save writing a
+route: don't. The server-side filter to the caller's own id *is* the security
+boundary.
 
 ---
 
 ## What the dealer actually sees
 
-| Surface | What it is | What it is not |
-|---|---|---|
-| `components/DealerAcceleratorEntry.tsx` | A card on the dealer's Overview. Its primary action is a **`mailto:`** with the Accelerator intent in the subject. | An intake form. Its own header: "an assisted doorway, not a software integration widget… No new intake system behind it." |
-| `/account?module=accelerator` → `ImportedDraftsWorkspace` | Review of drafts that **already exist** from a completed import. | A place to begin one. |
+| Surface | What it is |
+|---|---|
+| `components/DealerAcceleratorEntry.tsx` | The Overview doorway. Primary action **Open Dealer Accelerator** — real, and it goes somewhere. |
+| `components/DealerAcceleratorRoom.tsx` | The room. Three destinations: **Start · Batches · Imported Drafts**. |
+| `ImportedDraftsWorkspace` | Now mounted *inside* the room's Imported Drafts tab, not as a rail peer. |
 
-The entry card's only state input is a real predicate — whether
+**Navigation is locked.** The rail names the capability — `Dealer Accelerator`.
+It previously read `Imported Drafts` while the module id was already
+`accelerator`, i.e. it advertised a product's output as the product. Imported
+Drafts is a child work state and must never return to the rail as a sibling.
+
+**The room renders once, outside the mobile/desktop split** (the Saved Searches
+precedent in `AccountDashboard`). Mounted inside both branches it would get two
+lives — two state reads and two polling loops driving one dealer's run. This is
+also what gives the mobile account a working Dealer Accelerator; the old
+text-only mobile treatment existed because the only destination was a
+desktop-scoped workspace, so a button would have been a dead end.
+
+The entry card's only state input is still a real predicate — whether
 `listing_media` rows exist with `capture_source = 'dealer_import'` — used
-strictly as a boolean to distinguish a first-time dealer from a returning
-one. No fabricated counts, progress, timing, or sync status. On mobile the
-returning state renders text only: no button, no tap handler.
+strictly as a boolean. No fabricated counts, progress, timing, or sync status.
 
 ---
 
@@ -161,6 +187,20 @@ it may be a pre-batch listing, per the skip above. Compare
 
 ## The three confirmations are a server requirement, not a UI habit
 
+> **⚠ THREE IS THE ANSWER. DO NOT "RESTORE" SIX.**
+>
+> Founder ruling, 2026-08-17, recorded here because it has already been
+> proposed backwards once: a build order for the dealer path asked to
+> "preserve all six" confirmations and listed "six-part dealer confirmation"
+> as a non-regression item. That order was written from stale information.
+> Six was cut to three deliberately in v5.11, and v5.12 made the three
+> **server-enforced**. Restoring six would regress a considered decision AND
+> break the server contract, because `submit_listing_for_review(uuid, jsonb)`
+> refuses an imported transition unless exactly those three arrive asserted.
+>
+> If a future document, order, or comment tells you there should be six:
+> it is wrong, and this paragraph is why.
+
 **The misconception this section exists to kill:** that the confirmation
 checkboxes in the Imported Drafts workspace are decoration. They were, until
 v5.12, and older comments in that component said so.
@@ -232,15 +272,27 @@ not read that as evidence the dealer path works.
 himself — and that id has no `dealer_profiles` row behind it at all. The
 other names a real dealer profile, but the founder still authorized it.
 
-So the honest statement is two things at once, and both matter:
+That was written when entry was founder-only, and the sentence that followed it
+here — "No external dealer has ever started, or could start, an import" — is
+**no longer true**. A dealer can now authorize their own source and start their
+own run (v5.49).
+
+What the historical rows still do and do not prove:
 
 - the machinery is **proven** — evidence discovery, materialization, the
   atomic import RPC, and lifecycle logging have all done real work;
-- **entry** is still founder-only. No external dealer has ever started, or
-  could start, an import.
+- but every source row *predating v5.49* was founder-authorized, so those rows
+  are not evidence that the dealer entrance works. Check `authorized_by`
+  against `dealer_profile_id`: where they match a real dealer, the dealer
+  authorized it themselves; where `authorized_by` is the founder, it did not.
 
-A reader who takes the first half alone will assume the porch is open. It has
-never been opened; the founder walked through his own sealed door.
+The legacy TCI dealer source was **retired on 2026-08-17** as a controlled,
+append-only test reset, specifically so the acceptance walk exercises the real
+dealer attestation path rather than inheriting a founder-authorized row.
+`authorization_state` went to `revoked` and a `source_revoked` event was
+written; nothing was deleted. All 12 listings, 12 source items, 24 photographs
+and 24 `dealer_import` provenance rows survive, because every FK in this chain
+is `ON DELETE RESTRICT` and a state change structurally cannot remove them.
 
 ### What IS now proven: the dealer's own half
 
@@ -309,13 +361,219 @@ and misleading afterwards. Run the queries.)*
 
 ## What is deliberately NOT built
 
-- **No dealer-facing start.** By design. The doorway is assisted, not
-  automated.
-- **No admin UI.** The routes are invoked by hand.
-- **No intake tables, bucket, or real source adapter.** The discovery end of
-  the chain is still sealed.
-- **No publication.** The spine stops at drafts and hands them to the normal
-  listing lifecycle. "Import once. Enrich forever."
+Four of the five entries that used to live here were closed by v5.49 and have
+been removed rather than left to mislead: dealer-facing start, the admin
+attention surface, self-serve intake, and a real source adapter all now exist.
 
-None of these are TODOs discovered by accident — each was a bounded decision.
-Before "finishing" any of them, find out which flight sealed it and why.
+What genuinely remains unbuilt:
+
+- **No publication from the spine.** It stops at drafts and hands them to the
+  normal listing lifecycle. "Import once. Enrich forever."
+- **No cross-origin photographs.** A discovery document may only point at
+  inventory and photographs on **its own origin**. A dealer using a CDN on a
+  different hostname cannot be prepared yet. This is the boundary that stops
+  one dealer claiming another's photographs by publishing one file on a domain
+  they happen to own; widening it needs a real design, not a relaxed check.
+- **No watch selection before discovery.** The Design Gate draws a "choose the
+  watches to prepare" screen *before* the run. Brand and reference are not
+  known at that point — they come from governed extraction, which happens
+  during discovery. Building that screen earlier would mean a second parser
+  reading the manifest, which §2 of the build order forbids. Founder ruling
+  2026-08-17: selection belongs at the first truthful point *after* discovery.
+  Not yet built.
+- **No CSV source.** `source_type` allows `static_csv_manifest`; nothing
+  implements it.
+
+Before "finishing" any of these, find out which flight sealed it and why.
+
+---
+
+## How a website becomes a source
+
+`lib/dealer/sourceDiscovery.ts`. A dealer types a website; they never paste a
+manifest URL.
+
+Resolution is a **published convention**, not page-scraping:
+
+```
+https://theirdomain.com/.well-known/fairwatchtrade-inventory.json
+```
+
+```json
+{
+  "fairwatchtrade_inventory": 1,
+  "inventory": {
+    "format": "ndjson",
+    "url": "/inventory/current.ndjson",
+    "version": "2026-08-17",
+    "photographs_path": "/photographs"
+  }
+}
+```
+
+**Why a fixed path rather than guessing.** Inferring a manifest from arbitrary
+HTML is not deterministic, and "we found something that looked like inventory"
+is not a promise this platform can keep. Either the document is there and says
+exactly where the inventory is, or the answer is an honest refusal.
+
+**The property that earns its keep:** publishing a file at a fixed path on an
+origin is only possible for someone who administers that origin. So the same
+document that *resolves* the source also *evidences control of the domain*.
+That is what makes self-service defensible — one mechanism satisfies both "no
+hidden manifest URL for the dealer" and "no founder in the normal loop."
+Attestation records intent; the document evidences control. Both are kept.
+Neither substitutes for the other.
+
+`version` is the dealer's own snapshot label and feeds the adapter's
+idempotency key. An unchanged version converges on the existing batch instead
+of duplicating work — which is exactly why the confirmation screen can honestly
+say "13 found · 12 already prepared · 1 to prepare."
+
+**The check step writes nothing.** It fetches through the same pinned-connection
+layer with an *ephemeral* governed-origin list derived from the typed domain, so
+the full SSRF boundary applies before any source row exists, and it validates
+the manifest with the **same byte-exact preflight** a real run uses. A dealer
+learns their file is malformed before committing to a run, with the same reason
+code. There is no second parser.
+
+---
+
+## Unattended preparation
+
+"You can leave this page" is a promise in the product, and it is kept by a
+scheduled worker, not by the dealer's browser.
+
+```
+cron.job 'dealer-accelerator-worker'  every 2 minutes
+  └ public.dealer_accelerator_worker_tick()
+      └ (only if a batch is queued/running/cancel_requested)
+          net.http_post -> /api/dealer-accelerator/worker
+```
+
+Three things about this are deliberate:
+
+- **The tick checks for work first.** An idle platform makes no outbound
+  requests at all.
+- **The credential never leaves the database.** The route does not read a
+  secret; it asks `dealer_accelerator_worker_token_valid(token)` and gets back
+  a boolean. So there is no environment variable for anyone to set, nothing in
+  a build, and nothing in application memory. This is why unattended
+  preparation works as soon as the code deploys.
+- **One preparation path, three drivers.** The dealer's Start button, the
+  `after()` continuation, and this worker all call the same
+  `advancePreparation`. Every call is idempotent and converges. If they ever
+  diverge, the divergence is the bug.
+
+If the schedule is ever removed, weaken the progress copy in
+`DealerAcceleratorRoom.tsx` in the same change. A standing promise the system
+no longer keeps is worse than the weaker wording it replaced.
+
+```sql
+-- is the heartbeat alive?
+select jobname, schedule, active from cron.job
+ where jobname = 'dealer-accelerator-worker';
+
+-- did the ticks reach the route?
+select status_code, timed_out, error_msg, created
+  from net._http_response order by created desc limit 10;
+```
+
+---
+
+## ⚠ Creating a function in this schema PUBLISHES it
+
+The single most expensive lesson of v5.49, hit **three times in one session**.
+
+Supabase ships `ALTER DEFAULT PRIVILEGES` granting `EXECUTE` on newly created
+public-schema functions to `anon` **and** `authenticated`. So:
+
+- `CREATE FUNCTION` in `public` is an act of publishing an API endpoint at
+  `/rest/v1/rpc/<name>`, unless the same migration revokes those roles.
+- **`revoke all ... from public` does NOT do it.** `anon` and `authenticated`
+  are real roles, not the `PUBLIC` pseudo-role. A revoke from PUBLIC looks
+  complete and is not.
+- `CREATE OR REPLACE` on an existing function *preserves* its ACL. Only a
+  `DROP` and recreate re-inherits the defaults. That is what bit
+  `dealer_accelerator_authorize_source`: it had to be dropped to add two
+  parameters, and came back exposed.
+
+Why it mattered there specifically: the function is `SECURITY DEFINER` and takes
+`p_dealer_profile_id` / `p_authorized_by` as **parameters** rather than deriving
+them from the session. Any signed-in client could have recorded a source
+authorization against another account, bypassing RLS.
+
+After any `DROP`/recreate in this schema, run this. It must return zero rows:
+
+```sql
+select p.oid::regprocedure::text, p.proacl
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname like 'dealer_accelerator%'
+  and (p.proacl::text like '%anon=%' or p.proacl::text like '%authenticated=%');
+```
+
+**Also check the owner.** These functions are owned by
+`dealer_accelerator_writer`, not `postgres`. They are `SECURITY DEFINER`, so
+the owner *is* the privilege they execute with. Recreating one without
+`ALTER FUNCTION ... OWNER TO dealer_accelerator_writer` silently escalates it.
+
+### Security closure record — 2026-08-17
+
+The exposure above was found on verification and closed. For the record, so
+nobody has to re-derive it:
+
+- **Window:** 79 seconds — `2026-08-17 13:55:52Z` (migration `20260817135552`)
+  to `13:57:11Z` (migration `20260817135711`). Both bounds come from the
+  migration ledger, not from memory.
+- **Observed invocations: none.** Zero `/rpc/` calls appear in `edge_logs`,
+  `postgrest_logs` or `postgres_logs` across a two-hour window. The only two log
+  entries mentioning the function are the two migrations themselves.
+- **Side effects: none.** Zero sources, zero source origins and zero lifecycle
+  events were created in the window plus five minutes. The newest source row
+  predates it by nine days.
+- **Independent confirmation:** Supabase's own
+  `anon_security_definer_function_executable` advisor reports **no**
+  `dealer_accelerator_*` function. (It does flag eight *other*, pre-existing
+  functions with the same defect — separate work, not this chain.)
+
+---
+
+## Lifecycle notifications
+
+Five moments, all derived from committed durable state, all **exactly once** by
+construction — `notifications.dedupe_key` carries a UNIQUE index and every
+insert is `ON CONFLICT DO NOTHING` against a key derived from the fact itself.
+Replay and retry cannot spam a dealer.
+
+| Moment | Source of truth | Dedupe key |
+|---|---|---|
+| Preparation complete | `dealer_accelerator_batches` → settled | `da_prep_complete:<batch_id>` |
+| Submitted for review | `listings` → `pending_review` | `da_submitted:<listing_id>:<attested epoch>` |
+| Clarification / rejected / published | `listing_decision_events` insert | `da_decision:<event_id>` |
+
+Two properties worth not breaking:
+
+- **Every trigger fails OPEN.** The bodies are wrapped so a fault loses the
+  notification, never the event it describes. A dealer who cannot be told their
+  listing was published must still have it published — the same reasoning as
+  `log_dealer_submission_event`.
+- **Imported listings only.** Ordinary sellers' notification behaviour is
+  deliberately unchanged. Extending these to every seller is a reasonable
+  improvement and a separate product decision.
+
+The submitted key includes the attestation instant on purpose: a genuine
+resubmission after a rejection notifies again, while a replay of the same
+transition does not.
+
+---
+
+## The founder attention doorway
+
+`app/admin/dealer-accelerator` — imported drafts in `pending_review`, oldest
+first, linked from `/admin`.
+
+It **adjudicates nothing**. Every row opens the existing governed review at
+`/admin/listings/[id]`, which remains the sole decision authority. If a
+decision control ever appears on that page, that is the mistake its header
+comment exists to prevent. It exists because a dealer who submits and hears
+nothing cannot tell "under review" from "lost", and the only way to find a
+submission used to be remembering to hunt the global listing explorer.

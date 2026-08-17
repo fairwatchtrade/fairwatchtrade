@@ -277,6 +277,18 @@ export default function AdminDashboard({
           >
             ◈ Vault Review →
           </Link>
+          {/* Dealer Accelerator Review. A dealer who submits an imported draft
+              and hears nothing cannot tell "under review" from "lost", and
+              until this door existed the only way to find their submission was
+              to remember to go hunting for it in the listing explorer. The page
+              itself adjudicates nothing — it opens the ordinary governed
+              review. */}
+          <Link
+            href="/admin/dealer-accelerator"
+            className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+          >
+            ◈ Dealer Accelerator Review →
+          </Link>
           <Link
             href="/account"
             className="border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--gold)] transition-colors hover:bg-[var(--gold-whisper)]"

@@ -1157,7 +1157,8 @@ function ProgressPanel({
         Preparing your draft listings…
       </h2>
       <p className="max-w-[62ch] text-[13px] leading-[1.65] text-[var(--muted)]">
-        FairWatchTrade is doing the repetitive work.
+        FairWatchTrade is doing the repetitive work. You do not need to stay on
+        this page.
       </p>
 
       {/* Real durable counts only. No percentage is shown against a total
@@ -1177,10 +1178,16 @@ function ProgressPanel({
         ))}
       </dl>
 
+      {/* This claim is load-bearing and it is now literally true: a scheduled
+          worker advances the run independently of this browser, so closing the
+          tab genuinely does not stop it. It was deliberately worded weaker
+          until that worker existed. If the schedule is ever removed, weaken
+          this sentence in the same change — do not leave a promise standing
+          that the system no longer keeps. */}
       <div className="mt-5">
         <Notice
           title="You can leave this page."
-          body="Preparation continues on FairWatchTrade and resumes exactly where it left off. Come back any time to see where it got to."
+          body="The run continues and FairWatchTrade will tell you when your drafts are ready, or if anything needs your attention."
         />
       </div>
 

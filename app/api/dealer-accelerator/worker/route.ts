@@ -14,11 +14,20 @@ import { advancePreparation } from "@/lib/dealer/dealerPath";
    button calls. There is one preparation path; this route only supplies the
    heartbeat. If the two ever diverge, the divergence is the bug.
 
-   ── Authentication is a shared secret, and it fails CLOSED ────────────
-   No user session exists on a scheduled call, so the gate is
-   DEALER_WORKER_SECRET compared in constant time. If the variable is
-   absent the route refuses every request rather than running unauthenticated
-   — an open worker would let anyone drive other people's imports.
+   ── Authentication, and why the secret is not in this process ─────────
+   No user session exists on a scheduled call. The gate is a bearer token
+   that the DATABASE issued and still holds: this route never reads the
+   secret, it asks whether the presented token matches one, and gets back a
+   boolean. So the credential is absent from application memory, from the
+   build, and from any log this route could write.
+
+   It fails CLOSED in every direction — a missing token, an unconfigured
+   credential, or an error reaching the validator all refuse. An open worker
+   would let anyone drive other people's imports.
+
+   This also means there is no environment variable for anyone to set. The
+   scheduler and the validator were provisioned together in the migration,
+   so unattended preparation works as soon as this code is deployed.
 
    ── Bounded per invocation, fair across dealers ───────────────────────
    Each call gives a bounded slice of time to a bounded number of runs, and
@@ -37,31 +46,27 @@ const MAX_RUNS_PER_TICK = 4;
 /** Time budget handed to each run this tick. */
 const PER_RUN_BUDGET_MS = 10_000;
 
-/** Constant-time comparison — a timing-variable check on a shared secret is
-    a real weakness, and the fix costs nothing. */
-function secretMatches(provided: string, expected: string): boolean {
-  if (provided.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < provided.length; i++) {
-    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
 export async function POST(request: NextRequest) {
-  const expected = process.env.DEALER_WORKER_SECRET;
-  // Fail closed. An unconfigured worker does nothing; it never runs open.
-  if (!expected || expected.length < 16) {
-    return NextResponse.json({ error: "worker_not_configured" }, { status: 503 });
-  }
-
   const header = request.headers.get("authorization") ?? "";
   const provided = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
-  if (!secretMatches(provided, expected)) {
+  if (provided === "") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const db = createServiceClient();
+
+  // The comparison happens inside the database, against a secret this
+  // process never sees. An error here is a refusal, not a bypass.
+  const { data: valid, error: authError } = await db.rpc(
+    "dealer_accelerator_worker_token_valid",
+    { p_token: provided }
+  );
+  if (authError) {
+    return NextResponse.json({ error: "worker_auth_unavailable" }, { status: 503 });
+  }
+  if (valid !== true) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   // Candidate runs: batches that are not settled, or that are settled but
   // still hold unmaterialized items (an interruption between phases). The
