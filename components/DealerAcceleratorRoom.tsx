@@ -123,7 +123,30 @@ const SOURCE_FAILURE_COPY: Record<string, { title: string; body: string }> = {
     title: "We couldn’t record this source.",
     body: "Nothing was changed. Please try again.",
   },
+  /* Preparation failures are NOT connect failures, and must never borrow the
+     copy above. On 2026-08-17 a failure during Start fell through to
+     source_write_failed and told a dealer "We couldn't record this source.
+     Nothing was changed." Both halves were false: the source was recorded
+     minutes earlier and was fine, and a batch HAD been created. Telling
+     someone nothing changed when something did is the worst thing this
+     surface can do — it invites a retry that compounds the problem. */
+  preparation_failed: {
+    title: "Something went wrong while preparing your drafts.",
+    body: "Your inventory source is still connected. Some preparation may already have started, so please don’t start again — open Batches to see the current state, or come back shortly.",
+  },
 };
+
+/** Never leave a dealer with a blank screen because a code was unmapped. An
+    unmapped failure still says what is known and, crucially, does not claim
+    that nothing changed. */
+function sourceFailureCopy(code: string): { title: string; body: string } {
+  return (
+    SOURCE_FAILURE_COPY[code] ?? {
+      title: "FairWatchTrade couldn’t complete that step.",
+      body: `Your inventory source is still connected. Open Batches to see the current state before trying again (${code}).`,
+    }
+  );
+}
 
 /* ── Why one watch could not be prepared ───────────────────────────────
    The engine's real eligibility codes. Needs Attention is not a rejection
@@ -522,7 +545,7 @@ export default function DealerAcceleratorRoom({
       });
       const data = (await res.json()) as { ok: boolean; failure?: string; state?: RoomState };
       if (!data.ok) {
-        setFailure(data.failure ?? "source_write_failed");
+        setFailure(data.failure ?? "preparation_failed");
         return;
       }
       if (data.state) setState(data.state);
@@ -912,7 +935,7 @@ function ConnectPanel({
   onCheck: () => void;
   onBack: () => void;
 }) {
-  const copy = failure ? SOURCE_FAILURE_COPY[failure] : null;
+  const copy = failure ? sourceFailureCopy(failure) : null;
   return (
     <section className="border border-[var(--border-mid)] bg-[var(--surface)] p-6">
       <Kicker>Dealer Accelerator / Connect</Kicker>
@@ -1043,7 +1066,7 @@ function RecognizedPanel({
   onContinue: () => void;
   onBack: () => void;
 }) {
-  const copy = failure ? SOURCE_FAILURE_COPY[failure] : null;
+  const copy = failure ? sourceFailureCopy(failure) : null;
   return (
     <section className="border border-[var(--border-mid)] bg-[var(--surface)] p-6">
       <Kicker>Dealer Accelerator / Source</Kicker>
@@ -1118,7 +1141,7 @@ function ConfirmPanel({
   onStart: () => void;
   onBack: () => void;
 }) {
-  const copy = failure ? SOURCE_FAILURE_COPY[failure] : null;
+  const copy = failure ? sourceFailureCopy(failure) : null;
   const nothingToDo = probe.forecast.toPrepare === 0;
   return (
     <section className="border border-[var(--border-mid)] bg-[var(--surface)] p-6">
