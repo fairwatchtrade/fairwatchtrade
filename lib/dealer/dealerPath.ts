@@ -346,23 +346,33 @@ export async function buildDealerAcceleratorState(
     return { source: null, run: null, needsAttention: [], importedDraftCount };
   }
 
-  const { data: batchRow } = await db
+  /* ── Which run the room shows ───────────────────────────────────────────
+     The newest batch that is NOT cancelled. Newest-regardless-of-status let
+     a cancelled batch shadow the real run: a dealer's doomed clean-v2r1
+     batch (1 item, cancelled) rendered as "Preparing… 1 watch" while the
+     genuine run underneath — 12 drafts and one Needs Attention item with
+     its Try Again button — was never shown at all. A cancelled run is a
+     dead run; it is only worth surfacing when the dealer has nothing else,
+     where "stopped, nothing published" is the truthful screen. `failed` is
+     NOT skipped: a fatal error is exactly what the dealer must see. */
+  const { data: batchRows } = await db
     .from("dealer_accelerator_batches")
     .select("id,status,source_snapshot_key,started_at,completed_at,fatal_error_code")
     .eq("dealer_profile_id", userId)
     .eq("source_id", src.id)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
 
-  const batch = batchRow as {
+  type BatchLite = {
     id: string;
     status: string;
     source_snapshot_key: string;
     started_at: string | null;
     completed_at: string | null;
     fatal_error_code: string | null;
-  } | null;
+  };
+  const recent = (batchRows ?? []) as BatchLite[];
+  const batch = recent.find((b) => b.status !== "cancelled") ?? recent[0] ?? null;
 
   const source = {
     id: src.id,
@@ -414,10 +424,19 @@ export async function buildDealerAcceleratorState(
       needsAttention: blocked.length,
       stillProcessing,
       settled,
-      // A settled batch may still have ready items awaiting materialization
-      // when the run was interrupted between phases, so advanceability is
-      // about remaining work, not about the batch's own status alone.
-      advanceable: !settled || stillProcessing > 0,
+      /* Mirrors dealer_accelerator_advanceable_batches — the ONE definition
+         of "this run still has work" — and must stay in step with it. The
+         previous expression (!settled || stillProcessing > 0) was this
+         flight's predicate-drift bug a second time, on the UI side: it
+         counted a cancelled batch's leftover discovered item as live work,
+         so the room rendered a dead run as "Preparing…" and parked the
+         dealer on a progress screen nothing would ever advance. A cancelled
+         or failed run's remaining items are not pending work; they are work
+         that was called off. */
+      advanceable:
+        ["queued", "running", "cancel_requested"].includes(batch.status) ||
+        (["completed", "completed_with_exceptions"].includes(batch.status) &&
+          stillProcessing > 0),
       fatalErrorCode: batch.fatal_error_code,
     },
     needsAttention,
