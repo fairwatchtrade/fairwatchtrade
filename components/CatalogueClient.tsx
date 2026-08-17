@@ -251,6 +251,15 @@ const CLOSURE_LABELS: Record<
     note: "The seller removed this listing. Your request is no longer active.",
     tone: "declined",
   },
+  /* Stage 8. Distinguished from the Pause case in the DATA so the record
+     stays truthful, but the buyer is told the same thing either way: the
+     listing is gone and their request is closed. The seller's deletion
+     reason is theirs and is never exposed here. */
+  listing_deleted_by_seller: {
+    label: "Listing no longer available",
+    note: "The seller deleted this listing. Your request is no longer active.",
+    tone: "declined",
+  },
 };
 
 // Any unrecognized status fails to a neutral, non-misleading descriptor rather
@@ -500,7 +509,13 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
 function canDismissOffer(o: MyOfferRow): boolean {
   return (
     o.status === "declined" ||
-    (o.status === "cancelled" && o.closure_cause === "listing_removed_by_seller")
+    (o.status === "cancelled" &&
+      (o.closure_cause === "listing_removed_by_seller" ||
+        /* Stage 8. A listing that no longer exists is the most finished a
+           card can be — if the seller-paused case is clearable, this must be
+           too, or the only permanently un-clearable rows would be the ones
+           whose watch is gone for good. */
+        o.closure_cause === "listing_deleted_by_seller"))
   );
 }
 

@@ -363,13 +363,74 @@ export default async function ListingReviewPage({
     );
   }
 
+  /* ── Stage 8 · a permanently deleted listing is not "not found" ────────
+     The row is gone by design, but the tombstone survives and can still say
+     which watch it was, whose, when it went and why. Reporting a purge as a
+     missing record would make a governed deletion look like data loss — and
+     this is the one page that has to be able to tell them apart.
+
+     Deliberately NOT an archive: no photos, no description, no specs. Which
+     watch, whose, when, why, under which purge. */
   if (!listing) {
+    let tombstone: Record<string, unknown> | null = null;
+    try {
+      const service = createServiceClient();
+      const { data } = await service
+        .from("listing_deletion_tombstone")
+        .select("*")
+        .eq("listing_id", id)
+        .maybeSingle();
+      tombstone = data ?? null;
+    } catch {
+      /* fall through to the plain not-found below */
+    }
+
     return (
       <div style={wrap}>
         <Link href="/admin" style={{ color: "#7aa2f7", textDecoration: "none" }}>
           ← Operations Center
         </Link>
-        <div style={{ marginTop: 16 }}>Listing not found: {id}</div>
+        {tombstone ? (
+          <div style={{ maxWidth: 900, margin: "16px auto 0" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+              {String(tombstone.listing_brand ?? "—")}{" "}
+              {String(tombstone.listing_model ?? "")}
+            </div>
+            <div
+              style={{
+                display: "inline-block",
+                border: "1px solid #2A2F3A",
+                background: "#15181E",
+                color: "#DB8E88",
+                padding: "4px 10px",
+                fontSize: 11,
+                marginBottom: 18,
+              }}
+            >
+              Permanently deleted
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <tbody>
+                {Object.entries(tombstone).map(([k, v]) => (
+                  <tr key={k} style={{ borderBottom: "1px solid #23272f" }}>
+                    <td style={{ padding: "6px 10px", color: "#8b93a1", width: 200 }}>{k}</td>
+                    <td style={{ padding: "6px 10px", color: "#C6CCD8" }}>
+                      {v === null ? "—" : String(v)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ color: "#565f89", fontSize: 12, marginTop: 12, lineHeight: 1.6 }}>
+              The listing row no longer exists. This is the minimal deletion
+              record, not an archive — durable history (completed sales,
+              adjudication events, purchase requests) survives independently
+              and carries its own copy of which watch it concerned.
+            </p>
+          </div>
+        ) : (
+          <div style={{ marginTop: 16 }}>Listing not found: {id}</div>
+        )}
       </div>
     );
   }

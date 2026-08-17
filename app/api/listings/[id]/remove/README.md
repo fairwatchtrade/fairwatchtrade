@@ -237,6 +237,109 @@ plain words:
   `identity_resolution_case`, `dealer_accelerator_lifecycle_events`,
   `listing_deletion_tombstone`.
 
+## Stage 8 — governed permanent delete (this one deletes)
+
+`delete_listing_permanently(uuid, text, text)`. **Seller-only** — `anon` *and*
+`service_role` both hold zero EXECUTE. There is no admin override and no
+service-role path to destruction.
+
+### The FK matrix IS the purge
+
+Stage 5 already engineered the retention policy, so a single `DELETE FROM
+listings` performs the whole governed purge:
+
+| Behaviour | Tables |
+| --- | --- |
+| **CASCADE** — dies with the listing | `listing_media`, `listing_addenda`, `listing_drafts`, `listing_collector_dossiers`, `mobile_wizard_sessions`, `saved_watches`, `saved_search_matches`, `dealer_accelerator_batch_items` |
+| **SET NULL** — survives, keeps its own identity | `purchase_requests`, `message_threads`, `notifications` |
+| **No FK** — fully durable | `transactions`, `listing_decision_events`, `listing_currency_events`, `listing_integrity_evidence`, `listing_integrity_reviews`, `strikes`, `identity_resolution_case`, `dealer_accelerator_lifecycle_events`, `listing_deletion_tombstone` |
+
+The buyer's purchase request survives with `listing_id` NULL and its
+brand/model/reference intact — which is exactly why v2.27 snapshotted them
+and why My Offers already prefers the snapshot over the join. **Nothing
+downstream had to change for a listing to stop existing.**
+
+### ⚠ Media is reference-counted, and it is not theoretical
+
+`listing_media` has zero shared storage paths. **`listings.photos` jsonb does
+not** — three URLs are shared between different listings in production today:
+
+| Shared blob | Between |
+| --- | --- |
+| `…110726-KlTxVYKk…` | `k26573` (Omega, **published**) + `p53665` (H. Moser, **published**) |
+| `…222255-NXfV1Tps…` | `k26573` + `p53665` |
+| `…Gallery-hPVgOVYU…` | `f25723` (rejected) + `k26573` |
+
+Deleting a listing's blobs by reading its own photo list would have destroyed
+photographs on a **live published listing**, on the first real purge.
+
+So: candidates are collected **before** the row is deleted, and the orphan set
+is computed **after** it, against what survives. Only URLs no remaining
+listing references are returned. That is also what makes retry safe — a
+second run finds the row already gone and returns nothing.
+
+**Never widen `orphan_media` in the route.** The listing is gone by then, and
+the reason it is gone is the reason that would be wrong.
+
+### TOCTOU
+
+The function locks the listing **and** its purchase requests, then re-runs the
+canonical eligibility inside that boundary. A Stage 7 all-clear is never
+authority. Blocked → returns current blocker truth, deletes nothing, listing
+unchanged. The dialog shows those blockers instead of a generic failure.
+
+### Pending vs accepted
+
+- **pending** is *not* a blocker. It would let a stranger's unanswered offer
+  keep a seller's unwanted listing alive forever. The delete closes them
+  permanently with `closure_cause = 'listing_deleted_by_seller'` — never the
+  Pause cause, because the seller did not choose Pause.
+- **accepted** *is* a blocker, and is never silently cancelled to make a
+  delete pass.
+
+Buyers see **"Listing no longer available — The seller deleted this listing."**
+The seller's deletion reason is theirs and is never exposed.
+
+### Order of operations, and why
+
+```
+1. delete_listing_permanently()   — the database purge, atomically
+2. blob deletion                  — only proven orphans
+3. buyer notifications            — post-commit, from committed events
+4. seller receipt
+```
+
+Database first, storage second. If the process dies between them the listing
+is genuinely gone and some blobs are stranded — recoverable, invisible, cheap.
+The reverse would delete a seller's photographs and then fail to delete the
+listing that displays them.
+
+**Nothing after step 1 may return an error.** Once `deleted:true` comes back
+the listing does not exist; reporting failure would tell the seller to retry
+something already done.
+
+Notifications find their requests through `purchase_request_events.metadata
+->> 'listing_id'`, because the delete SET NULL the requests' own `listing_id`.
+`notifications.listing_id` is written NULL — its FK target is gone.
+
+### Deletion reasons
+
+Delete is where the governed exit vocabulary lives (*sold in my store /
+privately*, *sold on another website*, *listing mistake / duplicate*, *no
+longer for sale*, *other*). **Pause asks for none.**
+
+⚠ **An external-sale reason never creates a FairWatchTrade sale** — no
+transaction row, no completed-sale truth, no Tax Time entry, no Collector
+Impression eligibility, no sale metric. The function writes nothing to
+`transactions` under any reason code.
+
+### Admin after deletion
+
+`/admin/listings/[id]` renders the **tombstone** when the row is gone, rather
+than "Listing not found" — a governed purge must not look like data loss.
+Deliberately not an archive: which watch, whose, when, why, under which purge
+event. No photos, no description, no specs.
+
 ## Verify current state
 
 ```sql

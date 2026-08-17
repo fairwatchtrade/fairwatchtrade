@@ -8,93 +8,161 @@ import {
 } from "@/lib/listingDeleteEligibility";
 
 /* ════════════════════════════════════════════════════════════════════════
-   DELETE LISTING — Stage 7. Asks the server whether this listing may be
-   permanently deleted yet, and shows the answer.
+   DELETE LISTING — Stage 8. One confirmation, and it deletes.
 
-   ⚠ IT DELETES NOTHING. There is no purge in this flight and therefore no
-   button here that performs one. The useful work is the determination and
-   the consequences review; a control that claimed to delete would be a lie
-   about the most irreversible action the product will ever have.
+   The flow is deliberately short, because the seller arrived knowing what
+   they wanted:
 
-   The answer is computed entirely by listing_delete_eligibility(). This
-   component renders it. It does not evaluate a single blocker itself, which
-   is why a seller and the founder cannot be shown different verdicts.
+     Delete Listing → silent eligibility check
+                    → blocked:  explain, change nothing
+                    → clear:    one final confirmation → gone
 
-   Asked on open and re-askable by hand, because the answer is a snapshot.
-   The function is STABLE — the database refuses writes inside it — so
-   pressing Check again costs a read and changes nothing.
+   There is no "ready but unavailable" state, no Check again, and no second
+   ceremony. The earlier construction version asked "Delete this listing
+   permanently?" and then offered Close — a question it could not answer.
+   This one can.
 
-   Shaped after RemoveListingDialog: bounded width, square perimeter, Escape
-   and backdrop close, focus lands on the safe action and returns to the
-   trigger.
+   ⚠ THE DESTRUCTIVE CONTROL DOES NOT EXIST UNTIL THE SERVER SAYS CLEAR, and
+   the seller has picked a reason. It is never rendered next to a blocker.
+
+   Pause is not a prerequisite and is never mentioned as one. A seller who
+   sold and shipped a watch comes straight here from a published listing.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
+/* Delete is where the governed exit vocabulary belongs — "why did this watch
+   leave for good" is worth asking at the irreversible moment, and was never
+   a sensible question about a temporary Pause. */
+const REASONS: Array<{ code: string; label: string }> = [
+  { code: "sold_in_store", label: "Sold in my store / privately" },
+  { code: "sold_elsewhere", label: "Sold on another website" },
+  { code: "listing_mistake", label: "Listing mistake / duplicate" },
+  { code: "no_longer_for_sale", label: "No longer for sale" },
+  { code: "other", label: "Other" },
+];
+
+const SOLD_CODES = new Set(["sold_in_store", "sold_elsewhere"]);
+
+export type DeletedSummary = {
+  public_code?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  requests_closed?: number;
+};
+
 export default function DeleteListingDialog({
   listingId,
   title,
+  reference,
   publicCode,
   onClose,
+  onDeleted,
 }: {
   listingId: string;
   title: string;
+  reference?: string | null;
   publicCode?: string | null;
   onClose: () => void;
+  onDeleted: (summary: DeletedSummary) => void;
 }) {
   const [state, setState] = useState<
     | { phase: "checking" }
     | { phase: "error"; detail: string }
-    | { phase: "answered"; result: DeleteEligibility }
+    | { phase: "blocked"; result: DeleteEligibility }
+    | { phase: "confirm"; result: DeleteEligibility }
   >({ phase: "checking" });
-  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const [reasonCode, setReasonCode] = useState("");
+  const [reasonNote, setReasonNote] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const safeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
+    safeRef.current?.focus();
+  }, [state.phase]);
 
-  /* Declared here rather than inline so the retry control and the initial
-     ask are provably the same call. */
-  async function check() {
-    setState({ phase: "checking" });
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("listing_delete_eligibility", {
-        p_listing_id: listingId,
-      });
-      if (error) {
-        setState({
-          phase: "error",
-          detail:
-            error.message.includes("not_found")
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.rpc("listing_delete_eligibility", {
+          p_listing_id: listingId,
+        });
+        if (cancelled) return;
+        if (error) {
+          setState({
+            phase: "error",
+            detail: error.message.includes("not_found")
               ? "This listing isn't yours, or no longer exists."
               : "Could not check this listing right now. Please try again.",
-        });
+          });
+          return;
+        }
+        const result = data as DeleteEligibility;
+        setState(
+          result.eligible_for_permanent_delete
+            ? { phase: "confirm", result }
+            : { phase: "blocked", result }
+        );
+      } catch {
+        if (!cancelled) {
+          setState({
+            phase: "error",
+            detail: "Could not check this listing right now. Please try again.",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId]);
+
+  async function confirmDelete() {
+    if (deleting || !reasonCode) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/listings/${listingId}/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reasonCode,
+          reasonNote: reasonNote.trim() === "" ? null : reasonNote.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        /* 409 means the destructive seam re-checked and refused — something
+           changed after the seller opened this. Show the real blockers
+           rather than a generic failure; nothing was deleted. */
+        if (res.status === 409 && data?.eligibility) {
+          setState({ phase: "blocked", result: data.eligibility as DeleteEligibility });
+          setDeleteError(null);
+          return;
+        }
+        setDeleteError(data?.detail ?? "Could not delete this listing. Please try again.");
         return;
       }
-      setState({ phase: "answered", result: data as DeleteEligibility });
+      onDeleted(data as DeletedSummary);
     } catch {
-      setState({
-        phase: "error",
-        detail: "Could not check this listing right now. Please try again.",
-      });
+      setDeleteError("Could not delete this listing. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   }
 
-  useEffect(() => {
-    check();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingId]);
-
-  const result = state.phase === "answered" ? state.result : null;
-  const eligible = result?.eligible_for_permanent_delete === true;
+  const pending =
+    state.phase === "confirm" ? (state.result.pending_requests_to_close ?? 0) : 0;
 
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(7,8,12,0.72)] px-6 py-8"
-      onClick={onClose}
+      onClick={() => !deleting && onClose()}
       onKeyDown={(e) => {
-        if (e.key === "Escape") {
+        if (e.key === "Escape" && !deleting) {
           e.stopPropagation();
           onClose();
         }
@@ -111,25 +179,23 @@ export default function DeleteListingDialog({
           id="delete-listing-title"
           className="font-display text-[18px] font-light text-[var(--platinum)]"
         >
-          {/* ⚠ A STATEMENT, NEVER A QUESTION.
-
-              This first shipped as "Delete this listing permanently?" above
-              Close and Check again — posing the most irreversible decision in
-              the product and then offering no way to take it. The seller
-              reasonably read it as being asked to delete something a second
-              time, having already Removed it once.
-
-              Stage 7 asks nothing. It reports whether anything is in the way.
-              The question belongs to the stage that can actually answer it. */}
           {state.phase === "checking"
             ? "Checking this listing…"
-            : eligible
-              ? "Ready for permanent deletion"
-              : "This listing can't be permanently deleted yet."}
+            : state.phase === "blocked"
+              ? "This listing can't be permanently deleted yet."
+              : "Delete this listing permanently?"}
         </h2>
+
+        {/* Identity, in full. Three Datejusts on one reference is why the
+            listing code is here and not merely the brand and model. */}
         <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
           {title}
         </p>
+        {reference && (
+          <p className="mt-0.5 truncate text-[11px] tracking-[0.3px] text-[var(--muted)]">
+            Ref. {reference}
+          </p>
+        )}
         {publicCode && (
           <p className="mt-0.5 truncate font-mono text-[11px] tracking-[1.1px] text-[var(--gold-dim)]">
             {publicCode}
@@ -138,7 +204,7 @@ export default function DeleteListingDialog({
 
         {state.phase === "checking" && (
           <p className="mt-5 font-display text-[13px] italic text-[var(--muted)]">
-            Asking the server what's still unresolved…
+            Checking what&apos;s still unresolved…
           </p>
         )}
 
@@ -148,14 +214,10 @@ export default function DeleteListingDialog({
           </p>
         )}
 
-        {/* ── BLOCKED ─────────────────────────────────────────────────────
-            Only the blockers actually found are listed. No hypothetical
-            categories, no "everything looks fine except…" — the seller sees
-            exactly what is unresolved and nothing they cannot act on. */}
-        {result && !eligible && (
+        {state.phase === "blocked" && (
           <>
             <ul className="mt-5 space-y-2">
-              {result.blockers.map((b, i) => (
+              {state.result.blockers.map((b, i) => (
                 <li
                   key={`${b.code}-${i}`}
                   className="border-l-2 border-[var(--lc-rejected-line)] pl-3 text-[12px] leading-[1.6] text-[var(--platinum-dim)]"
@@ -165,90 +227,120 @@ export default function DeleteListingDialog({
               ))}
             </ul>
             <p className="mt-4 text-[11px] leading-[1.6] text-[var(--muted)]">
-              Nothing has been deleted. Your listing and its photographs are
-              still here. You can check again once these are resolved.
+              Nothing has changed. This listing is exactly where it was.
             </p>
           </>
         )}
 
-        {/* ── ELIGIBLE ────────────────────────────────────────────────────
-            The consequences review. It describes what permanent deletion is
-            designed to do, and states plainly that it has not happened and
-            cannot be triggered from here yet — because it cannot. */}
-        {result && eligible && (
+        {state.phase === "confirm" && (
           <>
-            <p className="mt-5 text-[12px] leading-[1.6] text-[var(--lc-published-badge)]">
-              Currently eligible for permanent deletion.
-            </p>
-            {/* State-neutral on purpose. Delete no longer assumes the listing
-                was paused first — a seller who sold and shipped a watch comes
-                straight here from a published listing, and telling them what
-                they "already did" would be wrong for the commonest case. */}
-            <p className="mt-2 text-[12px] leading-[1.6] text-[var(--platinum-dim)]">
-              Nothing is standing in the way. This is the separate, final step
-              that erases the listing itself — you don&apos;t need to pause it
-              first.
-            </p>
-            <div className="mt-4 space-y-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
-              <p>When that step runs, it will be irreversible:</p>
+            <div className="mt-5 space-y-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
+              <p className="text-[var(--danger)]">This cannot be undone.</p>
               <p>
-                <span className="text-[var(--platinum-dim)]">
-                  The listing itself disappears
-                </span>{" "}
-                — from your workspace as well as from the marketplace.
+                <span className="text-[var(--platinum-dim)]">The listing disappears</span>{" "}
+                — from your workspace and from the marketplace.
               </p>
               <p>
-                <span className="text-[var(--platinum-dim)]">
-                  Its photographs go with it
-                </span>{" "}
-                — anything belonging only to this listing dies with it.
+                <span className="text-[var(--platinum-dim)]">Its photographs go with it</span>{" "}
+                — anything belonging only to this listing is deleted.
               </p>
+              {pending > 0 && (
+                <p className="text-[var(--platinum-dim)]">
+                  {pending === 1
+                    ? "One purchase request still waiting for your answer will be closed permanently, and that buyer will be told."
+                    : `${pending} purchase requests still waiting for your answer will be closed permanently, and those buyers will be told.`}
+                </p>
+              )}
               <p>
                 <span className="text-[var(--platinum-dim)]">
                   Records that stand on their own survive
                 </span>{" "}
-                — completed sales, adjudication history and the purchase
-                requests people made keep their own copy of which watch they
-                concerned, and remain readable without it.
+                — completed sales and adjudication history keep their own copy
+                of which watch they concerned.
               </p>
             </div>
-            {/* ⚠ Deliberately not a button. There is no purge to trigger, and
-                a control here would either do nothing or imply it had. */}
-            <p className="mt-4 border border-[var(--border-faint)] px-3 py-2.5 text-[11px] leading-[1.6] text-[var(--muted)]">
-              <span className="text-[var(--platinum-dim)]">
-                Nothing has been deleted.
-              </span>{" "}
-              Permanent deletion isn&apos;t available yet — this check confirms
-              the listing is ready for it, and the step itself is still being
-              built.
-            </p>
+
+            <fieldset className="mt-5">
+              <legend className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                Why are you deleting it?
+              </legend>
+              <div className="mt-2 grid gap-1">
+                {REASONS.map((r) => (
+                  <label
+                    key={r.code}
+                    className="flex min-h-[36px] cursor-pointer items-center gap-2.5 px-1 py-1 text-[13px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)]"
+                  >
+                    <input
+                      type="radio"
+                      name="delete-reason"
+                      value={r.code}
+                      checked={reasonCode === r.code}
+                      disabled={deleting}
+                      onChange={() => setReasonCode(r.code)}
+                      className="h-[14px] w-[14px] shrink-0 accent-[var(--gold)]"
+                    />
+                    <span>{r.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {SOLD_CODES.has(reasonCode) && (
+              <p className="mt-2 border border-[var(--border-faint)] px-3 py-2 text-[11px] leading-[1.55] text-[var(--muted)]">
+                This records why the watch left. It does not record a
+                FairWatchTrade sale, and it doesn&apos;t affect your sales
+                figures.
+              </p>
+            )}
+
+            {reasonCode === "other" && (
+              <label className="mt-3 block">
+                <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
+                  Anything to add?{" "}
+                  <span className="normal-case tracking-[0.3px]">(optional)</span>
+                </span>
+                <textarea
+                  value={reasonNote}
+                  disabled={deleting}
+                  maxLength={320}
+                  rows={2}
+                  onChange={(e) => setReasonNote(e.target.value)}
+                  className="mt-1.5 w-full resize-y border border-[var(--border-subtle)] bg-transparent px-2.5 py-2 text-[13px] leading-[1.5] text-[var(--platinum)] outline-none transition-colors focus:border-[var(--border-gold)]"
+                />
+              </label>
+            )}
           </>
         )}
 
-        {result && (
-          <p className="mt-4 text-[11px] leading-[1.5] text-[var(--muted)]">
-            Checked just now. This answer reflects the listing as it is at this
-            moment and is re-checked each time.
+        {deleteError && (
+          <p role="alert" className="mt-3 text-[11px] text-[var(--danger)]">
+            {deleteError}
           </p>
         )}
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
-            ref={closeRef}
+            ref={safeRef}
             type="button"
+            disabled={deleting}
             onClick={onClose}
-            className="min-h-[44px] border border-[var(--border-subtle)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+            className="min-h-[44px] border border-[var(--border-subtle)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
           >
-            Close
+            {state.phase === "confirm" ? "Keep listing" : "Close"}
           </button>
-          <button
-            type="button"
-            disabled={state.phase === "checking"}
-            onClick={check}
-            className="min-h-[44px] border border-[var(--border-mid)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
-          >
-            {state.phase === "checking" ? "Checking…" : "Check again"}
-          </button>
+
+          {/* ⚠ Exists only on the confirm phase, and only once a reason is
+              chosen. Never rendered beside a blocker. */}
+          {state.phase === "confirm" && (
+            <button
+              type="button"
+              disabled={deleting || !reasonCode}
+              onClick={confirmDelete}
+              className="min-h-[44px] border border-[var(--lc-rejected-line)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--lc-rejected-badge)] transition-colors hover:bg-[rgba(190,86,80,0.08)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? "Deleting…" : "Delete listing permanently"}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -364,6 +364,7 @@ export default function SellerListingsRoom({
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     title: string;
+    reference: string | null;
     publicCode: string | null;
     trigger: HTMLElement | null;
   } | null>(null);
@@ -1165,6 +1166,7 @@ export default function SellerListingsRoom({
                         title: selected.model
                           ? `${selected.brand} ${selected.model}`
                           : selected.brand,
+                        reference: selected.reference ?? null,
                         publicCode: selected.public_code ?? null,
                         trigger: e.currentTarget,
                       });
@@ -1213,11 +1215,34 @@ export default function SellerListingsRoom({
         <DeleteListingDialog
           listingId={deleteTarget.id}
           title={deleteTarget.title}
+          reference={deleteTarget.reference}
           publicCode={deleteTarget.publicCode}
           onClose={() => {
             const trigger = deleteTarget.trigger;
             setDeleteTarget(null);
             trigger?.focus();
+          }}
+          onDeleted={(summary) => {
+            /* Read identity before clearing the target — a moment later
+               there is nothing left to ask, and the listing itself no longer
+               exists to be looked up. */
+            const label = deleteTarget.publicCode
+              ? `${deleteTarget.title} (${deleteTarget.publicCode})`
+              : deleteTarget.title;
+            const closed = summary.requests_closed ?? 0;
+            setDeleteTarget(null);
+            setRemovedNotice(
+              closed > 0
+                ? `${label} has been permanently deleted. ${
+                    closed === 1
+                      ? "One purchase request was closed, and that buyer has been told."
+                      : `${closed} purchase requests were closed, and those buyers have been told.`
+                  }`
+                : `${label} has been permanently deleted.`
+            );
+            /* The row is gone; the shell must re-read rather than patch a
+               local copy of something that no longer exists. */
+            onRemoved?.();
           }}
         />
       )}

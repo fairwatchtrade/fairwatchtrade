@@ -37,7 +37,11 @@ export type DeleteEligibility = {
   listing_id: string;
   public_code: string | null;
   lifecycle_state: string;
+  is_public?: boolean;
   removal_reason_code: string | null;
+  /** Not a blocker — a consequence. Pending offers are closed permanently by
+      the delete, and the confirmation says how many people that affects. */
+  pending_requests_to_close?: number;
   eligible_for_permanent_delete: boolean;
   blockers: DeleteBlocker[];
   evaluated_at: string;
