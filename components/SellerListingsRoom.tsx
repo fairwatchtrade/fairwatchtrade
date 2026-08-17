@@ -469,12 +469,30 @@ export default function SellerListingsRoom({
             <p className="text-[13px] text-[var(--muted)]">No listings in this view.</p>
           </div>
         ) : (
-          <div>
+          /* THE ROOM'S OWN EDGE.
+
+             Measured at a 1038px viewport: the listings pane is a 468px
+             content box, the table needs 563px, every ancestor was
+             overflow-x: visible, and so 95px of table painted straight out of
+             the pane. The Actions column measured left 717 → right 801 while
+             the pane ended at 707 — which is why View buttons appeared on top
+             of the Selected Listing rail.
+
+             The horizontal scrollbar already visible above the table belongs
+             to the TAB STRIP (it scrolls 31px because "Rejected" does not
+             fit), not to this grid. The grid never had a scroll container at
+             all. This is that container.
+
+             Content now disappears at the boundary of its own room and is
+             reached by scrolling, rather than wandering underneath the
+             neighbouring one. Nothing about the rail, the padding, or the
+             breakpoints changes. */
+          <div className="overflow-x-auto">
             {/* Column guide. Inactive headers stay as quiet as the guide has
                 always been and reveal their affordance on approach; only the
                 ACTIVE sort carries a persistent arrow, so the row reads as a
                 label with one live indicator rather than a strip of arrows. */}
-            <div className="hidden gap-3 px-7 py-2 text-[11px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(0,1fr)_104px_110px_120px_84px]">
+            <div className="hidden gap-3 px-7 py-2 text-[11px] uppercase tracking-[1.7px] text-[var(--muted)] md:grid md:grid-cols-[56px_minmax(200px,1fr)_104px_110px_120px_84px]">
               <span>Image</span>
               <SortHeader label="Listing" sortKey="listing" sort={sort} onSort={toggleSort} />
               <SortHeader
@@ -515,7 +533,7 @@ export default function SellerListingsRoom({
                   key={row.id}
                   onClick={() => setSelectedId(row.id)}
                   style={lifecycleContainerStyle(row.status, { selected: isSel, attention: attn })}
-                  className="relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border px-4 py-[12px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(0,1fr)_104px_110px_120px_84px]"
+                  className="relative grid cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-3 border px-4 py-[12px] transition hover:bg-[rgba(255,255,255,0.018)] md:grid-cols-[56px_minmax(200px,1fr)_104px_110px_120px_84px]"
                 >
                   {/* Real listing photograph */}
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden border border-[var(--border-faint)] bg-[var(--surface)]">
@@ -531,7 +549,18 @@ export default function SellerListingsRoom({
                     )}
                   </div>
 
-                  {/* Identity — brand · model/collector identity · full reference */}
+                  {/* Identity — brand · model/collector identity · full
+                      reference · listing code.
+
+                      The track floor is 200px, not minmax(0,1fr). Measured:
+                      1fr resolved to 0px in a 468px pane, and a zero-width
+                      track does not merely squeeze this cell — it deletes most
+                      of it, because the model is line-clamped and the
+                      reference is truncated, and both clip to nothing at zero
+                      width. Only the brand survived, because it is the one
+                      line here with no overflow rule. The floor is what makes
+                      the table overflow (and therefore scroll) instead of
+                      silently eating the watch's identity. */}
                   <div className="min-w-0">
                     {/* The maker's name was set at 8.5px — smaller than every
                         piece of status language around it, on the one line
@@ -547,6 +576,18 @@ export default function SellerListingsRoom({
                     <div className="mt-[2px] truncate text-[11px] tracking-[0.3px] text-[var(--muted)]">
                       Ref. {row.reference}
                     </div>
+                    {/* The FWT listing number, inside the identity cell rather
+                        than as a column of its own — it is randomly assigned,
+                        so it is an identifier, never a sort dimension. Shown
+                        in every lifecycle state: the one case it exists for is
+                        telling apart watches that are otherwise identical on
+                        screen, and a Draft or Removed row needs that as much
+                        as a Published one. */}
+                    {row.public_code && (
+                      <div className="mt-[3px] truncate font-mono text-[11px] uppercase tracking-[1.1px] text-[var(--gold-dim)]">
+                        {row.public_code}
+                      </div>
+                    )}
                   </div>
 
                   {/* LISTED DATE — the day this watch became visible to

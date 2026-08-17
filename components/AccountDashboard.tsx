@@ -100,6 +100,11 @@ export type AccountListing = {
   brand: string;
   model: string | null;
   reference: string;
+  /** The FairWatchTrade listing number. Part of the listing's identity, not a
+      sort dimension — it is randomly assigned, so ordering by it means
+      nothing. It exists to tell two otherwise-identical watches apart, which
+      is exactly the case this seller has: three Datejusts on one reference. */
+  public_code: string | null;
   condition: string;
   asking_price: number;
   // Money Truth Stage B — null until the founder attestation; renders as the
@@ -1524,7 +1529,8 @@ export default function AccountDashboard({
                 ) : (
                   <SellerListingsRoom
                     listings={searchFiltered}
-                  decisions={decisions}
+                    decisions={decisions}
+                    publishedAt={publishedAt}
                     threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                     threadsLoaded={threadsLoaded}
                     onSubmitForReview={submitForReview}
