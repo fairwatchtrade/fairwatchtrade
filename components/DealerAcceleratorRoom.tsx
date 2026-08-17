@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import HelpBubble from "@/components/HelpBubble";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
+/* The Sell Flow Step 1 spinner, reused rather than reproduced. It carries its
+   own @keyframes inline, so it animates wherever it is dropped without any
+   global CSS to keep in step. */
+import WatchSpinner from "@/components/WatchSpinner";
 
 /* ════════════════════════════════════════════════════════════════════════
    DEALER ACCELERATOR — the room  (components/DealerAcceleratorRoom.tsx)
@@ -309,8 +313,16 @@ function Primary({
       type="button"
       onClick={onClick}
       disabled={disabled || busy}
-      className="min-h-[46px] cursor-pointer border border-[var(--gold)] bg-[var(--cta-fill)] px-5 py-3 text-[12px] font-semibold text-[var(--on-cta)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-45"
+      /* inline-flex + gap exist only to seat the spinner beside the label.
+         Padding, min-height and type are untouched, and with no spinner the
+         gap has nothing to act on — an idle button is the same box it was. */
+      className="inline-flex min-h-[46px] cursor-pointer items-center justify-center gap-2 border border-[var(--gold)] bg-[var(--cta-fill)] px-5 py-3 text-[12px] font-semibold text-[var(--on-cta)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-45"
     >
+      {/* The Sell Flow Step 1 treatment, reused verbatim: the same
+          <WatchSpinner /> beside the same kind of active-state label. 14px
+          rather than Step 1's 16 because these labels are 12px, not the CTA's
+          larger type — size is the component's own per-context prop. */}
+      {busy && <WatchSpinner size={14} />}
       {busy ? "Working…" : children}
     </button>
   );
@@ -320,18 +332,27 @@ function Secondary({
   children,
   onClick,
   disabled,
+  busy = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /* PURELY VISUAL, and deliberately so. Unlike Primary, this does not fold
+     into `disabled` — the retry row already disables every Try again button
+     while one is running, and quietly adding a second source of disabling
+     would change behaviour this flight is not allowed to touch. */
+  busy?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-[46px] cursor-pointer border border-[var(--border-mid)] bg-transparent px-5 py-3 text-[12px] font-semibold text-[var(--platinum)] transition-colors hover:border-[var(--gold-subtle)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-45"
+      /* Same reasoning as Primary: inline-flex + gap seat the spinner and
+         nothing else. Dimensions and type are unchanged. */
+      className="inline-flex min-h-[46px] cursor-pointer items-center justify-center gap-2 border border-[var(--border-mid)] bg-transparent px-5 py-3 text-[12px] font-semibold text-[var(--platinum)] transition-colors hover:border-[var(--gold-subtle)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-45"
     >
+      {busy && <WatchSpinner size={14} />}
       {children}
     </button>
   );
@@ -1397,9 +1418,14 @@ function AttentionPanel({
                     {blockedCopy(i.reasonCode)}
                   </p>
                 </div>
+                {/* Only THIS item spins. retryingId names the one being
+                    retried, so the other rows stay disabled-but-still — a
+                    spinner on every button would claim work that is not
+                    happening to them. */}
                 <Secondary
                   onClick={() => retryItem(i)}
                   disabled={retryingId !== null}
+                  busy={retryingId === i.batchItemId}
                 >
                   {retryingId === i.batchItemId ? "Trying again…" : "Try again"}
                 </Secondary>
