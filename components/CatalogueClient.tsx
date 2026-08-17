@@ -700,11 +700,18 @@ function MyOffersSection({
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawnNotice, setWithdrawnNotice] = useState(false);
   const [dismissError, setDismissError] = useState<string | null>(null);
-  /* The id of the card just cleared, so Undo knows what to put back. Held
-     briefly and then dropped — a convenience on screen, never a record. If
-     it lapses, the dismissal simply stays persisted as it already is. */
+  /* The id of the card just cleared, so Undo knows what to put back.
+
+     ⚠ NO TIMER. This first shipped on a twelve-second countdown, and the
+     first person to use it missed the window — a number chosen with no
+     evidence, against a quiet page someone is actually reading rather than a
+     toast they are braced for. An Undo you cannot reach is not an Undo.
+
+     It now survives until something else happens: another dismissal, a
+     reload, or leaving. Still short-lived and still not an archive — it is
+     component state and nothing persists it — but it can no longer expire
+     while the collector is looking straight at it. */
   const [undoTarget, setUndoTarget] = useState<string | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Focus lands on the safe action when the dialog opens.
@@ -739,12 +746,10 @@ function MyOffersSection({
         setDismissError("Could not remove this from your offers. Please try again.");
         return;
       }
-      /* Offer the way back for a few seconds. A dismissal is one click on a
-         card the buyer may only have meant to read, and the record surviving
-         underneath is no comfort if they cannot see it again. */
-      if (undoTimer.current) clearTimeout(undoTimer.current);
+      /* Offer the way back. A dismissal is one click on a card the buyer may
+         only have meant to read, and the record surviving underneath is no
+         comfort if they cannot see it again. */
       setUndoTarget(requestId);
-      undoTimer.current = setTimeout(() => setUndoTarget(null), 12000);
       onWithdrawn(); // refetch — the cleared card is gone, no page refresh
     } catch {
       setDismissError("Could not remove this from your offers. Please try again.");
@@ -756,7 +761,6 @@ function MyOffersSection({
      recovering data, through the same owner-gated door. */
   async function undoDismiss(requestId: string) {
     setDismissError(null);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
     setUndoTarget(null);
     try {
       const supabase = createClient();
@@ -772,14 +776,6 @@ function MyOffersSection({
       setDismissError("Could not put that offer back. Please try again.");
     }
   }
-
-  // The timer must not outlive the section; a fired callback on an unmounted
-  // component is a warning today and a leak in a longer-lived view.
-  useEffect(() => {
-    return () => {
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-    };
-  }, []);
 
   async function confirmWithdraw() {
     if (!prompt || withdrawing) return; // double-submit prevention
