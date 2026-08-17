@@ -480,6 +480,20 @@ export interface AdvanceReport {
       "prepared this call" never claims credit for work already done. */
   itemsAdopted: number;
   itemsBlocked: number;
+  /** Items that THREW rather than returning a verdict, with the first distinct
+      message.
+
+      This exists because its absence cost real time. Twelve items failed
+      identically with a permission error, the per-item catch counted each as
+      "needing attention", and the report read "0 newly prepared, 12 needing
+      attention" — indistinguishable from twelve watches legitimately lacking
+      evidence. The durable state said 'discovered', which contradicted
+      "attention", and that contradiction was the only clue.
+
+      A thrown error is not a verdict about a watch. It must never be counted
+      as one silently. */
+  itemsErrored: number;
+  errorSample: string | null;
   /** True when nothing further remains for this snapshot. */
   finished: boolean;
   detail: string;
@@ -598,6 +612,8 @@ export async function advancePreparation(opts: {
   let materialized = 0;
   let adoptedCount = 0;
   let blocked = 0;
+  let errored = 0;
+  let errorSample: string | null = null;
 
   if (batchId) {
     const { data: readyRows } = await db
@@ -629,10 +645,17 @@ export async function advancePreparation(opts: {
         // item linked to that listing rather than creating a second one.
         else if (result.outcome === "ALREADY_MATERIALIZED") adoptedCount++;
         else if (result.outcome === "BLOCKED") blocked++;
-      } catch {
-        // One item's failure is that item's business. The spine recorded
-        // whatever it recorded; the remaining items still get their turn.
-        blocked++;
+      } catch (e) {
+        /* One item's failure is that item's business — the remaining items
+           still get their turn. But it is counted as an ERROR, not as
+           "blocked": blocked is a truthful verdict about a watch's evidence,
+           and a thrown exception is a fault in the machinery. Conflating them
+           hid a permission error behind twelve plausible-looking attention
+           counts. */
+        errored++;
+        if (errorSample === null) {
+          errorSample = e instanceof Error ? e.message : String(e);
+        }
       }
     }
   }
@@ -648,12 +671,17 @@ export async function advancePreparation(opts: {
     itemsMaterialized: materialized,
     itemsAdopted: adoptedCount,
     itemsBlocked: blocked,
+    itemsErrored: errored,
+    errorSample,
     finished,
     detail:
       `${settled ? "discovery settled" : `discovery advanced in ${slicesRun} slice(s)`}; ` +
       `${materialized} newly prepared` +
       (adoptedCount > 0 ? `, ${adoptedCount} already prepared previously` : "") +
-      (blocked > 0 ? `, ${blocked} needing attention` : ""),
+      (blocked > 0 ? `, ${blocked} needing attention` : "") +
+      // Errors are named loudly and carry their message. A silent count here
+      // is what made a permission failure look like ordinary attention.
+      (errored > 0 ? `, ${errored} FAILED (${errorSample})` : ""),
   };
 }
 
@@ -680,6 +708,8 @@ function blankAdvance(sourceId: string, detail: string): AdvanceReport {
     itemsMaterialized: 0,
     itemsAdopted: 0,
     itemsBlocked: 0,
+    itemsErrored: 0,
+    errorSample: null,
     finished: false,
     detail,
   };
