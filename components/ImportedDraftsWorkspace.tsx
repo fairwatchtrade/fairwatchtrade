@@ -560,7 +560,26 @@ export default function ImportedDraftsWorkspace() {
     }
   }
 
-  /* ── Submit — save first if dirty, then the canonical RPC via its route. ── */
+  /* ── Submit — ONE governed action (founder ruling, 2026-08-17) ──────────
+     Submit persists the dealer's current form values itself, then runs the
+     authoritative server validation against exactly what was persisted.
+     There is NO save-first ceremony: a dealer may edit Availability, tick
+     the three confirmations, and press Submit once.
+
+     Save Draft is optional and exists for one purpose only — keeping
+     unfinished work to come back to later. Nothing may gate Submit on it,
+     and no helper copy may teach "save, then submit" as a sequence.
+
+     The ordering below is what makes the ruling's guarantees true:
+       · the current values are durably saved BEFORE the RPC runs — always,
+         not only when a dirty flag says so — so the server judges the values
+         the dealer is looking at, never a stale row;
+       · a failed save aborts the submit with the save's own error shown —
+         the dealer's edits stay in the form, nothing is lost;
+       · a failed submit leaves the listing in draft WITH the just-saved
+         edits durable, and shows every blocker the server named.
+     The ceremony ticks live in React state and are deliberately untouched
+     by the save, so confirmations made before an auto-save survive it. */
   const ceremonyComplete = Object.values(ceremony).every(Boolean);
   const canSubmit =
     editable && ceremonyComplete && buffer?.availability === "In Stock" && !submitting && !saving;
@@ -570,10 +589,22 @@ export default function ImportedDraftsWorkspace() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (dirty) {
-        const ok = await saveDraft();
-        if (!ok) return;
-      }
+      /* UNCONDITIONAL, and that is the point. This used to run only `if
+         (dirty)`, which made correctness depend on a client-side change
+         flag: any edit the flag failed to notice — a nested photos mutation,
+         a path that forgot to call edit() — and the server would have
+         validated and stamped a row the dealer was not looking at. The
+         fingerprint would then have been minted over stale values while
+         appearing perfectly valid.
+
+         Persisting the current values every time removes that entire class
+         of bug. The write is idempotent, so a submit with nothing changed
+         simply rewrites what is already there.
+
+         A failed save aborts the submission with the save's own message
+         showing, and the dealer's edits stay in the form — no data loss. */
+      const saved = await saveDraft();
+      if (!saved) return;
       /* The three acts travel WITH the submission. Until v5.12 they gated
          only this button, which meant the confirmations were a habit the
          interface asked for rather than something the platform required —
@@ -597,7 +628,13 @@ export default function ImportedDraftsWorkspace() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
+        /* The listing stays in draft and the edits are already durable (the
+           save above committed before the RPC ran), so nothing is lost. Show
+           the server's sentence AND mark every outstanding item in the form,
+           so "what is still missing" is visible in place rather than only
+           summarised in one line at the foot. */
         setSubmitError(data?.detail ?? "Could not submit this listing for review.");
+        setShowBlockers(true);
         return;
       }
       await load(true);
@@ -1293,7 +1330,12 @@ export default function ImportedDraftsWorkspace() {
           <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[var(--border-faint)] bg-[var(--surface)] px-6 py-4">
             {/* v2.22 — the LEFT line keeps errors and unsaved-state words; the
                 saved acknowledgement now lives beside the button that earned it. */}
-            <div className="min-w-0 text-[11px] text-[var(--muted)]">
+            {/* `truncate` is load-bearing at constrained desktop widths: the
+                right-hand group is shrink-0, so without it this line grew
+                under the "Saved privately at…" span and the two visibly
+                interleaved. Ellipsis beats overlap — and an error message is
+                the one thing that must never be rendered unreadable. */}
+            <div className="min-w-0 truncate text-[11px] text-[var(--muted)]">
               {saveError ? (
                 <span className="text-[var(--danger)]">{saveError}</span>
               ) : submitError ? (
@@ -1314,6 +1356,11 @@ export default function ImportedDraftsWorkspace() {
                 type="button"
                 onClick={() => saveDraft()}
                 disabled={!editable || !dirty || saving}
+                /* Optional, by founder ruling: this exists for a dealer who
+                   wants to keep unfinished work and leave. Submit performs
+                   its own durable save of the current values — never require
+                   this button on the way to Submit. */
+                title="Keep your unfinished edits and come back later. Submitting saves your edits itself."
                 className={`cursor-pointer border px-4 py-2 text-[11px] uppercase tracking-[1.5px] transition disabled:cursor-not-allowed ${
                   justSaved
                     ? "border-[var(--border-gold)] text-[var(--gold)] disabled:opacity-100"

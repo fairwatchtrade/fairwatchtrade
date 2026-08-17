@@ -681,10 +681,15 @@ export default function DealerAcceleratorRoom({
                 bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-[-14px] sm:right-auto sm:w-[340px]"
                 caretTracksTrigger
               >
+                {/* Founder ruling 2026-08-17: Submit persists the current
+                    edits itself, so the copy must not teach a save-first
+                    ceremony. Save Draft is only for finishing later. */}
                 <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-                  Choose a draft, confirm the facts only you can know, save your
-                  corrections, then submit it for FairWatchTrade review. Imported
-                  drafts stay private until reviewed and published.
+                  Choose a draft, confirm the facts only you can know, and
+                  submit it for FairWatchTrade review — your edits are saved
+                  with the submission. Use Save Draft only to keep unfinished
+                  work and come back later. Imported drafts stay private until
+                  reviewed and published.
                 </p>
               </HelpBubble>
             </span>
