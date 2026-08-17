@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
     source_id: string;
     dealer_profile_id: string;
     batch_status: string;
+    source_snapshot_key: string;
     unmaterialized: number;
   }>;
 
@@ -97,10 +98,17 @@ export async function POST(request: NextRequest) {
 
   for (const c of candidates) {
     try {
+      /* CONTINUATION ONLY. The candidate batch and its own snapshot key are
+         both passed, which is what stops the worker resolving the dealer's
+         current document and creating a newer batch. Handed an idle batch it
+         previously did exactly that — a run on the founder's source that
+         nobody asked for. A worker finishes work; it never starts it. */
       const report = await advancePreparation({
         userId: c.dealer_profile_id,
         sourceId: c.source_id,
         budgetMs: PER_RUN_BUDGET_MS,
+        continueBatchId: c.batch_id,
+        continueSnapshotKey: c.source_snapshot_key,
       });
       advanced.push({ batchId: c.batch_id, detail: report.detail, finished: report.finished });
     } catch (e) {

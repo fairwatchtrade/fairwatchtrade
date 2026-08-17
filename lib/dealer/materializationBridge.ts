@@ -140,8 +140,10 @@ export interface MaterializeInvocation {
       Defaults to 'founder' so the existing founder route is unchanged. A
       dealer preparing their own inventory passes 'dealer' — attributing a
       dealer's act to the founder would be a false line in an append-only
-      log. */
-  actorKind?: "founder" | "dealer";
+      log. 'worker' is a background continuation of a run the dealer already
+      started; actor_user_id still names the dealer, so the act stays
+      traceable to whose inventory it was. */
+  actorKind?: "founder" | "dealer" | "worker";
   /** assess: read + mechanical ready/blocked only. No bytes move, no draft. */
   mode: "assess" | "materialize";
 }

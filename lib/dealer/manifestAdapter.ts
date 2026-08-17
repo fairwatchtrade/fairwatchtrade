@@ -90,9 +90,14 @@ export interface SliceInvocation {
       Defaults to 'founder' so the founder ignition route is unchanged. A
       dealer starting their own preparation passes 'dealer': recording that
       act as a founder's would put a false line in an append-only evidence
-      log, which is the one defect this log cannot carry. Every batch and
-      item RPC already accepts 'dealer'. */
-  actorKind?: "founder" | "dealer";
+      log, which is the one defect this log cannot carry.
+
+      'worker' is for a BACKGROUND CONTINUATION of a run a person already
+      started. It matters: a worker pass recorded as 'dealer' writes
+      batch_started:dealer for a batch no dealer started, and that false line
+      is precisely what made an accidentally-created batch look explicitly
+      started. Every batch and item RPC accepts all three. */
+  actorKind?: "founder" | "dealer" | "worker";
 }
 
 export interface SliceReport {

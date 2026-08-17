@@ -500,25 +500,42 @@ export interface AdvanceReport {
 }
 
 /**
- * Do one bounded unit of preparation, then report. Safe to call again at
- * any time from anywhere: the spine's idempotency means a repeat converges
- * instead of duplicating, which is what makes both the dealer's own
- * "start" and the background worker able to drive the same run.
+ * Do one bounded unit of preparation, then report. Safe to call again at any
+ * time: the spine's idempotency means a repeat converges instead of
+ * duplicating.
  *
- * The manifest location is re-resolved from the dealer's published
- * discovery document on every call rather than stored. That is deliberate:
- * when a dealer updates their inventory and bumps the declared snapshot,
- * the next call picks it up with no reconnection step. The resolved origin
- * is re-checked against the authorized source, so re-resolution can never
- * widen what this source is allowed to fetch.
+ * ── TWO MODES, and the distinction is load-bearing ────────────────────────
+ *
+ * START mode (no `continueBatchId`) — the dealer pressed Start. The current
+ * discovery document is resolved and a batch for that snapshot is created or
+ * returned. This is the ONLY mode permitted to bring a new batch into
+ * existence, because starting preparation is a decision a person makes.
+ *
+ * CONTINUATION mode (`continueBatchId` supplied) — the background worker is
+ * finishing a run somebody already started. It works on THAT batch and pins
+ * discovery to THAT batch's own snapshot key, so it can never resolve a newer
+ * document into a new batch. For a batch whose discovery has already
+ * finished, the document is not fetched at all — materialization needs no
+ * manifest.
+ *
+ * Why this matters: the worker previously received only (userId, sourceId)
+ * and always re-resolved the current document. Handed an idle historical
+ * batch it created a brand-new batch on that source for the current snapshot
+ * — new preparation nobody asked for. A background worker may finish work; it
+ * may not start it.
  */
 export async function advancePreparation(opts: {
   userId: string;
   sourceId: string;
   budgetMs?: number;
+  /** Continuation mode: the batch to continue, and nothing else. */
+  continueBatchId?: string;
+  /** That batch's own snapshot key, so discovery cannot drift to a newer one. */
+  continueSnapshotKey?: string;
 }): Promise<AdvanceReport> {
   const db = createServiceClient();
   const deadline = Date.now() + (opts.budgetMs ?? ADVANCE_BUDGET_MS);
+  const continuing = Boolean(opts.continueBatchId);
 
   const { data: srcRow } = await db
     .from("dealer_accelerator_sources")
@@ -540,18 +557,66 @@ export async function advancePreparation(opts: {
     return blankAdvance(opts.sourceId, `source_${src.authorization_state}`);
   }
 
-  const resolved = await resolveInventorySource(src.source_locator);
-  if (!resolved.ok) {
-    return blankAdvance(opts.sourceId, `source_unresolvable_${resolved.failure}`);
-  }
-  // The re-resolved source must still be the source that was authorized.
-  // Without this, a changed discovery document could redirect an existing
-  // authorization at a different directory on the same host.
-  if (resolved.sourceLocator.toLowerCase() !== src.source_locator.toLowerCase()) {
-    return blankAdvance(opts.sourceId, "source_moved");
+  /* Continuation mode re-proves the batch belongs to this dealer AND this
+     source before touching it. A batch id from a caller is an assertion. */
+  let continueStatus: string | null = null;
+  if (continuing) {
+    const { data: bRow } = await db
+      .from("dealer_accelerator_batches")
+      .select("id,dealer_profile_id,source_id,status,source_snapshot_key")
+      .eq("id", opts.continueBatchId as string)
+      .maybeSingle();
+    const b = bRow as {
+      id: string;
+      dealer_profile_id: string;
+      source_id: string;
+      status: string;
+      source_snapshot_key: string;
+    } | null;
+    if (!b || b.dealer_profile_id !== opts.userId || b.source_id !== src.id) {
+      return blankAdvance(opts.sourceId, "batch_not_found_for_source");
+    }
+    continueStatus = b.status;
   }
 
-  let batchId: string | null = null;
+  /* Discovery is needed only when phase one is unfinished. A batch that has
+     already completed discovery needs no manifest, so in continuation mode we
+     do not fetch the dealer's document at all — which also means a dealer
+     whose website is temporarily unreachable can still have their prepared
+     evidence materialized. */
+  const discoveryNeeded =
+    !continuing || !["completed", "completed_with_exceptions", "failed", "cancelled"].includes(continueStatus ?? "");
+
+  let resolvedVersion: string | null = null;
+  let resolvedManifestUrl: string | null = null;
+  let resolvedWatchCount = 0;
+
+  if (discoveryNeeded) {
+    const resolved = await resolveInventorySource(src.source_locator);
+    if (!resolved.ok) {
+      return blankAdvance(opts.sourceId, `source_unresolvable_${resolved.failure}`);
+    }
+    // The re-resolved source must still be the source that was authorized.
+    // Without this, a changed discovery document could redirect an existing
+    // authorization at a different directory on the same host.
+    if (resolved.sourceLocator.toLowerCase() !== src.source_locator.toLowerCase()) {
+      return blankAdvance(opts.sourceId, "source_moved");
+    }
+    resolvedManifestUrl = resolved.manifestUrl;
+    resolvedWatchCount = resolved.watchCount;
+    /* THE PIN. In continuation mode the snapshot key comes from the batch,
+       never from the freshly resolved document. Pass the document's version
+       here and create_or_get_batch would mint a NEW batch whenever the dealer
+       had bumped their inventory — which is exactly the bug this closes. */
+    resolvedVersion = continuing
+      ? (opts.continueSnapshotKey ?? null)
+      : resolved.declaredVersion;
+    if (resolvedVersion === null) {
+      return blankAdvance(opts.sourceId, "continuation_snapshot_unknown");
+    }
+  }
+
+  let batchId: string | null = opts.continueBatchId ?? null;
   let slicesRun = 0;
   let settled = false;
 
@@ -570,37 +635,55 @@ export async function advancePreparation(opts: {
      state. */
   const discoveryDeadline = Math.min(deadline, Date.now() + Math.floor((opts.budgetMs ?? ADVANCE_BUDGET_MS) * 0.6));
 
-  // ── Discovery phase: slice until the batch settles or its share ends ──
-  while (Date.now() < discoveryDeadline) {
-    const report = await runManifestSlice({
-      sourceId: src.id,
-      declaredManifestVersion: resolved.declaredVersion,
-      manifestUrl: resolved.manifestUrl,
-      batchLimit: resolved.watchCount,
-      actorUserId: opts.userId,
-      actorKind: "dealer",
-    });
-    slicesRun++;
-    batchId = report.batchId;
-    if (report.settled || SETTLED_BATCH.includes(report.batchStatus)) {
-      settled = true;
-      break;
+  /* ── Discovery phase ───────────────────────────────────────────────────
+     Skipped entirely when phase one is already finished. In continuation mode
+     the version passed here is the BATCH's own snapshot key, so
+     create_or_get_batch can only return that batch — never mint a newer one. */
+  if (discoveryNeeded && resolvedVersion !== null && resolvedManifestUrl !== null) {
+    while (Date.now() < discoveryDeadline) {
+      const report = await runManifestSlice({
+        sourceId: src.id,
+        declaredManifestVersion: resolvedVersion,
+        manifestUrl: resolvedManifestUrl,
+        batchLimit: Math.max(1, resolvedWatchCount),
+        actorUserId: opts.userId,
+        /* A background continuation is the WORKER acting, not the dealer.
+           Recording 'dealer' for a pass no person triggered is how the
+           accidental batch came to carry batch_started:dealer, which then made
+           it look explicitly started. The dealer's own Start still records
+           'dealer', because a dealer really did press it. */
+        actorKind: continuing ? "worker" : "dealer",
+      });
+      slicesRun++;
+      // In continuation mode batchId is already pinned; assert rather than
+      // overwrite, so a surprise batch id surfaces instead of being adopted.
+      if (batchId !== null && report.batchId !== batchId) {
+        return blankAdvance(opts.sourceId, "continuation_batch_diverged");
+      }
+      batchId = report.batchId;
+      if (report.settled || SETTLED_BATCH.includes(report.batchStatus)) {
+        settled = true;
+        break;
+      }
+      if (report.itemsProcessed === 0 && report.phase === "items") break; // no forward progress
     }
-    if (report.itemsProcessed === 0 && report.phase === "items") break; // no forward progress
+  } else {
+    // Discovery already finished; nothing to slice.
+    settled = true;
   }
 
-  /* The batch id must come from durable state when discovery did not run
-     this call — otherwise a run whose discovery finished on an earlier call
-     can never be materialized, which is precisely how twelve items sat in
-     'discovered' behind a completed batch. The slice report is a
-     convenience, not the only source of truth about which batch is current. */
-  if (batchId === null) {
+  /* START mode only: learn the batch from durable state when discovery ran out
+     of budget before reporting one. Continuation mode already knows it.
+     Without this a run whose discovery finished on an earlier call could never
+     be materialized — twelve items sat in 'discovered' behind a completed
+     batch for exactly this reason. */
+  if (batchId === null && resolvedVersion !== null) {
     const { data: currentBatch } = await db
       .from("dealer_accelerator_batches")
       .select("id")
       .eq("dealer_profile_id", opts.userId)
       .eq("source_id", src.id)
-      .eq("source_snapshot_key", resolved.declaredVersion)
+      .eq("source_snapshot_key", resolvedVersion)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -637,7 +720,11 @@ export async function advancePreparation(opts: {
           sourceId: src.id,
           sourceItemKey: key,
           actorUserId: opts.userId,
-          actorKind: "dealer",
+          /* Truthful attribution: a background continuation is the worker
+             acting under the dealer's earlier Start, not the dealer acting
+             now. actor_user_id still names the dealer, so the act remains
+             traceable to whose inventory it was. */
+          actorKind: continuing ? "worker" : "dealer",
           mode: "materialize",
         });
         if (result.outcome === "DRAFT_CREATED") materialized++;
