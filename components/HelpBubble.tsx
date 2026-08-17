@@ -255,8 +255,20 @@ export default function HelpBubble({
       const center = (t.left + t.right) / 2;
       const x = center - (b.left - shift) - 9; // 9 = half the 18px caret
       const clamped = Math.min(Math.max(x, 14), Math.max(14, b.width - 32));
+      /* ⚠ LEFT ONLY — NEVER RESTATE THE ROTATION HERE.
+
+         This used to also write transform: rotate(45deg), on the reasoning
+         that an inline transform replaces the class transform entirely. That
+         was true under Tailwind v3, where `rotate-45` compiled INTO
+         `transform`. Tailwind v4 compiles it to the standalone `rotate`
+         property instead, so the two no longer replace each other — they
+         COMPOSE. 45° from the class plus 45° from the inline transform is a
+         90° turn, and a square turned 90° is a square: flat top, no point.
+
+         Measured on the live page: the caret's bounding box read 18×18. A
+         genuine 45° turn measures 25×25. The rotation was there twice and
+         visible zero times. */
       caretRef.current.style.left = `${clamped}px`;
-      caretRef.current.style.transform = "rotate(45deg)";
     }
 
     if (b.bottom <= window.innerHeight - 12) return; // fits below — stay put
@@ -343,13 +355,19 @@ export default function HelpBubble({
           <span
             aria-hidden="true"
             /* The caret rides the card, so a shifted card would drag it off
-               its trigger — the inline transform walks it back. It must
-               restate rotate(45deg): an inline transform replaces the class
-               transform entirely. */
+               its trigger — the inline transform walks it back.
+
+               ⚠ TRANSLATE ONLY. It must NOT restate rotate(45deg). Under
+               Tailwind v3 `rotate-45` compiled into `transform`, so an inline
+               transform replaced it and had to carry the rotation itself.
+               Tailwind v4 compiles it to the standalone `rotate` property,
+               which composes with `transform` rather than being replaced by
+               it — restating the angle turns the caret 90° and it renders as
+               a flat-topped square. The class owns the rotation now. */
             ref={caretRef}
             style={
               !caretTracksTrigger && shiftX !== 0
-                ? { transform: `translateX(${shiftX}px) rotate(45deg)` }
+                ? { transform: `translateX(${shiftX}px)` }
                 : undefined
             }
             className={`absolute h-[18px] w-[18px] rotate-45 border-[var(--border-gold-strong)] bg-[var(--surface-2)] ${
