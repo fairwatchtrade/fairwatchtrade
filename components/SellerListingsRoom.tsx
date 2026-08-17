@@ -584,7 +584,10 @@ export default function SellerListingsRoom({
                         screen, and a Draft or Removed row needs that as much
                         as a Published one. */}
                     {row.public_code && (
-                      <div className="mt-[3px] truncate font-mono text-[11px] uppercase tracking-[1.1px] text-[var(--gold-dim)]">
+                      {/* Rendered exactly as the database issued it — lower
+                          case. The code is the listing's name, not a label
+                          about it, and case-shifting a name is a small lie. */}
+                      <div className="mt-[3px] truncate font-mono text-[11px] tracking-[1.1px] text-[var(--gold-dim)]">
                         {row.public_code}
                       </div>
                     )}
