@@ -460,9 +460,19 @@ export default function SellerListingsRoom({
   useEffect(() => {
     const table = tableScrollRef.current;
     const spacer = spacerRef.current;
-    if (!table || !spacer) return;
+    const handle = topScrollRef.current;
+    if (!table || !spacer || !handle) return;
     const measure = () => {
       spacer.style.width = `${table.scrollWidth}px`;
+      /* Hide the handle outright when the table fits.
+
+         Measured at 1546px: the table reported 0px of overflow and correctly
+         drew no bar, but the handle still reserved 15px — its content is a
+         1px spacer, so the browser keeps the gutter rather than collapsing
+         it, and the result was an empty bronze strip above the headers at
+         wide desktop. overflow-x: auto is not enough on its own here. */
+      handle.style.display =
+        table.scrollWidth > table.clientWidth + 1 ? "" : "none";
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -588,6 +598,25 @@ export default function SellerListingsRoom({
               onScroll={() => mirrorScroll(tableScrollRef, topScrollRef)}
               className="fw-scroll-x overflow-x-auto"
             >
+            {/* THE ROW IS AS WIDE AS ITS CONTENT, NOT AS WIDE AS THE WINDOW.
+
+                A block-level grid inside a scroll container takes the
+                container's width and lets its tracks paint outside that box.
+                Measured before this: a row's box read left 250 → right 694
+                while its own Actions cell sat at left 717 → right 801. The
+                lifecycle border draws on the BOX, so the green and red
+                perimeters stopped short and Price, Status and Actions fell
+                outside the very row they belong to — the boxes looked
+                compressed because they were.
+
+                min-w-max makes this wrapper as wide as the widest thing in
+                it, so every row fills the full track width and its border
+                encompasses the whole row, scrolling with it as one object.
+
+                Desktop only: on mobile the grid is two columns and already
+                fits, and max-content there would invent a scroll that the
+                narrow layout does not need. */}
+            <div className="md:min-w-max">
             {/* Column guide. Inactive headers stay as quiet as the guide has
                 always been and reveal their affordance on approach; only the
                 ACTIVE sort carries a persistent arrow, so the row reads as a
@@ -780,6 +809,7 @@ export default function SellerListingsRoom({
                 </div>
               );
             })}
+            </div>
             </div>
             </div>
           </div>
