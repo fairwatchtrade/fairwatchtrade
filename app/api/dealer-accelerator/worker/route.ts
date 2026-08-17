@@ -68,25 +68,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // Candidate runs: batches that are not settled, or that are settled but
-  // still hold unmaterialized items (an interruption between phases). The
-  // same "advanceable" definition the dealer's own room reads, expressed
-  // here as a query rather than recomputed per dealer.
-  const { data: batchRows, error } = await db
-    .from("dealer_accelerator_batches")
-    .select("id,source_id,dealer_profile_id,status,updated_at")
-    .in("status", ["queued", "running", "cancel_requested"])
-    .order("updated_at", { ascending: true })
-    .limit(MAX_RUNS_PER_TICK);
+  /* Candidates come from the ONE shared definition of advanceable work.
+     This used to restate the predicate as a batch-status filter, and the
+     restatement was wrong: a batch has two phases, and its status only
+     describes the first. A run whose discovery had finished while twelve
+     items still awaited materialization sat at completed_with_exceptions and
+     was therefore invisible here — pg_cron fired on schedule, every run
+     succeeded, and nothing ever advanced. Do not reintroduce a status filter
+     in this file; ask the function. */
+  const { data: batchRows, error } = await db.rpc(
+    "dealer_accelerator_advanceable_batches",
+    { p_limit: MAX_RUNS_PER_TICK }
+  );
 
   if (error) {
     return NextResponse.json({ error: "candidate_read_failed", detail: error.message }, { status: 500 });
   }
 
   const candidates = (batchRows ?? []) as Array<{
-    id: string;
+    batch_id: string;
     source_id: string;
     dealer_profile_id: string;
+    batch_status: string;
+    unmaterialized: number;
   }>;
 
   const advanced: Array<{ batchId: string; detail: string; finished: boolean }> = [];
@@ -98,11 +102,11 @@ export async function POST(request: NextRequest) {
         sourceId: c.source_id,
         budgetMs: PER_RUN_BUDGET_MS,
       });
-      advanced.push({ batchId: c.id, detail: report.detail, finished: report.finished });
+      advanced.push({ batchId: c.batch_id, detail: report.detail, finished: report.finished });
     } catch (e) {
       // One dealer's failing run must not stop the tick for everyone else.
       advanced.push({
-        batchId: c.id,
+        batchId: c.batch_id,
         detail: `error: ${e instanceof Error ? e.message : "unknown"}`,
         finished: false,
       });

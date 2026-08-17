@@ -541,8 +541,23 @@ export async function advancePreparation(opts: {
   let slicesRun = 0;
   let settled = false;
 
-  // ── Discovery phase: slice until the batch settles or the budget ends ──
-  while (Date.now() < deadline) {
+  /* ── Two phases, two budgets ────────────────────────────────────────────
+     Discovery and materialization used to share one deadline, and discovery
+     always ran first. When discovery used the whole budget — real fetching
+     over a real inventory, easily 19s against a 12s allowance — the loop
+     exited on the deadline and materialization got nothing. Worse, `batchId`
+     is only learned from a slice report, so a call entering with no budget
+     left never even set it and the materialization block was skipped
+     outright by `if (batchId)`.
+
+     Discovery now gets a bounded share and materialization keeps the rest,
+     so every call makes progress on whichever phase has work. Both phases
+     are resumable, so a call that runs out mid-phase costs time, never
+     state. */
+  const discoveryDeadline = Math.min(deadline, Date.now() + Math.floor((opts.budgetMs ?? ADVANCE_BUDGET_MS) * 0.6));
+
+  // ── Discovery phase: slice until the batch settles or its share ends ──
+  while (Date.now() < discoveryDeadline) {
     const report = await runManifestSlice({
       sourceId: src.id,
       declaredManifestVersion: resolved.declaredVersion,
@@ -558,6 +573,24 @@ export async function advancePreparation(opts: {
       break;
     }
     if (report.itemsProcessed === 0 && report.phase === "items") break; // no forward progress
+  }
+
+  /* The batch id must come from durable state when discovery did not run
+     this call — otherwise a run whose discovery finished on an earlier call
+     can never be materialized, which is precisely how twelve items sat in
+     'discovered' behind a completed batch. The slice report is a
+     convenience, not the only source of truth about which batch is current. */
+  if (batchId === null) {
+    const { data: currentBatch } = await db
+      .from("dealer_accelerator_batches")
+      .select("id")
+      .eq("dealer_profile_id", opts.userId)
+      .eq("source_id", src.id)
+      .eq("source_snapshot_key", resolved.declaredVersion)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    batchId = (currentBatch as { id: string } | null)?.id ?? null;
   }
 
   // ── Materialization phase: evidence → dealer-owned drafts, one at a
