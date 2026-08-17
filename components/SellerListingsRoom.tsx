@@ -443,7 +443,11 @@ export default function SellerListingsRoom({
       {/* ── CENTER · compact one-watch-per-row inventory ── */}
       <div className="min-w-0 flex-1 lg:border-r lg:border-[var(--border-faint)]">
         {/* Real lifecycle tabs — all five, never reduced to the artifact's three. */}
-        <div className="flex overflow-x-auto border-b border-[var(--border-faint)]">
+        {/* The tab strip scrolls too (it overflows by ~31px when "Rejected"
+            does not fit), and it sits 40px above the table's bar. Two
+            scrollbars that close together must speak the same language or the
+            mismatch reads as a defect in itself. */}
+        <div className="fw-scroll-x flex overflow-x-auto border-b border-[var(--border-faint)]">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -487,7 +491,7 @@ export default function SellerListingsRoom({
              reached by scrolling, rather than wandering underneath the
              neighbouring one. Nothing about the rail, the padding, or the
              breakpoints changes. */
-          <div className="overflow-x-auto">
+          <div className="fw-scroll-x overflow-x-auto">
             {/* Column guide. Inactive headers stay as quiet as the guide has
                 always been and reveal their affordance on approach; only the
                 ACTIVE sort carries a persistent arrow, so the row reads as a

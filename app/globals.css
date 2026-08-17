@@ -226,6 +226,17 @@ html[data-theme="dark"] { color-scheme: dark; }
   --lc-removed-badge:        light-dark(#6B655C, #A9A296);
   --lc-neutral-line:         var(--border-subtle);
   --lc-attn-edge:            light-dark(#2C7F88, #58B4BE);
+
+  /* Horizontal-scroll chrome. The default OS scrollbar is a cold grey slab
+     that reads as browser furniture sitting inside a warm room. These give it
+     the same bronze the rest of the workspace speaks, WITHOUT thinning it:
+     the bar is the only thing telling a seller there are columns past the
+     boundary, so weakening it would quietly undo the affordance the
+     containment fix depends on. */
+  --fw-scroll-track:         light-dark(#EDE6D7, rgba(255,255,255,0.045));
+  --fw-scroll-thumb:         light-dark(#AE8A4A, rgba(201,168,76,0.40));
+  --fw-scroll-thumb-line:    light-dark(#8F6F35, rgba(201,168,76,0.55));
+  --fw-scroll-thumb-hover:   light-dark(#8A6A2E, rgba(201,168,76,0.72));
   --lc-select-line:          light-dark(rgba(37,35,31,0.30), rgba(232,228,220,0.30));
   /* Selected may use fill; selected must not become a slab. The light arm is
      a literal one step below the card's own paper (#FAF7F0) so a selected
@@ -424,6 +435,33 @@ html, body {
   transition: border-color var(--ease);
 }
 .fw-card:hover { border-color: light-dark(rgba(122,95,32,0.3), rgba(201,168,76,0.2)); }
+
+/* ── HORIZONTAL SCROLL AFFORDANCE ──
+   For a pane whose content is deliberately wider than its room. The bar is
+   not decoration here: it is the only signal that columns exist past the
+   boundary, so it stays a full 14px and gains contrast on hover rather than
+   receding. Square corners — rounding on this platform belongs to the help
+   overlay and nothing else. */
+.fw-scroll-x {
+  scrollbar-width: auto;
+  scrollbar-color: var(--fw-scroll-thumb) var(--fw-scroll-track);
+}
+.fw-scroll-x::-webkit-scrollbar {
+  height: 14px;
+}
+.fw-scroll-x::-webkit-scrollbar-track {
+  background: var(--fw-scroll-track);
+  border-top: 1px solid var(--border-faint);
+}
+.fw-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--fw-scroll-thumb);
+  border: 1px solid var(--fw-scroll-thumb-line);
+  transition: background var(--ease);
+}
+.fw-scroll-x::-webkit-scrollbar-thumb:hover,
+.fw-scroll-x::-webkit-scrollbar-thumb:active {
+  background: var(--fw-scroll-thumb-hover);
+}
 
 /* ── BUTTONS ── */
 .fw-btn-primary {
