@@ -8,6 +8,7 @@ import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
 import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
+import HelpBubble from "@/components/HelpBubble";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
 
@@ -1387,6 +1388,18 @@ export default function AccountDashboard({
               ? "Saved Searches"
               : "Listings";
 
+  /* Mirrors the fallback above and the render branch below: the Listings room
+     is what shows when the module is none of the named ones. Derived rather
+     than hardcoded to one id, so the help can never drift away from the room
+     it describes. Mobile disables module switching, so this holds there too —
+     except the Saved Searches deep link, which the fallback already excludes. */
+  const showingListingsRoom =
+    activeModule !== "dashboard" &&
+    activeModule !== "messages" &&
+    activeModule !== "requests" &&
+    activeModule !== "accelerator" &&
+    activeModule !== "saved";
+
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       <div className="flex min-h-screen">
@@ -1417,12 +1430,61 @@ export default function AccountDashboard({
             <div className="mb-4 flex items-center justify-between">
               {/* Mobile is Inventory-only — except the explicit Saved
                   Searches deep link, which is the only mobile path there. */}
-              <h2 className="font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)]">
-                <span className="md:hidden">
-                  {activeModule === "saved" ? "Saved Searches" : "Listings"}
-                </span>
-                <span className="hidden md:inline">{moduleTitle}</span>
-              </h2>
+              {/* ── Listings help ──────────────────────────────────────────
+                  The listing cards read as passive information rows, but the
+                  card BODY is the selection surface — that is how a seller
+                  reaches Edit, Pause and Delete. Nothing on screen says so.
+
+                  Taught once here rather than by hanging Edit/Pause/Delete on
+                  every row, which would put permanent clutter on the whole
+                  list to solve a one-time discovery problem.
+
+                  The shared HelpBubble, not a new question mark: the same
+                  affordance the Sell flow's Condition help uses, with its
+                  hover-intent, tap-to-pin, Escape / outside / Android-Back
+                  close, and focus returned to the trigger. `relative` on this
+                  wrapper is what the bubble anchors to, and caretTracksTrigger
+                  keeps the point on the ? wherever the heading sits.
+
+                  No direction word: the panel is to the right on desktop but
+                  stacks BELOW the list under lg, so "on the right" would be
+                  false on a phone. */}
+              <div className="relative flex items-center gap-1">
+                <h2 className="font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)]">
+                  <span className="md:hidden">
+                    {activeModule === "saved" ? "Saved Searches" : "Listings"}
+                  </span>
+                  <span className="hidden md:inline">{moduleTitle}</span>
+                </h2>
+                {showingListingsRoom && (
+                  <HelpBubble
+                    label="Managing your listings"
+                    historyKey="fwtListingsManageHelp"
+                    title="Managing your listings"
+                    bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:right-auto sm:w-[330px]"
+                    caretTracksTrigger
+                  >
+                    <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+                      Select the{" "}
+                      <span className="text-[var(--platinum)]">
+                        body of any listing card
+                      </span>{" "}
+                      to open that listing in the management panel.
+                    </p>
+                    <p className="mt-2 text-[13px] leading-[1.65] text-[var(--slate)]">
+                      From there you can{" "}
+                      <span className="text-[var(--platinum)]">
+                        Edit, Pause, or Delete
+                      </span>{" "}
+                      the listing.
+                    </p>
+                    <p className="mt-2 text-[13px] leading-[1.65] text-[var(--slate)]">
+                      Buttons and links within a listing card keep their own
+                      actions.
+                    </p>
+                  </HelpBubble>
+                )}
+              </div>
               {/* v3.21 — own-listings search, relocated from the retired
                   inline rail per the v3 order §4 (Jason-authorized).
                   DESKTOP-ONLY protection: the old rail was desktop-only, so
