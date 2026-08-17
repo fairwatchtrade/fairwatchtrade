@@ -87,16 +87,22 @@ export async function POST(
     /* falls through to the reason check below */
   }
 
-  if (!(REASON_CODES as readonly string[]).includes(reasonCode)) {
+  /* ⚠ A REASON IS NO LONGER REQUIRED. Pause asks for none — the governed
+     exit-reason vocabulary described watches leaving for good and belongs to
+     Delete at Stage 8. An empty reason is now the ordinary case.
+
+     A SUPPLIED reason is still validated, so historical values and any
+     future caller cannot write something the column's CHECK would reject. */
+  if (reasonCode !== "" && !(REASON_CODES as readonly string[]).includes(reasonCode)) {
     return NextResponse.json(
-      { error: "invalid_reason_code", detail: "Choose why you're removing this listing." },
+      { error: "invalid_reason_code", detail: "That isn't a reason this listing can carry." },
       { status: 400 }
     );
   }
 
   const { data, error } = await supabase.rpc("remove_listing", {
     p_listing_id: id,
-    p_reason_code: reasonCode,
+    p_reason_code: reasonCode === "" ? null : reasonCode,
     p_reason_note: reasonNote,
   });
 

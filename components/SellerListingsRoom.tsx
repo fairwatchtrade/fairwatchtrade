@@ -438,7 +438,7 @@ export default function SellerListingsRoom({
     // one, so a seller who has never removed anything is not shown an empty
     // filter — and a removed row is never hidden, because it stays under All.
     ...(counts.removed > 0
-      ? [{ id: "removed" as TabId, label: "Removed", count: counts.removed }]
+      ? [{ id: "removed" as TabId, label: "Paused", count: counts.removed }]
       : []),
   ];
 
@@ -1027,7 +1027,7 @@ export default function SellerListingsRoom({
                     instead of implied. */}
                 {selected.status === "removed" && (
                   <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
-                    You took this watch off the market
+                    You paused this listing
                     {selected.removed_at
                       ? ` on ${new Date(selected.removed_at).toLocaleDateString("en-US", {
                           month: "long",
@@ -1052,6 +1052,11 @@ export default function SellerListingsRoom({
                     <span className="mt-1 block">
                       Putting it back on the market isn&apos;t available yet.
                     </span>
+                    {/* Historical reasons are shown, never asked for. Pause no
+                        longer collects one, but listings paused under the older
+                        Remove semantics genuinely carry the reason their seller
+                        chose, and that is history rather than something to
+                        quietly drop. */}
                   </div>
                 )}
 
@@ -1137,7 +1142,10 @@ export default function SellerListingsRoom({
                     }}
                     className="border border-[var(--border-subtle)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:border-[var(--border-mid)] hover:text-[var(--platinum-dim)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
                   >
-                    Remove Listing
+                    Pause Listing
+                    <span className="mt-0.5 block text-[11px] normal-case tracking-[0.5px] text-[var(--muted)]">
+                      Take it off the market, keep the listing
+                    </span>
                   </button>
                 )}
 
@@ -1164,6 +1172,9 @@ export default function SellerListingsRoom({
                     className="border border-[var(--border-subtle)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:border-[var(--lc-rejected-line)] hover:text-[var(--platinum-dim)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
                   >
                     Delete Listing
+                    <span className="mt-0.5 block text-[11px] normal-case tracking-[0.5px] text-[var(--muted)]">
+                      Permanently erase this listing
+                    </span>
                   </button>
                 )}
 
@@ -1251,7 +1262,7 @@ function removalNotice(result: RemoveResult, label: string): string {
   const closed = result.requests_cancelled ?? 0;
   const accepted = result.accepted_requests_remaining ?? 0;
 
-  const parts: string[] = [`${label} is off the market.`];
+  const parts: string[] = [`${label} is paused and off the market.`];
   if (closed > 0) {
     parts.push(
       closed === 1

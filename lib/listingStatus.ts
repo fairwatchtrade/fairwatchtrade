@@ -67,7 +67,18 @@ const STATUS_LABELS: Record<LifecycleStatus, string> = {
   published: "Published",
   rejected: "Rejected",
   reserved: "Sale Pending",
-  removed: "Removed",
+  /* PRODUCT VOCABULARY, and it deliberately differs from the stored value.
+
+     'removed' is what the database says and stays implementation detail by
+     ruling — no schema-renaming exercise, and no rewriting of listings that
+     were genuinely recorded under the older Remove semantics.
+
+     What the seller reads is "Paused", because that is what the action
+     means: keep the listing, stop selling it for now. Delete is the separate,
+     irreversible sibling — neither is a prerequisite for the other. A seller
+     who has just shipped a watch should find Delete without first learning
+     that this product has a lifecycle. */
+  removed: "Paused",
 };
 
 export function sellerLabel(status: string): string {

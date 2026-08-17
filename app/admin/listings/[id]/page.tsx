@@ -464,13 +464,18 @@ export default async function ListingReviewPage({
 
           {currentStatus === "removed" ? (
             <div style={{ fontSize: 13, color: "#C6CCD8", lineHeight: 1.6 }}>
-              The seller took this watch off the market
+              The seller paused this listing
               {typeof listing.removed_at === "string"
                 ? ` on ${new Date(listing.removed_at).toLocaleString("en-US")}`
                 : ""}
               .
+              {/* Historical only. Pause no longer collects a reason — the
+                  exit-reason vocabulary belongs to Delete at Stage 8 — but
+                  listings paused under the older Remove semantics genuinely
+                  carry the one their seller chose, and that is preserved
+                  rather than rewritten. */}
               <div style={{ color: "#8b93a1", marginTop: 4 }}>
-                Reason:{" "}
+                Reason recorded:{" "}
                 <span style={{ color: "#C6CCD8" }}>
                   {typeof listing.removal_reason_code === "string"
                     ? (REMOVAL_REASON[listing.removal_reason_code] ??

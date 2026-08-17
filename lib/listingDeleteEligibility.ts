@@ -88,8 +88,26 @@ export function blockerAdminLine(b: DeleteBlocker): string {
   return bits.join(" · ");
 }
 
-/** True only for a listing this build would offer a Delete control on. The
-    server decides eligibility; this decides whether asking is even sensible. */
-export function canAskAboutDeletion(status: string): boolean {
-  return status === "removed";
+/* ⚠ DELETE IS NEVER GATED ON PAUSE. This returned `status === "removed"`,
+   which meant a seller who had just sold and shipped a watch found no Delete
+   control at all and was told nothing about why — they had to know the
+   product's internal lifecycle sequence before they could express the
+   intention they arrived with.
+
+   Pause and Delete are sibling intentions. Neither is a prerequisite for the
+   other. Pause means "I can't find the watch in my safe right now"; Delete
+   means "sold it, shipped it, done." A seller may Pause today and Delete
+   months later, or go straight to Delete and never Pause at all.
+
+   Eligibility is decided by real unresolved obligations — accepted and
+   pending purchase requests, live transactions, in-flight capture — and the
+   server evaluates them in whatever state the listing is in. The status word
+   was never the safety property; a reserved listing was only ever dangerous
+   because of the accepted request that made it reserved, and that request
+   blocks on its own merits.
+
+   Kept as a named function rather than deleted so the rule has somewhere to
+   live if a state ever genuinely earns an exception. */
+export function canAskAboutDeletion(_status: string): boolean {
+  return true;
 }

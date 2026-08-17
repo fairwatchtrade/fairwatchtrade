@@ -180,10 +180,14 @@ export default function DeleteListingDialog({
             <p className="mt-5 text-[12px] leading-[1.6] text-[var(--lc-published-badge)]">
               Currently eligible for permanent deletion.
             </p>
+            {/* State-neutral on purpose. Delete no longer assumes the listing
+                was paused first — a seller who sold and shipped a watch comes
+                straight here from a published listing, and telling them what
+                they "already did" would be wrong for the commonest case. */}
             <p className="mt-2 text-[12px] leading-[1.6] text-[var(--platinum-dim)]">
-              Nothing is standing in the way. You have already taken this watch
-              off the market — this is the separate, final step that erases the
-              listing itself.
+              Nothing is standing in the way. This is the separate, final step
+              that erases the listing itself — you don&apos;t need to pause it
+              first.
             </p>
             <div className="mt-4 space-y-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
               <p>When that step runs, it will be irreversible:</p>

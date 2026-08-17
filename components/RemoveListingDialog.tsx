@@ -41,18 +41,20 @@ export type RemoveResult = {
   accepted_requests_remaining?: number;
 };
 
-/* Wire value → the seller's own words. The five are fixed by the listings
-   CHECK constraint and by the RPC; this map is the only place they are
-   phrased for a human. */
-const REASONS: Array<{ code: string; label: string }> = [
-  { code: "sold_in_store", label: "Sold in my store / privately" },
-  { code: "sold_elsewhere", label: "Sold on another website" },
-  { code: "no_longer_for_sale", label: "No longer for sale" },
-  { code: "listing_mistake", label: "Listing mistake / duplicate" },
-  { code: "other", label: "Other" },
-];
+/* ⚠ THE REASON PICKER IS GONE, AND ITS ABSENCE IS THE FEATURE.
 
-const SOLD_CODES = new Set(["sold_in_store", "sold_elsewhere"]);
+   Every reason in the governed set described a watch leaving for GOOD — sold
+   in my store, sold on another website, listing mistake / duplicate. They
+   were written when Remove was the only exit, so the reason field was
+   carrying the "why did this watch leave the market" question.
+
+   Pause does not ask it. The reason IS the action: the seller cannot find
+   the watch in the safe right now. Every category on offer would have been a
+   lie about a watch that is coming back.
+
+   The vocabulary is not lost — Delete inherits it when Stage 8 builds the
+   final confirmation, which is where "why did this leave for good" is a
+   question worth asking. Do not reintroduce it here. */
 
 export default function RemoveListingDialog({
   listingId,
@@ -72,8 +74,6 @@ export default function RemoveListingDialog({
   onClose: () => void;
   onRemoved: (result: RemoveResult) => void;
 }) {
-  const [reasonCode, setReasonCode] = useState<string>("");
-  const [reasonNote, setReasonNote] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keepRef = useRef<HTMLButtonElement | null>(null);
@@ -85,20 +85,15 @@ export default function RemoveListingDialog({
 
   async function confirm() {
     if (submitting) return; // double-submit prevention
-    if (!reasonCode) {
-      setError("Choose why you're removing this listing.");
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
+      /* No body. Pause asks nothing, so there is nothing to send — the
+         server takes an optional reason and this action supplies none. */
       const res = await fetch(`/api/listings/${listingId}/remove`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reasonCode,
-          reasonNote: reasonNote.trim() === "" ? null : reasonNote.trim(),
-        }),
+        body: "{}",
       });
       const data = (await res.json().catch(() => null)) as
         | (RemoveResult & { detail?: string })
@@ -107,12 +102,12 @@ export default function RemoveListingDialog({
         /* The route already writes these in the seller's language — prefer
            its sentence over a generic one, because it knows which refusal
            actually happened (already removed, wrong state, not yours). */
-        setError(data?.detail ?? "Could not remove this listing. Please try again.");
+        setError(data?.detail ?? "Could not pause this listing. Please try again.");
         return;
       }
       onRemoved(data ?? {});
     } catch {
-      setError("Could not remove this listing. Please try again.");
+      setError("Could not pause this listing. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +136,7 @@ export default function RemoveListingDialog({
           id="remove-listing-title"
           className="font-display text-[18px] font-light text-[var(--platinum)]"
         >
-          Take this watch off the market?
+          Pause this listing?
         </h2>
         <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
           {title}
@@ -164,8 +159,13 @@ export default function RemoveListingDialog({
             It stops appearing on Browse, in search, and on your public profile.
           </p>
           <p>
+            You can put it back on the market later.
+          </p>
+          <p>
             Any purchase requests still waiting for your answer will be closed,
-            and those buyers will be told you removed the listing.
+            and those buyers will be told the listing is no longer available.
+            They stay closed even if you list it again — an offer made weeks ago
+            shouldn&apos;t be acted on as though it were current.
           </p>
           {/* States the product fact and stops. The first cut said removing a
               listing "doesn't undo a deal you've agreed to" — true of the
@@ -178,60 +178,6 @@ export default function RemoveListingDialog({
             this listing doesn&apos;t close it.
           </p>
         </div>
-
-        <fieldset className="mt-5">
-          <legend className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-            Why are you removing it?
-          </legend>
-          <div className="mt-2 grid gap-1">
-            {REASONS.map((r) => (
-              <label
-                key={r.code}
-                className="flex min-h-[36px] cursor-pointer items-center gap-2.5 border border-transparent px-1 py-1 text-[13px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--platinum)]"
-              >
-                <input
-                  type="radio"
-                  name="removal-reason"
-                  value={r.code}
-                  checked={reasonCode === r.code}
-                  disabled={submitting}
-                  onChange={() => {
-                    setReasonCode(r.code);
-                    setError(null);
-                  }}
-                  className="h-[14px] w-[14px] shrink-0 accent-[var(--gold)]"
-                />
-                <span>{r.label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Shown only when it is relevant. A seller who picked "No longer for
-            sale" does not need to be told what a sale record isn't. */}
-        {SOLD_CODES.has(reasonCode) && (
-          <p className="mt-2 border border-[var(--border-faint)] px-3 py-2 text-[11px] leading-[1.55] text-[var(--muted)]">
-            This records why the watch left the market. It does not record a
-            FairWatchTrade sale, and it doesn&apos;t affect your sales figures.
-          </p>
-        )}
-
-        <label className="mt-4 block">
-          <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-            Anything to add? <span className="normal-case tracking-[0.3px]">(optional)</span>
-          </span>
-          <textarea
-            value={reasonNote}
-            disabled={submitting}
-            maxLength={320}
-            rows={2}
-            onChange={(e) => setReasonNote(e.target.value)}
-            className="mt-1.5 w-full resize-y border border-[var(--border-subtle)] bg-transparent px-2.5 py-2 text-[13px] leading-[1.5] text-[var(--platinum)] outline-none transition-colors focus:border-[var(--border-gold)]"
-          />
-          <span className="mt-1 block text-[11px] text-[var(--muted)]">
-            For your own records. Buyers don&apos;t see this.
-          </span>
-        </label>
 
         {error && (
           <p role="alert" className="mt-3 text-[11px] text-[var(--danger)]">
@@ -255,7 +201,7 @@ export default function RemoveListingDialog({
             onClick={confirm}
             className="min-h-[44px] border border-[var(--border-mid)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition-colors hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] disabled:opacity-60"
           >
-            {submitting ? "Removing…" : "Remove listing"}
+            {submitting ? "Pausing…" : "Pause listing"}
           </button>
         </div>
       </div>

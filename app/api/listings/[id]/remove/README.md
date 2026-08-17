@@ -87,6 +87,72 @@ behaviour has reintroduced the bug.
   vocabulary is adjudication — approved/rejected by a reviewer. A seller taking
   their own watch off the market is not a decision about the listing's merit.
 
+## Pause and Delete are siblings, not stages
+
+> **Pause** = *"keep the listing, stop selling it for now."*
+> **Delete** = *"I'm finished with this listing permanently."*
+>
+> **Neither is a prerequisite for the other.**
+
+Jason's own framing is the clearest test:
+
+- *"I can't find the damn watch in my safe right now"* → **Pause**
+- *"Sold it, shipped it, done. Delete the fucker."* → **Delete**
+
+A seller may Pause today and Delete months later, or go straight from
+published to Delete and never Pause at all.
+
+⚠ **Stage 7 originally required `status = 'removed'` before Delete.** That was
+a sensible-looking safety rule and it was backwards: it forced a seller to
+know FairWatchTrade's internal lifecycle before they could find the action
+they arrived for. A dealer who had just shipped a watch would look for
+Delete, find nothing, and be told why by no one. The prerequisite is gone.
+
+**The safety property was never the status word — it is the obligations.** A
+`reserved` listing was never dangerous because it said "reserved"; it was
+dangerous because of the accepted purchase request that made it reserved, and
+that request blocks on its own merits in any state.
+
+### Vocabulary: product vs database
+
+| Seller sees | Database stores |
+| --- | --- |
+| Pause Listing / **Paused** | `status = 'removed'`, `remove_listing()`, `removed_at`, `removal_reason_code` |
+| — | `closure_cause = 'listing_removed_by_seller'` |
+
+The internal names stay by ruling. **Do not undertake a schema-renaming
+exercise** — it would rewrite durable history for a label.
+
+### Pause takes no reason
+
+Every reason in the governed set — *sold in my store*, *sold on another
+website*, *listing mistake / duplicate* — describes a watch leaving **for
+good**. They existed because Remove was once the only exit, so the reason
+field was carrying a question that belongs to the irreversible action.
+
+The vocabulary is not deleted, it is **waiting**: Delete inherits it when
+Stage 8 builds the final confirmation.
+
+⚠ **History is preserved, not rewritten.** `p_reason_code` is now *optional*,
+never forbidden. `z99216` really was taken down under the older Remove
+semantics carrying `sold_in_store`, and both the seller panel and the admin
+panel still display a stored reason where one exists — labelled *"Reason
+recorded"*, because it is history rather than something this action asks for.
+
+⚠ **The NULL trap, again.** The old guard used
+`coalesce(p_reason_code,'') NOT IN (...)` because a bare `NULL NOT IN (...)`
+evaluates to NULL rather than true. Now that NULL is legal the guard must
+short-circuit on it — `p_reason_code IS NOT NULL AND p_reason_code NOT IN
+(...)`. The coalesce form would have rejected every reasonless Pause.
+
+### What a future Delete must not do
+
+**Purge directly.** It must not fabricate a Pause event, invent a removal
+reason, or pretend the seller chose Pause on the way past. A published
+listing disappears from the market *because it was deleted*, not because
+something secretly paused it first — and there is no half-deleted window,
+because the row physically stops existing.
+
 ## Stage 7 — delete eligibility (it does not delete)
 
 > **`listing_delete_eligibility(uuid)` answers one question and stops:
