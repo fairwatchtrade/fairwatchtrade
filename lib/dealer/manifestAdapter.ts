@@ -81,7 +81,18 @@ export interface SliceInvocation {
   declaredManifestVersion: string;
   manifestUrl: string;
   batchLimit: number;
-  actorUserId: string; // the founder
+  /** The human whose act started this slice. */
+  actorUserId: string;
+  /** Which kind of human that is. The two batch-level events below are the
+      only ones attributed to a person — every other event this module
+      writes is 'worker', because a machine did it.
+
+      Defaults to 'founder' so the founder ignition route is unchanged. A
+      dealer starting their own preparation passes 'dealer': recording that
+      act as a founder's would put a false line in an append-only evidence
+      log, which is the one defect this log cannot carry. Every batch and
+      item RPC already accepts 'dealer'. */
+  actorKind?: "founder" | "dealer";
 }
 
 export interface SliceReport {
@@ -202,7 +213,7 @@ export async function runManifestSlice(inv: SliceInvocation): Promise<SliceRepor
     p_source_snapshot_key: inv.declaredManifestVersion, // §5.1 binding law
     p_idempotency_key: idempotencyKeyFor(inv.declaredManifestVersion, ADAPTER_VERSION),
     p_batch_limit: inv.batchLimit,
-    p_actor_kind: "founder",
+    p_actor_kind: inv.actorKind ?? "founder",
     p_actor_user_id: inv.actorUserId,
   });
 
@@ -226,7 +237,7 @@ export async function runManifestSlice(inv: SliceInvocation): Promise<SliceRepor
       p_batch_id: batch.id,
       p_next_status: "running",
       p_fatal_error_code: null,
-      p_actor_kind: "founder",
+      p_actor_kind: inv.actorKind ?? "founder",
       p_actor_user_id: inv.actorUserId,
       p_reason_code: null,
     });

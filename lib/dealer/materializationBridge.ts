@@ -131,8 +131,17 @@ export interface MaterializeInvocation {
   sourceId: string;
   /** Exactly one item, addressed by its stable source key. */
   sourceItemKey: string;
-  /** The founder who triggered this materialization. */
+  /** The human whose act triggered this materialization. */
   actorUserId: string;
+  /** Which kind of human. Only the draft-creation event is attributed to a
+      person; the mechanical ready/blocked transitions and photograph
+      rehosts stay 'worker' because a machine performed them.
+
+      Defaults to 'founder' so the existing founder route is unchanged. A
+      dealer preparing their own inventory passes 'dealer' — attributing a
+      dealer's act to the founder would be a false line in an append-only
+      log. */
+  actorKind?: "founder" | "dealer";
   /** assess: read + mechanical ready/blocked only. No bytes move, no draft. */
   mode: "assess" | "materialize";
 }
@@ -341,7 +350,7 @@ export async function materializeOneItem(inv: MaterializeInvocation): Promise<Ma
     warnings?: unknown;
   }>(db, "dealer_accelerator_materialize_item_draft", {
     p_batch_item_id: item.id,
-    p_actor_kind: "founder",
+    p_actor_kind: inv.actorKind ?? "founder",
     p_actor_user_id: inv.actorUserId,
   });
 

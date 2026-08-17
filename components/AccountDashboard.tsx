@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import AccountRail from "@/components/AccountRail";
 import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
-import ImportedDraftsWorkspace from "@/components/ImportedDraftsWorkspace";
+import DealerAcceleratorRoom from "@/components/DealerAcceleratorRoom";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
 import HelpBubble from "@/components/HelpBubble";
@@ -495,6 +495,7 @@ function DashboardView({
   submitErrorId,
   submitErrorMsg,
   hasImportedDrafts,
+  onOpenAccelerator,
   onOpenImportedDrafts,
 }: {
   listings: AccountListing[];
@@ -502,6 +503,7 @@ function DashboardView({
   selectedListing: string | null;
   onSelect: (id: string) => void;
   hasImportedDrafts: boolean | null;
+  onOpenAccelerator: () => void;
   onOpenImportedDrafts: () => void;
 } & SubmitProps) {
   const kpis: Array<{ label: string; value: number; valueClass: string }> = [
@@ -542,6 +544,7 @@ function DashboardView({
       <div className="px-6 pt-6">
         <DealerAcceleratorEntry
           hasImportedDrafts={hasImportedDrafts}
+          onOpenAccelerator={onOpenAccelerator}
           onOpenImportedDrafts={onOpenImportedDrafts}
         />
       </div>
@@ -1206,6 +1209,18 @@ export default function AccountDashboard({
       id === "inventory" ? "/account" : `/account?module=${id}`
     );
   }
+  /* Which destination the Dealer Accelerator room opens on. Deliberately
+     component state rather than a second URL parameter: the module is the
+     navigable unit and stays the URL's business, while the room's internal
+     tab is a starting position, not an address. Anything in the workspace
+     offering "Review Imported Drafts" lands there without becoming a rival
+     doorway to a child work state. */
+  const [acceleratorTab, setAcceleratorTab] = useState<"start" | "batches" | "drafts">("start");
+  function openAccelerator(tab: "start" | "batches" | "drafts") {
+    setAcceleratorTab(tab);
+    selectModule("accelerator");
+  }
+
   // Visual-only selected-row state (right context panel is Phase 2).
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1536,17 +1551,33 @@ export default function AccountDashboard({
               is reached only via the explicit ?module=saved deep link. */}
           {activeModule === "saved" ? (
             <SavedSearchesModule />
+          ) : activeModule === "accelerator" ? (
+            /* Renders ONCE, outside the mobile/desktop split — the same
+               reasoning as Saved Searches directly above. Mounted inside both
+               branches the room would get two lives: two state reads and two
+               polling loops driving one dealer's run.
+
+               This is also what finally gives the mobile Account a real
+               Dealer Accelerator. The earlier text-only treatment existed
+               because the only destination was a desktop-scoped workspace, so
+               a mobile button would have been a dead end. Connect, progress,
+               and Needs Attention are usable on a phone, so the doorway is
+               now real on both. */
+            <DealerAcceleratorRoom
+              onBackToOverview={() => selectModule("dashboard")}
+              initialTab={acceleratorTab}
+            />
           ) : (
             <>
               <div className="md:hidden">
                 {/* Dealer Accelerator entry on mobile — the card renders
                     above the listings room (mobile Account has no Overview
-                    module to host it). Its returning state is TEXT-ONLY here
-                    per Jason's 2026-07-27 ruling; no mobile nav is added. */}
+                    module to host it). */}
                 <div className="px-4 pt-4">
                   <DealerAcceleratorEntry
                     hasImportedDrafts={hasImportedDrafts}
-                    onOpenImportedDrafts={() => selectModule("accelerator")}
+                    onOpenAccelerator={() => openAccelerator("start")}
+                    onOpenImportedDrafts={() => openAccelerator("drafts")}
                   />
                 </div>
                 <SellerListingsRoom
@@ -1556,7 +1587,7 @@ export default function AccountDashboard({
                   threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                   threadsLoaded={threadsLoaded}
                   onSubmitForReview={submitForReview}
-                  onOpenImportedDrafts={() => selectModule("accelerator")}
+                  onOpenImportedDrafts={() => openAccelerator("drafts")}
                   onRemoved={() => {
                     router.refresh();
                     refreshRequests();
@@ -1580,14 +1611,13 @@ export default function AccountDashboard({
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
                 hasImportedDrafts={hasImportedDrafts}
-                onOpenImportedDrafts={() => selectModule("accelerator")}
+                onOpenAccelerator={() => openAccelerator("start")}
+                onOpenImportedDrafts={() => openAccelerator("drafts")}
               />
                 ) : activeModule === "messages" ? (
                   <MessagesView threads={threads} onThreadsChanged={refreshThreads} />
                 ) : activeModule === "requests" ? (
                   <RequestsView requests={requests} onActionComplete={refreshRequests} />
-                ) : activeModule === "accelerator" ? (
-                  <ImportedDraftsWorkspace />
                 ) : (
                   <SellerListingsRoom
                     listings={searchFiltered}
@@ -1596,7 +1626,7 @@ export default function AccountDashboard({
                     threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
                     threadsLoaded={threadsLoaded}
                     onSubmitForReview={submitForReview}
-                    onOpenImportedDrafts={() => selectModule("accelerator")}
+                    onOpenImportedDrafts={() => openAccelerator("drafts")}
                   onRemoved={() => {
                     router.refresh();
                     refreshRequests();

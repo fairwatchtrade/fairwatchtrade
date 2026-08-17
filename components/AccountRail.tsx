@@ -97,7 +97,13 @@ const ICONS = {
 const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICONS }> = [
   { id: "dashboard", label: "Overview", icon: "overview" },
   { id: "inventory", label: "Listings", icon: "listings" },
-  { id: "accelerator", label: "Imported Drafts", icon: "drafts" },
+  /* The rail names the CAPABILITY, not one of its work states. This item
+     read "Imported Drafts" while the module id was already `accelerator`:
+     the navigation was advertising a product's output as though it were the
+     product. Imported Drafts is now reached inside the room, and must never
+     return here as a peer — it is produced BY Dealer Accelerator, not a
+     sibling of it. */
+  { id: "accelerator", label: "Dealer Accelerator", icon: "drafts" },
   { id: "requests", label: "Requests", icon: "requests" },
   { id: "messages", label: "Messages", icon: "messages" },
   { id: "saved", label: "Saved Searches", icon: "saved" },

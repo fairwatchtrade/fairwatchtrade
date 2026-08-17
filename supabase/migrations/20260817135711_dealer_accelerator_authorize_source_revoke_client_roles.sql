@@ -1,0 +1,44 @@
+-- ══════════════════════════════════════════════════════════════════════════
+-- Close a privilege escalation introduced by recreating
+-- dealer_accelerator_authorize_source in 20260817135552.
+--
+-- ── What happened ─────────────────────────────────────────────────────────
+-- Supabase ships ALTER DEFAULT PRIVILEGES granting EXECUTE on newly created
+-- functions in the public schema to anon and authenticated. The previous
+-- migration DROPped and recreated this function in order to add two
+-- parameters, so it was created FRESH and silently inherited those grants.
+--
+-- The previous migration did include `revoke all ... from public`, and that
+-- was not enough: anon and authenticated are explicit roles, not the PUBLIC
+-- pseudo-role, so a revoke from PUBLIC leaves them untouched. This is the
+-- trap worth remembering — the revoke looked complete and was not.
+--
+-- ── Why it mattered ───────────────────────────────────────────────────────
+-- The function is SECURITY DEFINER, owned by dealer_accelerator_writer, and
+-- takes p_dealer_profile_id and p_authorized_by as PARAMETERS rather than
+-- deriving them from the session. A signed-in client could therefore call it
+-- directly over the REST RPC endpoint and record a source authorization
+-- against ANOTHER account, bypassing RLS completely — then have origins
+-- approved against it. The only legitimate caller is the dealer-facing route,
+-- which runs with the service role and proves ownership itself.
+--
+-- The pre-existing function carried no anon/authenticated grants. This
+-- restores that exact privilege shape.
+--
+-- ── The durable lesson for this family of functions ───────────────────────
+-- Every SECURITY DEFINER function here that accepts an identity as a
+-- parameter must be executable ONLY by service_role. After any DROP and
+-- recreate in this schema, re-read pg_proc.proacl and confirm no client role
+-- appears. Do not assume a revoke from PUBLIC did it:
+--
+--   select p.oid::regprocedure::text, p.proacl
+--   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--   where n.nspname = 'public' and p.proname like 'dealer_accelerator_%'
+--     and (p.proacl::text like '%anon%' or p.proacl::text like '%authenticated%');
+--
+-- That query must return zero rows.
+-- ══════════════════════════════════════════════════════════════════════════
+
+revoke all on function public.dealer_accelerator_authorize_source(
+  uuid, text, text, text, text, uuid, text, text, text, text, jsonb
+) from anon, authenticated, public;
