@@ -700,6 +700,11 @@ function MyOffersSection({
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawnNotice, setWithdrawnNotice] = useState(false);
   const [dismissError, setDismissError] = useState<string | null>(null);
+  /* The id of the card just cleared, so Undo knows what to put back. Held
+     briefly and then dropped — a convenience on screen, never a record. If
+     it lapses, the dismissal simply stays persisted as it already is. */
+  const [undoTarget, setUndoTarget] = useState<string | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Focus lands on the safe action when the dialog opens.
@@ -734,11 +739,47 @@ function MyOffersSection({
         setDismissError("Could not remove this from your offers. Please try again.");
         return;
       }
+      /* Offer the way back for a few seconds. A dismissal is one click on a
+         card the buyer may only have meant to read, and the record surviving
+         underneath is no comfort if they cannot see it again. */
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      setUndoTarget(requestId);
+      undoTimer.current = setTimeout(() => setUndoTarget(null), 12000);
       onWithdrawn(); // refetch — the cleared card is gone, no page refresh
     } catch {
       setDismissError("Could not remove this from your offers. Please try again.");
     }
   }
+
+  /* Puts the card back. Nothing was destroyed to begin with — dismissal only
+     ever hid a row from one person — so this restores visibility rather than
+     recovering data, through the same owner-gated door. */
+  async function undoDismiss(requestId: string) {
+    setDismissError(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndoTarget(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("restore_purchase_request", {
+        p_request_id: requestId,
+      });
+      if (error) {
+        setDismissError("Could not put that offer back. Please try again.");
+        return;
+      }
+      onWithdrawn(); // refetch — the card returns to its place in the list
+    } catch {
+      setDismissError("Could not put that offer back. Please try again.");
+    }
+  }
+
+  // The timer must not outlive the section; a fired callback on an unmounted
+  // component is a warning today and a leak in a longer-lived view.
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    };
+  }, []);
 
   async function confirmWithdraw() {
     if (!prompt || withdrawing) return; // double-submit prevention
@@ -828,6 +869,27 @@ function MyOffersSection({
           ))}
         </div>
       )}
+
+      {/* Workspace level, not on the card — the card it refers to is gone by
+          the time this renders, so it has nowhere else to live. Polite live
+          region so the outcome is announced rather than merely appearing. */}
+      <div aria-live="polite">
+        {undoTarget && (
+          <p className="mt-3 flex items-center gap-3 text-[11px] tracking-[0.3px] text-[var(--muted)]">
+            <span>Removed from My Offers</span>
+            <span aria-hidden="true" className="opacity-40">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={() => undoDismiss(undoTarget)}
+              className="min-h-[44px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-on-tint)] underline-offset-4 transition-colors hover:text-[var(--platinum)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+            >
+              Undo
+            </button>
+          </p>
+        )}
+      </div>
 
       {/* A dismissal that fails must say so. Silence would look identical to
           success — the card simply staying put — and the buyer would press
