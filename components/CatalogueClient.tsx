@@ -631,7 +631,19 @@ function WatchOfferGroup({
               e.stopPropagation();
               onDismiss(current.id);
             }}
-            className="mt-2.5 ml-4 inline-flex min-h-[44px] items-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] underline-offset-4 transition-colors hover:text-[var(--platinum)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+            /* Bordered rather than bare muted text. It first shipped in the
+               same treatment as "Withdraw offer" — 11px, uppercase, --muted,
+               no perimeter — which on a terminal card reads as the helper
+               text explaining the state rather than a control that does
+               something. A perimeter is what this codebase already uses to
+               say "this is a real action" (View Listing, Submit, Remove
+               Listing), and it stays calm: quiet ink, quiet line, both
+               lifting on approach rather than announcing themselves.
+
+               ml-4 is gone with it — Withdraw is pending-only and this is
+               terminal-only, so the two can never appear together and the
+               gap was spacing against nothing. */
+            className="mt-3 inline-flex min-h-[44px] items-center border border-[var(--border-subtle)] px-3 text-[11px] uppercase tracking-[1.4px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--border-mid)] hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
           >
             Remove from My Offers
           </button>
@@ -870,20 +882,26 @@ function MyOffersSection({
           the time this renders, so it has nowhere else to live. Polite live
           region so the outcome is announced rather than merely appearing. */}
       <div aria-live="polite">
+        {/* The strip itself now has a perimeter and the recovery carries the
+            platform's affirmative language — bordered gold, gold ink, gold
+            whisper on hover, the same treatment Submit uses in the seller's
+            room. This is the one moment the collector may need to act
+            quickly on something they did not mean to do, so it should be the
+            most findable thing on the surface without ever raising its
+            voice. No timer behind it; it waits. */}
         {undoTarget && (
-          <p className="mt-3 flex items-center gap-3 text-[11px] tracking-[0.3px] text-[var(--muted)]">
-            <span>Removed from My Offers</span>
-            <span aria-hidden="true" className="opacity-40">
-              ·
+          <div className="mt-3 flex flex-wrap items-center gap-3 border border-[var(--border-subtle)] px-4 py-3">
+            <span className="text-[12px] tracking-[0.3px] text-[var(--platinum-dim)]">
+              Removed from My Offers
             </span>
             <button
               type="button"
               onClick={() => undoDismiss(undoTarget)}
-              className="min-h-[44px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-on-tint)] underline-offset-4 transition-colors hover:text-[var(--platinum)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              className="inline-flex min-h-[44px] items-center border border-[var(--border-gold)] px-4 text-[11px] uppercase tracking-[1.4px] text-[var(--gold)] transition-colors hover:bg-[var(--gold-whisper)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
             >
               Undo
             </button>
-          </p>
+          </div>
         )}
       </div>
 
