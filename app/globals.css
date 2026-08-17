@@ -463,6 +463,18 @@ html, body {
   background: var(--fw-scroll-thumb-hover);
 }
 
+/* Scrollable, but with no bar drawn. For a strip whose overflow is small and
+   self-evident — five lifecycle tabs — where a visible bar would sit next to
+   a different element's bar and be mistaken for it. Trackpad, touch, wheel
+   and keyboard all still scroll it; only the chrome is withheld. */
+.fw-scroll-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fw-scroll-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── BUTTONS ── */
 .fw-btn-primary {
   font-family: 'Inter', sans-serif;

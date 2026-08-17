@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
@@ -355,6 +355,50 @@ export default function SellerListingsRoom({
   } | null>(null);
   const [removedNotice, setRemovedNotice] = useState<string | null>(null);
 
+  /* ── ONE TABLE, TWO HANDLES ──────────────────────────────────────────
+     The grid scrolls horizontally at intermediate widths, and a scroll
+     container puts its bar at the BOTTOM of its own box — measured 168px
+     below the fold with sixteen listings. Meanwhile the only bar the eye
+     could actually see belonged to the lifecycle tabs sitting right above
+     the column headers. That is a false affordance: it looks like the
+     table's handle and moves something else entirely.
+
+     So the table gets a second handle, directly above its own headers.
+     Both are real scroll containers driving ONE position — the top one
+     contains nothing but a spacer as wide as the table, so dragging either
+     is the same gesture on the same grid. There is no second scroll state
+     to drift out of sync.
+
+     The spacer width is written to the DOM imperatively rather than held
+     in React state. This is synchronisation with the layout, not data, and
+     routing a number the browser already knows through a render would add
+     a setState-in-effect for nothing. */
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
+  const syncingRef = useRef(false);
+
+  const mirrorScroll = useCallback(
+    (
+      from: React.RefObject<HTMLDivElement | null>,
+      to: React.RefObject<HTMLDivElement | null>
+    ) => {
+      if (syncingRef.current) return;
+      const a = from.current;
+      const b = to.current;
+      if (!a || !b || a.scrollLeft === b.scrollLeft) return;
+      syncingRef.current = true;
+      b.scrollLeft = a.scrollLeft;
+      /* Released on the next frame: setting scrollLeft fires the other
+         element's own scroll event, and without this guard the two would
+         echo each other and fight an in-progress drag. */
+      requestAnimationFrame(() => {
+        syncingRef.current = false;
+      });
+    },
+    []
+  );
+
   const counts = {
     all: listings.length,
     published: listings.filter((l) => l.status === "published").length,
@@ -409,6 +453,23 @@ export default function SellerListingsRoom({
     });
   }, [listings, activeTab, sort, publishedAt]);
 
+  /* Keep the top handle exactly as wide as the table it drives. Re-measured
+     whenever the table's own box changes — a tab switch, a different row
+     count, a window resize — so the handle can never promise a scroll range
+     the grid does not have. */
+  useEffect(() => {
+    const table = tableScrollRef.current;
+    const spacer = spacerRef.current;
+    if (!table || !spacer) return;
+    const measure = () => {
+      spacer.style.width = `${table.scrollWidth}px`;
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(table);
+    return () => ro.disconnect();
+  }, [visible.length, activeTab]);
+
   /* First VISIBLE listing selects by default; if the current selection
      leaves the filtered view, selection follows to the new first row. The
      rail never opens empty while any row exists. */
@@ -443,11 +504,15 @@ export default function SellerListingsRoom({
       {/* ── CENTER · compact one-watch-per-row inventory ── */}
       <div className="min-w-0 flex-1 lg:border-r lg:border-[var(--border-faint)]">
         {/* Real lifecycle tabs — all five, never reduced to the artifact's three. */}
-        {/* The tab strip scrolls too (it overflows by ~31px when "Rejected"
-            does not fit), and it sits 40px above the table's bar. Two
-            scrollbars that close together must speak the same language or the
-            mismatch reads as a defect in itself. */}
-        <div className="fw-scroll-x flex overflow-x-auto border-b border-[var(--border-faint)]">
+        {/* The tab strip overflows by ~31px whenever "Rejected" does not fit,
+            so it stays scrollable — but its scrollbar chrome is now hidden.
+
+            It used to render a full bar directly above the column headers,
+            which is the most misleading place a scrollbar can be: it looked
+            like the table's handle and moved five tabs instead. Five tabs are
+            reachable by trackpad, touch and keyboard without a bar; the table
+            is not, which is why the visible handle now belongs to the table. */}
+        <div className="fw-scroll-none flex overflow-x-auto border-b border-[var(--border-faint)]">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -490,8 +555,39 @@ export default function SellerListingsRoom({
              Content now disappears at the boundary of its own room and is
              reached by scrolling, rather than wandering underneath the
              neighbouring one. Nothing about the rail, the padding, or the
-             breakpoints changes. */
-          <div className="fw-scroll-x overflow-x-auto">
+             breakpoints changes.
+
+             THE PERIMETER IS PART OF THE FIX, NOT DECORATION. Each listing
+             row carries its own lifecycle border, and with nothing drawn
+             around the whole table the eye reads those row borders as the
+             pane's outer edge — so a clipped Price or Status fragment looks
+             like it is escaping the row rather than passing behind the
+             container's edge. One step from --border-faint to
+             --border-subtle is enough to establish the hierarchy:
+             viewport → rows inside it → rail beside it. A 1px border shifts
+             the header and the rows by the same 1px, so their alignment is
+             untouched. */
+          <div className="border border-[var(--border-subtle)]">
+            {/* TOP HANDLE — the same scroll position as the table below it,
+                sitting where the eye expects the table's control to be. It
+                holds nothing but a spacer as wide as the grid, so it has a
+                scrollbar and no content of its own. Hidden from assistive
+                tech: it is a duplicate control, and the table itself is
+                already scrollable by keyboard. */}
+            <div
+              ref={topScrollRef}
+              onScroll={() => mirrorScroll(topScrollRef, tableScrollRef)}
+              className="fw-scroll-x overflow-x-auto"
+              aria-hidden="true"
+            >
+              <div ref={spacerRef} className="h-px" />
+            </div>
+
+            <div
+              ref={tableScrollRef}
+              onScroll={() => mirrorScroll(tableScrollRef, topScrollRef)}
+              className="fw-scroll-x overflow-x-auto"
+            >
             {/* Column guide. Inactive headers stay as quiet as the guide has
                 always been and reveal their affordance on approach; only the
                 ACTIVE sort carries a persistent arrow, so the row reads as a
@@ -684,6 +780,7 @@ export default function SellerListingsRoom({
                 </div>
               );
             })}
+            </div>
             </div>
           </div>
         )}
