@@ -254,7 +254,29 @@ export default function HelpBubble({
       const t = trigger.getBoundingClientRect();
       const center = (t.left + t.right) / 2;
       const x = center - (b.left - shift) - 9; // 9 = half the 18px caret
-      const clamped = Math.min(Math.max(x, 14), Math.max(14, b.width - 32));
+
+      /* ── The caret must land on the card's STRAIGHT top edge ────────────
+         A 45°-rotated 18px square has a visual half-diagonal of 9√2 ≈ 12.73,
+         so it overhangs its own box by ~3.73px on each side. Its left visual
+         point therefore sits at (left - 3.73).
+
+         Over a rounded corner there is nothing for that point to attach to.
+         With radius 16 the card's top boundary has already curved away — at
+         x=10 it sits ~1.2px lower, at x=4 more than 5px lower — so the
+         caret's left flank hangs past the card into open space and its
+         unbordered lower edge is exposed. That reads as a hook or a second
+         diagonal at the base of the tail, and it is asymmetric because only
+         the corner-side flank is affected.
+
+         So the floor is derived from the card's ACTUAL border radius rather
+         than a fixed 14px, which was chosen before these cards were rounded.
+         Reading it from computed style means square cards keep the tighter
+         inset and rounded cards get exactly the clearance they need. */
+      const radius = parseFloat(getComputedStyle(bubble).borderTopLeftRadius) || 0;
+      const CARET_OVERHANG = 9 * Math.SQRT2 - 9; // ≈ 3.73
+      const minInset = Math.max(14, Math.ceil(radius + CARET_OVERHANG));
+      const maxInset = Math.max(minInset, b.width - minInset - 18);
+      const clamped = Math.min(Math.max(x, minInset), maxInset);
       /* ⚠ LEFT ONLY — NEVER RESTATE THE ROTATION HERE.
 
          This used to also write transform: rotate(45deg), on the reasoning
@@ -370,10 +392,31 @@ export default function HelpBubble({
                 ? { transform: `translateX(${shiftX}px)` }
                 : undefined
             }
+            /* ── 9px, and it must be exactly 9 ─────────────────────────────
+               The offset is HALF the caret's box, which seats the rotated
+               square's centre precisely ON the card's border line. That is
+               what makes the tail read as one clean symmetrical shape:
+
+                 · the two bordered edges terminate exactly where the card's
+                   border runs, so the lines meet instead of stepping;
+                 · the diamond is at its widest at that same line, so the
+                   base spans the full 25.46px with no waist;
+                 · the lower half covers the card's own border beneath it,
+                   and the matching background hides it.
+
+               This was -10px, one pixel too high. The centre sat above the
+               line, so the bordered edges stopped 1px short while the
+               unbordered lower edges crossed the line 1px inboard — leaving a
+               small step on each flank that reads as a doubled or kinked
+               border where the tail meets the card. Off-by-one, but the tail
+               is only 18px, so it is a visible fraction of the shape.
+
+               If the caret size ever changes, this must change with it: it is
+               half the box, not a spacing choice. */
             className={`absolute h-[18px] w-[18px] rotate-45 border-[var(--border-gold-strong)] bg-[var(--surface-2)] ${
               placeAbove
-                ? "bottom-[-10px] border-b border-r"
-                : "top-[-10px] border-l border-t"
+                ? "bottom-[-9px] border-b border-r"
+                : "top-[-9px] border-l border-t"
             } ${caretTracksTrigger ? "" : (caretClassName ?? "right-[23px]")}`}
           />
           <button

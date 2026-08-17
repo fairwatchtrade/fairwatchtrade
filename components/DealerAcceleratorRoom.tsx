@@ -578,7 +578,19 @@ export default function DealerAcceleratorRoom({
      trigger overflowed a phone viewport faster than the clamp could measure,
      and mobile Chrome expanded the whole layout viewport to fit. At sm+ the
      span becomes the ancestor and the card is the ordinary long-help card,
-     with the caret tracking the ? wherever it sits. */
+     with the caret tracking the ? wherever it sits.
+
+     ── Why sm:left-[-14px] and not sm:left-0 ──────────────────────────────
+     Anchored flush to the trigger, the ?'s centre lands 18px into the card
+     (a 36px button at sm+), so the caret would want to sit at 9px — inside
+     the 16px corner radius, where the shared component now correctly refuses
+     to put it and clamps it inboard instead. Clean tail, but aimed about
+     11px to the right of the ?.
+
+     Offsetting the card 14px left puts the trigger's centre 32px in, which
+     is past the radius, so the caret is placed exactly under the ? with no
+     clamping at all. It is an aiming correction, not decoration: restore
+     left-0 and the pointer stops pointing at anything. */
   const header = (
     <div className="relative mb-2 flex items-start gap-2">
       <div>
@@ -592,7 +604,7 @@ export default function DealerAcceleratorRoom({
           label="What Dealer Accelerator does"
           historyKey="fwtDealerAcceleratorHelp"
           title="Dealer Accelerator"
-          bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+          bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-[-14px] sm:right-auto sm:w-[340px]"
           caretTracksTrigger
         >
           <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
@@ -643,7 +655,7 @@ export default function DealerAcceleratorRoom({
                 label="How to review imported drafts"
                 historyKey="fwtImportedDraftsReviewHelp"
                 title="Review Imported Drafts"
-                bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+                bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-[-14px] sm:right-auto sm:w-[340px]"
                 caretTracksTrigger
               >
                 <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
@@ -924,7 +936,7 @@ function ConnectPanel({
               label="About the dealer website field"
               historyKey="fwtDealerWebsiteHelp"
               title="Dealer website"
-              bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[330px]"
+              bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-[-14px] sm:right-auto sm:w-[330px]"
               caretTracksTrigger
             >
               <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
@@ -1249,7 +1261,7 @@ function AttentionPanel({
             label="What Needs Attention means"
             historyKey="fwtDealerAttentionHelp"
             title="Needs Attention"
-            bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+            bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-[-14px] sm:right-auto sm:w-[340px]"
             caretTracksTrigger
           >
             <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
