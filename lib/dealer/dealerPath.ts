@@ -719,6 +719,12 @@ export async function advancePreparation(opts: {
         const result = await materializeOneItem({
           sourceId: src.id,
           sourceItemKey: key,
+          /* Name the exact item this batch selected. Without it the bridge
+             picks whichever item for this key already carries a listing —
+             which, on a dealer's SECOND snapshot, is the previous batch's
+             item. This batch's item would then never be transitioned, the run
+             would never finish, and the worker would retry it forever. */
+          batchItemId: row.id,
           actorUserId: opts.userId,
           /* Truthful attribution: a background continuation is the worker
              acting under the dealer's earlier Start, not the dealer acting

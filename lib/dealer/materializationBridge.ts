@@ -144,6 +144,21 @@ export interface MaterializeInvocation {
       started; actor_user_id still names the dealer, so the act stays
       traceable to whose inventory it was. */
   actorKind?: "founder" | "dealer" | "worker";
+  /** The EXACT batch item to act on, when the caller already knows it.
+
+      Without this, the item is chosen by "whichever batch item for this source
+      key already carries a listing, else the most recent". That heuristic is
+      right for the founder's per-key flow — it answers "is this watch
+      materialized?" — but it strands batch-driven work.
+
+      A dealer who publishes a second snapshot gets a NEW batch over the SAME
+      source items. The heuristic then picks the OLD batch's item, sees it
+      already has a listing, and reports ALREADY_MATERIALIZED — while the new
+      batch's item is never transitioned. It stays 'discovered', the batch
+      never finishes, and the worker retries it forever making no progress.
+
+      A batch-driven caller passes the id of the item it actually selected. */
+  batchItemId?: string;
   /** assess: read + mechanical ready/blocked only. No bytes move, no draft. */
   mode: "assess" | "materialize";
 }
@@ -174,9 +189,20 @@ export async function materializeOneItem(inv: MaterializeInvocation): Promise<Ma
   if (biErr) throw new BridgeError(`batch_item_lookup_failed: ${biErr.message}`);
   if (!items || items.length === 0) throw new BridgeError("batch_item_not_found");
 
-  // A source item can appear in more than one batch. The one already carrying
-  // a listing is authoritative; otherwise the most recent.
-  const item = items.find((i) => i.listing_id !== null) ?? items[0];
+  /* A source item can appear in more than one batch.
+
+     When the caller named one, use THAT one — and prove it really belongs to
+     this source item, so a batch item id from a caller cannot redirect the
+     call onto someone else's row.
+
+     Otherwise fall back to the historical heuristic: the item already carrying
+     a listing is authoritative, else the most recent. That answers "is this
+     watch materialized?" for the founder's per-key flow, but it must not be
+     used by a batch-driven caller — see batchItemId. */
+  const item = inv.batchItemId
+    ? items.find((i) => i.id === inv.batchItemId)
+    : (items.find((i) => i.listing_id !== null) ?? items[0]);
+  if (!item) throw new BridgeError("batch_item_not_found_for_source_item");
   if (item.source_id !== inv.sourceId) throw new BridgeError("item_source_mismatch");
 
   const base = {
