@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import RemoveListingDialog, { type RemoveResult } from "@/components/RemoveListingDialog";
+import DeleteListingDialog from "@/components/DeleteListingDialog";
+import { canAskAboutDeletion } from "@/lib/listingDeleteEligibility";
 import type { AccountListing, AccountDecisionEvent } from "@/components/AccountDashboard";
 
 /** Seller-facing names for the recorded decisions. */
@@ -355,6 +357,16 @@ export default function SellerListingsRoom({
     trigger: HTMLElement | null;
   } | null>(null);
   const [removedNotice, setRemovedNotice] = useState<string | null>(null);
+
+  /* Stage 7 — Delete Listing. Only ever opened on a Removed listing, and the
+     dialog asks the server for the verdict; this holds nothing but which
+     listing is being asked about. */
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    title: string;
+    publicCode: string | null;
+    trigger: HTMLElement | null;
+  } | null>(null);
 
   /* ── ONE TABLE, TWO HANDLES ──────────────────────────────────────────
      The grid scrolls horizontally at intermediate widths, and a scroll
@@ -1129,6 +1141,32 @@ export default function SellerListingsRoom({
                   </button>
                 )}
 
+                {/* DELETE — offered only on a Removed listing, which is also
+                    the only state the server will evaluate. This is a real
+                    control with real behaviour: it asks whether permanent
+                    deletion is possible yet and explains the answer. It is
+                    NOT a disabled placeholder, and it does not delete —
+                    there is no purge to trigger in this stage. */}
+                {canAskAboutDeletion(selected.status) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      setRemovedNotice(null);
+                      setDeleteTarget({
+                        id: selected.id,
+                        title: selected.model
+                          ? `${selected.brand} ${selected.model}`
+                          : selected.brand,
+                        publicCode: selected.public_code ?? null,
+                        trigger: e.currentTarget,
+                      });
+                    }}
+                    className="border border-[var(--border-subtle)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:border-[var(--lc-rejected-line)] hover:text-[var(--platinum-dim)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                  >
+                    Delete Listing
+                  </button>
+                )}
+
               </div>
             </div>
 
@@ -1159,6 +1197,19 @@ export default function SellerListingsRoom({
           </div>
         )}
       </aside>
+
+      {deleteTarget && (
+        <DeleteListingDialog
+          listingId={deleteTarget.id}
+          title={deleteTarget.title}
+          publicCode={deleteTarget.publicCode}
+          onClose={() => {
+            const trigger = deleteTarget.trigger;
+            setDeleteTarget(null);
+            trigger?.focus();
+          }}
+        />
+      )}
 
       {removeTarget && (
         <RemoveListingDialog

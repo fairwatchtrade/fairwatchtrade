@@ -87,6 +87,90 @@ behaviour has reintroduced the bug.
   vocabulary is adjudication — approved/rejected by a reviewer. A seller taking
   their own watch off the market is not a decision about the listing's merit.
 
+## Stage 7 — delete eligibility (it does not delete)
+
+> **`listing_delete_eligibility(uuid)` answers one question and stops:
+> *may this listing be permanently deleted yet?*** It destroys nothing.
+
+Three properties, and each is enforced rather than promised:
+
+| Property | How it is enforced |
+| --- | --- |
+| **Server-authoritative** | The function requires `status = 'removed'` itself. A client calling it on a published or draft listing gets a `not_removed` blocker back. Whether a Delete control is *visible* is UX, not the gate. |
+| **Read-only** | Declared `STABLE`, so **Postgres refuses** `INSERT`/`UPDATE`/`DELETE` inside it — *"UPDATE is not allowed in a non-volatile function"*. Verified empirically at 84 calls across every listing: zero rows changed anywhere. |
+| **Not an authorisation** | Nothing is stored. There is no `eligible_for_permanent_delete` column, no token, no approval row. Deliberately nothing to go stale. |
+
+### ⚠ The TOCTOU boundary — the most important line in this file
+
+A Stage 7 all-clear is **evidence, not permission**. Purchase requests,
+transactions and workflow state can all change one second after the read.
+
+**Stage 8 must re-evaluate these same rules inside its own destructive
+transaction and lock, immediately before deleting.** A purge that trusts an
+earlier eligibility result is the bug this design exists to prevent.
+
+The result says *currently* eligible. It never says it will still be true.
+
+### Blocker sources — and the three that are deliberately absent
+
+Implemented, because the machinery genuinely exists:
+
+| Code | Source | Blocks on |
+| --- | --- | --- |
+| `not_removed` | `listings.status` | anything other than `removed` |
+| `accepted_purchase_request` | `purchase_requests.status` | `accepted` — the live obligation that survives Remove |
+| `pending_purchase_request` | `purchase_requests.status` | `pending` — defensive; `remove_listing` closes these, so its presence means an invariant broke |
+| `active_transaction` | `transactions.status` | everything except `completed`, `cancelled`, `refunded`. `disputed` is where a real dispute hold lives |
+| `active_wizard_session` | `mobile_wizard_sessions.status` | `active` |
+
+**Not implemented, and this is a decision rather than an omission:**
+
+- **`identity_resolution_case`** has no `status`, `state` or `resolved_at`
+  column *at all*. There is no unresolved state to test. Stage 1 already
+  flagged that the resolution *result* lives somewhere the schema cannot
+  honestly name. A blocker here would be fiction.
+- **`dealer_accelerator_batch_items`** — its own CHECK forces
+  `listing_id IS NULL` unless `status = 'draft_created'`, which is the
+  item's *terminal* state with its lease released. Active accelerator work
+  is structurally incapable of referencing a listing.
+- **Legal / retention hold** — no such table or column exists anywhere.
+  Real disputes surface as `transactions.status = 'disputed'`.
+
+`listing_integrity_reviews` (the Aubrey Check) was considered and excluded:
+its evidence was detached from `listings` at Stage 5 and carries its own
+subject identity, so it *survives* deletion by design rather than preventing
+it.
+
+### Consumers — one seam, two surfaces
+
+- **Seller** — `components/DeleteListingDialog.tsx`, opened from the Removed
+  listing's rail. Renders blockers or the consequences review.
+- **Admin** — the Lifecycle panel on `/admin/listings/[id]`, read through the
+  service client (the function admits it because `auth.uid()` is null there).
+
+Neither evaluates a blocker itself. `lib/listingDeleteEligibility.ts` turns
+codes into sentences and nothing more. **If the two surfaces ever disagree,
+one of them has started computing locally — that is the defect, not a
+wording drift.**
+
+### What deletion is designed to take, and what it cannot
+
+This is the Stage 5 boundary made visible, and the seller review says it in
+plain words:
+
+- **Dies with the listing** — the row itself and everything owned only by it.
+  These still hold a foreign key: `listing_media`, `listing_addenda`,
+  `listing_drafts`, `saved_watches`, `saved_search_matches`,
+  `listing_collector_dossiers`, `message_threads`, `notifications`,
+  `mobile_wizard_sessions`, `purchase_requests`,
+  `dealer_accelerator_batch_items`.
+- **Outlives it** — records detached at Stage 5, each carrying its own
+  brand/model/reference snapshot: `transactions`,
+  `listing_decision_events`, `listing_currency_events`,
+  `listing_integrity_evidence`, `listing_integrity_reviews`, `strikes`,
+  `identity_resolution_case`, `dealer_accelerator_lifecycle_events`,
+  `listing_deletion_tombstone`.
+
 ## Verify current state
 
 ```sql

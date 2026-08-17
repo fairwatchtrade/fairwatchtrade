@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import ListingStatusControls from "@/components/ListingStatusControls";
+import {
+  blockerAdminLine,
+  type DeleteEligibility,
+} from "@/lib/listingDeleteEligibility";
 import IntegrityEvidencePanel, {
   type PanelPhoto,
   type PanelPhotoState,
@@ -235,6 +239,12 @@ export default async function ListingReviewPage({
      is: the founder is not a party to these requests and RLS would correctly
      hide them from an ordinary session. */
   let lifecycleRequests: LifecycleRequest[] = [];
+  /* Stage 7 — the SAME canonical answer the seller sees. Read through the
+     service client, which the function admits because auth.uid() is null for
+     it; no parallel admin calculation exists, and could not be allowed to,
+     or the two surfaces would eventually disagree about whether a listing is
+     safe to destroy. */
+  let deleteEligibility: DeleteEligibility | null = null;
   try {
     const service = createServiceClient();
     const { data } = await service.from("listings").select("*").eq("id", id).maybeSingle();
@@ -269,6 +279,12 @@ export default async function ListingReviewPage({
         .eq("listing_id", id)
         .order("created_at", { ascending: false });
       lifecycleRequests = (requestRows ?? []) as LifecycleRequest[];
+
+      const { data: eligibilityRow } = await service.rpc(
+        "listing_delete_eligibility",
+        { p_listing_id: id }
+      );
+      deleteEligibility = (eligibilityRow as DeleteEligibility | null) ?? null;
 
       const { data: mediaRows } = await service
         .from("listing_media")
@@ -534,6 +550,51 @@ export default async function ListingReviewPage({
                 ))}
               </tbody>
             </table>
+          )}
+
+          {/* ── Stage 7 · permanent-delete eligibility ────────────────────
+              The identical result the seller's Delete Listing dialog shows,
+              from the identical function. If these two ever disagree, one of
+              them is computing it locally and that is the defect.
+
+              ⚠ This is current-state evidence, not an authorisation. Nothing
+              is stored, and the future purge stage must re-evaluate under its
+              own lock rather than trusting anything read here. */}
+          <div
+            style={{
+              color: "#8b93a1",
+              fontSize: 11,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              margin: "16px 0 8px",
+            }}
+          >
+            Permanent-delete eligibility
+          </div>
+
+          {!deleteEligibility ? (
+            <div style={{ fontSize: 12, color: "#565f89" }}>
+              Eligibility unavailable — the check did not answer.
+            </div>
+          ) : deleteEligibility.eligible_for_permanent_delete ? (
+            <div style={{ fontSize: 13, color: "#70C090", lineHeight: 1.6 }}>
+              Currently eligible for permanent deletion.
+              <div style={{ color: "#565f89", fontSize: 12, marginTop: 4 }}>
+                Snapshot only — Stage 7 stores no approval, and the purge stage
+                must re-check under its own lock before destroying anything.
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#C6CCD8", lineHeight: 1.6 }}>
+              Blocked.
+              <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                {deleteEligibility.blockers.map((b, i) => (
+                  <li key={`${b.code}-${i}`} style={{ color: "#E0A83C", fontSize: 12 }}>
+                    {blockerAdminLine(b)}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {/* Accepted requests survive a removal by design, and that is the
