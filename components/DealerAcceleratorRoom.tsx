@@ -565,27 +565,43 @@ export default function DealerAcceleratorRoom({
     </div>
   );
 
+  /* ── Help anchoring, and why it is shaped exactly like this ────────────
+     The shared bubble renders as a SIBLING of its trigger with `absolute`
+     placement, so the caller must supply the positioning ancestor. Without
+     one it anchors to whatever distant ancestor happens to be positioned and
+     `top: calc(100% + 10px)` puts it far down the page — it opens, and
+     nobody sees it. That is exactly what happened here.
+
+     The breakpoint split is the established pattern, not decoration: below
+     sm the inner span is static, so the bubble anchors to the RELATIVE row
+     below and spans it edge to edge. A fixed-width card anchored to a 44px
+     trigger overflowed a phone viewport faster than the clamp could measure,
+     and mobile Chrome expanded the whole layout viewport to fit. At sm+ the
+     span becomes the ancestor and the card is the ordinary long-help card,
+     with the caret tracking the ? wherever it sits. */
   const header = (
-    <div className="mb-2 flex items-start gap-2">
+    <div className="relative mb-2 flex items-start gap-2">
       <div>
         <Kicker>Seller Workspace</Kicker>
         <h1 className="mt-2 font-display text-[30px] font-light leading-[1.1] text-[var(--platinum)] sm:text-[34px]">
           Dealer Accelerator
         </h1>
       </div>
-      <HelpBubble
-        label="What Dealer Accelerator does"
-        historyKey="fwtDealerAcceleratorHelp"
-        title="Dealer Accelerator"
-        bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:right-auto sm:w-[340px]"
-        caretTracksTrigger
-      >
-        <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-          Use your existing dealer inventory as the starting point for private
-          FairWatchTrade drafts. FairWatchTrade prepares; you confirm;
-          FairWatchTrade reviews. Nothing publishes automatically.
-        </p>
-      </HelpBubble>
+      <span className="inline-flex sm:relative">
+        <HelpBubble
+          label="What Dealer Accelerator does"
+          historyKey="fwtDealerAcceleratorHelp"
+          title="Dealer Accelerator"
+          bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+          caretTracksTrigger
+        >
+          <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+            Use your existing dealer inventory as the starting point for private
+            FairWatchTrade drafts. FairWatchTrade prepares; you confirm;
+            FairWatchTrade reviews. Nothing publishes automatically.
+          </p>
+        </HelpBubble>
+      </span>
     </div>
   );
 
@@ -620,21 +636,23 @@ export default function DealerAcceleratorRoom({
 
       {tab === "drafts" && (
         <div>
-          <div className="mb-5 flex flex-wrap items-center gap-2">
+          <div className="relative mb-5 flex flex-wrap items-center gap-2">
             <Secondary onClick={() => setTab("start")}>Back to Dealer Accelerator</Secondary>
-            <HelpBubble
-              label="How to review imported drafts"
-              historyKey="fwtImportedDraftsReviewHelp"
-              title="Review Imported Drafts"
-              bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:right-auto sm:w-[340px]"
-              caretTracksTrigger
-            >
-              <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-                Choose a draft, confirm the facts only you can know, save your
-                corrections, then submit it for FairWatchTrade review. Imported
-                drafts stay private until reviewed and published.
-              </p>
-            </HelpBubble>
+            <span className="inline-flex sm:relative">
+              <HelpBubble
+                label="How to review imported drafts"
+                historyKey="fwtImportedDraftsReviewHelp"
+                title="Review Imported Drafts"
+                bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+                caretTracksTrigger
+              >
+                <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+                  Choose a draft, confirm the facts only you can know, save your
+                  corrections, then submit it for FairWatchTrade review. Imported
+                  drafts stay private until reviewed and published.
+                </p>
+              </HelpBubble>
+            </span>
           </div>
           {/* Said once, plainly, on small screens. This workspace was built
               desktop-first and still is; confirming six facts and replacing
@@ -894,27 +912,29 @@ function ConnectPanel({
       </p>
 
       <div className="mt-5 max-w-[520px]">
-        <div className="mb-2 flex items-center gap-1.5">
+        <div className="relative mb-2 flex items-center gap-1.5">
           <label
             htmlFor="fwt-dealer-website"
             className="text-[12px] font-semibold text-[var(--platinum)]"
           >
             Dealer website
           </label>
-          <HelpBubble
-            label="About the dealer website field"
-            historyKey="fwtDealerWebsiteHelp"
-            title="Dealer website"
-            bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:right-auto sm:w-[330px]"
-            caretTracksTrigger
-          >
-            <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-              Enter the dealer website that publishes the inventory you want
-              FairWatchTrade to prepare. Do not paste a FairWatchTrade page.
-              FairWatchTrade checks only for the supported inventory source
-              connected to this website.
-            </p>
-          </HelpBubble>
+          <span className="inline-flex sm:relative">
+            <HelpBubble
+              label="About the dealer website field"
+              historyKey="fwtDealerWebsiteHelp"
+              title="Dealer website"
+              bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[330px]"
+              caretTracksTrigger
+            >
+              <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+                Enter the dealer website that publishes the inventory you want
+                FairWatchTrade to prepare. Do not paste a FairWatchTrade page.
+                FairWatchTrade checks only for the supported inventory source
+                connected to this website.
+              </p>
+            </HelpBubble>
+          </span>
         </div>
         <input
           id="fwt-dealer-website"
@@ -1215,7 +1235,7 @@ function AttentionPanel({
   const items = state?.needsAttention ?? [];
   return (
     <section className="border border-[var(--border-mid)] bg-[var(--surface)] p-6">
-      <div className="mb-2 flex items-start gap-2">
+      <div className="relative mb-2 flex items-start gap-2">
         <div>
           <Kicker>Dealer Accelerator / Needs Attention</Kicker>
           <h2 className="mt-2 font-display text-[24px] font-light leading-[1.15] text-[var(--platinum)]">
@@ -1224,20 +1244,22 @@ function AttentionPanel({
               : `${items.length} watches need attention`}
           </h2>
         </div>
-        <HelpBubble
-          label="What Needs Attention means"
-          historyKey="fwtDealerAttentionHelp"
-          title="Needs Attention"
-          bubbleClassName="left-0 right-0 top-[calc(100%+10px)] rounded-2xl sm:right-auto sm:w-[340px]"
-          caretTracksTrigger
-        >
-          <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-            Needs Attention means FairWatchTrade could not safely prepare this
-            watch from your source as it currently stands. It is not a
-            rejection, and it does not affect the drafts that were prepared
-            successfully.
-          </p>
-        </HelpBubble>
+        <span className="inline-flex sm:relative">
+          <HelpBubble
+            label="What Needs Attention means"
+            historyKey="fwtDealerAttentionHelp"
+            title="Needs Attention"
+            bubbleClassName="left-3 right-3 top-[calc(100%+10px)] rounded-2xl sm:left-0 sm:right-auto sm:w-[340px]"
+            caretTracksTrigger
+          >
+            <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+              Needs Attention means FairWatchTrade could not safely prepare this
+              watch from your source as it currently stands. It is not a
+              rejection, and it does not affect the drafts that were prepared
+              successfully.
+            </p>
+          </HelpBubble>
+        </span>
       </div>
       <p className="max-w-[64ch] text-[13px] leading-[1.65] text-[var(--muted)]">
         These watches were not guessed into drafts. Correct your source where
