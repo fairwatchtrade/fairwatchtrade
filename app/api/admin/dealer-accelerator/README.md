@@ -102,6 +102,96 @@ edge. No service-role credential ever enters a client bundle.
 
 ---
 
+## Source lineage vs authorization episode
+
+**The misconception this section exists to kill:** that a row in
+`dealer_accelerator_sources` is "the dealer's source." It is one **authorization
+episode** over a source. The source itself outlives it.
+
+Those two things were conflated in one row, and the conflation was invisible
+until an authorization was actually retired:
+
+| | |
+|---|---|
+| **Lineage** — which governed source this is | `dealer_profile_id` + `source_type` + `source_locator_key` + `adapter_scope`, now derived into the generated column `source_lineage_key` |
+| **Authorization** — one episode of permission over it | `authorization_state`, `authorized_by`, `authorized_at`, basis, terms, `revoked_at` |
+
+Source items hang off a `source_id`, and **revocation is terminal** —
+`dealer_accelerator_transition_source` allows `authorized → suspended|revoked`
+and `suspended → authorized|revoked`, and nothing returns from `revoked`.
+
+So retiring an authorization used to retire the platform's memory of everything
+that source had ever materialized. Reconnect the same dealer to the same
+website and you got a new source with zero items, every watch looked new, and
+materialization would have created a **second listing for every watch that
+already existed.** A duplicate-listing defect reached by performing a
+retirement exactly as instructed.
+
+### How continuity works now
+
+A later episode still registers **its own** source items — that is correct, they
+record what that episode actually observed. What changed is materialization:
+
+```
+materializeOneItem
+  ├ item already draft_created in THIS episode?      -> ALREADY_MATERIALIZED
+  ├ dealer_accelerator_adopt_prior_materialization   <- the continuity seam
+  │    same lineage + same source_item_key
+  │    + a DIFFERENT source_id + a listing that still exists and is still owned
+  │    -> link this item to that listing, status draft_created, NO new listing
+  └ otherwise: assess evidence, rehost photographs, create the draft
+```
+
+Three properties that are load-bearing:
+
+- **`batch_items.listing_id` has no unique constraint.** That is what permits
+  two episodes to truthfully point at one listing. `listing_truth_check` is
+  satisfied because the adopting item genuinely does have a draft.
+- **Adoption runs BEFORE eligibility assessment.** An item legitimately
+  materialized once should not have to re-clear the evidence bar to be
+  recognized, and its current-episode evidence may differ — a photograph that
+  has started 404ing, a price the dealer edited — without any of that making
+  the existing listing untrue. Assessment governs what may become a *new*
+  draft; adoption governs what already *is* one.
+- **A blocked item cannot adopt.** Only `discovered` / `ready`. A blocked item
+  must be re-assessed on its own evidence rather than quietly satisfied by an
+  earlier episode's success.
+
+Adoption writes its own event type, `item_materialization_adopted`, rather than
+borrowing `item_draft_created` — which would claim a draft was created when
+none was. Its metadata names the adopted listing and the episode it came from,
+so the chain stays reconstructible.
+
+`forecastPreparation` reads the same lineage, which is why the confirmation
+screen's arithmetic and the run's behaviour cannot disagree. It counts distinct
+source item **keys**, not source item rows — each episode registers a row per
+key, so counting rows would report one watch twice and push "already prepared"
+past the number found.
+
+```sql
+-- Which items will be ADOPTED on the next run, and which are genuinely new.
+-- Read-only, and it predicts the run exactly.
+with lineage as (
+  select id from public.dealer_accelerator_sources
+   where source_lineage_key = (
+     select source_lineage_key from public.dealer_accelerator_sources
+      where id = '<any episode of the source>'
+   )
+)
+select distinct si.source_item_key
+  from public.dealer_accelerator_batch_items bi
+  join public.dealer_accelerator_source_items si on si.id = bi.source_item_id
+  join lineage s on s.id = bi.source_id
+ where bi.listing_id is not null;
+```
+
+**Do not "fix" this by rewriting historical `source_id` values** to reattach old
+items to a new episode. That falsifies the evidence log, which is the one thing
+that table exists to prevent. And do not make revocation reversible — its
+terminality is deliberate.
+
+---
+
 ## The integrity property that must not be broken
 
 Each listing is created by **one** call to the `SECURITY DEFINER` RPC

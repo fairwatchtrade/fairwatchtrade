@@ -200,6 +200,34 @@ async function findActiveSource(
 }
 
 /**
+ * Every source row for this dealer's governed source at this locator, across
+ * ALL authorization episodes — revoked ones included.
+ *
+ * This is the lineage, and it is the difference between a truthful "already
+ * prepared" count and one that resets to zero every time an authorization is
+ * retired. The four columns below ARE the lineage; the database also derives
+ * them into `source_lineage_key`, which is what the adoption function matches
+ * on when it decides whether a listing already exists for an item.
+ *
+ * Deliberately NOT filtered by authorization_state: a retired episode's work
+ * is still work that was really done, and its listings still exist.
+ */
+async function findLineageSourceIds(
+  db: Db,
+  userId: string,
+  sourceLocator: string
+): Promise<string[]> {
+  const { data } = await db
+    .from("dealer_accelerator_sources")
+    .select("id")
+    .eq("dealer_profile_id", userId)
+    .eq("source_type", NDJSON_SOURCE_TYPE)
+    .eq("source_locator_key", sourceLocator.toLowerCase())
+    .eq("adapter_scope", DEALER_ADAPTER_SCOPE);
+  return ((data ?? []) as Array<{ id: string }>).map((r) => r.id);
+}
+
+/**
  * Approve the two governed origins this source needs. Idempotent by way of
  * the RPC, which converges on an existing approval rather than raising.
  *
@@ -447,6 +475,10 @@ export interface AdvanceReport {
   batchId: string | null;
   slicesRun: number;
   itemsMaterialized: number;
+  /** Recognized as already prepared by an earlier authorization episode and
+      linked to that listing. Counted separately from itemsMaterialized so
+      "prepared this call" never claims credit for work already done. */
+  itemsAdopted: number;
   itemsBlocked: number;
   /** True when nothing further remains for this snapshot. */
   finished: boolean;
@@ -531,6 +563,7 @@ export async function advancePreparation(opts: {
   // ── Materialization phase: evidence → dealer-owned drafts, one at a
   //    time, exactly as the bridge requires. ──
   let materialized = 0;
+  let adoptedCount = 0;
   let blocked = 0;
 
   if (batchId) {
@@ -559,6 +592,9 @@ export async function advancePreparation(opts: {
           mode: "materialize",
         });
         if (result.outcome === "DRAFT_CREATED") materialized++;
+        // An earlier authorization episode already prepared this watch; this
+        // item linked to that listing rather than creating a second one.
+        else if (result.outcome === "ALREADY_MATERIALIZED") adoptedCount++;
         else if (result.outcome === "BLOCKED") blocked++;
       } catch {
         // One item's failure is that item's business. The spine recorded
@@ -577,11 +613,14 @@ export async function advancePreparation(opts: {
     batchId,
     slicesRun,
     itemsMaterialized: materialized,
+    itemsAdopted: adoptedCount,
     itemsBlocked: blocked,
     finished,
-    detail: settled
-      ? `discovery settled; ${materialized} prepared this call`
-      : `discovery advanced in ${slicesRun} slice(s); ${materialized} prepared this call`,
+    detail:
+      `${settled ? "discovery settled" : `discovery advanced in ${slicesRun} slice(s)`}; ` +
+      `${materialized} newly prepared` +
+      (adoptedCount > 0 ? `, ${adoptedCount} already prepared previously` : "") +
+      (blocked > 0 ? `, ${blocked} needing attention` : ""),
   };
 }
 
@@ -606,6 +645,7 @@ function blankAdvance(sourceId: string, detail: string): AdvanceReport {
     batchId: null,
     slicesRun: 0,
     itemsMaterialized: 0,
+    itemsAdopted: 0,
     itemsBlocked: 0,
     finished: false,
     detail,
@@ -626,6 +666,12 @@ export interface PreparationForecast {
  * How many of the declared watches already exist as drafts for this dealer.
  * Answers the confirmation screen honestly: re-running a snapshot must not
  * imply the whole file is about to be prepared again.
+ *
+ * Counted across the whole LINEAGE, not just the currently authorized source.
+ * A dealer who reconnects after an authorization was retired must still be
+ * told the truth about what has already been prepared — and the number shown
+ * here must agree with what the run will actually do, because the adoption
+ * function matches on the same lineage.
  */
 export async function forecastPreparation(
   userId: string,
@@ -634,13 +680,13 @@ export async function forecastPreparation(
   const db = createServiceClient();
   const found = resolved.watchCount;
 
-  const src = await findActiveSource(db, userId, resolved.sourceLocator);
-  if (!src) return { found, alreadyPrepared: 0, toPrepare: found };
+  const sourceIds = await findLineageSourceIds(db, userId, resolved.sourceLocator);
+  if (sourceIds.length === 0) return { found, alreadyPrepared: 0, toPrepare: found };
 
   const { data: siRows } = await db
     .from("dealer_accelerator_source_items")
     .select("id,source_item_key")
-    .eq("source_id", src.id)
+    .in("source_id", sourceIds)
     .in("source_item_key", resolved.declaredItemIds);
 
   const si = (siRows ?? []) as Array<{ id: string; source_item_key: string }>;
@@ -661,7 +707,16 @@ export async function forecastPreparation(
   const withDrafts = new Set(
     ((biRows ?? []) as Array<{ source_item_id: string }>).map((r) => r.source_item_id)
   );
-  const alreadyPrepared = si.filter((s) => withDrafts.has(s.id)).length;
+
+  /* Count distinct source item KEYS, not source item rows. Each authorization
+     episode registers its own row for the same external key, so counting rows
+     would report a watch prepared twice as two already-prepared watches and
+     drive the arithmetic past the number actually found. The key is the
+     watch; the rows are episodes of it. */
+  const preparedKeys = new Set(
+    si.filter((s) => withDrafts.has(s.id)).map((s) => s.source_item_key)
+  );
+  const alreadyPrepared = preparedKeys.size;
 
   return { found, alreadyPrepared, toPrepare: Math.max(0, found - alreadyPrepared) };
 }

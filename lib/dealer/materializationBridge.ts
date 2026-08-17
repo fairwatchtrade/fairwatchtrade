@@ -198,6 +198,45 @@ export async function materializeOneItem(inv: MaterializeInvocation): Promise<Ma
     };
   }
 
+  /* ── 2b. Continuity across authorization episodes ──────────────────────
+     The check above only sees THIS episode. Source items are scoped to a
+     source_id, and revocation is terminal, so a dealer who reconnects the
+     same website gets a new source whose items look untouched — even for
+     watches an earlier episode already turned into listings. Materializing
+     those again would create a second listing for the same watch.
+
+     So before assessing evidence, ask whether an earlier episode of the same
+     LINEAGE already materialized this exact source item key. If it did, this
+     item links to that listing and no second one is created.
+
+     Deliberately placed before eligibility assessment: an item that was
+     legitimately materialized once should not have to re-clear the evidence
+     bar to be recognized, and its current-episode evidence may differ
+     (a photograph that has since 404'd, say) without that making the
+     existing listing untrue. */
+  const adoption = await rpc<
+    Array<{ outcome: string; listing_id: string | null; adopted_from_source_id: string | null; detail: string }>
+  >(db, "dealer_accelerator_adopt_prior_materialization", {
+    p_batch_item_id: item.id,
+    p_actor_kind: inv.actorKind ?? "founder",
+    p_actor_user_id: inv.actorUserId,
+  });
+
+  const adopted = Array.isArray(adoption) ? adoption[0] : adoption;
+  if (adopted?.outcome === "ADOPTED" || adopted?.outcome === "ALREADY_LINKED") {
+    return {
+      ...base,
+      itemStatus: "draft_created",
+      outcome: "ALREADY_MATERIALIZED",
+      blockedReasonCode: null,
+      listingId: adopted.listing_id as string,
+      observationId: null,
+      photographs: [],
+      warnings: [],
+      detail: adopted.detail,
+    };
+  }
+
   // ── 3. Mechanical eligibility. Deterministic, computed in the database
   //       from the item's own evidence — not a founder-by-founder judgement. ──
   const assessment = await rpc<Assessment>(db, "dealer_accelerator_assess_item_eligibility", {
