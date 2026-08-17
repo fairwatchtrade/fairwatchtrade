@@ -19,10 +19,10 @@ const DECISION_LABEL: Record<string, string> = {
     beside DECISION_LABEL because they answer the same kind of question — but
     a removal is NOT an adjudication and never joins the decision history. */
 const REMOVAL_REASON_LABEL: Record<string, string> = {
-  sold_in_store: "Sold in store",
-  sold_elsewhere: "Sold elsewhere",
+  sold_in_store: "Sold in my store / privately",
+  sold_elsewhere: "Sold on another website",
   no_longer_for_sale: "No longer for sale",
-  listing_mistake: "There was a mistake in the listing",
+  listing_mistake: "Listing mistake / duplicate",
   other: "Other",
 };
 import { formatMoney } from "@/lib/formatMoney";
@@ -351,6 +351,7 @@ export default function SellerListingsRoom({
   const [removeTarget, setRemoveTarget] = useState<{
     id: string;
     title: string;
+    publicCode: string | null;
     trigger: HTMLElement | null;
   } | null>(null);
   const [removedNotice, setRemovedNotice] = useState<string | null>(null);
@@ -513,6 +514,28 @@ export default function SellerListingsRoom({
     <div className="flex flex-col lg:flex-row">
       {/* ── CENTER · compact one-watch-per-row inventory ── */}
       <div className="min-w-0 flex-1 lg:border-r lg:border-[var(--border-faint)]">
+        {/* THE OUTCOME BELONGS TO THE WORKSPACE, NOT TO A SELECTION.
+
+            This first shipped inside the rail. Removing z99216 advanced the
+            selection to m55915, and the sentence about z99216 stayed put —
+            now sitting under a different watch and appearing to describe it.
+
+            A result cannot live in a panel whose subject changes underneath
+            it. Here it sits above the room itself, where nothing can
+            reattach it, and it names the watch outright so it is legible on
+            its own terms rather than by proximity. */}
+        <div aria-live="polite">
+          {removedNotice && (
+            <p
+              tabIndex={-1}
+              ref={(el) => el?.focus()}
+              className="border-b border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-6 py-3 text-[11px] leading-[1.55] text-[var(--platinum-dim)] outline-none"
+            >
+              {removedNotice}
+            </p>
+          )}
+        </div>
+
         {/* Real lifecycle tabs — all five, never reduced to the artifact's three. */}
         {/* The tab strip overflows by ~31px whenever "Rejected" does not fit,
             so it stays scrollable — but its scrollbar chrome is now hidden.
@@ -1096,6 +1119,7 @@ export default function SellerListingsRoom({
                         title: selected.model
                           ? `${selected.brand} ${selected.model}`
                           : selected.brand,
+                        publicCode: selected.public_code ?? null,
                         trigger: e.currentTarget,
                       });
                     }}
@@ -1105,20 +1129,6 @@ export default function SellerListingsRoom({
                   </button>
                 )}
 
-                {/* Outcome, announced rather than dismissed. Named counts,
-                    because "removed" alone does not tell a seller whether
-                    anyone was waiting on them. */}
-                <div aria-live="polite">
-                  {removedNotice && (
-                    <p
-                      tabIndex={-1}
-                      ref={(el) => el?.focus()}
-                      className="border border-[var(--border-faint)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)] outline-none"
-                    >
-                      {removedNotice}
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -1154,14 +1164,21 @@ export default function SellerListingsRoom({
         <RemoveListingDialog
           listingId={removeTarget.id}
           title={removeTarget.title}
+          publicCode={removeTarget.publicCode}
           onClose={() => {
             const trigger = removeTarget.trigger;
             setRemoveTarget(null);
             trigger?.focus();
           }}
           onRemoved={(result: RemoveResult) => {
+            /* Read the identity BEFORE clearing the target — the notice has
+               to name its own watch, and a moment later there is no target
+               left to ask. */
+            const label = removeTarget.publicCode
+              ? `${removeTarget.title} (${removeTarget.publicCode})`
+              : removeTarget.title;
             setRemoveTarget(null);
-            setRemovedNotice(removalNotice(result));
+            setRemovedNotice(removalNotice(result, label));
             /* The room does not patch its own copy of the status. `listings`
                is a prop owned by the server page, so the shell re-runs that
                query and the new state arrives as truth — the same reason
@@ -1179,11 +1196,11 @@ export default function SellerListingsRoom({
    themselves, and an accepted request is called out separately precisely
    because Remove did NOT touch it — silence there would read as though it
    had. */
-function removalNotice(result: RemoveResult): string {
+function removalNotice(result: RemoveResult, label: string): string {
   const closed = result.requests_cancelled ?? 0;
   const accepted = result.accepted_requests_remaining ?? 0;
 
-  const parts: string[] = ["This listing is off the market."];
+  const parts: string[] = [`${label} is off the market.`];
   if (closed > 0) {
     parts.push(
       closed === 1

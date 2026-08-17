@@ -141,6 +141,10 @@ type MyOfferRow = {
   // into. Null on an open request, and null on a cancelled one whose cause was
   // never recorded; both render without attributing the closure to anyone.
   closure_cause: string | null;
+  // The buyer cleared this finished card from their own view. A view
+  // preference, never a lifecycle fact — the request is untouched and the
+  // seller's surfaces ignore it entirely.
+  buyer_dismissed_at: string | null;
   proposed_purchase_price: number | null;
   listing_price: number | null;
   // Stage A snapshot — the offer's currency AT SUBMISSION (null pre-Stage-B).
@@ -230,12 +234,22 @@ const CLOSURE_LABELS: Record<
     note: "You withdrew this offer.",
     tone: "withdrawn",
   },
-  // Same family as superseded — the watch is gone and the buyer did nothing
-  // wrong — so it carries the same quiet tone rather than the withdrawn one.
+  /* Carries the SAME weight as declined, by Jason's ruling on seeing it
+     live. It first shipped in the quiet tone on the reasoning that the buyer
+     did nothing wrong — but that made the one outcome they did not cause the
+     faintest of the three terminal states, fainter than the one describing
+     their own deliberate withdrawal. That is a decorative consistency
+     argument applied to functional state, which the legibility law forbids.
+
+     Red here cannot read as an alarm, because this platform has no urgency
+     vocabulary to borrow from: no countdowns, no pressure signals, nothing
+     that ever means act now. It can only mean a fact went against you —
+     which is exactly what declined already means, and this is the same
+     species of finality. */
   listing_removed_by_seller: {
     label: "Listing removed",
     note: "The seller removed this listing. Your request is no longer active.",
-    tone: "ghost",
+    tone: "declined",
   },
 };
 
@@ -479,13 +493,26 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
   );
 }
 
+/* The two finished outcomes a buyer may clear from their own view. Mirrors
+   dismiss_purchase_request()'s guard exactly — the function is the authority
+   and refuses anything else, so this is the button's visibility, never the
+   permission. Kept as one named predicate so the two never drift apart. */
+function canDismissOffer(o: MyOfferRow): boolean {
+  return (
+    o.status === "declined" ||
+    (o.status === "cancelled" && o.closure_cause === "listing_removed_by_seller")
+  );
+}
+
 // One watch group: identity once, current request dominant, history beneath.
 function WatchOfferGroup({
   group,
   onRequestWithdraw,
+  onDismiss,
 }: {
   group: WatchGroup;
   onRequestWithdraw: (requestId: string, trigger: HTMLElement | null) => void;
+  onDismiss: (requestId: string) => void;
 }) {
   const { listing: l, current, history } = group;
   const { label, note, tone } = offerLabel(current.status, current.closure_cause);
@@ -583,6 +610,33 @@ function WatchOfferGroup({
           </button>
         )}
 
+        {/* Remove from My Offers — the collector clears a finished card from
+            their own view.
+
+            Offered on exactly the two outcomes Jason authorised: a request
+            the seller declined, and one closed because the seller took the
+            listing down. Both are over, and neither leaves the buyer anything
+            to do. A pending or accepted request is live correspondence
+            between two people and is never clearable; expired and superseded
+            were deliberately excluded rather than swept in for being terminal.
+
+            This removes the card, not the record. The purchase request keeps
+            its status, its cause and its history, and the seller and founder
+            see exactly what they saw before. Preservation is not visibility. */}
+        {canDismissOffer(current) && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDismiss(current.id);
+            }}
+            className="mt-2.5 ml-4 inline-flex min-h-[44px] items-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] underline-offset-4 transition-colors hover:text-[var(--platinum)] hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          >
+            Remove from My Offers
+          </button>
+        )}
+
         {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
         {history.length > 0 && (
           <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
@@ -645,6 +699,7 @@ function MyOffersSection({
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawnNotice, setWithdrawnNotice] = useState(false);
+  const [dismissError, setDismissError] = useState<string | null>(null);
   const keepButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Focus lands on the safe action when the dialog opens.
@@ -657,6 +712,32 @@ function MyOffersSection({
     setPrompt(null);
     setWithdrawError(null);
     trigger?.focus();
+  }
+
+  /* No confirmation dialog. Withdrawing an offer changes what the seller can
+     do and deserves one; clearing a finished card changes only what this
+     buyer looks at. Guarding a tidy-up behind a modal would treat the two as
+     equally weighty, which they are not.
+
+     Called straight against the RPC rather than through a route: the function
+     IS the security boundary — it re-checks ownership and eligibility, and
+     purchase_requests grants no client UPDATE by any path — so a wrapper
+     route would add a hop without adding a check. */
+  async function dismissOffer(requestId: string) {
+    setDismissError(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("dismiss_purchase_request", {
+        p_request_id: requestId,
+      });
+      if (error) {
+        setDismissError("Could not remove this from your offers. Please try again.");
+        return;
+      }
+      onWithdrawn(); // refetch — the cleared card is gone, no page refresh
+    } catch {
+      setDismissError("Could not remove this from your offers. Please try again.");
+    }
   }
 
   async function confirmWithdraw() {
@@ -742,9 +823,19 @@ function MyOffersSection({
                 setWithdrawnNotice(false);
                 setPrompt({ requestId, trigger });
               }}
+              onDismiss={dismissOffer}
             />
           ))}
         </div>
+      )}
+
+      {/* A dismissal that fails must say so. Silence would look identical to
+          success — the card simply staying put — and the buyer would press
+          again on something that is not broken. */}
+      {dismissError && (
+        <p role="alert" className="mt-3 text-[11px] text-[var(--danger)]">
+          {dismissError}
+        </p>
       )}
 
       {/* Success announcement — polite live region; also receives focus so
@@ -907,7 +998,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          "id, listing_id, status, closure_cause, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
+          "id, listing_id, status, closure_cause, buyer_dismissed_at, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
@@ -923,6 +1014,7 @@ export default function CatalogueClient({
           listing_id: string | null;
           status: string;
           closure_cause: string | null;
+          buyer_dismissed_at: string | null;
           proposed_purchase_price: number | null;
           listing_price: number | null;
           proposed_currency: string | null;
@@ -937,6 +1029,7 @@ export default function CatalogueClient({
           listing_id: row.listing_id,
           status: row.status,
           closure_cause: row.closure_cause ?? null,
+          buyer_dismissed_at: row.buyer_dismissed_at ?? null,
           proposed_purchase_price: row.proposed_purchase_price,
           listing_price: row.listing_price,
           proposed_currency: row.proposed_currency,
@@ -947,7 +1040,16 @@ export default function CatalogueClient({
           listing: row.listings ?? null,
         };
       });
-      setMyOffers({ phase: "loaded", offers });
+      /* Cards the buyer has cleared leave THIS view and nothing else. The
+         rows are still in the database, still readable by the seller and the
+         founder, still carrying their status, cause and history — they are
+         simply no longer this collector's problem to look at. Filtered here
+         rather than in the query so the reason is legible at the surface it
+         governs. */
+      setMyOffers({
+        phase: "loaded",
+        offers: offers.filter((o) => o.buyer_dismissed_at == null),
+      });
     }
     loadOffers();
     return () => {

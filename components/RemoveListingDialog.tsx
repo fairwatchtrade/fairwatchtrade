@@ -44,11 +44,11 @@ export type RemoveResult = {
 /* Wire value → the seller's own words. The five are fixed by the listings
    CHECK constraint and by the RPC; this map is the only place they are
    phrased for a human. */
-const REASONS: Array<{ code: string; label: string; hint?: string }> = [
-  { code: "sold_in_store", label: "Sold in my store" },
-  { code: "sold_elsewhere", label: "Sold elsewhere" },
+const REASONS: Array<{ code: string; label: string }> = [
+  { code: "sold_in_store", label: "Sold in my store / privately" },
+  { code: "sold_elsewhere", label: "Sold on another website" },
   { code: "no_longer_for_sale", label: "No longer for sale" },
-  { code: "listing_mistake", label: "There's a mistake in this listing" },
+  { code: "listing_mistake", label: "Listing mistake / duplicate" },
   { code: "other", label: "Other" },
 ];
 
@@ -57,12 +57,17 @@ const SOLD_CODES = new Set(["sold_in_store", "sold_elsewhere"]);
 export default function RemoveListingDialog({
   listingId,
   title,
+  publicCode,
   onClose,
   onRemoved,
 }: {
   listingId: string;
   /** Watch identity, already composed by the caller. */
   title: string;
+  /** The FWT listing code. Without it this dialog cannot distinguish two
+      identical watches — and a seller with three Datejusts on one reference
+      at the same price was one keystroke from removing the wrong one. */
+  publicCode?: string | null;
   /** Restores focus to the trigger — the caller owns that element. */
   onClose: () => void;
   onRemoved: (result: RemoveResult) => void;
@@ -141,6 +146,11 @@ export default function RemoveListingDialog({
         <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
           {title}
         </p>
+        {publicCode && (
+          <p className="mt-0.5 truncate font-mono text-[11px] tracking-[1.1px] text-[var(--gold-dim)]">
+            {publicCode}
+          </p>
+        )}
 
         <div
           id="remove-listing-body"
@@ -157,9 +167,15 @@ export default function RemoveListingDialog({
             Any purchase requests still waiting for your answer will be closed,
             and those buyers will be told you removed the listing.
           </p>
+          {/* States the product fact and stops. The first cut said removing a
+              listing "doesn't undo a deal you've agreed to" — true of the
+              software, but it characterises the arrangement between two
+              people as binding, which is not FairWatchTrade's to assert. What
+              the platform actually knows is narrower and enough: the request
+              is still open. */}
           <p className="text-[var(--platinum-dim)]">
-            A purchase request you already accepted is not affected. Removing a
-            listing doesn&apos;t undo a deal you&apos;ve agreed to.
+            A purchase request you&apos;ve already accepted stays open. Removing
+            this listing doesn&apos;t close it.
           </p>
         </div>
 

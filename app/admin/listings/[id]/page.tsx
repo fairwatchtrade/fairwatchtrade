@@ -104,10 +104,10 @@ function closureSentence(r: LifecycleRequest): string {
 }
 
 const REMOVAL_REASON: Record<string, string> = {
-  sold_in_store: "Sold in store",
-  sold_elsewhere: "Sold elsewhere",
+  sold_in_store: "Sold in my store / privately",
+  sold_elsewhere: "Sold on another website",
   no_longer_for_sale: "No longer for sale",
-  listing_mistake: "Mistake in the listing",
+  listing_mistake: "Listing mistake / duplicate",
   other: "Other",
 };
 

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendListingRemovedEmail } from "@/lib/listingRemovalEmail";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/listings/[id]/remove — the seller takes a watch off the market
@@ -170,6 +171,42 @@ export async function POST(
     }
   } catch (e) {
     console.error("[remove] notification emission threw:", e);
+  }
+
+  /* ── Seller receipt + security notification ───────────────────────────
+     Sent from what COMMITTED, not from what was submitted: the reason is
+     re-read off the listing row and the counts come from the function's own
+     return, so the mail can only describe a removal that actually happened.
+
+     Also non-fatal, and for the same reason as the bells above — the watch
+     is already off the market, and a mail failure must not report that as a
+     failed removal. It is logged loudly instead, because this is the message
+     that tells a seller their listing came down when they did not do it. */
+  try {
+    const { data: listing } = await supabase
+      .from("listings")
+      .select("brand, model, reference, public_code, removal_reason_code, removal_reason_note")
+      .eq("id", id)
+      .maybeSingle();
+
+    const committed = (data as {
+      requests_cancelled?: number;
+      accepted_requests_remaining?: number;
+    } | null) ?? {};
+
+    await sendListingRemovedEmail({
+      to: user.email,
+      brand: listing?.brand ?? null,
+      model: listing?.model ?? null,
+      reference: listing?.reference ?? null,
+      publicCode: listing?.public_code ?? null,
+      reasonCode: listing?.removal_reason_code ?? null,
+      reasonNote: listing?.removal_reason_note ?? null,
+      requestsClosed: committed.requests_cancelled ?? 0,
+      acceptedRemaining: committed.accepted_requests_remaining ?? 0,
+    });
+  } catch (e) {
+    console.error("[remove] seller removal email failed:", e);
   }
 
   return NextResponse.json(
