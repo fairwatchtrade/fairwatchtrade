@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
+import RemoveListingDialog, { type RemoveResult } from "@/components/RemoveListingDialog";
 import type { AccountListing, AccountDecisionEvent } from "@/components/AccountDashboard";
 
 /** Seller-facing names for the recorded decisions. */
@@ -12,6 +13,17 @@ const DECISION_LABEL: Record<string, string> = {
   rejected: "Not accepted",
   clarification_requested: "More information requested",
   returned_to_draft: "Returned to draft",
+};
+
+/** The seller's own recorded reason, read back to them in their words. Kept
+    beside DECISION_LABEL because they answer the same kind of question — but
+    a removal is NOT an adjudication and never joins the decision history. */
+const REMOVAL_REASON_LABEL: Record<string, string> = {
+  sold_in_store: "Sold in store",
+  sold_elsewhere: "Sold elsewhere",
+  no_longer_for_sale: "No longer for sale",
+  listing_mistake: "There was a mistake in the listing",
+  other: "Other",
 };
 import { formatMoney } from "@/lib/formatMoney";
 import { cardImageSrc } from "@/lib/media/cardImage";
@@ -68,7 +80,14 @@ export type ListingThreadStat = {
   listingId: string | null;
 };
 
-type TabId = "all" | "published" | "reserved" | "draft" | "pending_review" | "rejected";
+type TabId =
+  | "all"
+  | "published"
+  | "reserved"
+  | "draft"
+  | "pending_review"
+  | "rejected"
+  | "removed";
 
 // v2.27 — 'reserved' is an intentional lifecycle state, not a fall-through: a
 // listing whose offer was accepted (watch off the competitive market). It gets
@@ -202,6 +221,7 @@ export default function SellerListingsRoom({
   threadsLoaded,
   onSubmitForReview,
   onOpenImportedDrafts,
+  onRemoved,
   submittingId,
   submitErrorId,
   submitErrorMsg,
@@ -221,6 +241,9 @@ export default function SellerListingsRoom({
   onSubmitForReview?: (id: string) => void;
   /** real module switch into the Imported Drafts workspace (owned by the shell). */
   onOpenImportedDrafts?: () => void;
+  /** Stage 6 — the removal committed. The shell re-runs the server query so
+      the new status arrives as truth rather than as a local copy. */
+  onRemoved?: () => void;
   submittingId?: string | null;
   submitErrorId?: string | null;
   submitErrorMsg?: string | null;
@@ -320,6 +343,18 @@ export default function SellerListingsRoom({
     };
   }, []);
 
+  /* Stage 6 — Remove. The trigger element is held so focus can return to it
+     when the dialog closes, matching the Withdraw Offer confirmation. The
+     outcome notice is kept separately and announced politely: a seller who
+     just closed three buyers' requests should be told that happened, in
+     numbers, without a second dialog to dismiss. */
+  const [removeTarget, setRemoveTarget] = useState<{
+    id: string;
+    title: string;
+    trigger: HTMLElement | null;
+  } | null>(null);
+  const [removedNotice, setRemovedNotice] = useState<string | null>(null);
+
   const counts = {
     all: listings.length,
     published: listings.filter((l) => l.status === "published").length,
@@ -327,6 +362,7 @@ export default function SellerListingsRoom({
     draft: listings.filter((l) => l.status === "draft").length,
     pending_review: listings.filter((l) => l.status === "pending_review").length,
     rejected: listings.filter((l) => l.status === "rejected").length,
+    removed: listings.filter((l) => l.status === "removed").length,
   };
 
   // The "Sale Pending" tab appears only once a reserved listing exists, so the
@@ -341,6 +377,12 @@ export default function SellerListingsRoom({
     { id: "draft", label: "Drafts", count: counts.draft },
     { id: "pending_review", label: "Pending", count: counts.pending_review },
     { id: "rejected", label: "Rejected", count: counts.rejected },
+    // Same rule as Sale Pending: the tab appears once the seller actually has
+    // one, so a seller who has never removed anything is not shown an empty
+    // filter — and a removed row is never hidden, because it stays under All.
+    ...(counts.removed > 0
+      ? [{ id: "removed" as TabId, label: "Removed", count: counts.removed }]
+      : []),
   ];
 
   const visible = useMemo(() => {
@@ -766,6 +808,43 @@ export default function SellerListingsRoom({
                   </div>
                 )}
 
+                {/* Stage 6 — the Removed state, read back to the seller in the
+                    words they chose. Removed is a LIVE state in their own
+                    workspace, so this panel says what is true of it rather
+                    than presenting it as an ending: the watch is theirs, the
+                    listing is intact, and only its public availability
+                    stopped. The one thing not yet built is said plainly
+                    instead of implied. */}
+                {selected.status === "removed" && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    You took this watch off the market
+                    {selected.removed_at
+                      ? ` on ${new Date(selected.removed_at).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}`
+                      : ""}
+                    .
+                    {selected.removal_reason_code && (
+                      <span className="mt-1 block text-[var(--platinum-dim)]">
+                        {REMOVAL_REASON_LABEL[selected.removal_reason_code] ??
+                          selected.removal_reason_code}
+                        {selected.removal_reason_note
+                          ? ` — ${selected.removal_reason_note}`
+                          : ""}
+                      </span>
+                    )}
+                    <span className="mt-1 block">
+                      Nothing has been deleted. The listing and its photographs are
+                      still here, and buyers can no longer see it.
+                    </span>
+                    <span className="mt-1 block">
+                      Putting it back on the market isn&apos;t available yet.
+                    </span>
+                  </div>
+                )}
+
                 {selected.status === "draft" &&
                   selected.seller_clarification_note == null &&
                   latestMessage(selected.id, "returned_to_draft") && (
@@ -823,6 +902,48 @@ export default function SellerListingsRoom({
                     </span>
                   </div>
                 )}
+
+                {/* REMOVE — offered only where the RPC will actually accept
+                    it (published / reserved / pending_review). A draft was
+                    never public, so it gets no control rather than a control
+                    that fails. Deliberately the quietest action in the rail:
+                    it is not destructive, but it is consequential, and it
+                    must never compete with View Listing for the eye. */}
+                {(selected.status === "published" ||
+                  selected.status === "reserved" ||
+                  selected.status === "pending_review") && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      setRemovedNotice(null);
+                      setRemoveTarget({
+                        id: selected.id,
+                        title: selected.model
+                          ? `${selected.brand} ${selected.model}`
+                          : selected.brand,
+                        trigger: e.currentTarget,
+                      });
+                    }}
+                    className="border border-[var(--border-subtle)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:border-[var(--border-mid)] hover:text-[var(--platinum-dim)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                  >
+                    Remove Listing
+                  </button>
+                )}
+
+                {/* Outcome, announced rather than dismissed. Named counts,
+                    because "removed" alone does not tell a seller whether
+                    anyone was waiting on them. */}
+                <div aria-live="polite">
+                  {removedNotice && (
+                    <p
+                      tabIndex={-1}
+                      ref={(el) => el?.focus()}
+                      className="border border-[var(--border-faint)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)] outline-none"
+                    >
+                      {removedNotice}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -853,6 +974,54 @@ export default function SellerListingsRoom({
           </div>
         )}
       </aside>
+
+      {removeTarget && (
+        <RemoveListingDialog
+          listingId={removeTarget.id}
+          title={removeTarget.title}
+          onClose={() => {
+            const trigger = removeTarget.trigger;
+            setRemoveTarget(null);
+            trigger?.focus();
+          }}
+          onRemoved={(result: RemoveResult) => {
+            setRemoveTarget(null);
+            setRemovedNotice(removalNotice(result));
+            /* The room does not patch its own copy of the status. `listings`
+               is a prop owned by the server page, so the shell re-runs that
+               query and the new state arrives as truth — the same reason
+               submitForReview calls router.refresh() instead of mutating. */
+            onRemoved?.();
+          }}
+        />
+      )}
     </div>
   );
+}
+
+/* What actually happened, in the seller's terms. Buyers who were waiting are
+   named as a count because that is the consequence a seller cannot see for
+   themselves, and an accepted request is called out separately precisely
+   because Remove did NOT touch it — silence there would read as though it
+   had. */
+function removalNotice(result: RemoveResult): string {
+  const closed = result.requests_cancelled ?? 0;
+  const accepted = result.accepted_requests_remaining ?? 0;
+
+  const parts: string[] = ["This listing is off the market."];
+  if (closed > 0) {
+    parts.push(
+      closed === 1
+        ? "One purchase request that was waiting for your answer has been closed, and that buyer has been told."
+        : `${closed} purchase requests that were waiting for your answer have been closed, and those buyers have been told.`
+    );
+  }
+  if (accepted > 0) {
+    parts.push(
+      accepted === 1
+        ? "Your accepted purchase request is unaffected and still stands."
+        : `Your ${accepted} accepted purchase requests are unaffected and still stand.`
+    );
+  }
+  return parts.join(" ");
 }

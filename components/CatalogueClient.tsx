@@ -137,6 +137,10 @@ type MyOfferRow = {
   id: string;
   listing_id: string | null; // stable grouping key even when the join is denied
   status: string; // raw DB value; narrowed via STATUS_LABELS at render time
+  // Stage 6A — WHY a closed request closed, kept separate from WHAT it closed
+  // into. Null on an open request, and null on a cancelled one whose cause was
+  // never recorded; both render without attributing the closure to anyone.
+  closure_cause: string | null;
   proposed_purchase_price: number | null;
   listing_price: number | null;
   // Stage A snapshot — the offer's currency AT SUBMISSION (null pre-Stage-B).
@@ -171,8 +175,11 @@ type MyOffersState =
 // grey to the seller; declined read muted to the buyer and red to the seller.)
 type OfferTone = "pending" | "accepted" | "declined" | "withdrawn" | "ghost";
 
+// 'cancelled' is deliberately absent: it is the one status whose copy cannot
+// be decided from the status alone. See CLOSURE_LABELS below. The Exclude<>
+// is what makes that a compile error rather than a convention.
 const STATUS_LABELS: Record<
-  OfferStatus,
+  Exclude<OfferStatus, "cancelled">,
   { label: string; note: string; tone: OfferTone }
 > = {
   pending: {
@@ -200,25 +207,63 @@ const STATUS_LABELS: Record<
     note: "This request expired before it was answered.",
     tone: "ghost",
   },
-  // Public vocabulary law (Withdraw Offer v4): the buyer-facing status is
-  // "Withdrawn"; 'cancelled' is internal database vocabulary only.
-  cancelled: {
+};
+
+/* ── Closure attribution (Stage 6A) ───────────────────────────────────────
+   'cancelled' is a LIFECYCLE STATE. It is not an actor, and two different
+   people can cause it.
+
+   Until Stage 6A the buyer was told, under every cancelled offer, "You
+   withdrew this offer." — including when the seller had taken the watch off
+   the market and closed the request from the other side. The sentence was in
+   the first person about something the buyer had not done.
+
+   Public vocabulary law (Withdraw Offer v4) still holds for the case it was
+   written about: a buyer's own withdrawal reads "Withdrawn", never
+   'cancelled'. It simply is no longer the only case. */
+const CLOSURE_LABELS: Record<
+  string,
+  { label: string; note: string; tone: OfferTone }
+> = {
+  buyer_withdrew: {
     label: "Withdrawn",
     note: "You withdrew this offer.",
     tone: "withdrawn",
+  },
+  // Same family as superseded — the watch is gone and the buyer did nothing
+  // wrong — so it carries the same quiet tone rather than the withdrawn one.
+  listing_removed_by_seller: {
+    label: "Listing removed",
+    note: "The seller removed this listing. Your request is no longer active.",
+    tone: "ghost",
   },
 };
 
 // Any unrecognized status fails to a neutral, non-misleading descriptor rather
 // than rendering nothing (schema honesty: a new DB status must never silently
 // vanish from the buyer's view).
-function offerLabel(status: string): {
+function offerLabel(
+  status: string,
+  closureCause?: string | null
+): {
   label: string;
   note: string;
   tone: OfferTone;
 } {
+  if (status === "cancelled") {
+    const attributed = closureCause ? CLOSURE_LABELS[closureCause] : undefined;
+    if (attributed) return attributed;
+    /* Cause not recorded — a closure that predates attribution, deliberately
+       left unfilled by the Stage 6A backfill rather than guessed. Neutral and
+       true: it is closed, and we do not claim who closed it. */
+    return {
+      label: "Closed",
+      note: "This request is no longer active.",
+      tone: "ghost" as const,
+    };
+  }
   return (
-    STATUS_LABELS[status as OfferStatus] ?? {
+    STATUS_LABELS[status as Exclude<OfferStatus, "cancelled">] ?? {
       label: status,
       note: "",
       tone: "ghost" as const,
@@ -419,7 +464,7 @@ function relativeTime(iso: string): string {
 // fully readable — each row still answers Offer Amount / Status / When, with no
 // repeated watch identity.
 function HistoryRow({ offer }: { offer: MyOfferRow }) {
-  const { label } = offerLabel(offer.status);
+  const { label } = offerLabel(offer.status, offer.closure_cause);
   const price = offerPrice(offer);
   const when = relativeTime(offer.created_at);
   return (
@@ -443,7 +488,7 @@ function WatchOfferGroup({
   onRequestWithdraw: (requestId: string, trigger: HTMLElement | null) => void;
 }) {
   const { listing: l, current, history } = group;
-  const { label, note, tone } = offerLabel(current.status);
+  const { label, note, tone } = offerLabel(current.status, current.closure_cause);
   // Identity prefers the live joined listing; when RLS denies it (a reserved
   // listing hidden from an unsuccessful buyer), fall back to the request's own
   // authoritative snapshot so the watch identity is never lost — only the
@@ -862,7 +907,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          "id, listing_id, status, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
+          "id, listing_id, status, closure_cause, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
@@ -877,6 +922,7 @@ export default function CatalogueClient({
           id: string;
           listing_id: string | null;
           status: string;
+          closure_cause: string | null;
           proposed_purchase_price: number | null;
           listing_price: number | null;
           proposed_currency: string | null;
@@ -890,6 +936,7 @@ export default function CatalogueClient({
           id: row.id,
           listing_id: row.listing_id,
           status: row.status,
+          closure_cause: row.closure_cause ?? null,
           proposed_purchase_price: row.proposed_purchase_price,
           listing_price: row.listing_price,
           proposed_currency: row.proposed_currency,

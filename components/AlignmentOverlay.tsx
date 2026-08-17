@@ -87,7 +87,7 @@ function Silhouette({ variant }: { variant: OverlayVariant }) {
         </>
       );
     case "clasp":
-      // Pin buckle (Layout Duck's read, slimmed for the lens): the fastening
+      // Pin buckle (slimmed for the lens): the fastening
       // hardware is the hero — frame + prong, strap threading through with its
       // holes. Reads "photograph the closure" far clearer than a deployant box.
       return (

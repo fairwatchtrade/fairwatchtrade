@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, type CSSProperties, type PointerEvent }
    active chapter needs them (`details`); the one-minute track exists but is
    never shown. Single-focus, informative, never the hero.
 
-   Locked rotation spec (Layout Duck's Step-III gate): yaw ±30°, pitch ±16°,
+   Locked rotation spec (the Step-III gate): yaw ±30°, pitch ±16°,
    8px threshold, holds on release — no inertia, no auto-return, no bounce, no
    handle/hint/cursor/copy. The papers never rotate.
 

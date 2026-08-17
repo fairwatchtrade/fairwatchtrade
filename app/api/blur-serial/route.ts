@@ -7,7 +7,7 @@ import { createHash } from "crypto";
    BLUR SERIAL — app/api/blur-serial/route.ts   (v2.2 · Phase 5)
 
    Silent privacy processing on serial-adjacent photos. Position-based blur
-   per the locked GPT ruling — no fake detection:
+   per the locked ruling — no fake detection:
      · Caseback        → bottom-center region (typical engraving zone)
      · Non-Crown Side  → center horizontal band (case-side serials)
      · everything else → untouched, returned as-is

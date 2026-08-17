@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
    WIZARD SESSION — app/api/wizard-session/route.ts   (v2.2)
 
    The In Hand Verified session ledger. One row per guided capture session:
-   device-bound (device_session_token, held in localStorage per the GPT
+   device-bound (device_session_token, held in localStorage per the locked
    ruling), seller-bound (derived from auth — NEVER trusted from the client),
    and time-bound (2 hours of inactivity → expired).
 

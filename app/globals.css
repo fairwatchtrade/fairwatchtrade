@@ -216,6 +216,14 @@ html[data-theme="dark"] { color-scheme: dark; }
   --lc-reserved-line:        light-dark(rgba(110,90,37,0.55), rgba(228,216,188,0.62));
   --lc-reserved-wash:        light-dark(var(--state-wash), rgba(228,216,188,0.05));
   --lc-reserved-badge:       light-dark(#6E5A25, #EFE4CB);
+  /* Removed — the seller took the watch off the market. A settled state, not
+     a failed one, so it must not borrow rejected's red or draft's gold. A warm
+     neutral, deliberately off the blue-grey of pending_review so the two never
+     read as the same badge at a glance. Quiet, never invisible: both arms
+     clear AA against their own surface. */
+  --lc-removed-line:         light-dark(rgba(107,101,92,0.42), rgba(169,162,150,0.34));
+  --lc-removed-wash:         light-dark(var(--state-wash), rgba(169,162,150,0.04));
+  --lc-removed-badge:        light-dark(#6B655C, #A9A296);
   --lc-neutral-line:         var(--border-subtle);
   --lc-attn-edge:            light-dark(#2C7F88, #58B4BE);
   --lc-select-line:          light-dark(rgba(37,35,31,0.30), rgba(232,228,220,0.30));

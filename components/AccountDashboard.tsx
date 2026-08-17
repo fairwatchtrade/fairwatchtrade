@@ -115,6 +115,14 @@ export type AccountListing = {
   /** Seller-facing rejection reason. Fetched since the adverse-decision
       flight — before that a founder could write one only dealers could read. */
   rejection_reason?: string | null;
+  /** Listing lifecycle Stage 6 — the seller took this watch off the market.
+      Removed is a LIVE state in the seller's own workspace, not a graveyard:
+      the listing is still theirs and keeps every byte of its data, and only
+      its public availability ended. Optional because every surface that
+      predates Stage 6 must keep rendering without them. */
+  removed_at?: string | null;
+  removal_reason_code?: string | null;
+  removal_reason_note?: string | null;
 };
 
 /** One recorded adjudication decision, seller-visible fields only. The
@@ -268,6 +276,10 @@ type PurchaseRequestSummary = {
   // seller's view. 'cancelled' renders as "Withdrawn" (public terminology,
   // v2.86); the DB word stays internal.
   status: "pending" | "accepted" | "declined" | "expired" | "cancelled" | "superseded";
+  // Stage 6A — 'cancelled' says the request closed, not who closed it. A
+  // request the seller closed by removing the listing must not read back to
+  // them as the buyer having withdrawn.
+  closure_cause: string | null;
   created_at: string;
   listings: PurchaseRequestListing | PurchaseRequestListing[] | null;
 };
@@ -896,6 +908,30 @@ function RequestsView({
     superseded: "superseded",
   };
 
+  /* Stage 6A — the seller's half of closure attribution. When they take a
+     watch off the market the pending requests close as a consequence of
+     their own action; reporting those back as "withdrawn" would credit the
+     buyer with a decision the seller made. Cause is authoritative when
+     present; status is the fallback, and an unattributed old closure reads
+     plainly as "closed" rather than guessing. */
+  function requestLabel(r: PurchaseRequestSummary): string {
+    if (r.status === "cancelled") {
+      if (r.closure_cause === "listing_removed_by_seller") return "closed on removal";
+      if (r.closure_cause === "buyer_withdrew") return "withdrawn";
+      return "closed";
+    }
+    return STATUS_LABEL[r.status] ?? r.status;
+  }
+
+  function requestColor(r: PurchaseRequestSummary): string {
+    // A closure the seller caused sits in the quiet terminal tier with
+    // superseded, not in the louder Withdrawn slate.
+    if (r.status === "cancelled" && r.closure_cause === "listing_removed_by_seller") {
+      return "var(--muted)";
+    }
+    return STATUS_COLOR[r.status] ?? "var(--muted)";
+  }
+
   async function act(id: string, status: "accepted" | "declined") {
     setBusyId(id);
     setActionError(null);
@@ -1028,9 +1064,9 @@ function RequestsView({
                         className="shrink-0 text-[11px] uppercase tracking-[1.2px]"
                         // Unmapped status: readable neutral, not placeholder
                         // grey — a new DB state must never arrive invisible.
-                        style={{ color: STATUS_COLOR[r.status] ?? "var(--muted)" }}
+                        style={{ color: requestColor(r) }}
                       >
-                        {STATUS_LABEL[r.status] ?? r.status}
+                        {requestLabel(r)}
                       </span>
                     </div>
                     {/* Gated on the RESOLVED reference, not on the embed.
@@ -1250,7 +1286,7 @@ export default function AccountDashboard({
         .select(
           `id, listing_id, listing_brand, listing_model, listing_reference,
            proposed_purchase_price, listing_price, proposed_currency, listing_currency,
-           shipping_terms, included_items, notes, status, created_at,
+           shipping_terms, included_items, notes, status, closure_cause, created_at,
            listings ( brand, model, reference, photos )`
         )
         .eq("seller_id", user.id)
@@ -1454,6 +1490,10 @@ export default function AccountDashboard({
                   threadsLoaded={threadsLoaded}
                   onSubmitForReview={submitForReview}
                   onOpenImportedDrafts={() => selectModule("accelerator")}
+                  onRemoved={() => {
+                    router.refresh();
+                    refreshRequests();
+                  }}
                   submittingId={submittingId}
                   submitErrorId={submitErrorId}
                   submitErrorMsg={submitErrorMsg}
@@ -1489,6 +1529,10 @@ export default function AccountDashboard({
                     threadsLoaded={threadsLoaded}
                     onSubmitForReview={submitForReview}
                     onOpenImportedDrafts={() => selectModule("accelerator")}
+                  onRemoved={() => {
+                    router.refresh();
+                    refreshRequests();
+                  }}
                     submittingId={submittingId}
                     submitErrorId={submitErrorId}
                     submitErrorMsg={submitErrorMsg}

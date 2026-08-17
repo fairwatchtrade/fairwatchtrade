@@ -10,9 +10,17 @@
    labels, the writable set, and the design-token key each surface uses to reach
    the Hybrid C colours defined in app/globals.css.
 
-   The five proven values live in listings.status (plain text — there is NO db
-   CHECK; the admin status route is the write-time guard). 'reserved' is written
-   only by the offer-accept RPC and shows to sellers as "Sale Pending".
+   ⚠ THE "NO DB CHECK" NOTE THAT USED TO STAND HERE IS NO LONGER TRUE. The
+   listing lifecycle Stage 1 migration added listings_status_lifecycle, a CHECK
+   over exactly the six states below. The admin status route is still the
+   write-time guard for the founder path, but it is no longer the only thing
+   between a typo and the column.
+
+   'reserved' is written only by the offer-accept RPC and shows to sellers as
+   "Sale Pending". 'removed' is written only by remove_listing() — the seller
+   took the watch off the market, and the listing stays theirs with all its
+   data; only its public availability ended. Both are absent from
+   WRITABLE_STATUSES because neither is a founder adjudication.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -24,6 +32,7 @@ export const LIFECYCLE_STATUSES = [
   "published",
   "rejected",
   "reserved",
+  "removed",
 ] as const;
 
 export type LifecycleStatus = (typeof LIFECYCLE_STATUSES)[number];
@@ -58,6 +67,7 @@ const STATUS_LABELS: Record<LifecycleStatus, string> = {
   published: "Published",
   rejected: "Rejected",
   reserved: "Sale Pending",
+  removed: "Removed",
 };
 
 export function sellerLabel(status: string): string {

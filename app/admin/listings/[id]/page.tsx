@@ -77,6 +77,40 @@ type MediaRow = {
   capture_source: string;
 };
 
+/* One purchase request on this listing, as the founder needs to read it:
+   the state AND the attribution, never the state alone. buyer_id is
+   deliberately not selected — this panel answers "what happened to this
+   listing", and naming the buyers is not part of that question. */
+type LifecycleRequest = {
+  id: string;
+  status: string;
+  closure_cause: string | null;
+  proposed_purchase_price: number | null;
+  proposed_currency: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+/* The founder-facing sentence for each closure. Distinct from the seller's
+   and the buyer's wording on purpose: this surface is diagnostic, so it names
+   the actor plainly rather than softening it, and an unattributed legacy
+   closure is shown AS unattributed instead of being guessed. */
+function closureSentence(r: LifecycleRequest): string {
+  if (r.status !== "cancelled") return "";
+  if (r.closure_cause === "buyer_withdrew") return "closed by the buyer";
+  if (r.closure_cause === "listing_removed_by_seller")
+    return "closed by the seller removing the listing";
+  return "closed — cause not recorded";
+}
+
+const REMOVAL_REASON: Record<string, string> = {
+  sold_in_store: "Sold in store",
+  sold_elsewhere: "Sold elsewhere",
+  no_longer_for_sale: "No longer for sale",
+  listing_mistake: "Mistake in the listing",
+  other: "Other",
+};
+
 const EXEC_LABEL: Record<PanelPhotoState, { label: string; tone: "ok" | "hold" | "danger" | "" }> = {
   full: { label: "Completed · review suggested", tone: "hold" },
   partial: { label: "Completed · review suggested", tone: "hold" },
@@ -196,6 +230,11 @@ export default async function ListingReviewPage({
         right after a decision on THIS listing changes its status. ── */
   let nextPending: { id: string; brand: string; model: string } | null = null;
   let pendingCount = 0;
+  /* Stage 6 — every purchase request this listing ever carried, with WHY each
+     closed. Read through the service client for the same reason the listing
+     is: the founder is not a party to these requests and RLS would correctly
+     hide them from an ordinary session. */
+  let lifecycleRequests: LifecycleRequest[] = [];
   try {
     const service = createServiceClient();
     const { data } = await service.from("listings").select("*").eq("id", id).maybeSingle();
@@ -222,6 +261,15 @@ export default async function ListingReviewPage({
           after the gate above, only when the listing exists. A failure in
           any of these degrades to an empty panel, never a broken page. ── */
     if (listing) {
+      const { data: requestRows } = await service
+        .from("purchase_requests")
+        .select(
+          "id, status, closure_cause, proposed_purchase_price, proposed_currency, created_at, updated_at"
+        )
+        .eq("listing_id", id)
+        .order("created_at", { ascending: false });
+      lifecycleRequests = (requestRows ?? []) as LifecycleRequest[];
+
       const { data: mediaRows } = await service
         .from("listing_media")
         .select("id, storage_path, capture_session_id, category, capture_source")
@@ -367,6 +415,137 @@ export default async function ListingReviewPage({
         {/* Founder-only status controls (client). Replaces the old
             "Coming Soon" placeholder. */}
         <ListingStatusControls listingId={id} currentStatus={currentStatus} />
+
+        {/* Stage 6 · Lifecycle — what happened to this listing and to the
+            requests it carried. Placed above the evidence panel because it
+            answers the first question the founder asks about a listing that
+            is no longer live: who took it off, why, and what that did to the
+            people who were mid-conversation about it.
+
+            This exists because the facts alone were already in the raw record
+            below and were unreadable there — a removal reason and a closure
+            cause sitting as two more rows in an alphabetical key/value dump
+            is storage, not a lifecycle view. */}
+        <div
+          style={{
+            border: "1px solid #2A2F3A",
+            background: "#15181E",
+            padding: "14px 16px",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              color: "#E0A83C",
+              fontSize: 11,
+              letterSpacing: 1.6,
+              textTransform: "uppercase",
+              marginBottom: 10,
+            }}
+          >
+            Lifecycle
+          </div>
+
+          {currentStatus === "removed" ? (
+            <div style={{ fontSize: 13, color: "#C6CCD8", lineHeight: 1.6 }}>
+              The seller took this watch off the market
+              {typeof listing.removed_at === "string"
+                ? ` on ${new Date(listing.removed_at).toLocaleString("en-US")}`
+                : ""}
+              .
+              <div style={{ color: "#8b93a1", marginTop: 4 }}>
+                Reason:{" "}
+                <span style={{ color: "#C6CCD8" }}>
+                  {typeof listing.removal_reason_code === "string"
+                    ? (REMOVAL_REASON[listing.removal_reason_code] ??
+                      listing.removal_reason_code)
+                    : "not recorded"}
+                </span>
+                {typeof listing.removal_reason_note === "string" &&
+                listing.removal_reason_note.trim() !== "" ? (
+                  <span style={{ color: "#C6CCD8" }}>
+                    {" "}
+                    — {listing.removal_reason_note}
+                  </span>
+                ) : null}
+              </div>
+              {/* The single most misreadable fact on this page, so it is
+                  stated rather than left to be inferred from an absence. */}
+              <div style={{ color: "#8b93a1", marginTop: 6, fontSize: 12 }}>
+                No transaction was written. A removal records why the watch left
+                the market, never that FairWatchTrade sold it.
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#8b93a1" }}>
+              This listing is {currentStatus} — it has not been removed.
+            </div>
+          )}
+
+          <div
+            style={{
+              color: "#8b93a1",
+              fontSize: 11,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              margin: "16px 0 8px",
+            }}
+          >
+            Purchase requests ({lifecycleRequests.length})
+          </div>
+
+          {lifecycleRequests.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#565f89" }}>
+              No purchase request was ever made on this listing.
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <tbody>
+                {lifecycleRequests.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: "1px solid #23272f" }}>
+                    <td style={{ padding: "6px 8px 6px 0", color: "#8b93a1", width: 150 }}>
+                      {new Date(r.created_at).toLocaleDateString("en-US")}
+                    </td>
+                    <td style={{ padding: "6px 8px", color: "#C6CCD8", width: 130 }}>
+                      {r.proposed_purchase_price != null
+                        ? `${r.proposed_purchase_price.toLocaleString("en-US")}${
+                            r.proposed_currency ? ` ${r.proposed_currency}` : ""
+                          }`
+                        : "—"}
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <span
+                        style={{
+                          color:
+                            r.status === "accepted"
+                              ? "#70C090"
+                              : r.status === "pending"
+                                ? "#E0A83C"
+                                : "#8b93a1",
+                        }}
+                      >
+                        {r.status}
+                      </span>
+                      {closureSentence(r) && (
+                        <span style={{ color: "#565f89" }}> · {closureSentence(r)}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* Accepted requests survive a removal by design, and that is the
+              thing most likely to look like a bug from this page. */}
+          {currentStatus === "removed" &&
+            lifecycleRequests.some((r) => r.status === "accepted") && (
+              <div style={{ marginTop: 10, fontSize: 12, color: "#70C090", lineHeight: 1.6 }}>
+                An accepted request survives removal deliberately — the seller
+                cannot walk away from an agreed deal by taking the listing down.
+              </div>
+            )}
+        </div>
 
         {/* v2.24 · The Aubrey Check evidence panel — Design Gate placement:
             between the status controls and the raw record. */}
