@@ -16,6 +16,23 @@ reading a comment anywhere in this codebase that says dealer intake is
 deliberately absent, it is stale — check git history for v5.49 before acting on
 it.
 
+The full journey — connect, authorize, prepare unattended, recover a real
+source defect, submit, review, publish, notify — was proven against production
+by a real dealer account on 2026-08-17. The step-by-step record is under
+[What IS now proven](#what-is-now-proven-the-whole-journey-in-production).
+
+**Where to look first, by symptom:**
+
+| Symptom | Section |
+|---|---|
+| A run is stuck and nothing advances it | The worker continues; it never initiates |
+| A dealer reconnected and work looks duplicated or lost | Source lineage vs authorization episode |
+| One watch failed on its photographs | TRY AGAIN — dealer-initiated photograph retry |
+| The room shows a run that is not the real one | The room shows the run, not merely the newest row |
+| A notification never arrived | Lifecycle notifications (the index is partial) |
+| A function suddenly reachable by clients | ⚠ Creating a function in this schema PUBLISHES it |
+| Someone proposes six confirmations again | The three confirmations are a server requirement |
+
 ---
 
 ## Who can start an ingestion
@@ -31,6 +48,7 @@ What changed is that a second, dealer-facing entrance now exists beside them:
 |---|---|---|
 | `app/api/admin/dealer-accelerator/{manifest-run,materialize,import}` | founder only | hardcoded UID literal per file |
 | `app/api/dealer-accelerator/{check-website,connect,start,state}` | any authenticated seller, scoped to their own rows | session + ownership re-proven from the stored row |
+| `app/api/dealer-accelerator/retry-item` | the item's own dealer | ownership enforced **in the database**, dealer-only by construction |
 | `app/api/dealer-accelerator/worker` | the database's scheduler | bearer token validated *inside* Postgres |
 
 **The founder gate was never in the database.** `dealer_accelerator_authorize_source`
@@ -43,6 +61,10 @@ grant `service_role` nothing but `SELECT`, and every write still goes through a
 If you are tempted to expose these tables to `authenticated` to save writing a
 route: don't. The server-side filter to the caller's own id *is* the security
 boundary.
+
+**The scheduler is not an entrance.** It may only *continue* a run a dealer
+started — see "The worker continues; it never initiates". Nothing automatic in
+this system can bring a batch into existence.
 
 ---
 
@@ -384,21 +406,49 @@ written; nothing was deleted. All 12 listings, 12 source items, 24 photographs
 and 24 `dealer_import` provenance rows survive, because every FK in this chain
 is `ON DELETE RESTRICT` and a state change structurally cannot remove them.
 
-### What IS now proven: the dealer's own half
+### What IS now proven: the whole journey, in production
 
-The **porch proof** (2026-08-15) closed the question the paragraph above used
-to leave open. Working from a dealer account — not the founder's — a real
-person opened an imported draft in the UI, set availability, made the
-attestation, and submitted it. The listing moved `draft → pending_review`,
-nothing auto-approved, nothing published, and every sibling draft kept its
-original timestamps.
+The **porch proof** (2026-08-15) proved the dealer's second half — opening an
+imported draft, setting availability, attesting, submitting. It left one
+sentence standing: *a dealer cannot start an import.* That sentence died on
+2026-08-17.
 
 `DEALER_ACCELERATOR_PORCH_END_TO_END_PROVEN`
+`DEALER_ACCELERATOR_FULL_DEALER_JOURNEY_PROVEN` — 2026-08-17
 
-So the boundary now sits in one place, precisely: **a dealer cannot start an
-import, but a dealer can carry an imported draft the rest of the way
-themselves.** Both halves of that sentence are load-bearing; do not collapse
-it into either "the dealer path works" or "nothing is proven."
+Every seam below was exercised by a real dealer account against production,
+in one continuous session. It is recorded step by step because the *shape* of
+the walk is the specification: each line is a thing that can regress.
+
+| # | Step | Durable proof |
+|---|---|---|
+| 1 | Dealer opens **Dealer Accelerator** from the rail | — |
+| 2 | Types their own website, no manifest URL | discovery document resolved |
+| 3 | Attests, authorizes their **own** source | `source_authorized` · `authorized_by = dealer` |
+| 4 | Confirmation screen counts | 13 found · 12 already prepared · 1 to prepare |
+| 5 | Starts preparation, **closes the tab** | worker advanced it unattended |
+| 6 | 12 recognized, not re-created | 12 × `item_materialization_adopted` |
+| 7 | 1 watch genuinely fails | both photographs 404 → `retrieval_terminal` |
+| 8 | Blocked truthfully, nothing invented | `photograph_evidence_incomplete` |
+| 9 | Dealer fixes their website, presses **Try Again** | `photograph_retry_requested:dealer` |
+| 10 | Photographs retrieved, draft created | `item_draft_created` — 2s later |
+| 11 | Confirms, presses **Submit once** (no Save) | edits persisted, then validated |
+| 12 | Attestation stamped | fingerprint `1248f02f…`, 3 acts, `fingerprint_matches = true` |
+| 13 | Appears in founder review queue | `/admin/dealer-accelerator` |
+| 14 | Founder approves → published | `approved · pending_review → published` |
+| 15 | Dealer told in-app | `listing_published`, `da_decision:17` |
+| 16 | Listing is publicly live | `/listings/<id>` returns 200 |
+
+Final state: **13 listings, zero duplicates, 5 batches** — no batch, source, or
+authorization episode created by anything other than a deliberate human act.
+
+**No SQL, no hidden route, no manual backend step appears anywhere in the
+dealer's path.** That is the completion boundary, and it is met.
+
+What that does *not* mean: the historical rows predating v5.49 are still
+founder-authorized and still prove nothing about the entrance. Check
+`authorized_by` against `dealer_profile_id` before citing any row as evidence
+of dealer self-service.
 
 ```sql
 select s.id, s.dealer_profile_id, s.authorized_by,
@@ -437,11 +487,23 @@ select count(*) as imported_media,
 from listing_media where capture_source = 'dealer_import';
 ```
 
-Is a self-serve intake seam present yet? (Expect zero until one is built.)
+Has any dealer authorized their own source, or is every row still
+founder-authorized? This is the one query that distinguishes "the machinery
+ran" from "the dealer entrance works":
 
 ```sql
-select table_name from information_schema.tables
-where table_schema = 'public' and table_name like '%intake%';
+select s.id, s.authorization_state,
+       (s.authorized_by = s.dealer_profile_id) as self_authorized,
+       s.source_lineage_key
+from dealer_accelerator_sources s
+order by s.created_at;
+```
+
+Which runs may the worker still advance? (Empty means nothing is in flight —
+the normal resting state.)
+
+```sql
+select * from dealer_accelerator_advanceable_batches(10);
 ```
 
 *(No counts are written into this file on purpose — they are true for a day
@@ -473,6 +535,28 @@ What genuinely remains unbuilt:
   Not yet built.
 - **No CSV source.** `source_type` allows `static_csv_manifest`; nothing
   implements it.
+- **No imported availability.** Traced end to end on 2026-08-17 and worth
+  recording, because it looks like a data-preservation defect and is not. The
+  manifest convention defines **no availability field**, the TCI source supplies
+  none, preflight would carry an unknown property through as unread payload
+  bytes, extraction reads only brand/reference/photograph categories, and no
+  function in the `dealer_%` family mentions availability at all. So nothing is
+  discarded — there is nothing to discard, and the dealer is correctly required
+  to assert it. The governing rule (*explicit source availability → preserve it;
+  missing or ambiguous → require dealer input; never infer it merely because a
+  watch appears on a dealer website*) is honoured, with its first clause
+  currently **unimplementable rather than unimplemented**. Making it real means
+  growing the manifest convention with a declared availability vocabulary and
+  mapping it onto the locked two-value product vocabulary — and that interacts
+  with attestation design, since availability is deliberately one of the facts
+  only the dealer may assert.
+- **No replay/backfill of missed notifications.** `emit_listing_removal_…` and
+  `emit_listing_deletion_…` are idempotent emitters keyed off durable event ids,
+  but they cover purchase requests and removals — there is no equivalent for
+  submissions or decisions. One notice was genuinely lost on 2026-08-17 (see
+  Lifecycle notifications). It was deliberately **not** backfilled: fabricating a
+  notice for an event already past would write a false "we told you" into the
+  record. Delivery was proven instead on the next genuine action.
 
 Before "finishing" any of these, find out which flight sealed it and why.
 
@@ -630,9 +714,33 @@ nobody has to re-derive it:
 ## Lifecycle notifications
 
 Five moments, all derived from committed durable state, all **exactly once** by
-construction — `notifications.dedupe_key` carries a UNIQUE index and every
-insert is `ON CONFLICT DO NOTHING` against a key derived from the fact itself.
-Replay and retry cannot spam a dealer.
+construction — `notifications.dedupe_key` carries a unique index and every
+insert conflicts against a key derived from the fact itself. Replay and retry
+cannot spam a dealer.
+
+> **⚠ THE INDEX IS PARTIAL. THE INFERENCE CLAUSE MUST SAY SO.**
+>
+> ```sql
+> CREATE UNIQUE INDEX notifications_dedupe_key_uniq ON public.notifications
+>   (dedupe_key) WHERE (dedupe_key IS NOT NULL)
+> ```
+>
+> Every insert must therefore read:
+>
+> ```sql
+> ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+> ```
+>
+> A bare `ON CONFLICT (dedupe_key)` raises **42P10** — *"there is no unique or
+> exclusion constraint matching the ON CONFLICT specification"* — and the
+> fail-open handler below turns that into silence. All three triggers shipped
+> with the bare form in v5.50, so for twelve days **not one of these five
+> messages could be delivered at all**, and nothing said so. It surfaced only
+> when a real dealer submitted a real watch and no notice arrived.
+>
+> `emit_listing_removal_notifications` and `emit_listing_deletion_notifications`
+> already had the correct form. The house pattern existed; the defect was not
+> following it.
 
 | Moment | Source of truth | Dedupe key |
 |---|---|---|
@@ -642,10 +750,24 @@ Replay and retry cannot spam a dealer.
 
 Two properties worth not breaking:
 
-- **Every trigger fails OPEN.** The bodies are wrapped so a fault loses the
-  notification, never the event it describes. A dealer who cannot be told their
-  listing was published must still have it published — the same reasoning as
-  `log_dealer_submission_event`.
+- **Every trigger fails OPEN, but no longer in silence.** The bodies are
+  wrapped so a fault loses the notification, never the event it describes — a
+  dealer who cannot be told their listing was published must still have it
+  published, the same reasoning as `log_dealer_submission_event`. Since v5.62
+  each handler `RAISE WARNING`s before swallowing. A warning aborts nothing and
+  lands in the Postgres logs, so a broken notification path cannot hide for
+  twelve days again:
+
+  ```sql
+  select timestamp, event_message from logs
+   where source = 'postgres_logs'
+     and event_message like '%dealer_accelerator notification skipped%'
+   order by timestamp desc;
+  ```
+
+  Beware one false positive: the v5.62 migration's own SQL text contains that
+  phrase inside a string literal, so a statement log can match it. A real fault
+  also carries `sqlstate=`.
 - **Imported listings only.** Ordinary sellers' notification behaviour is
   deliberately unchanged. Extending these to every seller is a reasonable
   improvement and a separate product decision.
@@ -653,6 +775,186 @@ Two properties worth not breaking:
 The submitted key includes the attestation instant on purpose: a genuine
 resubmission after a rejection notifies again, while a replay of the same
 transition does not.
+
+---
+
+## The worker continues; it never initiates
+
+**The misconception this section exists to kill:** that "this batch has
+unfinished items" is the same as "the worker may advance it."
+
+A batch has **two phases**, and its status only describes the first. Discovery
+finishing does not mean the run is done — items may still be awaiting
+materialization behind a `completed` batch. But the reverse trap is worse: an
+idle historical batch also "has unfinished items," and treating that as work
+made the worker start *new* preparation nobody asked for.
+
+Both mistakes happened in one evening. The predicate was written in three
+places and agreed in two:
+
+```
+the room        !settled || stillProcessing > 0        correct
+worker_tick()   status in (queued,running,…)           WRONG — missed phase two
+worker route    status in (queued,running,…)           WRONG — same
+```
+
+pg_cron fired thirteen times, every run succeeded, and twelve items sat
+stranded because the tick could not see them. Then, once it could, it was
+handed the founder's idle 2026-08-08 batch, re-resolved the *current* discovery
+document, and **created a brand-new batch on the founder's source**.
+
+There is now **one definition**, and neither caller restates it:
+
+```sql
+select * from public.dealer_accelerator_advanceable_batches(10);
+```
+
+Two rules it encodes, both load-bearing:
+
+- **Only a run a DEALER explicitly started may be continued.** The seam already
+  existed — `transition_batch` writes `batch_started` with the actor kind.
+  `batch_started:dealer` means a dealer asked for the whole run in the room;
+  `batch_started:founder` means a founder invoked one bounded slice by hand,
+  which is a request for that slice, not standing permission for a background
+  process to finish the rest.
+- **`cancelled` and `failed` runs are excluded.** Their leftover items are not
+  pending work; they are work that was called off.
+
+And the worker passes the candidate **`batch_id` *and* that batch's own
+`source_snapshot_key`** into `advancePreparation`. The snapshot key is the pin:
+pass the freshly resolved document's version instead and `create_or_get_batch`
+mints a new batch whenever the dealer has bumped their inventory. If a slice
+ever reports a different batch id than the one pinned, the call refuses with
+`continuation_batch_diverged` rather than adopting it.
+
+> ⚠ Do not reintroduce a status filter in the worker route or the tick.
+> Ask the function.
+
+### Diagnosing a stalled run, in the order that narrows it
+
+```sql
+-- 1. is the schedule alive?
+select status, start_time from cron.job_run_details
+ where jobid = (select jobid from cron.job where jobname='dealer-accelerator-worker')
+ order by start_time desc limit 10;
+
+-- 2. did the tick decide there was work, and did the call land?
+select status_code, timed_out, error_msg, left(content,80), created
+  from net._http_response order by created desc limit 10;
+
+-- 3. does the shared definition agree there is work?
+select * from public.dealer_accelerator_advanceable_batches(10);
+```
+
+Successful cron runs with **no** HTTP responses means the tick saw no work. If
+(3) returns rows while (2) is empty, the tick and the definition have drifted
+apart again — the exact bug this design exists to prevent.
+
+---
+
+## TRY AGAIN — dealer-initiated photograph retry
+
+A watch whose photographs 404 is blocked truthfully and **cannot** be recovered
+by re-running: the batch is terminal, the item is `blocked`, the photographs are
+`retrieval_terminal`, and a same-content snapshot bump is refused outright by
+`observation_hash_conflict` (see below). Before v5.59 the dealer had no path at
+all for a single bad photograph.
+
+```
+dealer presses Try Again on ONE Needs Attention item
+  → dealer_accelerator_retry_item_photographs
+      re-arms ONLY that item's failed/terminal photographs → 'declared'
+      writes photograph_retry_requested (the prior failure events stay put)
+  → retryItemPhotographs  (lib/dealer/manifestAdapter.ts)
+      pinned connection · governed origins · magic bytes · create-only archive
+      · the SAME retrieval RPCs a worker fetch uses
+  → materializeOneItem — the ordinary path
+      evidence complete → ready → draft
+      still failing     → re-blocked with the new, truthful reason
+```
+
+**Terminality is not weakened for machines.** The worker's slice still selects
+`declared`/`retrieval_failed` only; nothing automatic will ever touch a terminal
+photograph. Terminality exists to stop unattended retry loops, not to forbid the
+inventory's owner from saying "I fixed it, look again."
+
+That distinction is **structural, not a promise**: the re-arm function has *no
+actor-kind parameter*. It can record a dealer or nobody, it refuses non-owners,
+and it refuses items that are not blocked. A worker cannot invoke it by mistake
+because it cannot be anyone but the dealer.
+
+The history reads in full afterwards:
+
+```sql
+select created_at, event_type, actor_kind, reason_code
+  from dealer_accelerator_lifecycle_events
+ where batch_item_id = '<item>' order by id;
+-- declared → retrieval_failed/terminal → photograph_retry_requested:dealer
+--   → photograph_retrieved → item_readied → item_draft_created
+```
+
+### ⚠ Why a snapshot bump is NOT the recovery lever
+
+Tempting and wrong. `record_observation` identifies an observation by
+`(source_item_id, observation_hash)` and refuses unless `observed_at`,
+`adapter_version`, `source_version`, `snapshot_identity` and `continuity_state`
+all match. Fixing photographs does not change the manifest, so bumping the
+declared version produces *identical content claiming a different snapshot* —
+`observation_hash_conflict`, correctly.
+
+Two observations of the same content **can** coexist across different
+authorization episodes, because those hang off different `source_item_id`s. They
+cannot coexist within one source. If the content did not change, it is the same
+observation, and the label claiming otherwise is the lie.
+
+---
+
+## The room shows the run, not merely the newest row
+
+`buildDealerAcceleratorState` picks the newest batch that is **not cancelled**,
+and computes `advanceable` with the same rule as
+`dealer_accelerator_advanceable_batches`.
+
+Both halves were once wrong together, and the result was convincing fiction: a
+dealer's cancelled batch (1 item, dead) shadowed the real run holding 12 drafts
+and one Needs Attention item, while its leftover `discovered` item counted as
+live work — so the room rendered **"Preparing… 1 watch"** and polled a run that
+nothing would ever advance. The Try Again button was in the deployed bundle the
+whole time; the panel containing it was never rendered.
+
+`failed` is deliberately **not** skipped — a fatal error is exactly what a dealer
+must see. A cancelled batch surfaces only when the dealer has nothing else,
+where "stopped, nothing published" is the truthful screen.
+
+---
+
+## Submit saves what the dealer is looking at
+
+There is **no save-before-submit ceremony**. Submit persists the current
+editable values and then runs the authoritative validation against exactly what
+it persisted. Save Draft is optional and exists only for keeping unfinished work
+to come back to.
+
+The save is **unconditional**, and that is the point. It used to run
+`if (dirty)`, which made correctness depend on a client-side flag noticing every
+change. Any edit the flag missed — a nested photos mutation, a path that forgot
+to call `edit()` — and the server would validate, transition, and **stamp the
+fingerprint over a row the dealer was not looking at**: an attestation that
+verifies perfectly and describes values nobody saw. That is the one failure this
+whole attestation design exists to prevent, reachable through a UI bookkeeping
+bug. The write is idempotent, so a submit with nothing changed simply rewrites
+what is already there.
+
+Ordering, and why each step is where it is:
+
+- values persist **before** validation, so the server never judges a stale row;
+- a failed save aborts the submit with its own message; the edits stay in the
+  form; nothing is lost;
+- a failed submit leaves the listing in `draft` with the just-saved edits
+  durable, shows the server's sentence, **and** marks every outstanding item in
+  place;
+- the three confirmations live in React state and are untouched by the save, so
+  ticks made before the automatic save survive it.
 
 ---
 
