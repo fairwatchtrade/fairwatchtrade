@@ -111,10 +111,20 @@ export default function DeleteListingDialog({
           id="delete-listing-title"
           className="font-display text-[18px] font-light text-[var(--platinum)]"
         >
+          {/* ⚠ A STATEMENT, NEVER A QUESTION.
+
+              This first shipped as "Delete this listing permanently?" above
+              Close and Check again — posing the most irreversible decision in
+              the product and then offering no way to take it. The seller
+              reasonably read it as being asked to delete something a second
+              time, having already Removed it once.
+
+              Stage 7 asks nothing. It reports whether anything is in the way.
+              The question belongs to the stage that can actually answer it. */}
           {state.phase === "checking"
             ? "Checking this listing…"
             : eligible
-              ? "Delete this listing permanently?"
+              ? "Ready for permanent deletion"
               : "This listing can't be permanently deleted yet."}
         </h2>
         <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
@@ -170,8 +180,13 @@ export default function DeleteListingDialog({
             <p className="mt-5 text-[12px] leading-[1.6] text-[var(--lc-published-badge)]">
               Currently eligible for permanent deletion.
             </p>
+            <p className="mt-2 text-[12px] leading-[1.6] text-[var(--platinum-dim)]">
+              Nothing is standing in the way. You have already taken this watch
+              off the market — this is the separate, final step that erases the
+              listing itself.
+            </p>
             <div className="mt-4 space-y-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
-              <p>Permanent deletion is designed to be irreversible:</p>
+              <p>When that step runs, it will be irreversible:</p>
               <p>
                 <span className="text-[var(--platinum-dim)]">
                   The listing itself disappears
