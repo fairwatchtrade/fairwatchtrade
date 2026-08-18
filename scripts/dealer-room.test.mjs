@@ -41,7 +41,11 @@ test("dealer logo is stored identity data, validated privately, and rendered pub
   assert.match(migration, /logo_url text/);
   assert.match(api, /ALLOWED_FORMATS = new Set\(\["png", "jpeg", "webp"\]\)/);
   assert.match(api, /dealer-logos\/\$\{context\.user\.id\}/);
-  assert.match(browse, /src=\{dealerScope\.logoUrl\}/);
+  /* The logo is handed to cardImageSrc() now rather than to the img raw.
+     Same stored identity, delivered through the shared card-image pipeline.
+     The invariant under test is that the DEALERS OWN stored logo is what
+     renders publicly - not the literal attribute shape it renders through. */
+  assert.match(browse, /src=\{cardImageSrc\(dealerScope\.logoUrl/);
   assert.doesNotMatch(browse, /The Collector Identity logo|TCI logo/);
 });
 
@@ -94,7 +98,12 @@ test("empty rail dimensions collapse into one truthful sentence, not a diagnosti
 test("Dealer Room functional text uses the readable UI floor", () => {
   assert.match(browse, /dealerLegibility/);
   assert.match(browse, /legibilityMode\s+dealerRoomMode/);
-  assert.match(browse, /dealerScope \? "text-\[11px\]" : "text-\[9px\]"/);
+  /* The conditional itself is gone: 9px was raised to the 11px floor
+     everywhere, so readability no longer depends on being in a Dealer Room.
+     Asserting the ABSENCE of sub-11px functional type is the stronger form
+     of the same law - it cannot be satisfied by a conditional that merely
+     happens to favour one branch. */
+  assert.doesNotMatch(browse, /text-\[(?:[0-9]|10)px\]/);
   assert.match(browse, /Dealer inventory[\s\S]*text-\[14px\]/);
   assert.match(search, /legibilityMode[\s\S]*text-\[11px\].*text-\[var\(--slate\)\]/);
   assert.match(search, /legibilityMode[\s\S]*text-\[13px\] text-\[var\(--slate\)\]/);
@@ -202,7 +211,7 @@ test("listing photography has a dedicated inspection state", () => {
 });
 
 test("listing-stage FAQ reuses the published copy and links to the full room", () => {
-  assert.match(listing, /<ListingStageFaq sellerName=\{sellerName\} \/>/);
+  assert.match(listing, /<ListingStageFaq sellerName=\{sellerName\} isOwner=\{isOwner\} \/>/);
   // Curated ids into the generated customer copy — never hand-authored policy.
   assert.match(stageFaq, /from "@\/lib\/faq\/faqContent"/);
   for (const id of ["buying-4", "buying-5", "payments-0", "payments-2", "trust-0", "buying-6"]) {

@@ -32,7 +32,9 @@ let n = 0;
 const ok = (name) => console.log(`  PASS ${++n}  ${name}`);
 
 /* ── The Gallery render branch, isolated ─────────────────────────────── */
-const gStart = src.indexOf('if (viewMode === "gallery")');
+/* Scan view joined Gallery in one branch when it landed; the marker moved
+   with it. Collector remains the separate branch this test contrasts. */
+const gStart = src.indexOf('if (viewMode === "gallery" || viewMode === "scan")');
 const gEnd = src.indexOf("Collector View research row");
 assert.ok(gStart > 0 && gEnd > gStart, "Gallery and Collector branches must both exist");
 const gallery = src.slice(gStart, gEnd);
@@ -41,10 +43,13 @@ const gallery = src.slice(gStart, gEnd);
 const frameDivStart = gallery.indexOf("aspect-[4/3]");
 assert.ok(frameDivStart > 0, "gallery media well must declare aspect-[4/3]");
 const frameDiv = gallery.slice(gallery.lastIndexOf("<div", frameDivStart), gallery.indexOf(">", frameDivStart) + 1);
-for (const cls of ["relative", "aspect-[4/3]", "w-full", "overflow-hidden", "md:aspect-auto", "md:h-[140px]"]) {
+/* v4.91 made the watch the subject of its own card: the desktop well became a
+   square rather than auto-height at a fixed 140px. Mobile-first 4:3 with a
+   deliberate desktop override is the invariant; these are its current classes. */
+for (const cls of ["relative", "aspect-[4/3]", "w-full", "overflow-hidden", "md:aspect-square"]) {
   assert.ok(frameDiv.includes(cls), `media frame must carry ${cls}`);
 }
-ok("mobile media well is a short 4:3 frame at full card width; desktop keeps h-[140px]");
+ok("mobile media well is a short 4:3 frame at full card width; desktop is a square well");
 
 /* ── 1b · The phone grid is two columns; 3/4-wide is a desktop density ── */
 const wrapperStart = src.indexOf('"flex flex-col space-y-6 md:space-y-8"');
@@ -52,8 +57,10 @@ assert.ok(wrapperStart > 0, "the results wrapper must still choose between Colle
 const gridWrapper = src.slice(wrapperStart, src.indexOf("{paginated.map"));
 assert.ok(gridWrapper.includes("grid-cols-2"), "below md the Gallery grid must be two columns");
 assert.ok(
-  gridWrapper.includes('gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-4"'),
-  "the 3/4 density choice must apply at md and above only"
+  gridWrapper.includes('gridCols === 3') &&
+    gridWrapper.includes('"grid-cols-2 md:grid-cols-3"') &&
+    gridWrapper.includes('"grid-cols-2 md:grid-cols-4"'),
+  "the 3/4 density choice must apply at md and above, over a two-column phone floor",
 );
 assert.ok(
   !/(^|[^:])\bgrid-cols-[34]\b/.test(gridWrapper.replace(/md:grid-cols-[34]/g, "")),
@@ -85,17 +92,20 @@ ok("no canvas / re-encode path — the stored photograph is untouched");
 /* ── 4 · Badges anchor to the media frame, opposite corners ──────────── */
 const frameIdx = gallery.indexOf("aspect-[4/3]");
 const shieldIdx = gallery.indexOf("row.in_hand_verified");
-const badgeIdx = gallery.indexOf("docBadge &&");
+const docInlineIdx = gallery.indexOf("docInline");
 assert.ok(shieldIdx > frameIdx, "🛡️ shield must live inside the media frame, not on the card");
-assert.ok(badgeIdx > frameIdx, "FULL SET badge must live inside the media frame");
+/* Completeness deliberately LEFT the photo plane: it is a fact about the
+   watch, not a sticker on its photograph, and it now joins the scanning
+   line beside condition and year. The shield stays anchored to the frame
+   because in-hand verification is a fact about the IMAGE. */
+assert.ok(docInlineIdx > frameIdx, "completeness must render on the scanning line, below the media frame");
+assert.ok(gallery.indexOf("docBadge &&") === -1, "the old photo-plane completeness overlay must not return");
 assert.ok(gallery.includes("left-1.5 top-1.5"), "shield anchors to the frame's top-left");
-assert.ok(gallery.includes("right-1.5 top-1.5"), "doc badge anchors to the frame's top-right");
+/* The retired photo-plane badge took its top-right anchor and its 8px/10px
+   sizing assertions with it. Those could not have survived the legibility
+   floor the Dealer Room now asserts elsewhere, which is part of why the
+   completeness fact moved to the scanning line in the first place. */
 assert.ok(frameDiv.includes("relative"), "the frame is the badges' positioning context");
-// FULL SET / PAPERS ONLY is status text, not decoration: on a phone it reads
-// at 10px (8px wrapped inside its own pill in the old narrow frame).
-const docBadgeTag = gallery.slice(gallery.indexOf("docBadge && ("), gallery.indexOf("{docBadge}"));
-assert.ok(docBadgeTag.includes("text-[10px]"), "the doc badge must read at 10px on a phone");
-assert.ok(docBadgeTag.includes("md:text-[8px]"), "desktop keeps its 8px badge");
 ok("🛡️ and FULL SET anchor to the actual media frame — opposite corners, no collision, badge readable on a phone");
 
 /* ── 5 · Card navigation intact ──────────────────────────────────────── */
@@ -106,7 +116,7 @@ ok("gallery card remains a Link to the listing detail (returnTo preserved via li
 assert.ok(gallery.includes("md:p-7"), "desktop card padding stays p-7");
 assert.ok(gallery.includes("hidden h-full w-full object-contain md:block"), "desktop always renders the contain image");
 assert.ok(gallery.includes("md:hidden"), "the authored cover-crop image is mobile-only");
-ok("desktop ≥md: p-7 card, h-[140px] well, object-contain — visually stable");
+ok("desktop >=md: p-7 card, square well, object-contain — visually stable");
 
 /* ── 7 · Gallery/Collector truth parity ──────────────────────────────── */
 assert.equal(src.split("paginated.map").length - 1, 1, "one paginated.map feeds BOTH views — same listings, same order, no forked truth");
@@ -219,13 +229,13 @@ assert.ok(
   "no 9px functional control text may reach a phone — GALLERY/COLLECTOR, SORT and the page-size controls read at 11px below md"
 );
 assert.ok(
-  (controls.match(/md:text-\[9px\]/g) ?? []).length >= 4,
-  "desktop keeps its 9px control bar exactly as shipped"
+  !["text-[9px]", "text-[10px]", "md:text-[9px]", "md:text-[10px]"].some((c) => controls.includes(c)),
+  "the control bar reads 11px at every breakpoint — the desktop 9px was raised by the legibility floor and must not come back"
 );
-ok("Browse controls read at 11px on a phone and stay 9px on desktop");
+ok("Browse controls read at 11px on every breakpoint");
 
 /* ── 10 · One consistent treatment across dark/light sources ─────────── */
-assert.ok(frameDiv.includes("bg-[var(--ink-deep)]"), "one restrained matte behind every photograph — dark and light sources get the identical frame treatment");
+assert.ok(frameDiv.includes("bg-[var(--image-well)]"), "one restrained matte behind every photograph — dark and light sources get the identical frame treatment; Daylight gave the well its own token");
 ok("restrained matching background: the site's own --ink-deep matte, for every card");
 
 console.log(`\n  browse-gallery-media: ${n} sections, all assertions passed`);

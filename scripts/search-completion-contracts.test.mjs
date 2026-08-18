@@ -71,7 +71,7 @@ ok(
 ok(
   "both views render from the same paginated slice",
   browse.includes("{paginated.map((row) => {") &&
-    browse.includes('if (viewMode === "gallery")')
+    browse.includes('if (viewMode === "gallery" || viewMode === "scan")')
 );
 
 /* ── Save affordance: exactly one per screen state ── */

@@ -187,7 +187,7 @@ assert.ok(sortBlock.length > 0, "the sort control must sit immediately before th
    one more <option> rather than another button competing for this bar. */
 assert.ok(sortBlock.includes("<select"), "sort must be a dropdown");
 assert.ok(
-  /<option value="default">Default<\/option>/.test(sortBlock) &&
+    !["text-[9px]","text-[10px]","md:text-[9px]","md:text-[10px]"].some((c) => sortBlock.includes(c)),
     /<option value="priceAsc">Price: Low to High<\/option>/.test(sortBlock) &&
     /<option value="priceDesc">Price: High to Low<\/option>/.test(sortBlock),
   "all three orderings must be offered as options, default first",
@@ -195,7 +195,16 @@ assert.ok(
 /* Scoped to the rendered option labels only — the surrounding comment names
    the rejected words in order to explain why they were rejected. */
 const optionLabels = [...sortBlock.matchAll(/<option value="[^"]*">([^<]*)<\/option>/g)].map((m) => m[1]);
-assert.equal(optionLabels.length, 3);
+/* Four now, not three: the Dealer Room adds Brand A-Z. The global catalogue
+   still offers exactly the three orderings asserted above - the fourth is
+   gated on dealerScope, which is why it is asserted separately rather than
+   folded into the count. A dealers shelf is small enough for an alphabetical
+   walk to be a real reading order. */
+assert.equal(optionLabels.length, 4);
+assert.ok(
+  /\{dealerScope && <option value="brandAsc">Brand A.Z<\/option>\}/.test(sortBlock),
+  "Brand A-Z must exist and must remain gated on dealerScope",
+);
 assert.ok(
   !optionLabels.some((l) => /Featured|Newest|Recommended|Popular/i.test(l)),
   "the default option must not promise an editorial or recency order the query does not provide",
@@ -205,10 +214,10 @@ assert.ok(
   "the dropdown must be labelled for assistive tech",
 );
 assert.ok(
-  // The control bar reads at 11px on a phone and 9px on desktop; the sort
-  // dropdown must carry that same pair rather than a size of its own.
+  // The control bar reads 11px everywhere since the legibility floor was
+  // raised; the desktop 9px it used to drop to no longer exists anywhere.
   sortBlock.includes("text-[11px] uppercase tracking-[1px]") &&
-    sortBlock.includes("md:text-[9px]"),
+    !["text-[9px]", "text-[10px]", "md:text-[9px]", "md:text-[10px]"].some((c) => sortBlock.includes(c)),
   "the sort control must borrow the existing control typography, not introduce a new one",
 );
 assert.ok(
@@ -216,8 +225,8 @@ assert.ok(
   "a non-default order must be announced in the room's existing gold",
 );
 assert.ok(
-  sortBlock.includes('setSort(e.target.value as "default" | "priceAsc" | "priceDesc")'),
-  "choosing an option must drive the same sort state",
+  sortBlock.includes("setSort(parseBrowseSort(e.target.value))"),
+  "choosing an option must drive the same sort state, through the same parser the URL uses",
 );
 assert.ok(
   sortBlock.includes('value={sort}'),
