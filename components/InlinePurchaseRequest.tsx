@@ -217,6 +217,18 @@ export default function InlinePurchaseRequest({
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-display text-[18px] text-[var(--gold)]">
               {currency.displayPrefix.trim()}
             </span>
+            {/* The field's background must follow the theme, because its TEXT
+                does. --platinum is light-dark(#25231F, #E8E4DC): in Daylight the
+                typed amount is near-black charcoal. This input carried a
+                hardcoded #10131a, so a real offer rendered near-black on
+                near-black — present, valid, and effectively invisible (caught
+                on a live listing with 7100 entered).
+
+                It was the only hardcoded hex in this file; its own sibling
+                textarea below already uses the themed .fw-correspondence. Both
+                fields in one panel now agree. Nothing about the offer value,
+                currency, parsing, validation or submission is touched — only
+                the surface the amount is read against. */}
             <input
               id={`${panelId}-offer`}
               ref={offerRef}
@@ -228,7 +240,7 @@ export default function InlinePurchaseRequest({
               aria-describedby={`${panelId}-help`}
               aria-label={`Your offer in ${currency.displayName}`}
               aria-invalid={showOfferError ? true : undefined}
-              className="h-[46px] w-full border bg-[#10131a] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
+              className="h-[46px] w-full border bg-[var(--surface-2)] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[var(--surface)]"
               style={{
                 borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
                 paddingLeft: `calc(0.75rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
