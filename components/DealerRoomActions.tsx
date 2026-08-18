@@ -83,7 +83,7 @@ export function DealerContactPanel({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="dealer-contact-panel"
-        className="inline-flex min-h-[44px] w-full items-center justify-center border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[12px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[color:light-dark(rgba(122,95,32,0.16),rgba(201,168,76,0.14))] sm:w-auto"
+        className="inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-5 py-2 text-[12px] uppercase tracking-[2px] text-[var(--gold)] transition hover:bg-[color:light-dark(rgba(122,95,32,0.16),rgba(201,168,76,0.14))] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] sm:min-h-[38px] sm:w-auto sm:py-1"
       >
         Contact Dealer
       </button>
@@ -166,9 +166,8 @@ export function DealerContactPanel({
 
 export function DealerTrustMark() {
   return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 border border-[var(--gold-dim)]" />
-      <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--slate)]">
+    <span className="inline-flex min-w-0 items-center [--surface-2:light-dark(#F0E7D2,#3C372A)]">
+      <span className="whitespace-nowrap text-[12px] tracking-[0.2px] text-[var(--slate)]">
         FairWatchTrade Dealer
       </span>
       {/* The ? and its speech bubble are the shared pattern. Anchoring is
@@ -187,9 +186,10 @@ export function DealerTrustMark() {
           historyKey="fwtDealerTrustHelp"
           title="A dealer storefront, reviewed like everything else"
           bubbleClassName="left-3 right-3 top-[calc(100%+8px)] rounded-2xl sm:left-0 sm:right-auto sm:top-[calc(100%+10px)] sm:w-[330px]"
+          triggerClassName="-ml-2 -mr-2 -my-3 sm:-my-2"
           caretTracksTrigger
         >
-          <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+          <p className="text-[13px] leading-[1.65] text-[var(--platinum-dim)]">
             This seller operates a dealer storefront on FairWatchTrade. Every
             listing here passed the same review before publication as the rest
             of the marketplace, and exact photo matches are recorded across

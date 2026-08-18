@@ -1362,18 +1362,16 @@ export default function BrowseClient({
       }))
     : [];
 
-  /* One sentence that cannot be mistaken for the other count. The shelf
-     total stands alone until something narrows it; the moment something
-     does, the RELATIONSHIP is stated rather than left for a reader to infer
-     from two identically-worded "N watches" in two different bands. */
+  /* The catalogue owns the room's one public count. It names the marketplace
+     object exactly and states the filtered relationship only when narrowed. */
   const dealerResultStatus = dealerScope
     ? filtered.length === listings.length
-      ? `${listings.length} ${listings.length === 1 ? "watch" : "watches"}`
-      : `${filtered.length} of ${listings.length} watches`
+      ? `${listings.length} ${listings.length === 1 ? "listing" : "listings"}`
+      : `${filtered.length} of ${listings.length} ${listings.length === 1 ? "listing" : "listings"}`
     : null;
 
   const dealerIdentity = dealerScope ? (
-    <section className="relative -mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
+    <section className="relative -mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-[var(--border-subtle)] bg-[var(--ink)] p-2">
           {dealerScope.logoUrl ? (
@@ -1399,29 +1397,19 @@ export default function BrowseClient({
           <h1 className="font-display text-[22px] font-light text-[var(--platinum)] sm:truncate">
             {dealerScope.businessName}
           </h1>
-          {(dealerScope.location || dealerScope.tagline) && (
-            <p className="mt-1 text-[12px] text-[var(--slate)]">
-              {[dealerScope.location, dealerScope.tagline].filter(Boolean).join(" · ")}
-            </p>
-          )}
           {/* Trust context beside identity: what FairWatchTrade actually
-              does, one tap away — never an implied guarantee. */}
-          <div className="mt-2">
+              does, one tap away — inline with the dealer's location rather
+              than spending a separate row on identity metadata. */}
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0 text-[12px] text-[var(--slate)]">
+            {dealerScope.location && <span>{dealerScope.location}</span>}
+            {dealerScope.location && <span aria-hidden="true">·</span>}
             <DealerTrustMark />
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-        <div className="flex items-baseline justify-between gap-3 text-left sm:block sm:text-right">
-          <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
-            Public inventory
-          </div>
-          <div className="font-display text-[18px] font-light text-[var(--platinum-dim)] sm:mt-1">
-            {listings.length} {listings.length === 1 ? "watch" : "watches"}
-          </div>
-        </div>
-        {/* The room's primary buyer action — full-width on a phone, beside
-            the inventory count on desktop. */}
+      <div className="shrink-0 sm:justify-self-end">
+        {/* The room's primary buyer action — full-width and touch-safe on a
+            phone, quieter and shorter beside the identity on desktop. */}
         <DealerContactPanel
           businessName={dealerScope.businessName}
           items={dealerContactItems}
