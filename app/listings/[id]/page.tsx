@@ -778,6 +778,7 @@ export default async function ListingDetailPage({
               variant="rail"
               listingId={listing.id}
               sellerId={listing.seller_id}
+              sellerHref={sellerHref}
               sellerName={sellerName}
               priceText={priceText}
               isOwner={isOwner}
@@ -846,6 +847,7 @@ export default async function ListingDetailPage({
               variant="bar"
               listingId={listing.id}
               sellerId={listing.seller_id}
+              sellerHref={sellerHref}
               sellerName={sellerName}
               priceText={priceText}
               isOwner={isOwner}

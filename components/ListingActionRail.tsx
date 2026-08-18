@@ -46,6 +46,7 @@ export default function ListingActionRail({
   variant,
   listingId,
   sellerId,
+  sellerHref,
   sellerName,
   priceText,
   isOwner,
@@ -60,6 +61,12 @@ export default function ListingActionRail({
   variant: "rail" | "inline" | "bar";
   listingId: string;
   sellerId: string;
+  /** Canonical dealer path, resolved by the page. A dealer's room lives at
+      its slug; linking by raw UUID still arrives, but only after a redirect
+      hop, and it puts a non-canonical dealer URL on the page beside the
+      canonical one. Optional so a caller without the resolution falls back
+      to the id it does have. */
+  sellerHref?: string;
   sellerName: string;
   priceText: string;
   isOwner: boolean;
@@ -264,7 +271,7 @@ export default function ListingActionRail({
           Dealer Information
         </div>
         <Link
-          href={`/sellers/${sellerId}`}
+          href={sellerHref ?? `/sellers/${sellerId}`}
           className="mt-3 block text-[13px] leading-snug text-[var(--muted)] transition hover:text-[var(--gold)]"
         >
           Sold by {sellerName} →

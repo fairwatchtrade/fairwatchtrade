@@ -60,6 +60,13 @@ test("listing returns to canonical dealer slug when one exists", () => {
   assert.match(listing, /from\("dealer_profiles"\)/);
   assert.match(listing, /const sellerHref = `\/sellers\/\$\{dealerProfile\?\.slug \|\| listing\.seller_id\}`/);
   assert.match(listing, /href=\{sellerHref\}/);
+
+  /* Every dealer link on the page resolves the same way. The action rail
+     used to build its own "/sellers/{uuid}", so one page carried a canonical
+     dealer URL and a redirecting one side by side. */
+  const rail = read("components/ListingActionRail.tsx");
+  assert.match(rail, /href=\{sellerHref \?\? `\/sellers\/\$\{sellerId\}`\}/);
+  assert.equal((listing.match(/sellerHref=\{sellerHref\}/g) ?? []).length, 2);
 });
 
 test("search copy can become dealer-local without forking search behavior", () => {
