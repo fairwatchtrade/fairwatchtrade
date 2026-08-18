@@ -166,8 +166,9 @@ export function DealerContactPanel({
 
 export function DealerTrustMark() {
   return (
-    <span className="flex items-center gap-0.5">
-      <span className="inline-flex min-h-[28px] items-center border border-[var(--border-subtle)] px-2 py-1 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)]">
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 border border-[var(--gold-dim)]" />
+      <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--slate)]">
         FairWatchTrade Dealer
       </span>
       {/* The ? and its speech bubble are the shared pattern. Anchoring is

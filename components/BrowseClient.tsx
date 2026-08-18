@@ -1277,14 +1277,19 @@ export default function BrowseClient({
         <button
           type="button"
           onClick={showAllDealerInventory}
-          className={`flex w-full items-center justify-between py-2 text-left text-[12px] tracking-[0.3px] transition ${
+          aria-pressed={selectedBrands.size === 0}
+          className={`group -mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center justify-between border-l-2 px-2 py-2 text-left text-[12px] tracking-[0.3px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--border-gold)] ${
             selectedBrands.size === 0
-              ? "text-[var(--platinum)]"
-              : "text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+              ? "border-[var(--gold-dim)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+              : "border-transparent text-[var(--slate)] hover:bg-[var(--hover-wash)] hover:text-[var(--platinum-dim)]"
           }`}
         >
           <span>All inventory</span>
-          <span className="text-[11px] tabular-nums text-[var(--slate)]">
+          <span className={`text-[11px] tabular-nums transition-colors ${
+            selectedBrands.size === 0
+              ? "text-[var(--gold-dim)]"
+              : "text-[var(--slate)] group-hover:text-[var(--platinum-dim)]"
+          }`}>
             {listings.length}
           </span>
         </button>
@@ -1295,14 +1300,19 @@ export default function BrowseClient({
               key={brand}
               type="button"
               onClick={() => toggleBrand(brand)}
-              className={`flex w-full items-center justify-between py-2 text-left text-[12px] tracking-[0.3px] transition ${
+              aria-pressed={active}
+              className={`group -mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center justify-between border-l-2 px-2 py-2 text-left text-[12px] tracking-[0.3px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--border-gold)] ${
                 active
-                  ? "text-[var(--platinum)]"
-                  : "text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                  ? "border-[var(--gold-dim)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                  : "border-transparent text-[var(--slate)] hover:bg-[var(--hover-wash)] hover:text-[var(--platinum-dim)]"
               }`}
             >
               <span className="truncate">{brand}</span>
-              <span className="text-[11px] tabular-nums text-[var(--slate)]">{count}</span>
+              <span className={`text-[11px] tabular-nums transition-colors ${
+                active
+                  ? "text-[var(--gold-dim)]"
+                  : "text-[var(--slate)] group-hover:text-[var(--platinum-dim)]"
+              }`}>{count}</span>
             </button>
           );
         })}
@@ -1317,13 +1327,9 @@ export default function BrowseClient({
         </p>
       </div>
 
-      {/* Buyer-facing polish (2026-08-13): a dimension this dealer's
-          inventory doesn't populate is NOT a control — the old per-group
-          "Unavailable" rows read like a diagnostic panel. Populated
-          dimensions render exactly as before; the empty ones collapse into
-          one quiet truthful sentence. The dimension set itself is the
-          normal Browse architecture and returns per group the moment a
-          dealer's inventory populates it. */}
+      {/* A dimension this dealer's inventory doesn't populate is not a public
+          control or a coverage report. It simply stays out of the room until
+          represented values make the facet useful. */}
       {dealerDimensions.map((dim) =>
         dim.facets.length > 0 ? (
           <FacetGroup
@@ -1337,17 +1343,6 @@ export default function BrowseClient({
             dealerLegibility
           />
         ) : null
-      )}
-      {dealerDimensions.some((dim) => dim.facets.length === 0) && (
-        <div className="px-[18px] pt-1">
-          <p className="border-t border-[var(--border-faint)] pt-3 text-[11px] leading-[1.6] text-[var(--muted)]">
-            Not represented in current inventory:{" "}
-            {dealerDimensions
-              .filter((dim) => dim.facets.length === 0)
-              .map((dim) => dim.title)
-              .join(" · ")}
-          </p>
-        </div>
       )}
     </div>
   ) : null;
@@ -1401,9 +1396,6 @@ export default function BrowseClient({
           )}
         </div>
         <div className="min-w-0">
-          <div className="mb-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
-            Browse · Sellers · Dealer Room
-          </div>
           <h1 className="font-display text-[22px] font-light text-[var(--platinum)] sm:truncate">
             {dealerScope.businessName}
           </h1>
@@ -1512,14 +1504,14 @@ export default function BrowseClient({
                 rather than the whole page, so the catalogue keeps the room.
                 On a phone it returns to full width — the same control, not
                 a second mobile product. */}
-            <div className="w-full md:w-[380px] md:shrink-0">
+            <div className="w-full md:w-[300px] md:shrink-0">
               <BrowseSearch
                 query={queryText}
                 onCommit={setQuery}
                 chips={searchChips}
                 onClearAll={clearAll}
                 ariaLabel={`Search ${dealerScope.businessName} inventory`}
-                placeholder={`Search ${dealerScope.businessName} inventory`}
+                placeholder="Brand, model, or reference"
                 legibilityMode
                 dealerRoomMode
               />
@@ -1568,48 +1560,11 @@ export default function BrowseClient({
               Refine
             </button>
           )}
-          {/* v1.60 — absent from the DOM in Collector View, not grayed out:
-              once Collector is always grid-cols-1, this toggle would
-              control nothing while sitting on screen implying it does. */}
-          {/* Desktop-only: below md the Gallery is always two columns, so
-              3-WIDE / 4-WIDE would name a choice the phone does not offer. */}
-          {viewMode === "gallery" && (
-            <div className="hidden items-center gap-1 md:flex">
-              {/* v4.93 — these pin a density; unpinned, the region decides.
-                  Pressing the pinned one releases it back to the ladder, so
-                  the collector always has a way home without editing a URL.
-                  Neither lit is an honest state, not a missing one: it says
-                  the layout is answering to the space rather than to a past
-                  decision. Both pinned counts still obey the region's
-                  ceiling, so pinning can never re-inflate a card. */}
-              {([2, 3, 4] as const).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  aria-pressed={gridCols === n}
-                  title={
-                    gridCols === n
-                      ? `${n} across — press again to fit the column count to the space`
-                      : `Always ${n} across`
-                  }
-                  onClick={() => setGridCols(gridCols === n ? null : n)}
-                  className={`border px-[10px] py-[5px] uppercase tracking-[1px] transition ${
-                    "text-[11px]"
-                  } ${
-                    gridCols === n
-                      ? "border-[var(--border-gold)] text-[var(--gold)]"
-                      : dealerScope
-                        ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
-                        : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
-                  }`}
-                >
-                  {n}-wide
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-1 border-l border-[var(--border-faint)] pl-4">
+          {/* The primary view selector always owns the first position. Gallery
+              density is secondary and appears after it, so the control a
+              collector just used never moves when its dependent options
+              enter or leave the DOM. */}
+          <div className="flex items-center gap-1">
             {(dealerScope
               ? ([
                   { key: "collector", label: "Collector" },
@@ -1643,6 +1598,36 @@ export default function BrowseClient({
               </button>
             ))}
           </div>
+
+          {/* v1.60 — absent from the DOM outside Gallery because density then
+              controls nothing. Desktop-only: phones keep the established
+              two-column Gallery. */}
+          {viewMode === "gallery" && (
+            <div className="hidden items-center gap-1 border-l border-[var(--border-faint)] pl-4 md:flex">
+              {([2, 3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={gridCols === n}
+                  title={
+                    gridCols === n
+                      ? `${n} across — press again to fit the column count to the space`
+                      : `Always ${n} across`
+                  }
+                  onClick={() => setGridCols(gridCols === n ? null : n)}
+                  className={`border px-[10px] py-[5px] text-[11px] uppercase tracking-[1px] transition ${
+                    gridCols === n
+                      ? "border-[var(--border-gold)] text-[var(--gold)]"
+                      : dealerScope
+                        ? "border-[var(--border-subtle)] text-[var(--slate)] hover:text-[var(--platinum-dim)]"
+                        : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
+                  }`}
+                >
+                  {n}-wide
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Sort + page size — SIBLINGS of the view toggle, not a nested

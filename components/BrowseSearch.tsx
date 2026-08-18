@@ -209,14 +209,14 @@ export default function BrowseSearch({
     >
       <div className={dealerRoomMode ? "w-full" : "mx-auto w-full max-w-[940px]"}>
         {dealerRoomMode && (
-          <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
-            Search This Dealer
+          <div className="mb-1.5 text-[10px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
+            Search inventory
           </div>
         )}
         {/* ── Search field ───────────────────────────────────────────────── */}
-        <div className={dealerRoomMode ? "grid grid-cols-[minmax(0,1fr)_64px] gap-2" : ""}>
-        <div className="relative flex min-w-0 min-h-[46px] items-center border border-[var(--input-line)] bg-[var(--input-bg)] transition-colors focus-within:border-[var(--input-line-focus)] sm:min-h-[50px]">
-          <div aria-hidden="true" className="w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]">
+        <div className={dealerRoomMode ? "grid grid-cols-[minmax(0,1fr)_48px] gap-1.5" : ""}>
+        <div className={`relative flex min-w-0 items-center border border-[var(--input-line)] bg-[var(--input-bg)] transition-colors focus-within:border-[var(--input-line-focus)] ${dealerRoomMode ? "min-h-[38px]" : "min-h-[46px] sm:min-h-[50px]"}`}>
+          <div aria-hidden="true" className={dealerRoomMode ? "w-9 text-center text-[15px] text-[var(--muted)]" : "w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]"}>
             ⌕
           </div>
           <input
@@ -235,7 +235,7 @@ export default function BrowseSearch({
             aria-label={ariaLabel}
             placeholder={placeholder}
             autoComplete="off"
-            className="min-w-0 w-full bg-transparent py-[14px] pr-2 text-[15px] text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none sm:text-[16px]"
+            className={`min-w-0 w-full bg-transparent pr-2 text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none ${dealerRoomMode ? "py-2 text-[13px]" : "py-[14px] text-[15px] sm:text-[16px]"}`}
           />
           {!dealerRoomMode && <button
             ref={helpBtnRef}
@@ -336,7 +336,7 @@ export default function BrowseSearch({
           <button
             type="button"
             onClick={() => commit(text)}
-            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[10px] uppercase tracking-[1.4px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)]"
           >
             Go
           </button>
