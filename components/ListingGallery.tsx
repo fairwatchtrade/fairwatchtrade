@@ -6,7 +6,7 @@ import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
 
 /* ────────────────────────────────────────────────────────────────────────
-   LISTING GALLERY — buyer-facing photo viewer (v1.23)
+   LISTING GALLERY — buyer-facing photo viewer (v1.24)
 
    Client child of /listings/[id]. Renders a full-width hero and a scrollable
    strip of the REMAINING photos; clicking a thumbnail swaps it into the hero.
@@ -100,9 +100,32 @@ export default function ListingGallery({
     };
   }, [inspecting, photos.length]);
 
+  /* The arrow frame must be the rendered photograph, not merely the column.
+     A governed 60vh stage can be height-limited or width-limited depending on
+     both viewport and source proportions, so one fixed CSS dimension cannot
+     describe that rectangle without distorting some photographs. Reading the
+     active source's intrinsic ratio lets the neutral wrapper take the largest
+     uncropped rectangle that fits both constraints. The outer stage remains
+     fixed, so discovering the ratio never moves the listing below it. */
+  const heroUrl = photos[active] ?? photos[0] ?? "";
+  const [heroAspect, setHeroAspect] = useState(1);
+  useEffect(() => {
+    if (!heroUrl) return;
+    let cancelled = false;
+    const probe = new Image();
+    probe.onload = () => {
+      if (!cancelled && probe.naturalWidth > 0 && probe.naturalHeight > 0) {
+        setHeroAspect(probe.naturalWidth / probe.naturalHeight);
+      }
+    };
+    probe.src = heroUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [heroUrl]);
+
   if (photos.length === 0) return null;
 
-  const heroUrl = photos[active] ?? photos[0];
   const hasPrev = active > 0;
   const hasNext = active < photos.length - 1;
 
@@ -128,9 +151,14 @@ export default function ListingGallery({
 
   return (
     <div>
-      {/* Hero — large, full-width. The photograph itself carries no click
-          handler: clicking it does nothing, by design. */}
-      <div className="relative w-full overflow-hidden rounded-lg border border-[var(--border-mid)] bg-[color:light-dark(#F1EDE3,#14161C)] p-2 sm:p-3">
+      {/* Hero — the photograph is the left-column object. v1.24 retires the
+          pale bordered shell that used to sit around this stage. The stage
+          still governs height so changing photos cannot move the listing,
+          but it is now visually neutral: no frame, background, border or
+          padding between the collector and the photograph.
+          The photograph itself carries no click
+          handler: clicking it still does nothing, by design. */}
+      <div className="flex h-[60vh] w-full items-center justify-center">
         {/* ── THE GOVERNED STAGE ────────────────────────────────────────────
             The stage owns the height. The photograph does not.
 
@@ -160,66 +188,68 @@ export default function ListingGallery({
             any image loads, so nothing reflows when a new one arrives —
             cold cache or warm.
 
-            max-h/max-w rather than h-full/w-full is deliberate. It makes the
-            image element hug the photograph itself, which is what Dial
-            Reveal's controls anchor to; h-full would stretch the element
-            across the whole stage and carry the muted-gold square off into a
-            letterbox margin, away from the lower-right corner of the hero
-            image where its law puts it. Every real listing photograph is
-            wider than this stage, so the fit is identical to before.
+            The exact-aspect inner wrapper is deliberate. It takes the largest
+            rectangle that fits both the column and 60vh, then the image fills
+            that matching rectangle. There is no crop, distortion or
+            letterbox margin inside the wrapper, so Dial Reveal and the photo
+            arrows share the real image edge as their containing geometry.
 
             NOT solved by cropping, by moving a fact, or by touching a seller
             photo record. The photograph is still whole, still object-contain,
             still full resolution into Inspect. ── */}
-        <div className="relative flex h-[60vh] items-center justify-center">
+        {/* The inline-flex wrapper shrink-wraps the rendered photograph. It is
+            the arrows' containing block, so their unchanged 12px inset now
+            resolves from the actual image edge instead of the retired
+            full-column shell. */}
+        <div
+          className="relative max-h-full max-w-full"
+          style={{
+            width: `min(100%, calc(60vh * ${heroAspect}))`,
+            aspectRatio: heroAspect,
+          }}
+        >
           {dialUrl && heroUrl === dialUrl ? (
-            /* The frame carries the stage's height down to the photograph.
-               Without it, `h-full` inside DialReveal's own height-auto
-               wrapper resolves against nothing and a tall photograph — a
-               phone screenshot at 0.448, say — renders at full natural size
-               and is clipped by the hero's overflow. Caught in production
-               measurement, not in review: the anchor held perfectly while
-               the photograph was quietly being cropped. `w-fit` keeps the
-               frame hugging the photograph so Dial Reveal's square stays in
-               the corner of the hero image. */
+            /* The exact-aspect wrapper passes both dimensions into
+               DialReveal, keeping its square and fader on the real image edge
+               without asking DialReveal to know anything about the gallery. */
             <DialReveal
               photoUrl={heroUrl}
-              frameClassName="relative h-full w-fit"
-              className="h-full w-auto max-w-full rounded-lg object-contain transition-[filter] duration-200"
+              frameClassName="relative h-full w-full"
+              className="h-full w-full rounded-lg object-contain transition-[filter] duration-200"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={heroUrl}
               alt=""
-              className="max-h-full max-w-full rounded-lg object-contain"
+              className="h-full w-full rounded-lg object-contain"
             />
           )}
+
+          {/* Previous — rendered only when there is a previous photo. */}
+          {hasPrev && (
+            <button
+              type="button"
+              aria-label="Previous photo"
+              onClick={() => setActive((i) => Math.max(0, i - 1))}
+              className={`${arrowClass} left-3`}
+            >
+              <NavArrowMark flip />
+            </button>
+          )}
+
+          {/* Next — rendered only when there is a next photo. */}
+          {hasNext && (
+            <button
+              type="button"
+              aria-label="Next photo"
+              onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+              className={`${arrowClass} right-3`}
+            >
+              <NavArrowMark />
+            </button>
+          )}
         </div>
-
-        {/* Previous — rendered only when there is a previous photo. */}
-        {hasPrev && (
-          <button
-            type="button"
-            aria-label="Previous photo"
-            onClick={() => setActive((i) => Math.max(0, i - 1))}
-            className={`${arrowClass} left-3`}
-          >
-            <NavArrowMark flip />
-          </button>
-        )}
-
-        {/* Next — rendered only when there is a next photo. */}
-        {hasNext && (
-          <button
-            type="button"
-            aria-label="Next photo"
-            onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
-            className={`${arrowClass} right-3`}
-          >
-            <NavArrowMark />
-          </button>
-        )}
       </div>
 
       {/* Inspect — the explicit door into the inspection state. Sits at the
