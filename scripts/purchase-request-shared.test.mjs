@@ -144,14 +144,15 @@ check("the dedicated route still exists and gates on auth", () => {
   assert.ok(src.includes("callbackUrl=/listings/"));
 });
 
-check("the in-page form follows the 1120px useful-rail boundary", () => {
+check("the in-page form follows the 1072px physical two-track boundary", () => {
   const page = read("app/listings/[id]/page.tsx");
-  // Narrow desktop gets the inline form until the rail mounts at 70rem;
+  // Narrow desktop gets the inline form until the rail mounts at 67rem;
   // below lg the plain route link stands.
-  assert.ok(page.includes('className="hidden lg:block min-[70rem]:hidden"'));
+  assert.ok(page.includes('className="hidden lg:block min-[67rem]:hidden"'));
   assert.ok(page.includes('className="lg:hidden"'));
-  assert.ok(page.includes("min-[70rem]:grid-cols-[minmax(0,974px)_clamp(248px,22vw,276px)]"));
-  assert.match(page, /<aside className="hidden min-\[70rem\][^"]*min-\[70rem\]:grid/);
+  assert.ok(page.includes("lg:max-w-[767px]"));
+  assert.ok(page.includes("min-[67rem]:grid-cols-[minmax(0,974px)_clamp(224px,20vw,276px)]"));
+  assert.match(page, /<aside className="hidden min-\[67rem\][^"]*min-\[67rem\]:grid/);
   assert.ok(page.includes("<ListingPurchaseRequestProvider"));
 });
 
