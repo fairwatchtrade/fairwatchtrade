@@ -235,3 +235,140 @@ test("clickable collector navigation uses only byte-exact filter dimensions", ()
   assert.doesNotMatch(specs, /browseLink\("powerReserve"/);
   assert.match(specs, /encodeURIComponent/);
 });
+
+/* ── Recomposition invariants (Build Order 2026-08-17 §3 · §6 · §11 · §16) ──
+   Pinned BEFORE the composition work, so the recomposition is free to move
+   the furniture without quietly changing what the room IS. Everything below
+   describes the engine under the layout: one server query, one result
+   pipeline, one public truth for every viewer. The arrangement may change.
+   None of these may. */
+
+/* Commentary explains code; it is not code. A label that exists only inside
+   a comment is not something a collector can see, so the private-module
+   checks below run against the source with comments stripped. */
+const codeOnly = (src) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+const browseCode = codeOnly(browse);
+
+const dealerBranch = page.slice(
+  page.indexOf("if (dealer) {"),
+  page.indexOf("// Existing individual-seller profile")
+);
+
+test("the dealer branch makes one server query and mounts one catalogue engine", () => {
+  assert.ok(dealerBranch.length > 200, "the dealer branch must remain identifiable");
+  assert.equal(
+    (dealerBranch.match(/\.from\("listings"\)/g) ?? []).length,
+    1,
+    "one listings query — a second read is a second truth"
+  );
+  assert.equal(
+    (dealerBranch.match(/<BrowseClient/g) ?? []).length,
+    1,
+    "one catalogue engine — the room is Browse over a constrained set, not a fork"
+  );
+  assert.match(dealerBranch, /\.eq\("seller_id", dealer\.seller_id\)/);
+  assert.match(dealerBranch, /\.eq\("status", "published"\)/);
+  // The individual-seller renderer belongs to the other branch entirely.
+  assert.doesNotMatch(dealerBranch, /<SellerProfile/);
+});
+
+test("one result pipeline: filtered -> sorted -> paginated, never re-cut", () => {
+  for (const decl of [
+    "const filtered = useMemo(",
+    "const sorted = useMemo(",
+    "const paginated =",
+  ]) {
+    assert.equal(
+      browse.split(decl).length - 1,
+      1,
+      `exactly one \`${decl}\` — a second declaration is a second result set`
+    );
+  }
+  assert.match(
+    browse,
+    /const sorted = useMemo\(\(\) => sortListings\(filtered, sort\), \[filtered, sort\]\)/
+  );
+  assert.match(
+    browse,
+    /const paginated = pageSize === "all" \? sorted : sorted\.slice\(0, pageSize\)/
+  );
+  assert.ok(
+    browse.indexOf("const sorted =") < browse.indexOf("const paginated ="),
+    "sort must span the whole filtered set before the page is cut from it"
+  );
+  assert.doesNotMatch(
+    browse,
+    /filtered\.slice\(/,
+    "the page must never be cut from the unsorted set"
+  );
+  assert.equal(
+    browse.split("paginated.map").length - 1,
+    1,
+    "one paginated.map feeds Gallery, Collector and Scan alike"
+  );
+
+  /* The dealer scope is applied by the SERVER query. If it ever appears
+     inside the pipeline it means the room started filtering its own
+     membership in the client, which is a second definition of what the
+     dealer sells. */
+  const pipeline = browse.slice(
+    browse.indexOf("const filtered = useMemo("),
+    browse.indexOf("const paginated =")
+  );
+  assert.doesNotMatch(
+    pipeline,
+    /dealerScope/,
+    "membership is the server's constraint, never a client-side branch"
+  );
+});
+
+test("public total and filtered count are never conflated", () => {
+  // The dealer's whole published shelf — identity block and rail total.
+  assert.match(browse, /\{listings\.length\} \{listings\.length === 1 \? "watch" : "watches"\}/);
+  // What the current search and facets actually left standing.
+  assert.match(browse, /\{filtered\.length\} \{filtered\.length === 1 \? "watch" : "watches"\}/);
+  // An empty shelf is a fact about the dealer; an empty result is a fact
+  // about the query. Only the first may claim "no public watches".
+  assert.match(browse, /dealerScope && listings\.length === 0 \?/);
+});
+
+test("the public room is composed identically for every viewer", () => {
+  /* Viewer identity may be read for the collector's OWN saved set — that is
+     a personal action available to any signed-in visitor. It may never
+     compose the room. Both reads must stay inside that one seam. */
+  assert.doesNotMatch(browseCode, /isOwner/);
+  for (const match of browseCode.matchAll(/auth\.getUser\(\)/g)) {
+    const preceding = browseCode.slice(Math.max(0, match.index - 400), match.index);
+    assert.ok(
+      /seedSavedIds|handleAddToCatalogue/.test(preceding),
+      "auth may only be read by the saved-watch seam, never to build the room"
+    );
+  }
+  // No composition branch anywhere keys off the viewer rather than the data.
+  assert.doesNotMatch(browseCode, /dealerScope && user\b|user && dealerScope/);
+});
+
+test("no private or illustrative module reaches the public dealer room", () => {
+  /* Design Gate 2026-08-17 rendered these to show composition. They are
+     collector-private or have no read model at all, and §8 keeps every one
+     of them out of the public room. */
+  for (const label of [
+    "Good evening",
+    "My Offers",
+    "Saved Searches",
+    "Saved Watches",
+    "Watch DNA",
+    "Recent Activity",
+    "Add a Watch",
+    "Match from Catalogue",
+  ]) {
+    assert.ok(
+      !browseCode.includes(label),
+      `"${label}" is private or illustrative and must not render publicly`
+    );
+  }
+  // Dealer-local search never becomes global search wearing local copy.
+  assert.doesNotMatch(browseCode, /buildBrowseSearchHref/);
+  assert.match(browse, /ariaLabel=\{`Search \$\{dealerScope\.businessName\} inventory`\}/);
+});
