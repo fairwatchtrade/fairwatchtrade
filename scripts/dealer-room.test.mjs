@@ -120,10 +120,26 @@ test("Dealer Room follows the authoritative storefront composition", () => {
   assert.match(browse, /md:w-\[calc\(100%-250px\)\]/);
   assert.match(browse, /defaultViewMode:[^=]*= dealerScope \? "collector" : "gallery"/);
   assert.match(browse, /\{ key: "collector", label: "Collector" \}[\s\S]*\{ key: "gallery", label: "Gallery" \}/);
+  /* The heading and the dealer-local search are PEERS on one horizontal row
+     now, not two stacked bands, so their relative source order stopped
+     carrying meaning. What must stay true is the reading order of the room:
+     the catalogue names itself, then the controls that operate on it, then
+     the watches. The old assertion is replaced by that stronger three-way
+     ordering rather than dropped. */
+  const barIdx = browse.indexOf("{dealerScope.businessName} Catalogue");
+  const searchIdx = browse.indexOf("dealerRoomMode");
+  const controlsIdx = browse.indexOf("Layout controls bar");
+  const resultsIdx = browse.indexOf("{paginated.map");
+  assert.ok(barIdx > 0, "the dealer catalogue must name itself");
+  assert.ok(barIdx < controlsIdx, "the catalogue is named above the controls that order it");
+  assert.ok(searchIdx > barIdx && searchIdx < controlsIdx, "dealer-local search rides in the catalogue bar");
+  assert.ok(controlsIdx < resultsIdx, "controls precede the results they act on");
+  /* One band, not three: the search must no longer close a border of its own,
+     and the retired duplicate heading must not come back. */
+  assert.doesNotMatch(search, /dealerRoomMode\s*\n\s*\? "border-b/);
   assert.ok(
-    browse.indexOf("dealerRoomMode") <
-      browse.indexOf("{dealerScope.businessName} Inventory"),
-    "dealer-local search must precede the inventory heading",
+    !browse.includes("{dealerScope.businessName} Inventory"),
+    "the second <h1> repeating the business name must not return",
   );
 });
 
@@ -326,8 +342,13 @@ test("one result pipeline: filtered -> sorted -> paginated, never re-cut", () =>
 test("public total and filtered count are never conflated", () => {
   // The dealer's whole published shelf — identity block and rail total.
   assert.match(browse, /\{listings\.length\} \{listings\.length === 1 \? "watch" : "watches"\}/);
-  // What the current search and facets actually left standing.
-  assert.match(browse, /\{filtered\.length\} \{filtered\.length === 1 \? "watch" : "watches"\}/);
+  /* What the query left standing. This states the RELATIONSHIP rather than
+     printing a second bare "N watches" that reads identically to the shelf
+     total two bands above it — the conflation §17 forbids was previously
+     available to any reader who glanced at both. */
+  assert.match(browse, /filtered\.length === listings\.length/);
+  assert.match(browse, /\$\{filtered\.length\} of \$\{listings\.length\} watches/);
+  assert.match(browse, /\{dealerResultStatus\}/);
   // An empty shelf is a fact about the dealer; an empty result is a fact
   // about the query. Only the first may claim "no public watches".
   assert.match(browse, /dealerScope && listings\.length === 0 \?/);

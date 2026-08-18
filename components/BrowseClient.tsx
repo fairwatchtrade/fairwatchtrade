@@ -1367,6 +1367,16 @@ export default function BrowseClient({
       }))
     : [];
 
+  /* One sentence that cannot be mistaken for the other count. The shelf
+     total stands alone until something narrows it; the moment something
+     does, the RELATIONSHIP is stated rather than left for a reader to infer
+     from two identically-worded "N watches" in two different bands. */
+  const dealerResultStatus = dealerScope
+    ? filtered.length === listings.length
+      ? `${listings.length} ${listings.length === 1 ? "watch" : "watches"}`
+      : `${filtered.length} of ${listings.length} watches`
+    : null;
+
   const dealerIdentity = dealerScope ? (
     <section className="relative -mx-6 -mt-5 grid grid-cols-1 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--ink-deep)] px-6 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -1478,18 +1488,43 @@ export default function BrowseClient({
         />
       </div>}
 
+      {/* The catalogue bar. This band and the controls band below it read
+          as ONE group: the catalogue names itself and is searched here, and
+          the controls that operate on it sit directly beneath, closed by a
+          single border. Previously these were three separately bordered
+          full-width bands — search, then controls, then a heading — which
+          put the tools ABOVE the heading they act on and spent most of the
+          first screen before a single watch appeared. The heading also
+          repeated the business name as a second <h1>; the identity band
+          above already carries that. */}
       {dealerScope && (
-        <div className="px-6 pt-6 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8">
-          <BrowseSearch
-            query={queryText}
-            onCommit={setQuery}
-            chips={searchChips}
-            onClearAll={clearAll}
-            ariaLabel={`Search ${dealerScope.businessName} inventory`}
-            placeholder={`Search ${dealerScope.businessName} inventory`}
-            legibilityMode
-            dealerRoomMode
-          />
+        <div className="px-6 pt-4 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
+            <div className="min-w-0">
+              <h2 className="font-display text-[19px] font-light tracking-[0.4px] text-[var(--platinum)] sm:truncate">
+                {dealerScope.businessName} Catalogue
+              </h2>
+              <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
+                {dealerResultStatus}
+              </p>
+            </div>
+            {/* Deliberate width: the search takes a real column on desktop
+                rather than the whole page, so the catalogue keeps the room.
+                On a phone it returns to full width — the same control, not
+                a second mobile product. */}
+            <div className="w-full md:w-[380px] md:shrink-0">
+              <BrowseSearch
+                query={queryText}
+                onCommit={setQuery}
+                chips={searchChips}
+                onClearAll={clearAll}
+                ariaLabel={`Search ${dealerScope.businessName} inventory`}
+                placeholder={`Search ${dealerScope.businessName} inventory`}
+                legibilityMode
+                dealerRoomMode
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -1519,7 +1554,7 @@ export default function BrowseClient({
       <div
         className={`flex flex-wrap items-center justify-between gap-y-3 border-b border-[var(--border-faint)] pb-3 sm:flex-nowrap md:pb-4 ${
           dealerScope
-            ? "px-6 pt-4 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8"
+            ? "px-6 pt-3 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8"
             : "mt-3 md:mt-6"
         }`}
       >
@@ -1690,22 +1725,6 @@ export default function BrowseClient({
           ))}
         </div>
       </div>
-
-      {dealerScope && (
-        <div className="flex items-end justify-between border-b border-[var(--border-faint)] px-6 py-5 md:ml-[250px] md:w-[calc(100%-250px)] md:px-8">
-          <div>
-            <h1 className="font-display text-[24px] font-light tracking-[0.5px] text-[var(--platinum)]">
-              {dealerScope.businessName} Inventory
-            </h1>
-            <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
-              Dealer-scoped catalogue
-            </p>
-          </div>
-          <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
-            {filtered.length} {filtered.length === 1 ? "watch" : "watches"}
-          </div>
-        </div>
-      )}
 
       <div className={dealerScope ? "block" : "mt-4 flex gap-6"}>
         {/* Desktop sidebar — collapses to w-0 */}

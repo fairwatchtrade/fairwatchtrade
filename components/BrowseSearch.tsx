@@ -198,7 +198,10 @@ export default function BrowseSearch({
     <div
       className={
         dealerRoomMode
-          ? "border-b border-[var(--border-faint)] pb-4"
+          ? /* Inline in the catalogue bar: the search no longer closes a band
+               of its own. The controls bar directly beneath draws the single
+               border that closes the whole group. */
+            ""
           : /* Phone: the search state reads as one cohesive block riding
                close to the header; desktop keeps its py-5 room. */
             "border-b border-[var(--border-faint)] px-6 pt-3 pb-4 md:py-5"
