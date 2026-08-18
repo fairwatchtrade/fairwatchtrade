@@ -405,21 +405,20 @@ export default async function ListingDetailPage({
   return (
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
       {/* v2.11 — RESPONSIVE COMPOSITION (locked ruling).
-          Desktop (xl+): the approved two-column composition — 974px primary
+          Desktop (1180px+): the approved two-column composition — 974px primary
           + 276px staggered rail, --space-6 gap, page-level Collector's Drawer
-          owning Back to Browse. The container widens to 1438px (1274 content
-          + 82px padding each side); the Drawer's collapsed tab lives at
-          left:-50px INSIDE that padding, which is why the padding is not
+          owning Back to Browse. At 1438px the tracks occupy 1274px with 82px
+          visual gutters on each side; the Drawer's collapsed tab lives at
+          left:-65px inside the left gutter, which is why that anchor is not
           decorative and must not be reduced.
-          Mobile/tablet (<xl): today's single column, untouched, keeping the
+          Mobile/tablet (<1180px): today's single column, untouched, keeping the
           standalone "Return to browse" link.
           NO viewport shows both navigation mechanisms.
-          Breakpoint = xl (1280px), derived from the mockup rather than
-          picked: the approved grid needs 1274px, and the study's own floor is
-          min-width:1180px. Gating at 1280 means the two-column grid never
-          renders narrower than the Gate ever approved (at 1280 the primary
-          column still gets ~816px). iPad landscape (1024) reads as tablet;
-          iPad Pro landscape (1366) reads as desktop. */}
+          Breakpoint = 73.75rem (1180px), the study's own documented floor.
+          The rail's 276px and 24px gap remain fixed; only the primary column
+          flexes, with a 24px right reserve through intermediate desktop widths.
+          At the 1438px approved width the primary reaches 974px and the spare
+          track space restores the full 82px visual right gutter. */}
       {/* v2.90 — WS3 staged container growth (design ruling, 2026-07-28).
           The old single jump (768 → 1438 at one pixel) forced the gallery,
           title, and thumbnails through a binary reflow the instant the rail
@@ -427,18 +426,15 @@ export default async function ListingDetailPage({
             <1024   max-w-3xl        → 704px content
             lg      max-w-[832px]    → 768px content
             ≥1152   max-w-[880px]    → 816px content
-          816 is not arbitrary: at the xl threshold (1280 viewport, 82px
-          padding, 276px rail, 24px gap) the primary column computes to
-          EXACTLY 816px — so at the flip the gallery/title/thumbnails hold
-          still while the rail enters width the box jump itself created; the
-          primary then grows fluidly 816 → 974, reaching the approved
-          974+276 geometry at ≥1438. A scrollbar-width oscillation now moves
-          only the rail's presence, never the composition. */}
+          816 is not arbitrary: it is the stable single-column width immediately
+          before the 1180px composition handoff. Above that floor, the primary
+          grows fluidly beside the fixed 276px rail until it reaches the approved
+          974+276 geometry at ≥1438. */}
       {/* min-[72rem] (=1152px) deliberately in REM: Tailwind v4 sorts px-unit
           arbitrary variants BEFORE the rem breakpoints, so a min-[1152px]
           rule lands earlier in the sheet than lg (64rem) and loses the
           equal-specificity tie. Same unit family → correct order. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[72rem]:max-w-[880px] xl:max-w-[1438px] xl:px-[82px]">
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[72rem]:max-w-[880px] min-[73.75rem]:max-w-[1438px] min-[73.75rem]:pl-[82px] min-[73.75rem]:pr-6">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
             Desktop retired it at lg in v2.11/v2.17 in favour of the spine
@@ -480,7 +476,7 @@ export default async function ListingDetailPage({
           <WatchBlueprint completed="all" />
         </div>
 
-        {/* ── OPENING — the approved two-column composition at xl; plain
+        {/* ── OPENING — the approved two-column composition at 1180px; plain
                stacked flow below it. align-items:start so the rail's 112px
                stagger reads as intended rather than being stretched. ── */}
         {/* v2.14 — the opening grid now has TWO rows in column 1: the gallery
@@ -490,10 +486,11 @@ export default async function ListingDetailPage({
             pure CSS, no measurement, no gallery coupling. gap-y is explicitly
             zero so the split renders pixel-identically to the old single
             column (identity keeps its own top margin). */}
-        {/* v2.17 moved the grid off `hidden xl:block` (a hard 1279↔1280
-            existence threshold) down to lg, so the spine rail exists — and
-            inherits the gallery row's height — across the desktop range. The
-            approved TWO-COLUMN form still waits for xl, untouched.
+        {/* v2.17 moved the grid off its original hard xl existence threshold,
+            so the spine rail exists — and inherits the gallery row's height —
+            across the desktop range. v5.75 moves the complete two-column
+            composition to the study's 1180px floor; the spine's own 896px
+            desktop handoff remains independent.
 
             v2.93 lowers that handoff again, to min-[56rem] (896px), because lg
             was still too early: the same 1mm-of-mouse flip was reported one
@@ -502,7 +499,7 @@ export default async function ListingDetailPage({
             (max-w-3xl = 768px) its left edge sits at
             (clientWidth − 768) / 2 − 33. It is flush at 834 and clears the
             viewport edge by ~23px at 896, matching the 17px it gets inside the
-            xl gutter. Below that it crowds the edge.
+            two-column gutter. Below that it crowds the edge.
 
             REM, not px: Tailwind v4 sorts px-unit arbitrary variants BEFORE the
             rem breakpoints (see the min-[72rem] note above — the v2.90a
@@ -513,16 +510,18 @@ export default async function ListingDetailPage({
             placements, the standalone back-link, and the two mobile-drawer
             self-gates — or a band appears showing two navigation mechanisms at
             once. Below the handoff: the locked mobile ruling, as before. */}
-        <div className="relative min-[56rem]:grid min-[56rem]:grid-cols-[minmax(0,1fr)] min-[56rem]:grid-rows-[auto_auto] min-[56rem]:items-start min-[56rem]:gap-y-0 xl:grid-cols-[minmax(0,974px)_276px] xl:gap-x-[var(--space-6)]">
+        <div className="relative min-[56rem]:grid min-[56rem]:grid-cols-[minmax(0,1fr)] min-[56rem]:grid-rows-[auto_auto] min-[56rem]:items-start min-[56rem]:gap-y-0 min-[73.75rem]:grid-cols-[minmax(0,974px)_276px] min-[73.75rem]:gap-x-[var(--space-6)]">
           {/* ── SPINE RAIL (v2.14) — a gallery-width grid item sharing the
                  gallery's cell (col 1, row 1) with self-stretch, so its height
-                 IS the gallery's height by grid construction. Below xl the
-                 primary column is centred; anchoring this containing block at
+                 IS the gallery's height by grid construction. Below the
+                 two-column handoff the primary column is centred; anchoring
+                 this containing block at
                  the viewport's 82px gutter keeps the Drawer's existing −65px
                  spine offset at the same 17px visual edge when the rail drops.
-                 At xl the page itself owns that 82px gutter, so left resets to
-                 zero. ListingGallery still has ZERO knowledge of the Drawer. */}
-          <div className="relative left-[calc(50%_-_50vw_+_82px)] hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch xl:left-0">
+                 At the two-column handoff the page itself owns that 82px gutter,
+                 so left resets to zero. ListingGallery still has ZERO knowledge
+                 of the Drawer. */}
+          <div className="relative left-[calc(50%_-_50vw_+_82px)] hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch min-[73.75rem]:left-0">
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
@@ -695,18 +694,18 @@ export default async function ListingDetailPage({
               one home per viewport. */}
           <Link
             href={sellerHref}
-            className="mt-1 inline-block text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)] xl:hidden"
+            className="mt-1 inline-block text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)] min-[73.75rem]:hidden"
           >
             Sold by {sellerName} →
           </Link>
 
-          {/* lg→xl band price (founder finding, 2026-08-12): in this band the
+          {/* lg→1180px band price (founder finding, 2026-08-12): in this band the
               rail does not exist and the inline purchase section lives at the
               bottom of the lower flow — so the price was effectively three
               screens from the watch. The number belongs beside the identity.
-              Hidden below lg (mobile keeps its ruled layout) and at xl+ (the
-              rail's card carries it there). Same figure, one more dressing. */}
-          <div className="hidden lg:block xl:hidden">
+              Hidden below lg (mobile keeps its ruled layout) and once the rail
+              mounts (its card carries it there). Same figure, one more dressing. */}
+          <div className="hidden lg:block min-[73.75rem]:hidden">
             <p className="mt-6 font-display text-[32px] font-light leading-none text-[var(--platinum)]">
               {priceText}
             </p>
@@ -773,7 +772,7 @@ export default async function ListingDetailPage({
           {/* ── RIGHT RAIL — 276px, col 2 spanning both rows. The 112px
                  stagger and the -14px pull are the approved composition's,
                  unchanged. ── */}
-          <aside className="hidden xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:mt-[112px] xl:grid xl:-translate-x-[14px] xl:gap-[14px] xl:self-start">
+          <aside className="hidden min-[73.75rem]:col-start-2 min-[73.75rem]:row-start-1 min-[73.75rem]:row-span-2 min-[73.75rem]:mt-[112px] min-[73.75rem]:grid min-[73.75rem]:-translate-x-[14px] min-[73.75rem]:gap-[14px] min-[73.75rem]:self-start">
             <ListingActionRail
               variant="rail"
               listingId={listing.id}
@@ -801,7 +800,7 @@ export default async function ListingDetailPage({
         {/* ── LOWER FLOW — full-width sections beneath the opening. Capped at
                974px so they align with the primary column and never run under
                the rail. ── */}
-        <div className="xl:max-w-[974px]">
+        <div className="min-[73.75rem]:max-w-[974px]">
 
         {/* SECTIONS 3 & 4 — Collector Snapshot + collapsible Technical Specs */}
         <ListingSpecs
@@ -867,14 +866,14 @@ export default async function ListingDetailPage({
             logic — ONE implementation (ListingActionRail), two dressings, so
             the branches can never drift apart. Because `hidden` is
             display:none, only one variant is ever in the accessibility tree. */}
-        {/* NARROW DESKTOP (lg → xl): the rail can no longer hold the form, so
+        {/* NARROW DESKTOP (lg → 1180px): the rail can no longer hold the form, so
             the request becomes one deliberate full-width section of this same
             page. The collector still never leaves the watch, and the desktop
             Collector's Drawer — which also runs at lg and above — stays
             exactly where it is. lg is not a convenience breakpoint: it is the
             page's own composition boundary, where the mobile Drawer regime
             ends and the desktop one begins. */}
-        <div className="hidden lg:block xl:hidden">
+        <div className="hidden lg:block min-[73.75rem]:hidden">
           <ListingActionRail
             variant="inline"
             listingId={listing.id}

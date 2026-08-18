@@ -65,9 +65,9 @@ import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
    no thumbnails. (The open panel may overlay the gallery, including its
    thumb strip — the original v2.11 overlay behavior, explicitly retained by
    this flight's brief; not a law, just not today's question.)
-   NOTE: the -65px derives from the page container's xl:px-[82px]. If that
-   gutter ever changes, this offset changes with it — they are one design
-   fact in two files.
+   NOTE: the -65px derives from the Listing Detail two-column composition's
+   82px left gutter. If that gutter ever changes, this offset changes with it —
+   they are one design fact in two files.
 
    ── INTERACTION ────────────────────────────────────────────────────────
    The whole spine is ONE toggle button in both states (Study D's own JS

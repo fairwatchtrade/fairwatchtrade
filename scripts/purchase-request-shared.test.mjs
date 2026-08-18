@@ -142,11 +142,14 @@ check("the dedicated route still exists and gates on auth", () => {
   assert.ok(src.includes("callbackUrl=/listings/"));
 });
 
-check("the in-page form is hidden below the desktop boundary", () => {
+check("the in-page form follows the 1180px two-column boundary", () => {
   const page = read("app/listings/[id]/page.tsx");
-  // Narrow desktop gets the inline form; below lg the plain route link stands.
-  assert.ok(page.includes('className="hidden lg:block xl:hidden"'));
+  // Narrow desktop gets the inline form until the rail mounts at 73.75rem;
+  // below lg the plain route link stands.
+  assert.ok(page.includes('className="hidden lg:block min-[73.75rem]:hidden"'));
   assert.ok(page.includes('className="lg:hidden"'));
+  assert.ok(page.includes("min-[73.75rem]:grid-cols-[minmax(0,974px)_276px]"));
+  assert.match(page, /<aside className="hidden min-\[73\.75rem\][^"]*min-\[73\.75rem\]:grid/);
 });
 
 check("only the two form-drawing surfaces receive offer context", () => {
