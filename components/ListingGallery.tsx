@@ -101,8 +101,8 @@ export default function ListingGallery({
   }, [inspecting, photos.length]);
 
   /* The arrow frame must be the rendered photograph, not merely the column.
-     A governed 60vh stage can be height-limited or width-limited depending on
-     both viewport and source proportions, so one fixed CSS dimension cannot
+     A governed stage can be height-limited or width-limited depending on both
+     viewport and source proportions, so one fixed CSS dimension cannot
      describe that rectangle without distorting some photographs. Reading the
      active source's intrinsic ratio lets the neutral wrapper take the largest
      uncropped rectangle that fits both constraints. The outer stage remains
@@ -158,7 +158,7 @@ export default function ListingGallery({
           padding between the collector and the photograph.
           The photograph itself carries no click
           handler: clicking it still does nothing, by design. */}
-      <div className="flex h-[60vh] w-full items-center justify-center">
+      <div className="flex aspect-square max-h-[60vh] w-full items-center justify-center [container-type:size]">
         {/* ── THE GOVERNED STAGE ────────────────────────────────────────────
             The stage owns the height. The photograph does not.
 
@@ -178,21 +178,21 @@ export default function ListingGallery({
             that hides behind the aspect ratios a listing happens to contain
             is not absent; it is waiting.
 
-            So the height is now a constant per viewport, and the photograph
-            adapts inside it. 60vh is the SAME height the tallest photograph
-            already occupied, so the roomiest case is unchanged; what changed
-            is that a short photograph no longer pulls the facts up to meet
-            it.
+            So the height is constant for a given responsive composition, and
+            the photograph adapts inside it. The stage follows the column until
+            it reaches the established 60vh ceiling: photo changes stay stable,
+            while a narrow desktop no longer reserves height it cannot use.
 
             This also removes the transient jump: the stage is sized before
             any image loads, so nothing reflows when a new one arrives —
             cold cache or warm.
 
-            The exact-aspect inner wrapper is deliberate. It takes the largest
-            rectangle that fits both the column and 60vh, then the image fills
-            that matching rectangle. There is no crop, distortion or
-            letterbox margin inside the wrapper, so Dial Reveal and the photo
-            arrows share the real image edge as their containing geometry.
+            The exact-aspect inner wrapper is deliberate. Container-query
+            units let it take the largest rectangle that fits both the stage's
+            live width and height, then the image fills that matching rectangle.
+            There is no crop, distortion or letterbox margin inside the wrapper,
+            so Dial Reveal and the photo arrows share the real image edge as
+            their containing geometry.
 
             NOT solved by cropping, by moving a fact, or by touching a seller
             photo record. The photograph is still whole, still object-contain,
@@ -204,7 +204,7 @@ export default function ListingGallery({
         <div
           className="relative max-h-full max-w-full"
           style={{
-            width: `min(100%, calc(60vh * ${heroAspect}))`,
+            width: `min(100cqw, calc(100cqh * ${heroAspect}))`,
             aspectRatio: heroAspect,
           }}
         >

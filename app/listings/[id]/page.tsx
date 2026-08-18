@@ -426,27 +426,28 @@ export default async function ListingDetailPage({
           primary reclaims the rail's released horizontal space.
           At the 1438px approved width the primary reaches 974px and the spare
           track space restores the full 82px visual right gutter. */}
-      {/* v2.90/v5.79 — staged container growth.
-          At lg, the collapsed desktop shell uses the viewport width available
-          between its established 50px left anchor and the right edge. At
-          1072px the two-column shell takes over with a usable 224px rail;
+      {/* v2.90/v5.81 — staged container growth.
+          At the 56rem desktop Drawer handoff, the collapsed shell uses the
+          viewport width available between its established 50px left anchor
+          and the right edge. At 1072px the two-column shell takes over with a
+          usable 224px rail;
           above that physical floor both tracks grow fluidly:
-            <1024   max-w-3xl        → 704px content
-            lg      natural width    → released rail space returns to primary
+            <56rem  max-w-3xl        → established mobile composition
+            ≥56rem  natural width    → Drawer + primary use available desktop
             ≥1072   two columns      → primary + 224–276px rail
           No Drawer column is reserved: the Drawer overlays the primary from
           the fixed 82px content gutter. Losing the rail can therefore widen
           the gallery without moving its left edge. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 min-[56rem]:ml-[50px] min-[56rem]:mr-0 lg:w-[calc(100%_-_50px)] lg:max-w-none min-[67rem]:mx-auto min-[67rem]:w-full min-[67rem]:max-w-[1438px] min-[67rem]:pl-[82px] min-[67rem]:pr-6">
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 min-[56rem]:ml-[50px] min-[56rem]:mr-0 min-[56rem]:w-[calc(100%_-_50px)] min-[56rem]:max-w-none min-[67rem]:mx-auto min-[67rem]:w-full min-[67rem]:max-w-[1438px] min-[67rem]:pl-[82px] min-[67rem]:pr-6">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
-            Desktop retired it at lg in v2.11/v2.17 in favour of the spine
-            Drawer's row; the mobile Collector's Drawer now exists below lg
+            Desktop retired it at 56rem in v2.11/v2.17 in favour of the spine
+            Drawer's row; the mobile Collector's Drawer now exists below 56rem
             and carries the same returnTo-preserved href in its Back to Browse
             row — the v2.11 law ("no viewport shows both navigation
             mechanisms") is satisfied by the Drawer alone everywhere. ONE
             degenerate exception, kept honest: a photo-less listing has no
-            gallery for the mobile Drawer to anchor to, so below lg it renders
+            gallery for the mobile Drawer to anchor to, so below 56rem it renders
             this link instead — never both. */}
         {photoUrls.length === 0 && (
           <Link

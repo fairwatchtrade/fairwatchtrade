@@ -231,6 +231,12 @@ test("listing photography has a dedicated inspection state", () => {
   );
   // The resting hero photograph stays inert (v1.23 law preserved).
   assert.match(gallery, /The photograph itself carries no click\s*\n?\s*handler/);
+  // Stable between photos does not reserve an oversized fixed-height desktop
+  // stage: width drives the stage until the established 60vh ceiling.
+  assert.match(gallery, /aspect-square max-h-\[60vh\]/);
+  assert.match(gallery, /\[container-type:size\]/);
+  assert.match(gallery, /min\(100cqw, calc\(100cqh \* \$\{heroAspect\}\)\)/);
+  assert.doesNotMatch(gallery, /className="flex h-\[60vh\] w-full/);
 });
 
 test("listing-stage FAQ reuses the published copy and links to the full room", () => {

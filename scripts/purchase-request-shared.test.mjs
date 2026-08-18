@@ -151,7 +151,8 @@ check("the in-page form follows the 1072px boundary directly after the gallery",
   assert.ok(page.includes('className="hidden lg:block min-[67rem]:hidden"'));
   assert.equal(page.split('className="hidden lg:block min-[67rem]:hidden"').length - 1, 1);
   assert.ok(page.includes('className="lg:hidden"'));
-  assert.ok(page.includes("lg:w-[calc(100%_-_50px)] lg:max-w-none"));
+  assert.ok(page.includes("min-[56rem]:w-[calc(100%_-_50px)] min-[56rem]:max-w-none"));
+  assert.equal(page.includes("lg:w-[calc(100%_-_50px)] lg:max-w-none"), false);
   assert.equal(page.includes("lg:max-w-[767px]"), false);
   assert.ok(page.includes("min-[67rem]:grid-cols-[minmax(0,974px)_clamp(224px,20vw,276px)]"));
   assert.match(page, /<aside className="hidden min-\[67rem\][^"]*min-\[67rem\]:grid/);
