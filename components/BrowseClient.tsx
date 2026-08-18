@@ -1993,46 +1993,12 @@ export default function BrowseClient({
                             🛡️
                           </div>
                         )}
-                        {/* Quick Specs loupe — an inspection invitation on the
-                            photograph's own frame. It toggles the panel and
-                            never navigates; the card around it remains one
-                            link to the listing. */}
-                        {hasQuick && (
-                          <button
-                            type="button"
-                            aria-label={`Quick Specs — ${title}`}
-                            aria-expanded={isQuickOpen}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setOpenQuickId((prev) => (prev === row.id ? null : row.id));
-                            }}
-                            className={`absolute bottom-1.5 left-1.5 grid h-[27px] w-[27px] place-items-center rounded-full border bg-[var(--on-photo-scrim-deep)] transition ${
-                              isQuickOpen
-                                ? "border-[var(--on-photo-gold-line)] text-[var(--on-photo-gold)]"
-                                : "border-[var(--on-photo-line)] text-[var(--on-photo-text)] hover:text-[var(--on-photo-gold)]"
-                            }`}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              className="h-[15px] w-[15px]"
-                              aria-hidden="true"
-                            >
-                              <circle cx="10.5" cy="10.5" r="6" />
-                              <path d="m15 15 5.5 5.5" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        )}
                       </div>
                       {/* ── THE LOUPE, OFF THE PHOTOGRAPH ──────────────
-                          Desktop SEE-it rejected this control living in a
-                          dark filled square on the evidence. A badge sitting
-                          on a watch is the platform talking over the object,
-                          and browser zoom only made it louder — the container
-                          grew while the watch did not.
+                          The watchmaker's loupe is the established Quick Specs
+                          trigger. It belongs on the card surface below/right
+                          of the photograph, never as a generic magnifier over
+                          the watch itself.
 
                           It sits on the card's own surface now, beneath the
                           image at the head of the copy: still plainly about
@@ -2044,18 +2010,31 @@ export default function BrowseClient({
                           second loupe drawing anywhere in the product. The
                           mark reads 18px; the pressable area is 32px, because
                           a quiet mark still has to be easy to hit. */}
-                      {hero && (
+                      {hero && (!dealerScope || hasQuick) && (
                         <div className="-mt-2 mb-1 flex justify-end">
                           <button
                             type="button"
                             title="Quick Specs"
-                            aria-label={`Open Quick Specs for ${row.brand}${row.model ? ` ${row.model}` : ""}`}
+                            aria-label={
+                              dealerScope
+                                ? `Quick Specs — ${title}`
+                                : `Open Quick Specs for ${row.brand}${row.model ? ` ${row.model}` : ""}`
+                            }
+                            aria-expanded={dealerScope ? isQuickOpen : undefined}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              openInspection(row.id, e.currentTarget);
+                              if (dealerScope) {
+                                setOpenQuickId((prev) => (prev === row.id ? null : row.id));
+                              } else {
+                                openInspection(row.id, e.currentTarget);
+                              }
                             }}
-                            className="flex h-8 w-8 items-center justify-center text-[var(--platinum)] opacity-65 transition hover:text-[var(--gold)] hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+                            className={`flex h-8 w-8 items-center justify-center transition hover:text-[var(--gold)] hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] ${
+                              dealerScope && isQuickOpen
+                                ? "text-[var(--gold)] opacity-100"
+                                : "text-[var(--platinum)] opacity-65"
+                            }`}
                           >
                             <LoupeIcon size={18} />
                           </button>
