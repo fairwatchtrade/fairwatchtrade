@@ -422,21 +422,22 @@ export default async function ListingDetailPage({
           NO viewport shows both navigation mechanisms.
           Breakpoint = 67rem (1072px), derived from the tracks' physical floors:
           703px primary + 224px rail + 24px gap. Below it, the existing inline
-          Purchase Request takes over without changing the gallery geometry.
+          Purchase Request takes over directly after the gallery and the
+          primary reclaims the rail's released horizontal space.
           At the 1438px approved width the primary reaches 974px and the spare
           track space restores the full 82px visual right gutter. */}
-      {/* v2.90/v5.78 — staged container growth.
-          The single-column shell reaches 703px of content at lg. At 1072px
-          the two-column shell takes over with a usable 224px rail;
+      {/* v2.90/v5.79 — staged container growth.
+          At lg, the collapsed desktop shell uses the viewport width available
+          between its established 50px left anchor and the right edge. At
+          1072px the two-column shell takes over with a usable 224px rail;
           above that physical floor both tracks grow fluidly:
             <1024   max-w-3xl        → 704px content
-            lg      max-w-[767px]    → 703px content
+            lg      natural width    → released rail space returns to primary
             ≥1072   two columns      → primary + 224–276px rail
-          The last two-column frame and first stacked frame are both 703px,
-          so only the rail's presentation changes at the handoff. From the
-          desktop Drawer handoff onward, content starts on the same 82px visual
-          gutter, preventing either recentering or a width jump. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 min-[56rem]:ml-[50px] min-[56rem]:mr-0 lg:max-w-[767px] min-[67rem]:mx-auto min-[67rem]:max-w-[1438px] min-[67rem]:pl-[82px] min-[67rem]:pr-6">
+          No Drawer column is reserved: the Drawer overlays the primary from
+          the fixed 82px content gutter. Losing the rail can therefore widen
+          the gallery without moving its left edge. */}
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 min-[56rem]:ml-[50px] min-[56rem]:mr-0 lg:w-[calc(100%_-_50px)] lg:max-w-none min-[67rem]:mx-auto min-[67rem]:w-full min-[67rem]:max-w-[1438px] min-[67rem]:pl-[82px] min-[67rem]:pr-6">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
             Desktop retired it at lg in v2.11/v2.17 in favour of the spine
@@ -578,9 +579,31 @@ export default async function ListingDetailPage({
             )}
           </div>
 
-          {/* CONTENT CELL — col 1, row 2: everything that followed the gallery
-              in the old primary column, unchanged. */}
+          {/* CONTENT CELL — col 1, row 2: the collapsed purchase handoff first,
+              then the listing's normal identity and story flow. */}
           <div className="min-[56rem]:col-start-1 min-[56rem]:row-start-2">
+
+        {/* NARROW DESKTOP PURCHASE HANDOFF (lg → 1072px). This is the existing
+            inline dressing, relocated from the end of the lower flow to the
+            first position after the gallery. It consumes the same provider's
+            live open/offer/note state as the rail; no form or controller is
+            duplicated. Below lg, the established mobile route remains in its
+            lower-flow home. */}
+        <div className="hidden lg:block min-[67rem]:hidden">
+          <ListingActionRail
+            variant="inline"
+            listingId={listing.id}
+            sellerId={listing.seller_id}
+            sellerName={sellerName}
+            priceText={priceText}
+            isOwner={isOwner}
+            requestStatus={myLatestRequest?.status ?? null}
+            listingStatus={listing.status}
+            askingPrice={listing.asking_price}
+            askingCurrency={listing.asking_currency}
+            canRequestInline={!!user}
+          />
+        </div>
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").
@@ -698,21 +721,6 @@ export default async function ListingDetailPage({
           >
             Sold by {sellerName} →
           </Link>
-
-          {/* lg→1072px band price (founder finding, 2026-08-12): in this band the
-              rail does not exist and the inline purchase section lives at the
-              bottom of the lower flow — so the price was effectively three
-              screens from the watch. The number belongs beside the identity.
-              Hidden below lg (mobile keeps its ruled layout) and once the rail
-              mounts (its card carries it there). Same figure, one more dressing. */}
-          <div className="hidden lg:block min-[67rem]:hidden">
-            <p className="mt-6 font-display text-[32px] font-light leading-none text-[var(--platinum)]">
-              {priceText}
-            </p>
-            <p className="mt-1.5 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-              Asking Price
-            </p>
-          </div>
 
           {/* Stated by the seller, not certified by the platform: a sentence,
               no chip, no checkmark. The outline mark is decoration only. */}
@@ -859,35 +867,6 @@ export default async function ListingDetailPage({
             />
           }
         />
-
-        {/* v2.11 — MOBILE/TABLET price + purchase. Today's in-flow layout,
-            preserved exactly per the responsive ruling. On desktop this is
-            display:none and the rail's Purchase Request card carries the same
-            logic — ONE implementation (ListingActionRail), two dressings, so
-            the branches can never drift apart. Because `hidden` is
-            display:none, only one variant is ever in the accessibility tree. */}
-        {/* NARROW DESKTOP (lg → 1072px): the rail has reached its useful floor, so
-            the request becomes one deliberate full-width section of this same
-            page. The collector still never leaves the watch, and the desktop
-            Collector's Drawer — which also runs at lg and above — stays
-            exactly where it is. lg is not a convenience breakpoint: it is the
-            page's own composition boundary, where the mobile Drawer regime
-            ends and the desktop one begins. */}
-        <div className="hidden lg:block min-[67rem]:hidden">
-          <ListingActionRail
-            variant="inline"
-            listingId={listing.id}
-            sellerId={listing.seller_id}
-            sellerName={sellerName}
-            priceText={priceText}
-            isOwner={isOwner}
-            requestStatus={myLatestRequest?.status ?? null}
-            listingStatus={listing.status}
-            askingPrice={listing.asking_price}
-            askingCurrency={listing.asking_currency}
-            canRequestInline={!!user}
-          />
-        </div>
 
         {/* MOBILE (below lg): the dedicated /listings/[id]/purchase-request
             route, deliberately kept. No inline form and no second sheet that
