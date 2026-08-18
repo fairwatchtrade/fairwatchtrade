@@ -514,15 +514,15 @@ export default async function ListingDetailPage({
             self-gates — or a band appears showing two navigation mechanisms at
             once. Below the handoff: the locked mobile ruling, as before. */}
         <div className="relative min-[56rem]:grid min-[56rem]:grid-cols-[minmax(0,1fr)] min-[56rem]:grid-rows-[auto_auto] min-[56rem]:items-start min-[56rem]:gap-y-0 xl:grid-cols-[minmax(0,974px)_276px] xl:gap-x-[var(--space-6)]">
-          {/* ── SPINE RAIL (v2.14) — a zero-width grid item sharing the
+          {/* ── SPINE RAIL (v2.14) — a gallery-width grid item sharing the
                  gallery's cell (col 1, row 1) with self-stretch, so its height
-                 IS the gallery's height by grid construction. The Drawer
-                 anchors here: its geometry is owned by the LISTING layout —
-                 the rail's left edge is the content edge, fixed at every xl
-                 width regardless of how the gallery column resizes. The spine
-                 itself sits at −65px, centered in the page's 82px gutter.
-                 ListingGallery still has ZERO knowledge of the Drawer. */}
-          <div className="relative hidden w-0 min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch">
+                 IS the gallery's height by grid construction. Below xl the
+                 primary column is centred; anchoring this containing block at
+                 the viewport's 82px gutter keeps the Drawer's existing −65px
+                 spine offset at the same 17px visual edge when the rail drops.
+                 At xl the page itself owns that 82px gutter, so left resets to
+                 zero. ListingGallery still has ZERO knowledge of the Drawer. */}
+          <div className="relative left-[calc(50%_-_50vw_+_82px)] hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch xl:left-0">
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
