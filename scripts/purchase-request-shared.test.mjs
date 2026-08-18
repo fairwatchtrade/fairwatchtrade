@@ -114,9 +114,11 @@ check("exactly one module posts to /api/purchase-requests", () => {
 });
 
 check("every surface draws from the shared controller", () => {
-  for (const f of ["components/PurchaseRequestForm.tsx", "components/InlinePurchaseRequest.tsx"]) {
-    assert.ok(read(f).includes("usePurchaseRequest"), f);
-  }
+  assert.ok(read("components/PurchaseRequestForm.tsx").includes("usePurchaseRequest"));
+  assert.ok(read("components/InlinePurchaseRequest.tsx").includes("useListingPurchaseRequest"));
+  const provider = read("components/ListingPurchaseRequestProvider.tsx");
+  assert.equal(provider.split("usePurchaseRequest(").length - 1, 1);
+  assert.ok(provider.includes('"live"'));
 });
 
 check("no surface re-implements the response branches", () => {
@@ -142,22 +144,23 @@ check("the dedicated route still exists and gates on auth", () => {
   assert.ok(src.includes("callbackUrl=/listings/"));
 });
 
-check("the in-page form follows the 1180px two-column boundary", () => {
+check("the in-page form follows the 1120px useful-rail boundary", () => {
   const page = read("app/listings/[id]/page.tsx");
-  // Narrow desktop gets the inline form until the rail mounts at 73.75rem;
+  // Narrow desktop gets the inline form until the rail mounts at 70rem;
   // below lg the plain route link stands.
-  assert.ok(page.includes('className="hidden lg:block min-[73.75rem]:hidden"'));
+  assert.ok(page.includes('className="hidden lg:block min-[70rem]:hidden"'));
   assert.ok(page.includes('className="lg:hidden"'));
-  assert.ok(page.includes("min-[73.75rem]:grid-cols-[minmax(0,974px)_276px]"));
-  assert.match(page, /<aside className="hidden min-\[73\.75rem\][^"]*min-\[73\.75rem\]:grid/);
+  assert.ok(page.includes("min-[70rem]:grid-cols-[minmax(0,974px)_clamp(248px,22vw,276px)]"));
+  assert.match(page, /<aside className="hidden min-\[70rem\][^"]*min-\[70rem\]:grid/);
+  assert.ok(page.includes("<ListingPurchaseRequestProvider"));
 });
 
 check("only the two form-drawing surfaces receive offer context", () => {
   const page = read("app/listings/[id]/page.tsx");
-  /* askingPrice goes to exactly two invocations — the xl rail and the lg
-     inline section. The mobile inline block and the fixed bar draw no form,
-     so they must never be handed the offer context. */
-  assert.equal(page.split("askingPrice={listing.asking_price}").length - 1, 2);
+  /* askingPrice goes to the one shared provider plus the two drawing
+     invocations — the desktop rail and the lg inline section. The mobile
+     route link and fixed bar draw no form. */
+  assert.equal(page.split("askingPrice={listing.asking_price}").length - 1, 3);
   /* canRequestInline reaches three: those two plus the bar, which uses it
      only to decide whether to open the page's form or keep the route link. */
   assert.equal(page.split("canRequestInline").length - 1, 3);

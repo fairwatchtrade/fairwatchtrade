@@ -252,6 +252,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       <input
                         id="offer"
                         ref={offerRef}
+                        data-purchase-offer-for={listing.id}
                         inputMode="decimal"
                         autoComplete="off"
                         placeholder={currency.exponent > 0 ? "0.00" : "0"}

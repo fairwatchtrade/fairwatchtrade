@@ -66,6 +66,17 @@ export function usePurchaseRequest(
   const [submittedOffer, setSubmittedOffer] = useState<number | null>(null);
   const offerRef = useRef<HTMLInputElement>(null);
 
+  const focusOffer = useCallback(() => {
+    const visibleOffer = Array.from(
+      document.querySelectorAll<HTMLInputElement>("[data-purchase-offer-for]")
+    ).find(
+      (input) =>
+        input.dataset.purchaseOfferFor === listing.id &&
+        input.getClientRects().length > 0
+    );
+    (visibleOffer ?? offerRef.current)?.focus();
+  }, [listing.id]);
+
   const draftKey = draftKeyFor(listing.id);
 
   /* One-time hydration from sessionStorage — readable only on the client, and
@@ -161,11 +172,11 @@ export function usePurchaseRequest(
           return;
         case "field_error":
           setFieldError(outcome.detail);
-          offerRef.current?.focus();
+          focusOffer();
           return;
       }
     },
-    [clearDraft, persistDraft]
+    [clearDraft, focusOffer, persistDraft]
   );
 
   const submit = useCallback(async () => {
@@ -174,7 +185,7 @@ export function usePurchaseRequest(
     const p = parsePrice(offer, listing.askingCurrency);
     if (!p.ok) {
       setFieldError(p.reason === "empty" ? "Enter your offer." : p.message);
-      offerRef.current?.focus();
+      focusOffer();
       return;
     }
     setBusy(true);
@@ -197,7 +208,7 @@ export function usePurchaseRequest(
     } finally {
       setBusy(false);
     }
-  }, [apply, listing.askingCurrency, listing.askingPrice, listing.id, message, offer]);
+  }, [apply, focusOffer, listing.askingCurrency, listing.askingPrice, listing.id, message, offer]);
 
   const keepEditing = useCallback(() => {
     setChanged(null);

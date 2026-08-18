@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
-import { usePurchaseRequest } from "@/components/usePurchaseRequest";
+import { useListingPurchaseRequest } from "@/components/ListingPurchaseRequestProvider";
 import {
   OPEN_PURCHASE_REQUEST,
   type OpenPurchaseRequestDetail,
@@ -46,7 +46,6 @@ export default function InlinePurchaseRequest({
   askingCurrency: string | null;
   variant: "rail" | "inline";
 }) {
-  const [open, setOpen] = useState(false);
   const startRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
 
@@ -54,10 +53,10 @@ export default function InlinePurchaseRequest({
      and reading fields off the returned object would look like a ref access
      during render. */
   const {
-    offer, setOffer, message, setMessage, busy, view,
+    offer, setOffer, message, setMessage, busy, view, open, setOpen,
     formError, changed, submittedOffer, offerRef, parsed,
     showOfferError, offerErrorText, submit, keepEditing, restoreDraft,
-  } = usePurchaseRequest({ id: listingId, askingPrice, askingCurrency }, "live");
+  } = useListingPurchaseRequest(listingId);
   const currency = currencyMeta(askingCurrency);
   const fmt = (n: number) => formatMoney(n, askingCurrency);
 
@@ -85,7 +84,7 @@ export default function InlinePurchaseRequest({
     }
     window.addEventListener(OPEN_PURCHASE_REQUEST, onAsk);
     return () => window.removeEventListener(OPEN_PURCHASE_REQUEST, onAsk);
-  }, [listingId, restoreDraft]);
+  }, [listingId, restoreDraft, setOpen]);
 
   const startButton = (
     <button
@@ -232,6 +231,7 @@ export default function InlinePurchaseRequest({
             <input
               id={`${panelId}-offer`}
               ref={offerRef}
+              data-purchase-offer-for={listingId}
               inputMode="decimal"
               autoComplete="off"
               placeholder={currency.exponent > 0 ? "0.00" : "0"}
