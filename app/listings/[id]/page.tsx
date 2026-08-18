@@ -434,8 +434,10 @@ export default async function ListingDetailPage({
             ≥1120   two columns      → primary + 248–276px rail
           The rail therefore reaches a real useful floor before collapse, and
           the old 1152px single-column staging rule cannot re-constrain the
-          new composition after it has mounted. */}
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 lg:max-w-[832px] min-[70rem]:max-w-[1438px] min-[70rem]:pl-[82px] min-[70rem]:pr-6">
+          new composition after it has mounted. From the desktop Drawer handoff
+          onward, the shell's content starts on the same 82px visual gutter so
+          losing the rail never recenters the hero. */}
+      <div className="relative mx-auto w-full max-w-3xl px-6 py-8 sm:px-8 min-[56rem]:ml-[50px] min-[56rem]:mr-0 lg:max-w-[832px] min-[70rem]:mx-auto min-[70rem]:max-w-[1438px] min-[70rem]:pl-[82px] min-[70rem]:pr-6">
         {/* v2.25 — the standalone "Return to browse" link is RETIRED wherever
             a Drawer exists (chain ruling: no dual Back-to-Browse controls).
             Desktop retired it at lg in v2.11/v2.17 in favour of the spine
@@ -495,12 +497,10 @@ export default async function ListingDetailPage({
 
             v2.93 lowers that handoff again, to min-[56rem] (896px), because lg
             was still too early: the same 1mm-of-mouse flip was reported one
-            breakpoint down. Measured on production — the spine is
-            `left-[-65px] w-[48px]`, so with the below-lg container
-            (max-w-3xl = 768px) its left edge sits at
-            (clientWidth − 768) / 2 − 33. It is flush at 834 and clears the
-            viewport edge by ~23px at 896, matching the 17px it gets inside the
-            two-column gutter. Below that it crowds the edge.
+            breakpoint down. The desktop shell now owns an 82px content gutter
+            from that handoff onward, so the spine's `left-[-65px] w-[48px]`
+            geometry resolves to the same 17px visual edge throughout. Below
+            that point the separate mobile Drawer remains in control.
 
             REM, not px: Tailwind v4 sorts px-unit arbitrary variants BEFORE the
             rem breakpoints (the v2.90a
@@ -515,14 +515,14 @@ export default async function ListingDetailPage({
           {/* ── SPINE RAIL (v2.14) — a gallery-width grid item sharing the
                  gallery's cell (col 1, row 1) with self-stretch, so its height
                  IS the gallery's height by grid construction. Below the
-                 two-column handoff the primary column is centred; anchoring
-                 this containing block at
-                 the viewport's 82px gutter keeps the Drawer's existing −65px
-                 spine offset at the same 17px visual edge when the rail drops.
-                 At the two-column handoff the page itself owns that 82px gutter,
-                 so left resets to zero. ListingGallery still has ZERO knowledge
-                 of the Drawer. */}
-          <div className="relative left-[calc(50%_-_50vw_+_82px)] hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch min-[70rem]:left-0">
+                 two-column handoff the desktop shell itself stays on the same
+                 82px visual gutter: 50px shell margin + 32px inner padding.
+                 The gallery and this containing block therefore share x=82,
+                 keeping the Drawer's existing −65px spine offset at the same
+                 17px visual edge on both sides of the rail collapse. No
+                 recentering compensation is needed, and ListingGallery still
+                 has ZERO knowledge of the Drawer. */}
+          <div className="relative hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch">
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
