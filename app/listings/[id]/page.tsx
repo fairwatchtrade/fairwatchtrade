@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { safeBrowseReturn } from "@/lib/listingReturn";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
@@ -225,15 +226,6 @@ function buildSimilarHref(
   return qs ? `/browse?${qs}` : null;
 }
 
-function safeBrowseReturn(raw: string | string[] | undefined): string {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value) return "/browse";
-  const isBrowsePath =
-    value === "/browse" || value.startsWith("/browse?") || value.startsWith("/browse/");
-  if (!isBrowsePath) return "/browse";
-  if (/[\r\n\t]/.test(value)) return "/browse";
-  return value;
-}
 
 export default async function ListingDetailPage({
   params,
@@ -243,7 +235,7 @@ export default async function ListingDetailPage({
   searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
   const { returnTo } = await searchParams;
-  const browseHref = safeBrowseReturn(returnTo);
+  const { href: browseHref, label: browseLabel } = safeBrowseReturn(returnTo);
 
   const { id } = await params;
 
@@ -469,7 +461,7 @@ export default async function ListingDetailPage({
             <span className="text-[13px] leading-none" aria-hidden="true">
               ←
             </span>
-            <span>Return to browse</span>
+            <span>{browseLabel}</span>
           </Link>
         )}
 
@@ -534,6 +526,7 @@ export default async function ListingDetailPage({
             <CollectorsDrawer
               listingId={listing.id}
               browseHref={browseHref}
+              browseLabel={browseLabel}
               similarHref={similarHref}
             />
           </div>
@@ -580,6 +573,7 @@ export default async function ListingDetailPage({
               <MobileCollectorsDrawer
                 listingId={listing.id}
                 browseHref={browseHref}
+                browseLabel={browseLabel}
                 similarHref={similarHref}
               />
             )}

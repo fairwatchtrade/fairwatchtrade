@@ -61,10 +61,13 @@ import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
 export default function MobileCollectorsDrawer({
   listingId,
   browseHref,
+  browseLabel = "Back to Browse",
   similarHref,
 }: {
   listingId: string;
   browseHref: string;
+  /** See CollectorsDrawer - the same origin-neutral return copy. */
+  browseLabel?: string;
   similarHref: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -215,7 +218,7 @@ export default function MobileCollectorsDrawer({
 
           <div className="border-t border-[var(--border-mid)]">
             <Link href={browseHref} className={rowCls}>
-              <span className={titleCls}>&larr; Back to Browse</span>
+              <span className={titleCls}>&larr; {browseLabel}</span>
             </Link>
 
             {similarHref && (

@@ -146,10 +146,15 @@ type DrawerItem = {
 export default function CollectorsDrawer({
   listingId,
   browseHref,
+  browseLabel = "Back to Browse",
   similarHref,
 }: {
   listingId: string;
   browseHref: string;
+  /** Origin-neutral return copy. A buyer who arrived from a Dealer Room is
+      going back to that dealer's Catalogue, not to global Browse - same
+      row, same href, honest label. */
+  browseLabel?: string;
   /** null when this listing has none of the four safe facets — the icon and
       the row are then omitted together, keeping spine and list in lockstep. */
   similarHref: string | null;
@@ -252,7 +257,7 @@ export default function CollectorsDrawer({
       icon: ICON_BROWSE,
       render: (row, title, _note) => (
         <Link key="browse" href={browseHref} className={row}>
-          <span className={title}>&larr; Back to Browse</span>
+          <span className={title}>&larr; {browseLabel}</span>
         </Link>
       ),
     },
@@ -316,7 +321,7 @@ export default function CollectorsDrawer({
         aria-label={
           expanded
             ? "Close Collector's Drawer."
-            : "Open Collector's Drawer. Contains Back to Browse, Search Similar Watches, and Add to My Catalogue."
+            : `Open Collector's Drawer. Contains ${browseLabel}, Search Similar Watches, and Add to My Catalogue.`
         }
         className={[
           // In the gutter: −65px from the listing content edge (see header).
