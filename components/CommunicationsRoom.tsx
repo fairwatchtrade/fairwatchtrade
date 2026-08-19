@@ -356,26 +356,54 @@ export default function CommunicationsRoom({
   const [handledNav, setHandledNav] = useState<string | null>(null);
 
   if (handledNav !== navSig) {
-    if (requestParam || threadParam) {
+    /* Everything below reads THIS render's `items` directly — the memoized
+       chooseFolder/selectItem callbacks are for event handlers only. At the
+       moment `loaded` first flips true, those callbacks still close over the
+       previous render's data and would auto-select a stale first row (live
+       walk finding, v5.96). */
+    const openDoor = () => {
+      const f = folderForModule(module);
+      setFolder(f);
+      const first = folderItems(items, f)[0] ?? null;
+      setSelection((prev) =>
+        first ? { key: first.key, explicit: false, seq: (prev?.seq ?? 0) + 1 } : null
+      );
+    };
+
+    // Our own writeUrl echo: selecting an item rewrites the URL, which
+    // changes navSig. That is not an inbound navigation — acknowledging it
+    // without action is what keeps a selection in the All folder from being
+    // yanked into the item's home folder a beat later.
+    const selItem = selection ? (items.find((i) => i.key === selection.key) ?? null) : null;
+    const isSelfEcho =
+      (!!requestParam &&
+        selItem?.kind === "request" &&
+        selItem.request.id === requestParam) ||
+      (!!threadParam && selItem?.kind === "thread" && selItem.thread.id === threadParam);
+
+    if (isSelfEcho) {
+      setHandledNav(navSig);
+    } else if (requestParam || threadParam) {
       const hit = resolveDeepLink(items, requestParam, threadParam);
       if (hit) {
         setHandledNav(navSig);
         setFolder(hit.folder);
         // A notification landing is a real open, not a peek.
-        selectItem(hit.key, { explicit: true });
+        setSelection((prev) => ({ key: hit.key, explicit: true, seq: (prev?.seq ?? 0) + 1 }));
+        setMobileOpen(true);
       } else if (loaded) {
         // Both sources answered and the id isn't ours — fall through to
         // the door's ordinary filter. RLS already made the item invisible;
         // nothing is revealed and nothing pretends to be found.
         setHandledNav(navSig);
-        chooseFolder(folderForModule(module));
+        openDoor();
       }
     } else if (loaded) {
       // Wait for data before auto-showing the folder's first item — running
       // against the empty first render silently skipped the Gate's
       // auto-select and left the pane blank until a manual click.
       setHandledNav(navSig);
-      chooseFolder(folderForModule(module));
+      openDoor();
     }
   }
 

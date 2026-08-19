@@ -758,6 +758,7 @@ export default function AccountDashboard({
      except the Saved Searches deep link, which the fallback already excludes. */
   const showingListingsRoom =
     activeModule !== "dashboard" &&
+    activeModule !== "communications" &&
     activeModule !== "messages" &&
     activeModule !== "requests" &&
     activeModule !== "accelerator" &&
