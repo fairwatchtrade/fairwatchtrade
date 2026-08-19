@@ -44,16 +44,6 @@ type BadgeVariant = "green" | "gold" | "blue";
 /* Inline line-icons, one per nav item. Thin stroke to match Studio restraint.
    Active = gold, inactive = muted, set by the caller via the `active` prop. */
 const ICON_PATHS: Record<string, React.ReactNode> = {
-  Browse: (
-    <>
-      <circle cx="7" cy="7" r="5.5" />
-      <circle cx="7" cy="7" r="1" />
-      <line x1="7" y1="1.5" x2="7" y2="3" />
-      <line x1="7" y1="11" x2="7" y2="12.5" />
-      <line x1="1.5" y1="7" x2="3" y2="7" />
-      <line x1="11" y1="7" x2="12.5" y2="7" />
-    </>
-  ),
   "My Catalogue": (
     <>
       <path d="M7 3C5 3 3 3.5 3 5v7c0-1.5 2-2 4-2s4 .5 4 2V5c0-1.5-2-2-4-2z" />
@@ -100,12 +90,6 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
       <path d="M2 4l5 5 5-5" />
     </>
   ),
-  Vault: (
-    <>
-      <circle cx="5" cy="7" r="3" />
-      <path d="M8 7h4M10 5v4" />
-    </>
-  ),
   "Market Intel": (
     <>
       <rect x="2" y="8" width="2" height="4" />
@@ -122,6 +106,46 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
 };
 
 function NavIcon({ label, active }: { label: string; active: boolean }) {
+  if (label === "Browse") {
+    return (
+      <svg
+        width="15"
+        height="15"
+        viewBox="-0.5 -0.5 16 16"
+        fill="none"
+        stroke={active ? "var(--gold)" : "var(--muted)"}
+        strokeWidth="1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0"
+        aria-hidden="true"
+      >
+        <path d="m6.5329999999999995 6.5329999999999995 4.351125 -2.4173125 -2.41725 4.35125 -4.3511875 2.41725 2.4173125 -4.3511875Z" />
+        <path d="M7.5 14.337187499999999c3.7760624999999997 0 6.837187500000001 -3.061125 6.837187500000001 -6.837187500000001 0 -3.7760624999999997 -3.061125 -6.837187500000001 -6.837187500000001 -6.837187500000001C3.7239375000000003 0.6628125 0.6628125 3.7239375000000003 0.6628125 7.5c0 3.7760624999999997 3.061125 6.837187500000001 6.837187500000001 6.837187500000001Z" />
+      </svg>
+    );
+  }
+
+  if (label === "Vault") {
+    return (
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={active ? "var(--gold)" : "var(--muted)"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0"
+        aria-hidden="true"
+      >
+        <path d="M3 19V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+        <path d="M10 15a3 3 0 1 1 0-6a3 3 0 0 1 0 6m8-1v-4m-5.5-.5l1-1m-6 1l-1-1m0 7l1-1m6 1l-1-1M2 8h1M2 6h1m0 10H2m1 2H2" />
+      </svg>
+    );
+  }
+
   const paths = ICON_PATHS[label];
   if (!paths) return null;
   return (

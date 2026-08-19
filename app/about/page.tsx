@@ -84,8 +84,8 @@ export default function AboutPage() {
           </p>
 
           <p>
-            I quickly learned that shopping without those predetermined criteria
-            could become a wall. Even after discovering a promising reference,
+            I quickly learned that without those details already in mind,
+            shopping could become a wall of watches. Even after discovering a promising reference,
             finding one for sale could be nearly impossible—or it would be
             buried beneath listings that described the same watch inconsistently.
           </p>
@@ -113,7 +113,7 @@ export default function AboutPage() {
           </p>
 
           <p>
-            I built FairWatchTrade to be the platform I wished had existed:
+            I built FairWatchTrade to be the platform I wish had existed:
             designed by a collector, for collectors.
           </p>
         </div>
@@ -141,7 +141,7 @@ export default function AboutPage() {
           <div>
             <div className="text-[var(--platinum)]">Discovery begins with the watch itself.</div>
             <div className="text-[var(--muted)]">
-              Explore by the details collectors actually recognize — not only by manufacturer hierarchy.
+              Explore by the details collectors actually recognize — not just by brand and collection.
             </div>
           </div>
           <div>
