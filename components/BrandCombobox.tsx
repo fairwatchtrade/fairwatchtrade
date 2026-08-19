@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   matchBrands,
   normalizeBrand,
@@ -38,24 +38,24 @@ import { useBrandIndex } from "@/components/useBrandIndex";
 export default function BrandCombobox({
   value,
   onChange,
+  onResolutionChange,
   placeholder = "Start typing a brand…",
   inputClassName = "",
 }: {
   value: string;
   /** Reports the chosen text and whether it's off the corpus. */
   onChange: (value: string, isCustom: boolean) => void;
+  /** False while the field holds only a fragment of available suggestions. */
+  onResolutionChange?: (resolved: boolean) => void;
   placeholder?: string;
   inputClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const query = value;
   const [activeIdx, setActiveIdx] = useState(0);
+  const [hasBlurred, setHasBlurred] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Keep the visible text in sync if the parent value changes externally.
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
+  const listboxId = useId();
 
   /* The shared index — the same object the model field beside this one
      reads, so the two can never disagree about what a brand is. */
@@ -64,33 +64,33 @@ export default function BrandCombobox({
   const matches = useMemo(() => matchBrands(query, index), [query, index]);
 
   // Centralized selection update function
-  function commit(selectedName: string) {
+  const commit = useCallback((selectedName: string) => {
     const resolved = resolveTypedBrand(selectedName, index);
-    setQuery(resolved.name);
     setOpen(false);
+    setHasBlurred(false);
+    // Model is disabled until Brand is resolved. Publish that resolution in
+    // the same event batch as the selected value so Enter can hand focus to
+    // Model on the next frame instead of racing the disabled render.
+    onResolutionChange?.(true);
     onChange(resolved.name, resolved.isCustom);
-  }
+  }, [index, onChange, onResolutionChange]);
 
-  // Handle outside click + auto-correct snap fill logic
+  // Outside clicks close the list; they never guess which suggestion the
+  // seller meant. Corpus matches require an explicit pointer/keyboard choice.
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        if (matches.length === 1) {
-          const idx = activeIdx >= 0 && activeIdx < matches.length ? activeIdx : 0;
-          commit(matches[idx]);
-        } else {
-          setOpen(false);
-        }
+        setOpen(false);
       }
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [matches, activeIdx, index]);
+  }, []);
 
   function onInput(text: string) {
-    setQuery(text);
     setActiveIdx(0);
     setOpen(true);
+    setHasBlurred(false);
     // Report the text exactly as typed — resolution happens on commit, so the
     // caret is never fought mid-keystroke.
     onChange(text, resolveTypedBrand(text, index).isCustom);
@@ -111,6 +111,8 @@ export default function BrandCombobox({
       if (open && matches[activeIdx]) {
         e.preventDefault();
         commit(matches[activeIdx]);
+        requestAnimationFrame(() => document.getElementById("model")?.focus());
+        return;
       }
       document.getElementById("model")?.focus();
     } else if (e.key === "Escape") {
@@ -121,10 +123,18 @@ export default function BrandCombobox({
   const resolved = resolveTypedBrand(query, index);
   const isKnown = !resolved.isCustom && normalizeBrand(query) !== "";
   const normLen = normalizeBrand(query).length;
+  const isExactCanonical = index.canonical.has(normalizeBrand(query));
   const needsMoreChars =
     query.trim() !== "" && normLen > 0 && normLen < MIN_BRAND_CHARS;
   const showCustomHint =
     normLen >= MIN_BRAND_CHARS && matches.length === 0 && !isKnown;
+  const resolutionValid =
+    isExactCanonical || (normLen >= MIN_BRAND_CHARS && matches.length === 0);
+  const needsResolution = query.trim() !== "" && !resolutionValid;
+
+  useEffect(() => {
+    onResolutionChange?.(resolutionValid);
+  }, [onResolutionChange, resolutionValid]);
 
   return (
     <div ref={wrapRef} className="relative">
@@ -140,9 +150,8 @@ export default function BrandCombobox({
           }
         }}
         onBlur={() => {
-          if (matches.length === 1) {
-            commit(matches[0]);
-          } else if (isKnown) {
+          setHasBlurred(true);
+          if (isExactCanonical) {
             commit(query);
           }
         }}
@@ -150,11 +159,13 @@ export default function BrandCombobox({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-controls={listboxId}
+        aria-invalid={needsResolution}
         autoComplete="off"
       />
 
       {open && matches.length > 0 && (
-        <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-white/15 bg-[#0D0F14] py-1 shadow-xl">
+        <ul id={listboxId} className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--border-subtle)] bg-[var(--surface)] py-1 shadow-xl">
           {matches.map((name, i) => (
             <li key={name}>
               <button
@@ -165,8 +176,8 @@ export default function BrandCombobox({
                 }}
                 onMouseEnter={() => setActiveIdx(i)}
                 className={`block w-full px-3 py-1.5 text-left text-[13px] ${i === activeIdx
-                    ? "bg-[#C9A84C]/15 text-[#E8E4DC]"
-                    : "text-[#B7BAC4] hover:bg-white/5"
+                    ? "bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                    : "text-[var(--muted)] hover:bg-[var(--surface-2)]"
                   }`}
               >
                 {name}
@@ -177,21 +188,27 @@ export default function BrandCombobox({
       )}
 
       {needsMoreChars && (
-        <p className="mt-1 text-[11px] text-[#8A8F9E]">
+        <p className="mt-1 text-[11px] text-[var(--muted)]">
           Keep typing to search brands…
         </p>
       )}
 
       {showCustomHint && (
-        <div className="mt-1 rounded-md border border-[#C9A84C]/25 bg-[#C9A84C]/5 px-3 py-2">
-          <div className="text-[11px] font-medium text-[#C9A84C]">
+        <div className="mt-1 rounded-md border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2">
+          <div className="text-[11px] font-medium text-[var(--gold)]">
             Rare or independent brand
           </div>
-          <div className="mt-0.5 text-[11px] leading-snug text-[#8A8F9E]">
+          <div className="mt-0.5 text-[11px] leading-snug text-[var(--muted)]">
             “{query.trim()}” isn’t on our standard index — submit it and our
             curation desk will verify the piece during review.
           </div>
         </div>
+      )}
+
+      {hasBlurred && needsResolution && (
+        <p role="alert" className="mt-1 text-[11px] text-[var(--gold-subtle)]">
+          Choose a complete brand from the list, or type the full name of an unlisted brand.
+        </p>
       )}
     </div>
   );

@@ -72,15 +72,13 @@ const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as cons
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Very Good", "Good", "Fair"];
 const ROMAN = ["I", "II", "III", "IV", "V"] as const;
 
-/* Native <option> elements don't reliably inherit the form's dark styling — when
-   a <select> opens, the browser renders the option list with OS/browser defaults
-   (often a white menu), which made our light --platinum option text invisible
-   (white-on-white). Explicit hex bg + text on each <option> fixes it across
-   browsers. CSS variables are ignored for <option> in some browsers, so we use
-   concrete hex values that match --surface / --platinum. */
+/* Native <option> elements don't reliably inherit the form's styling. Keep the
+   values concrete (CSS variables are ignored for <option> in some browsers),
+   but let light-dark() resolve them against the page's owned color-scheme so
+   the browser popup follows Daylight, Dark, and System without a JS theme copy. */
 const OPTION_STYLE: CSSProperties = {
-  backgroundColor: "#141821",
-  color: "#E8E4DC",
+  backgroundColor: "light-dark(#FAF7F0, #141821)",
+  color: "light-dark(#25231F, #E8E4DC)",
 };
 
 /* ── Curation call ───────────────────────────────────────────────────────
@@ -1183,6 +1181,8 @@ function CurationStep({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [brandIdentityResolved, setBrandIdentityResolved] = useState(false);
+  const [modelIdentityResolved, setModelIdentityResolved] = useState(true);
 
   /* ── Money Truth Stage B — seller currency selector (approved Design Gate,
         sha f7de17d6…). The stored preference prefills the selector; when NO
@@ -1354,6 +1354,8 @@ function CurationStep({
 
   const ready =
     draft.brand.trim() &&
+    brandIdentityResolved &&
+    modelIdentityResolved &&
     draft.reference.trim() &&
     draft.year.trim() &&
     draft.condition &&
@@ -1424,7 +1426,16 @@ function CurationStep({
           <label className={label}>Brand</label>
           <BrandCombobox
             value={draft.brand}
-            onChange={(brand, isCustom) => patch({ brand, customBrandFlag: isCustom })}
+            onChange={(brand, isCustom) =>
+              patch({
+                brand,
+                customBrandFlag: isCustom,
+                // Model identity belongs to its brand. A changed brand cannot
+                // silently carry a model selection from the previous one.
+                model: brand === draft.brand ? draft.model : "",
+              })
+            }
+            onResolutionChange={setBrandIdentityResolved}
             inputClassName={input}
             placeholder="e.g. Parmigiani Fleurier"
           />
@@ -1435,7 +1446,9 @@ function CurationStep({
             id="model"
             value={draft.model}
             onChange={(model) => patch({ model })}
+            onResolutionChange={setModelIdentityResolved}
             brandName={draft.brand}
+            disabled={!brandIdentityResolved}
             inputClassName={input}
             placeholder="e.g. Tonda Métrographe"
           />

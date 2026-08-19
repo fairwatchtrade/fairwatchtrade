@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { BRANDS_MODELS, type BrandModels } from "@/lib/brandsModels";
 import { normalizeBrand, resolveTypedBrand } from "@/lib/brandIndex";
 import { useBrandIndex } from "@/components/useBrandIndex";
@@ -25,6 +25,7 @@ const normalize = normalizeBrand;
 export default function ModelCombobox({
   value,
   onChange,
+  onResolutionChange,
   brandName,
   inputClassName = "",
   placeholder = "",
@@ -33,6 +34,8 @@ export default function ModelCombobox({
 }: {
   value: string;
   onChange: (model: string) => void;
+  /** Empty and deliberate free text are valid; suggestion fragments are not. */
+  onResolutionChange?: (resolved: boolean) => void;
   brandName: string;
   inputClassName?: string;
   placeholder?: string;
@@ -40,14 +43,11 @@ export default function ModelCombobox({
   id?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const query = value;
   const [activeIdx, setActiveIdx] = useState(0);
+  const [hasBlurred, setHasBlurred] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Keep visible text in sync if the parent value changes externally.
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
+  const listboxId = useId();
 
   /* The same authoritative, alias-aware index the brand field uses. */
   const index = useBrandIndex();
@@ -114,32 +114,28 @@ export default function ModelCombobox({
   }, [query, hasModels, normalizedModels]);
 
   // Centralized selection update.
-  function commit(selectedName: string) {
-    setQuery(selectedName);
+  const commit = useCallback((selectedName: string) => {
     setOpen(false);
+    setHasBlurred(false);
     onChange(selectedName);
-  }
+  }, [onChange]);
 
-  // Outside click + single-match blur snap (mirrors BrandCombobox).
+  // Outside clicks close the list; a model suggestion is never selected on
+  // the seller's behalf merely because it happened to be the remaining row.
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        if (matches.length === 1) {
-          const idx = activeIdx >= 0 && activeIdx < matches.length ? activeIdx : 0;
-          commit(matches[idx]);
-        } else {
-          setOpen(false);
-        }
+        setOpen(false);
       }
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [matches, activeIdx]);
+  }, []);
 
   function onInput(text: string) {
-    setQuery(text);
     setActiveIdx(0);
     setOpen(true);
+    setHasBlurred(false);
     onChange(text);
   }
 
@@ -167,7 +163,24 @@ export default function ModelCombobox({
     }
   }
 
-  const effectivePlaceholder = isDisabled ? "Select a brand first" : placeholder;
+  const effectivePlaceholder = isDisabled
+    ? normalize(brandName ?? "") === ""
+      ? "Select a brand first"
+      : "Choose a complete brand first"
+    : placeholder;
+  const normalizedQuery = normalize(query);
+  const isExactModel = normalizedModels.some((m) => m.displayNorm === normalizedQuery);
+  const resolutionValid =
+    query.trim() === "" ||
+    isDisabled ||
+    !hasModels ||
+    isExactModel ||
+    (normalizedQuery.length >= MIN_CHARS && matches.length === 0);
+  const needsResolution = query.trim() !== "" && !resolutionValid;
+
+  useEffect(() => {
+    onResolutionChange?.(resolutionValid);
+  }, [onResolutionChange, resolutionValid]);
 
   return (
     <div ref={wrapRef} className="relative">
@@ -179,15 +192,21 @@ export default function ModelCombobox({
         disabled={isDisabled}
         onChange={(e) => onInput(e.target.value)}
         onFocus={() => setOpen(true)}
+        onBlur={() => {
+          setHasBlurred(true);
+          if (isExactModel) commit(query);
+        }}
         onKeyDown={onKeyDown}
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-controls={listboxId}
+        aria-invalid={needsResolution}
         autoComplete="off"
       />
 
       {open && matches.length > 0 && (
-        <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-white/15 bg-[#0D0F14] py-1 shadow-xl">
+        <ul id={listboxId} className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--border-subtle)] bg-[var(--surface)] py-1 shadow-xl">
           {matches.map((name, i) => (
             <li key={name}>
               <button
@@ -199,8 +218,8 @@ export default function ModelCombobox({
                 onMouseEnter={() => setActiveIdx(i)}
                 className={`block w-full px-3 py-1.5 text-left text-[13px] ${
                   i === activeIdx
-                    ? "bg-[#C9A84C]/15 text-[#E8E4DC]"
-                    : "text-[#B7BAC4] hover:bg-white/5"
+                    ? "bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                    : "text-[var(--muted)] hover:bg-[var(--surface-2)]"
                 }`}
               >
                 {name}
@@ -208,6 +227,12 @@ export default function ModelCombobox({
             </li>
           ))}
         </ul>
+      )}
+
+      {hasBlurred && needsResolution && (
+        <p role="alert" className="mt-1 text-[11px] text-[var(--gold-subtle)]">
+          Choose a complete model from the list, or type the full name of an unlisted model.
+        </p>
       )}
     </div>
   );
