@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  SITE_URL,
+  escapeHtml,
+  getRecipientEmailPrefs,
+  sendCorrespondenceEmail,
+} from "@/lib/correspondenceEmail";
 
 /* ════════════════════════════════════════════════════════════════════════
    /api/messages  — Correspondence System v1.0  (v2.6)
@@ -33,7 +39,6 @@ import { createClient } from "@/lib/supabase/server";
 
 const MAX_BODY_CHARS = 2000;
 const RATE_LIMIT_PER_HOUR = 10;
-const SITE_URL = "https://fairwatchtrade.com";
 
 type ListingLite = {
   id: string;
@@ -49,77 +54,9 @@ function dialThumb(photos: ListingLite["photos"]): string | null {
   return (dial ?? photos[0])?.photo?.url ?? null;
 }
 
-/** Trigger-1/2 email. Non-fatal by design — messaging already succeeded.
-    v2.6a — sender is correspondence@fairwatchtrade.com in production (the
-    address itself says what it is; display name carries the brand), with
-    Resend's default test sender in development per the updated brief. The
-    domain (not the mailbox) is what Resend verifies — hello@ already sends
-    from this domain in the listings route, so correspondence@ needs no new
-    setup if those deliver. ONE-WAY notifications only, permanently: no
-    inbound parsing, no reply-by-email — the email is the doorbell; the
-    listing is the room where the conversation lives. */
-const EMAIL_FROM =
-  process.env.NODE_ENV === "production"
-    ? "FairWatchTrade <correspondence@fairwatchtrade.com>"
-    : "FairWatchTrade <onboarding@resend.dev>";
-
-async function sendCorrespondenceEmail(opts: {
-  to: string;
-  subject: string;
-  senderName: string;
-  preview: string;
-  listingId: string;
-  listingTitle: string;
-}) {
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: EMAIL_FROM,
-      to: opts.to,
-      subject: opts.subject,
-      html: `
-        <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; background: #0D0F14; color: #E8E4DC; padding: 2rem;">
-          <h1 style="font-family: Georgia, serif; font-weight: 300; color: #C9A84C; font-size: 1.8rem; margin-bottom: 0.5rem;">
-            FairWatchTrade
-          </h1>
-          <p style="color: #B7BAC4; font-size: 0.9rem; margin-bottom: 1rem;">
-            You have a new message about ${opts.listingTitle}.
-          </p>
-          <p style="color: #8A8F9E; font-size: 0.85rem; margin-bottom: 0.75rem;">
-            ${opts.senderName} wrote:
-          </p>
-          <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-            <p style="color: #E8E4DC; font-size: 0.9rem; line-height: 1.7; margin: 0; font-style: italic;">
-              &ldquo;${opts.preview}&rdquo;
-            </p>
-          </div>
-          <p style="color: #B7BAC4; font-size: 0.85rem; margin-bottom: 1rem;">
-            Continue the conversation on FairWatchTrade
-          </p>
-          <a href="${SITE_URL}/listings/${opts.listingId}"
-             style="display: inline-block; background: #C9A84C; color: #0D0F14; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
-            Open Conversation &rarr;
-          </a>
-        </div>
-      `,
-    }),
-  }).catch(() => {
-    /* email failure is non-fatal — the message is already delivered in-app */
-  });
-}
-
-/** Escape user text before it's interpolated into email HTML. */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+/* Email machinery lives in lib/correspondenceEmail.ts since v5.93 — one
+   home instead of two drifting copies, a working recipient lookup, and
+   role-aware link targets. */
 
 /* ── GET — thread list for the current user ────────────────────────────── */
 
@@ -161,12 +98,16 @@ export async function GET() {
     ),
   ].filter(Boolean) as string[];
 
+  // Counterpart names come from public_seller_profiles, the sanctioned
+  // public-name path. Reading `profiles` directly here silently degraded to
+  // "FairWatchTrade Member" for every counterpart once profiles tightened to
+  // select-own — the view is what display names are shared through.
   const [{ data: listings }, { data: profiles }, { data: allMessages }] = await Promise.all([
     listingIds.length > 0
       ? supabase.from("listings").select("id, brand, model, reference, photos").in("id", listingIds)
       : Promise.resolve({ data: [] as ListingLite[] }),
     otherIds.length > 0
-      ? supabase.from("profiles").select("id, display_name").in("id", otherIds)
+      ? supabase.from("public_seller_profiles").select("id, display_name").in("id", otherIds)
       : Promise.resolve({ data: [] as { id: string; display_name: string | null }[] }),
     supabase
       .from("messages")
@@ -209,6 +150,11 @@ export async function GET() {
           }
         : null,
       subject: t.subject,
+      /* v5.93 — the Communications room pairs a purchase request with its
+         correspondence thread by (listing, counterpart). otherId is data the
+         participant can already see on the thread row itself; it is never
+         rendered in UI. */
+      otherId: otherId ?? null,
       otherName: (otherId && nameById.get(otherId)) || "FairWatchTrade Member",
       lastMessage: lastByThread.get(t.id) ?? null,
       unreadCount: unreadByThread.get(t.id) ?? 0,
@@ -233,7 +179,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
   }
 
-  let payload: { listingId?: string; body?: string };
+  let payload: { listingId?: string; purchaseRequestId?: string; body?: string };
   try {
     payload = await request.json();
   } catch {
@@ -241,11 +187,13 @@ export async function POST(request: NextRequest) {
   }
 
   const listingId = typeof payload.listingId === "string" ? payload.listingId.trim() : "";
+  const purchaseRequestId =
+    typeof payload.purchaseRequestId === "string" ? payload.purchaseRequestId.trim() : "";
   const body = typeof payload.body === "string" ? payload.body.trim() : "";
 
-  if (!listingId || !body) {
+  if ((!listingId && !purchaseRequestId) || !body) {
     return NextResponse.json(
-      { error: "missing_fields", detail: "listingId and body are required." },
+      { error: "missing_fields", detail: "listingId or purchaseRequestId, and body, are required." },
       { status: 400 }
     );
   }
@@ -253,6 +201,162 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "too_long", detail: `Messages are limited to ${MAX_BODY_CHARS} characters.` },
       { status: 400 }
+    );
+  }
+
+  /* ── v5.93 · SELLER REPLY TO A PURCHASE REQUEST ─────────────────────────
+     The Communications room lets a seller answer a purchase request in
+     words (not only Accept/Decline). The buyer-initiated path below can't
+     carry this: it hard-rejects sellers on their own listing, and it
+     requires status='published' — but the moment a seller ACCEPTS an offer
+     the listing turns reserved, which is exactly when they most need to
+     write to the buyer. This path keys off the REQUEST instead: the caller
+     must be that request's seller, and the thread is the same
+     (listing, buyer→a, seller→b) home the buyer's own message would have
+     created. One thread either way — never a parallel channel. */
+  if (purchaseRequestId) {
+    const { data: pr } = await supabase
+      .from("purchase_requests")
+      .select("id, listing_id, buyer_id, seller_id, listing_brand, listing_model")
+      .eq("id", purchaseRequestId)
+      .maybeSingle();
+
+    // Not found and not-yours are the same answer — existence stays private.
+    if (!pr || pr.seller_id !== user.id) {
+      return NextResponse.json({ error: "request_not_found" }, { status: 404 });
+    }
+    if (!pr.listing_id || !pr.buyer_id) {
+      // Stage 5 can null the listing FK on terminal requests; a thread needs
+      // the listing home to exist. Honest refusal, not a guessed thread.
+      return NextResponse.json(
+        {
+          error: "conversation_unavailable",
+          detail: "This request's listing is no longer available for correspondence.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Live listing enriches the title; the snapshot answers when it's gone.
+    const { data: liveListing } = await supabase
+      .from("listings")
+      .select("id, brand, model")
+      .eq("id", pr.listing_id)
+      .maybeSingle();
+    const listingTitle = liveListing
+      ? liveListing.model
+        ? `${liveListing.brand} ${liveListing.model}`
+        : liveListing.brand
+      : (pr.listing_brand
+          ? `${pr.listing_brand}${pr.listing_model ? " " + pr.listing_model : ""}`
+          : "your watch");
+
+    // Find-or-create with the SAME participant convention as the buyer path:
+    // participant_a = buyer, participant_b = seller. The unique constraint
+    // backstops a race identically.
+    let threadId: string | null = null;
+    const { data: existing } = await supabase
+      .from("message_threads")
+      .select("id")
+      .eq("listing_id", pr.listing_id)
+      .eq("participant_a_id", pr.buyer_id)
+      .eq("participant_b_id", pr.seller_id)
+      .maybeSingle();
+
+    if (existing) {
+      threadId = existing.id;
+    } else {
+      const { data: created, error: createError } = await supabase
+        .from("message_threads")
+        .insert({
+          listing_id: pr.listing_id,
+          participant_a_id: pr.buyer_id,
+          participant_b_id: pr.seller_id,
+          subject: `${listingTitle} · Purchase Request`,
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        if ((createError as { code?: string }).code === "23505") {
+          const { data: winner } = await supabase
+            .from("message_threads")
+            .select("id")
+            .eq("listing_id", pr.listing_id)
+            .eq("participant_a_id", pr.buyer_id)
+            .eq("participant_b_id", pr.seller_id)
+            .maybeSingle();
+          threadId = winner?.id ?? null;
+        }
+        if (!threadId) {
+          return NextResponse.json(
+            { error: "thread_create_failed", detail: createError.message },
+            { status: 500 }
+          );
+        }
+      } else {
+        threadId = created.id;
+      }
+    }
+
+    // Same rate limit as every other send.
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("thread_id", threadId)
+      .eq("sender_id", user.id)
+      .gte("created_at", hourAgo);
+
+    if ((recentCount ?? 0) >= RATE_LIMIT_PER_HOUR) {
+      return NextResponse.json(
+        {
+          error: "rate_limited",
+          detail: "You've sent several messages recently. Please wait before sending another.",
+        },
+        { status: 429 }
+      );
+    }
+
+    const { data: message, error: insertError } = await supabase
+      .from("messages")
+      .insert({ thread_id: threadId, sender_id: user.id, body })
+      .select("id, created_at")
+      .single();
+
+    if (insertError) {
+      return NextResponse.json(
+        { error: "send_failed", detail: insertError.message },
+        { status: 500 }
+      );
+    }
+
+    // Email the BUYER (their home for this conversation is the listing).
+    // Recipient prefs via the trusted lookup — see lib/correspondenceEmail.
+    const [buyerPrefs, { data: senderProfile }] = await Promise.all([
+      getRecipientEmailPrefs(pr.buyer_id),
+      supabase
+        .from("public_seller_profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
+
+    if (buyerPrefs?.notify === true) {
+      const senderName = senderProfile?.display_name || "The seller";
+      await sendCorrespondenceEmail({
+        to: buyerPrefs.email,
+        subject: `${senderName} replied about ${listingTitle}`,
+        senderName: escapeHtml(senderName),
+        preview: escapeHtml(body.slice(0, 200)),
+        linkUrl: `${SITE_URL}/listings/${pr.listing_id}`,
+        listingTitle: escapeHtml(listingTitle),
+      });
+    }
+
+    return NextResponse.json(
+      { threadId, messageId: message.id, createdAt: message.created_at },
+      { status: 201 }
     );
   }
 
@@ -355,23 +459,27 @@ export async function POST(request: NextRequest) {
   }
 
   // Trigger 1 — email the seller, only if their notify_email is on.
-  const [{ data: sellerProfile }, { data: senderProfile }] = await Promise.all([
+  // v5.93: recipient prefs via the trusted lookup (the session read was
+  // silently empty under select-own profiles), sender name via the public
+  // view, and the link lands in the seller's Communications room on THIS
+  // thread — never their own public listing.
+  const [sellerPrefs, { data: senderProfile }] = await Promise.all([
+    getRecipientEmailPrefs(listing.seller_id),
     supabase
-      .from("profiles")
-      .select("email, notify_email")
-      .eq("id", listing.seller_id)
+      .from("public_seller_profiles")
+      .select("display_name")
+      .eq("id", user.id)
       .maybeSingle(),
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
   ]);
 
-  if (sellerProfile?.notify_email === true && sellerProfile.email) {
+  if (sellerPrefs?.notify === true) {
     const senderName = senderProfile?.display_name || "A collector";
     await sendCorrespondenceEmail({
-      to: sellerProfile.email,
+      to: sellerPrefs.email,
       subject: `New message about your ${listingTitle}`,
       senderName: escapeHtml(senderName),
       preview: escapeHtml(body.slice(0, 200)),
-      listingId: listing.id,
+      linkUrl: `${SITE_URL}/account?module=messages&thread=${threadId}`,
       listingTitle: escapeHtml(listingTitle),
     });
   }

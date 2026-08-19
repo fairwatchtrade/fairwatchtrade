@@ -32,9 +32,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // v5.93 — purchase_request_id rides along so the bell can land on the
+  // exact request in the Communications room instead of the public listing.
   const { data, error } = await supabase
     .from("notifications")
-    .select("id, type, message, listing_id, read, created_at")
+    .select("id, type, message, listing_id, purchase_request_id, read, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);

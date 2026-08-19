@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { notificationHref, type NotificationRow } from "@/lib/communications";
 
 /* ────────────────────────────────────────────────────────────────────────
    NOTIFICATIONS BELL — components/NotificationsBell.tsx  (v1.92)
@@ -16,14 +17,11 @@ import Link from "next/link";
    regardless) — future types won't break this, but no other type is built.
    ──────────────────────────────────────────────────────────────────────── */
 
-type Notification = {
-  id: string;
-  type: string;
-  message: string;
-  listing_id: string | null;
-  read: boolean;
-  created_at: string;
-};
+/* v5.93 — the row shape and its routing law live in lib/communications:
+   a bell stamped with purchase_request_id lands on the exact request in
+   the seller Communications room; an unstamped row keeps the listing
+   route. The bell renders; the library decides where clicks go. */
+type Notification = NotificationRow;
 
 interface NotificationsBellProps {
   initialUnreadCount: number; // server-fetched — avoids a flash on mount
@@ -203,10 +201,11 @@ export default function NotificationsBell({
                   </div>
                 );
 
-                return n.listing_id ? (
+                const href = notificationHref(n);
+                return href ? (
                   <Link
                     key={n.id}
-                    href={`/listings/${n.listing_id}`}
+                    href={href}
                     onClick={() => {
                       if (!n.read) markRead([n.id]);
                       setOpen(false);

@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  SITE_URL,
+  escapeHtml,
+  getRecipientEmailPrefs,
+  sendCorrespondenceEmail,
+} from "@/lib/correspondenceEmail";
 
 /* ════════════════════════════════════════════════════════════════════════
    /api/messages/[threadId]  — Correspondence System v1.0  (v2.6)
@@ -21,72 +27,10 @@ import { createClient } from "@/lib/supabase/server";
 
 const MAX_BODY_CHARS = 2000;
 const RATE_LIMIT_PER_HOUR = 10;
-const SITE_URL = "https://fairwatchtrade.com";
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/* v2.6a — sender: correspondence@fairwatchtrade.com in production,
-   Resend test sender in development. One-way notifications, permanently —
-   no reply-by-email, no inbound parsing. See /api/messages/route.ts. */
-const EMAIL_FROM =
-  process.env.NODE_ENV === "production"
-    ? "FairWatchTrade <correspondence@fairwatchtrade.com>"
-    : "FairWatchTrade <onboarding@resend.dev>";
-
-async function sendCorrespondenceEmail(opts: {
-  to: string;
-  subject: string;
-  senderName: string;
-  preview: string;
-  listingId: string;
-  listingTitle: string;
-}) {
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: EMAIL_FROM,
-      to: opts.to,
-      subject: opts.subject,
-      html: `
-        <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; background: #0D0F14; color: #E8E4DC; padding: 2rem;">
-          <h1 style="font-family: Georgia, serif; font-weight: 300; color: #C9A84C; font-size: 1.8rem; margin-bottom: 0.5rem;">
-            FairWatchTrade
-          </h1>
-          <p style="color: #B7BAC4; font-size: 0.9rem; margin-bottom: 1rem;">
-            You have a new message about ${opts.listingTitle}.
-          </p>
-          <p style="color: #8A8F9E; font-size: 0.85rem; margin-bottom: 0.75rem;">
-            ${opts.senderName} wrote:
-          </p>
-          <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-            <p style="color: #E8E4DC; font-size: 0.9rem; line-height: 1.7; margin: 0; font-style: italic;">
-              &ldquo;${opts.preview}&rdquo;
-            </p>
-          </div>
-          <p style="color: #B7BAC4; font-size: 0.85rem; margin-bottom: 1rem;">
-            Continue the conversation on FairWatchTrade
-          </p>
-          <a href="${SITE_URL}/listings/${opts.listingId}"
-             style="display: inline-block; background: #C9A84C; color: #0D0F14; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
-            Open Conversation &rarr;
-          </a>
-        </div>
-      `,
-    }),
-  }).catch(() => {
-    /* non-fatal */
-  });
-}
+/* Email machinery lives in lib/correspondenceEmail.ts since v5.93 — one
+   home instead of two drifting copies, a working recipient lookup, and
+   role-aware link targets. */
 
 /** Shared: load the thread and confirm the current user is a participant.
     RLS already guarantees invisibility to outsiders; this exists to return
@@ -112,7 +56,7 @@ async function loadThreadForUser(
 /* ── GET — thread + messages, mark other party's messages read ─────────── */
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ threadId: string }> }
 ) {
   const { threadId } = await params;
@@ -133,6 +77,7 @@ export async function GET(
   const otherId =
     thread.participant_a_id === user.id ? thread.participant_b_id : thread.participant_a_id;
 
+  // Counterpart names via public_seller_profiles — see /api/messages GET.
   const [{ data: messages }, { data: listing }, { data: profiles }] = await Promise.all([
     supabase
       .from("messages")
@@ -147,18 +92,26 @@ export async function GET(
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
-      .from("profiles")
+      .from("public_seller_profiles")
       .select("id, display_name")
       .in("id", [user.id, otherId].filter(Boolean) as string[]),
   ]);
 
-  // Viewing the thread marks the other party's unread messages read.
-  await supabase
-    .from("messages")
-    .update({ read_at: new Date().toISOString() })
-    .eq("thread_id", thread.id)
-    .neq("sender_id", user.id)
-    .is("read_at", null);
+  /* Viewing the thread marks the other party's unread messages read —
+     unless the caller asked only to PEEK (?peek=1). The Communications
+     room auto-shows the first item of a folder the way the Design Gate
+     does; auto-display is not the user opening the item, so it must not
+     consume read state. An explicit click, and a notification landing,
+     fetch without peek and mark read as ever. */
+  const peek = request.nextUrl.searchParams.get("peek") === "1";
+  if (!peek) {
+    await supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("thread_id", thread.id)
+      .neq("sender_id", user.id)
+      .is("read_at", null);
+  }
 
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
@@ -275,11 +228,18 @@ export async function POST(
   const otherId =
     thread.participant_a_id === user.id ? thread.participant_b_id : thread.participant_a_id;
 
-  const [{ data: recipient }, { data: senderProfile }, { data: listing }] = await Promise.all([
-    otherId
-      ? supabase.from("profiles").select("email, notify_email").eq("id", otherId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+  // v5.93: recipient prefs via the trusted lookup (the session read was
+  // silently empty under select-own profiles); sender name via the public
+  // view; and the link is ROLE-AWARE — a seller recipient lands in their
+  // Communications room on this exact thread, a buyer recipient lands on
+  // the listing, each conversation's actual home.
+  const [recipientPrefs, { data: senderProfile }, { data: listing }] = await Promise.all([
+    otherId ? getRecipientEmailPrefs(otherId) : Promise.resolve(null),
+    supabase
+      .from("public_seller_profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
     thread.listing_id
       ? supabase
           .from("listings")
@@ -289,19 +249,22 @@ export async function POST(
       : Promise.resolve({ data: null }),
   ]);
 
-  if (recipient?.notify_email === true && recipient.email && listing) {
+  if (recipientPrefs?.notify === true && listing) {
     const senderName = senderProfile?.display_name || "A FairWatchTrade member";
     const listingTitle = listing.model ? `${listing.brand} ${listing.model}` : listing.brand;
     const senderIsSeller = listing.seller_id === user.id;
     const subject = senderIsSeller
       ? `${senderName} replied about ${listingTitle}`
       : `New message about your ${listingTitle}`;
+    const linkUrl = senderIsSeller
+      ? `${SITE_URL}/listings/${listing.id}` // recipient is the buyer
+      : `${SITE_URL}/account?module=messages&thread=${thread.id}`; // recipient is the seller
     await sendCorrespondenceEmail({
-      to: recipient.email,
+      to: recipientPrefs.email,
       subject,
       senderName: escapeHtml(senderName),
       preview: escapeHtml(body.slice(0, 200)),
-      listingId: listing.id,
+      linkUrl,
       listingTitle: escapeHtml(listingTitle),
     });
   }
@@ -310,4 +273,93 @@ export async function POST(
     { messageId: message.id, createdAt: message.created_at },
     { status: 201 }
   );
+}
+/* ── PATCH — thread state: mark unread, archive, unarchive ──────────────
+   v5.93, for the Communications room. Three writes about MY relationship
+   to the thread; none of them touch message content or transactional
+   state.
+
+   · mark_unread — returns the thread to the unread pile by clearing
+     read_at on the LATEST inbound message only. Minimal and truthful:
+     the seller wants the bold row back, not a fabricated count of N
+     unread messages they have in fact read.
+   · archive / unarchive — sets MY side's archived flag (archived_by_a
+     or _b per my role), the same RLS-scoped write the workspace has
+     always used. Never the other participant's flag.
+
+   Reading is not resolving. Reading is not archiving. This endpoint is
+   how the reverse directions stay explicit actions. */
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ threadId: string }> }
+) {
+  const { threadId } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
+
+  let payload: { action?: string };
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
+
+  const action = payload.action;
+  if (action !== "mark_unread" && action !== "archive" && action !== "unarchive") {
+    return NextResponse.json(
+      { error: "invalid_action", detail: "action must be mark_unread, archive, or unarchive." },
+      { status: 400 }
+    );
+  }
+
+  const thread = await loadThreadForUser(supabase, threadId, user.id);
+  if (!thread) {
+    return NextResponse.json({ error: "thread_not_found" }, { status: 404 });
+  }
+
+  if (action === "mark_unread") {
+    const { data: latestInbound } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("thread_id", thread.id)
+      .neq("sender_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!latestInbound) {
+      // Nothing inbound to un-read — a thread of only my own messages
+      // cannot be unread. Honest no-op, not an error.
+      return NextResponse.json({ ok: true, changed: false });
+    }
+
+    const { error } = await supabase
+      .from("messages")
+      .update({ read_at: null })
+      .eq("id", latestInbound.id);
+
+    if (error) {
+      return NextResponse.json({ error: "update_failed", detail: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, changed: true });
+  }
+
+  // archive / unarchive — my flag only.
+  const myFlag = thread.participant_a_id === user.id ? "archived_by_a" : "archived_by_b";
+  const { error } = await supabase
+    .from("message_threads")
+    .update({ [myFlag]: action === "archive" })
+    .eq("id", thread.id);
+
+  if (error) {
+    return NextResponse.json({ error: "update_failed", detail: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, changed: true });
 }
