@@ -4,6 +4,7 @@ import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
 import HeaderSearchSlot from "@/components/HeaderSearchSlot";
 import SiteFooter from "@/components/SiteFooter";
+import VaultNavigationTransition from "@/components/VaultNavigationTransition";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -122,6 +123,7 @@ export default async function RootLayout({
        with the OS preference. */
     <html lang="en" data-theme={appearance ?? undefined}>
       <body>
+        <VaultNavigationTransition />
         {/*
           Sticky site header. The real navigation bar (logo, browse, sell,
           search, login) will go INSIDE this header, ABOVE <MarketBar />,

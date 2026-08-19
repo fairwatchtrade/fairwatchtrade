@@ -1666,14 +1666,14 @@ export default function VaultGalaxy({
             priority = 6;
           } else if (c.isBrand) {
             if (isAnchor) {
-              font = "500 10px 'Cormorant Garamond', serif";
+              fontPx = mobile ? 10 : 11;
+              font = `500 ${fontPx}px 'Cormorant Garamond', serif`;
               fill = hovered ? "#E8E4DC" : "#B8BBC4";
-              fontPx = 10;
               priority = hovered ? 5 : 4;
             } else if (!mobile && alpha > 0.02) {
-              font = "400 9px 'Cormorant Garamond', serif";
+              fontPx = 10;
+              font = `400 ${fontPx}px 'Cormorant Garamond', serif`;
               fill = "#D8DADF";
-              fontPx = 9;
               drawAlpha = alpha;
               priority = hovered ? 5 : 3;
             } else if (
@@ -1686,9 +1686,9 @@ export default function VaultGalaxy({
                 c.slug !== null &&
                 MOBILE_CURATED_VISIBLE_SLUGS.has(c.slug))
             ) {
-              font = "400 9px 'Cormorant Garamond', serif";
+              fontPx = mobile ? 9 : 10;
+              font = `400 ${fontPx}px 'Cormorant Garamond', serif`;
               fill = "#9CA1B0";
-              fontPx = 9;
               priority = 3;
             } else {
               continue; // Tier 2 at rest — hidden
