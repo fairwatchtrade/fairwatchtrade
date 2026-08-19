@@ -22,7 +22,11 @@ import AccountDashboard, {
    plus status. The curation/evaluate route is untouched (PFC274 = 62).
    ──────────────────────────────────────────────────────────────────────── */
 
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
 
   const {
@@ -30,7 +34,18 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?callbackUrl=/account");
+    /* v5.93 — preserve the FULL address, not just the route. A signed-out
+       seller arriving from a correspondence email or a purchase-request
+       notification carries ?module=…&thread=…/&request=…; sign-in must
+       land them on that exact item, never on bare Listings. */
+    const params = new URLSearchParams();
+    const sp = await searchParams;
+    for (const k of ["module", "request", "thread"]) {
+      const v = sp[k];
+      if (typeof v === "string" && v) params.set(k, v);
+    }
+    const qs = params.toString();
+    redirect(`/login?callbackUrl=${encodeURIComponent(qs ? `/account?${qs}` : "/account")}`);
   }
 
   // v2.24 · integrity_hold_reason + seller_clarification_note join the
