@@ -93,7 +93,7 @@ export default function LoginPage() {
             same drawing. It replaces a 44px hand-drawn clock face that read
             as a stray icon beside Join's 140px plate: the panel is one
             composition, and the object at its head has to carry it. */}
-        <div className="pointer-events-none relative z-[1] mx-auto -mb-6 mt-[42.5px] w-[140px] shrink-0 overflow-visible">
+        <div className="relative z-[1] mx-auto -mb-6 mt-[42.5px] w-[140px] shrink-0 overflow-visible">
           <WatchBlueprint
             completed={[
               "strap",

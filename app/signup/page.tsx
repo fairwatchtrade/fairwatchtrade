@@ -190,7 +190,7 @@ export default function SignUpPage() {
       </svg>
 
       {/* Engineering plate — static Signup study; canonical Sell Flow artwork. */}
-      <div className="pointer-events-none relative z-[1] mx-auto -mb-6 mt-[42.5px] w-[140px] shrink-0 overflow-visible">
+      <div className="relative z-[1] mx-auto -mb-6 mt-[42.5px] w-[140px] shrink-0 overflow-visible">
         <WatchBlueprint
           completed={[
             "strap",
