@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
+
+/* Before Daylight arrived on 8/13 these names were the fixed site palette,
+   so this dark-glass Drawer always rendered light-on-dark. The page tokens
+   now have a Daylight arm; the mobile surface must not inherit it. Re-declare
+   the exact pre-8/13 values at the surface boundary so every descendant —
+   including the shared SavedSearchQuickLinks — reads correctly without
+   changing the currently-correct desktop Drawer or the shared component. */
+const MOBILE_DARK_PALETTE = {
+  colorScheme: "dark",
+  color: "#E8E4DC",
+  "--platinum": "#E8E4DC",
+  "--slate": "#9CA1B0",
+  "--muted": "#818799",
+  "--gold": "#C9A84C",
+  "--border-gold": "rgba(201,168,76,0.28)",
+  "--border-mid": "rgba(255,255,255,0.08)",
+} as CSSProperties;
 
 /* ────────────────────────────────────────────────────────────────────────
    MOBILE COLLECTOR'S DRAWER — components/MobileCollectorsDrawer.tsx (v2.25)
@@ -197,11 +214,13 @@ export default function MobileCollectorsDrawer({
              gallery cell; slides from the left edge. ── */}
       <aside
         id="mobile-collectors-drawer"
+        style={MOBILE_DARK_PALETTE}
         aria-hidden={!expanded}
         className={[
           "absolute inset-y-0 left-0 z-[24] min-[56rem]:hidden",
           "w-[82vw] min-[470px]:w-[min(360px,84vw)] md:w-[390px]",
           "border border-l-0 border-[rgba(232,226,214,0.14)] border-r-[var(--border-gold)]",
+          "[--platinum-dim:#CFCBC3] max-[520px]:[--platinum-dim:#D8D4CC]",
           "bg-[linear-gradient(90deg,rgba(20,22,28,0.34),rgba(20,22,28,0.28))] backdrop-blur-[17px]",
           "shadow-[20px_0_48px_rgba(0,0,0,0.30)]",
           "transition-[opacity,transform,visibility] duration-[220ms] ease-out",
