@@ -165,6 +165,7 @@ export default function WatchBlueprint({
       d.sry = d.ry;
       d.dragging = true;
       d.moved = false;
+      e.currentTarget.dataset.interacting = "true";
       if (coreRef.current) coreRef.current.style.transition = "none";
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
     },
@@ -191,6 +192,7 @@ export default function WatchBlueprint({
     if (!d.dragging || e.pointerId !== d.pid) return;
     d.dragging = false;
     d.pid = -1;
+    e.currentTarget.dataset.interacting = "false";
     // Holds where it was left — no auto-return, no bounce.
     if (coreRef.current) {
       coreRef.current.style.transition = "transform 160ms cubic-bezier(.2,.75,.25,1)";
@@ -222,7 +224,16 @@ export default function WatchBlueprint({
 
   return (
     <div
-      style={{ position: "relative", width: "100%", aspectRatio: "260 / 430", perspective: `${perspective}px`, touchAction: "pan-y" }}
+      className="watch-blueprint"
+      data-interacting="false"
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "260 / 430",
+        perspective: `${perspective}px`,
+        touchAction: "pan-y",
+        "--blueprint-time-hand-hover": "light-dark(#4F3C16, #9A7E3A)",
+      } as CSSProperties}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -356,10 +367,22 @@ export default function WatchBlueprint({
                   hierarchy kept: seconds 46 > minute 42 > hour 35. The center
                   chronograph seconds hand stays parked at 12 (chrono at rest). */}
               <g ref={hourHandRef}>
-                <line x1="130" y1="214" x2="130" y2="179" />
+                <line
+                  x1="130"
+                  y1="214"
+                  x2="130"
+                  y2="179"
+                  className="watch-blueprint-time-hand"
+                />
               </g>
               <g ref={minHandRef}>
-                <line x1="130" y1="214" x2="130" y2="172" />
+                <line
+                  x1="130"
+                  y1="214"
+                  x2="130"
+                  y2="172"
+                  className="watch-blueprint-time-hand"
+                />
               </g>
               <line x1="130" y1="222" x2="130" y2="168" />
               <circle cx="130" cy="214" r="3.5" />

@@ -319,6 +319,22 @@ html[data-theme="dark"] { color-scheme: dark; }
   --ease-slow: 0.4s ease;
 }
 
+/* The shared engineering plate's only hover response: on hover-capable
+   desktop pointers, the live hour and minute hands quietly resolve. The
+   rotatable Sell Flow plate keeps that same stroke while its existing pointer
+   capture is active; the hand lines never become interaction targets. */
+.watch-blueprint-time-hand {
+  pointer-events: none;
+  transition: stroke 200ms ease-out;
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .watch-blueprint:hover .watch-blueprint-time-hand,
+  .watch-blueprint[data-interacting="true"] .watch-blueprint-time-hand {
+    stroke: var(--blueprint-time-hand-hover);
+  }
+}
+
 /* ── RESET ── */
 /* v1.75: wrapped in @layer base so Tailwind v4 utilities (@layer utilities)
    correctly override it. An UNLAYERED reset beats all layered styles per the

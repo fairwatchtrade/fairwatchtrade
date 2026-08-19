@@ -117,9 +117,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-7 font-display text-[14px] font-light leading-[1.8] text-[var(--muted)]">
-            We started this because we were tired of the{" "}
-            <span className="italic text-[var(--slate)]">Collector&apos;s Tax</span> — losing
-            13% of our capital every time we wanted to move from one watch to the next.
+            Built for collectors whose collections are always evolving.
           </div>
 
           <div className="mb-8">
