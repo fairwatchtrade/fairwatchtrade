@@ -1,12 +1,7 @@
 "use client";
 
 import { useMetals } from "@/lib/useMetals";
-
-const DOT: Record<string, string> = {
-  gold: "bg-amber-600",
-  silver: "bg-zinc-400",
-  platinum: "bg-sky-500",
-};
+import { METAL_DOT_CLASS } from "@/lib/metals";
 
 const PLACEHOLDER = [
   { key: "gold", label: "Gold", price: null as number | null },
@@ -32,7 +27,9 @@ export default function MetalsLine() {
       <span className="text-[11px] tracking-wide text-[#C9A84C]">London</span>
       {list.map((m) => (
         <span key={m.key} className="flex items-center gap-1.5">
-          <span className={`h-1.5 w-1.5 rounded-full ${DOT[m.key] ?? "bg-zinc-400"}`} />
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${METAL_DOT_CLASS[m.key as keyof typeof METAL_DOT_CLASS] ?? "bg-zinc-400"}`}
+          />
           <span className="font-medium text-[#E8E4DC]">{m.label}</span>
           <span className="tabular-nums">{usd(m.price, m.key)}</span>
         </span>

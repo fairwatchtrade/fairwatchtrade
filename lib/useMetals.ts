@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { MetalDirection } from "@/lib/metals";
 
 export type Metal = {
   key: string;
   label: string;
   price: number | null;
-  changePct: number | null;
+  direction: MetalDirection;
 };
 
 export type MetalsPayload = {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMetals } from "@/lib/useMetals";
+import { METAL_DOT_CLASS, type MetalDirection } from "@/lib/metals";
 import { statusOf, type Auction } from "@/lib/auctions";
 
 /* v2.5b — the seam. MarketBar no longer imports data/auctions.json;
@@ -13,16 +14,10 @@ import { statusOf, type Auction } from "@/lib/auctions";
    session updater (an auction ending while the tab sits open still
    drops; one starting still flips to Live). */
 
-const DOT: Record<string, string> = {
-  gold: "bg-amber-600",
-  silver: "bg-zinc-400",
-  platinum: "bg-sky-500",
-};
-
 const PLACEHOLDER = [
-  { key: "gold", label: "Gold", price: null as number | null, changePct: null as number | null },
-  { key: "silver", label: "Silver", price: null as number | null, changePct: null as number | null },
-  { key: "platinum", label: "Platinum", price: null as number | null, changePct: null as number | null },
+  { key: "gold", label: "Gold", price: null as number | null, direction: null as MetalDirection },
+  { key: "silver", label: "Silver", price: null as number | null, direction: null as MetalDirection },
+  { key: "platinum", label: "Platinum", price: null as number | null, direction: null as MetalDirection },
 ];
 
 function usd(n: number | null, key: string) {
@@ -102,19 +97,26 @@ export default function MarketBar() {
           </span>
           {list.map((m) => (
             <div key={m.key} className="flex items-center gap-2">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[m.key] ?? "bg-zinc-400"}`} />
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${METAL_DOT_CLASS[m.key as keyof typeof METAL_DOT_CLASS] ?? "bg-zinc-400"}`}
+              />
               <div className="leading-tight">
                 <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
                 <div className="text-[13px] font-medium tabular-nums text-[var(--platinum)]">
                   {usd(m.price, m.key)}
-                  {m.changePct != null && (
+                  {m.direction != null && (
                     <span
-                      className={`ml-1 text-[11px] ${
-                        m.changePct >= 0 ? "text-emerald-400" : "text-red-400"
-                      }`}
+                      aria-label={`${m.direction === "up" ? "Up" : "Down"} over 4 hours`}
+                      title={`${m.direction === "up" ? "Up" : "Down"} over 4 hours`}
+                      className="ml-0.5 inline-block text-[10px] leading-none"
+                      style={{
+                        color:
+                          m.direction === "up"
+                            ? "light-dark(#167047, #6BCB91)"
+                            : "light-dark(#B23A32, #F07A70)",
+                      }}
                     >
-                      {m.changePct >= 0 ? "▲" : "▼"}
-                      {Math.abs(m.changePct).toFixed(1)}%
+                      {m.direction === "up" ? "↑" : "↓"}
                     </span>
                   )}
                 </div>
