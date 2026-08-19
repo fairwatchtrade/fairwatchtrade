@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DialReveal from "@/components/DialReveal";
+import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
 
@@ -150,7 +151,15 @@ export default function ListingGallery({
     "focus-visible:outline-[var(--gold)]";
 
   return (
-    <div>
+    /* The gallery owns its responsive width; the page grid only tells it the
+       maximum space physically available. From the 896px two-column floor
+       upward, `viewport - 378px` follows the established gutters, 224px
+       minimum rail, 24px gap and measured scrollbar allowance, capped at the
+       approved 974px primary ceiling. Below the handoff it holds the measured
+       518px edge size until the viewport itself becomes narrower, then w-full
+       contracts. The result is monotonic: removing the rail can never enlarge
+       the photo. */
+    <div data-listing-gallery="" className="w-full max-w-[518px] min-[56rem]:max-w-[min(974px,calc(100vw_-_378px))]">
       {/* Hero — the photograph is the left-column object. v1.24 retires the
           pale bordered shell that used to sit around this stage. The stage
           still governs height so changing photos cannot move the listing,
@@ -202,6 +211,7 @@ export default function ListingGallery({
             resolves from the actual image edge instead of the retired
             full-column shell. */}
         <div
+          data-listing-hero=""
           className="relative max-h-full max-w-full"
           style={{
             width: `min(100cqw, calc(100cqh * ${heroAspect}))`,
@@ -261,9 +271,7 @@ export default function ListingGallery({
           onClick={() => setInspecting(true)}
           className="inline-flex min-h-[36px] items-center gap-2 border border-[var(--border-subtle)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum-dim)]"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-          </svg>
+          <LoupeIcon size={18} />
           Inspect photo
         </button>
       </div>

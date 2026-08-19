@@ -24,7 +24,7 @@ import {
 
    This draws a form. It does not own one: state, validation, the POST and
    the entire error taxonomy live in usePurchaseRequest, shared with the
-   dedicated /listings/[id]/purchase-request route that mobile keeps. There
+   dedicated /listings/[id]/purchase-request route. There
    is one submission contract and one set of error semantics.
 
    Draft text follows the collector: close the form, open the Drawer, study

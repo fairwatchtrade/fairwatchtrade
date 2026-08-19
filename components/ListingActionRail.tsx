@@ -130,28 +130,14 @@ export default function ListingActionRail({
       const barCta =
         "shrink-0 bg-[var(--cta-fill)] px-4 py-2 font-[Inter] text-[11px] uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90";
 
-      /* Where the form is already on the page, this bar opens it instead of
-         navigating away — leaving the listing to make an offer on it is the
-         exact break the in-page form exists to end. Below that breakpoint,
-         and for a signed-out visitor at any width, the ordinary link stands
-         so the dedicated route keeps its auth gate and its direct entry.
-         `hidden` is display:none, so only one is ever in the accessibility
-         tree — the same rule the rest of this component follows. */
+      /* The responsive composition now keeps one in-page Purchase Request
+         surface mounted at every width: rail while the columns coexist,
+         inline immediately below the gallery after they stack. The bar can
+         therefore open that one live form at every signed-in width. Guests
+         retain the dedicated route so its server-side auth gate can return
+         them to the listing after sign-in. */
       if (canRequestInline) {
-        return (
-          <>
-            <OpenPurchaseRequestButton
-              listingId={listingId}
-              className={`hidden lg:inline-flex ${barCta}`}
-            />
-            <Link
-              href={`/listings/${listingId}/purchase-request`}
-              className={`lg:hidden ${barCta}`}
-            >
-              Make Offer
-            </Link>
-          </>
-        );
+        return <OpenPurchaseRequestButton listingId={listingId} className={barCta} />;
       }
 
       return (
@@ -238,7 +224,7 @@ export default function ListingActionRail({
     </div>
   );
 
-  /* ── MOBILE / TABLET — today's in-flow layout, unchanged. ── */
+  /* ── STACKED LAYOUT — the same request immediately below the gallery. ── */
   if (variant === "inline") {
     return (
       <>
@@ -247,8 +233,8 @@ export default function ListingActionRail({
           <p className="mt-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
             Asking Price
           </p>
-          {/* The lg→xl band has no rail composer, so the question door is a
-              quiet link here — it opens the existing conversation home.
+          {/* The stacked composition has no rail composer, so the question
+              door is a quiet link here — it opens the existing conversation home.
               Authed non-owners only: the listener lives in
               ListingCorrespondence, which owners and guests don't mount. */}
           {!isOwner && canRequestInline && (
