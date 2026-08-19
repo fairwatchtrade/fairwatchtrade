@@ -23,18 +23,18 @@ import { RailShell, RailSection, RailItem } from "@/components/rail/railPrimitiv
      read — the repo's proven "read my own rows" convention). Fetch
      silence renders no badge, never a fabricated 0.
 
-   Order §4 (AFFIRMED): Requests before Messages — the locked rationale
-   order, a deliberate departure from the old inline rail. Soon items
-   (Market Intel, Analytics) stay excluded from the deep-link allowlist.
-   Icons are the Design Gate study's exact SVG set.
+   v5.95 — one Communications entry is the door to the Communications
+   room (founder ruling 2026-08-19); the old separate Requests/Messages
+   items retired. Soon items (Market Intel, Analytics) stay excluded
+   from the deep-link allowlist. Icons are the Design Gate study's exact
+   SVG set.
    ──────────────────────────────────────────────────────────────────────── */
 
 type ModuleId =
   | "dashboard"
   | "inventory"
   | "accelerator"
-  | "requests"
-  | "messages"
+  | "communications"
   | "saved";
 
 const ICONS = {
@@ -93,7 +93,10 @@ const ICONS = {
   ),
 } as const;
 
-/* Order §4 — Requests before Messages is the locked order. */
+/* v5.95 — ONE Communications entry replaces the separate Requests and
+   Messages items (founder ruling 2026-08-19: one doorway, one room,
+   filters inside — the Requests/Messages/Unread/Archived split lives in
+   the room's own folder rail, never out here). */
 const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICONS }> = [
   { id: "dashboard", label: "Overview", icon: "overview" },
   { id: "inventory", label: "Listings", icon: "listings" },
@@ -104,8 +107,7 @@ const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICON
      return here as a peer — it is produced BY Dealer Accelerator, not a
      sibling of it. */
   { id: "accelerator", label: "Dealer Accelerator", icon: "drafts" },
-  { id: "requests", label: "Requests", icon: "requests" },
-  { id: "messages", label: "Messages", icon: "messages" },
+  { id: "communications", label: "Communications", icon: "messages" },
   { id: "saved", label: "Saved Searches", icon: "saved" },
 ];
 
@@ -193,8 +195,17 @@ export default function AccountRail({
       <RailSection label="Workspace">
         {MODULE_ITEMS.map((m) => {
           const isActive = surface === "account" && activeModule === m.id;
-          const badge =
-            m.id === "messages" ? unread : m.id === "requests" ? pending : undefined;
+          /* One door, one indicator: everything currently needing the
+             seller's eyes — pending requests + unread correspondence.
+             The two counts keep their SEPARATE semantics inside the room
+             (Requests folder count vs Unread folder count); this is the
+             door's total, not a merged model. Fetch silence on both
+             sides renders no badge, never a fabricated 0. */
+          const attention =
+            unread === undefined && pending === undefined
+              ? undefined
+              : (unread ?? 0) + (pending ?? 0);
+          const badge = m.id === "communications" ? attention : undefined;
           return (
             <RailItem
               key={m.id}

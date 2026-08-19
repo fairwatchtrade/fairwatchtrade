@@ -1,11 +1,14 @@
 # Seller Communications — how this machinery actually works
 
-**The misconception this file exists to kill:** Requests and Messages look
-like two separate inbox products in the rail. They are not. Since v5.93 they
-are **two doors into one Communications room** — a single component with a
-single state model. If you find yourself building a second inbox, a third
-rail entry, or a "requests view", stop: the room already exists and both
-doors already open it.
+**The misconception this file exists to kill:** the workspace rail has ONE
+Communications entry, and it opens ONE room. There is no Requests inbox, no
+Messages inbox, and there must never be either again (founder ruling
+2026-08-19: one doorway, one room, filters inside — v5.95 removed the two
+rail entries v5.93 briefly shipped). `?module=requests` and
+`?module=messages` still exist, but only as DEEP-LINK ADDRESSES (notification
+→ Requests filter, email → Messages filter); they are not doors and must not
+grow rail entries back. If you find yourself building a second inbox or a
+new rail item for any communications state, stop: the room already exists.
 
 ## Where the behavior lives
 
@@ -46,8 +49,10 @@ vanishing "on their own", look for a code path that dropped the peek param.
 
 ## Addressing / deep links
 
-- `?module=requests` / `?module=messages` — the doors (pushState, WS2:
-  module is the only history unit).
+- `?module=communications` — the rail door (pushState, WS2: module is the
+  only history unit); opens on the All folder. `?module=requests` /
+  `?module=messages` are deep-link addresses that open the same room on
+  that filter.
 - `?request=<id>` / `?thread=<id>` — the selected item (replaceState only).
 - `notifications.purchase_request_id` (nullable, SET NULL on purge) is what
   lets a bell land on the exact request: stamped → `/account?module=
@@ -82,7 +87,10 @@ pairs with nothing and refuses seller-reply with a typed
 
 ## Deliberately NOT built (do not "fix")
 
-- **No third rail entry** for Communications — the two doors are the law.
+- **No second rail entry** for any communications state — one door is the
+  law; the rail badge is the door's total attention count (pending
+  requests + unread threads) while the separate semantics live in the
+  room's folder counts.
 - **No archive for purchase requests** — no column, no invented state.
 - **No read state for requests** — pending is attention, not unreadness.
 - **No message-thread bells** — email is the doorbell for messages; the

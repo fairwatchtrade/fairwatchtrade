@@ -28,10 +28,13 @@ import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
 
      folders / filters | correspondence list | reading / action pane
 
-   Two existing doors open it: the rail's Requests entry (Requests filter
-   active) and Messages entry (Messages filter active). It REPLACES the
-   old separate MessagesView and RequestsView modules — one room, never
-   two inbox products.
+   ONE rail door opens it — Communications (founder ruling 2026-08-19:
+   one doorway, one room, filters inside; the door lands on the All
+   folder). The legacy module addresses stay live for deep links only:
+   module=requests (purchase-request notifications → Requests filter)
+   and module=messages (correspondence emails → Messages filter). It
+   REPLACES the old separate MessagesView and RequestsView modules — one
+   room, never two inbox products.
 
    Authoritative design gate:
    FWT_Communications_Outlook_Style_Design_Gate_2026-08-17.html
@@ -136,7 +139,7 @@ export default function CommunicationsRoom({
   onThreadsChanged,
   onRequestsChanged,
 }: {
-  module: "requests" | "messages";
+  module: "communications" | "requests" | "messages";
   threads: CommThread[];
   requests: CommRequest[];
   /** True once BOTH sources have answered — deep links wait for this
@@ -367,7 +370,10 @@ export default function CommunicationsRoom({
         setHandledNav(navSig);
         chooseFolder(folderForModule(module));
       }
-    } else {
+    } else if (loaded) {
+      // Wait for data before auto-showing the folder's first item — running
+      // against the empty first render silently skipped the Gate's
+      // auto-select and left the pane blank until a manual click.
       setHandledNav(navSig);
       chooseFolder(folderForModule(module));
     }
@@ -516,7 +522,7 @@ export default function CommunicationsRoom({
         {/* ── FOLDERS ─────────────────────────────────────────────────── */}
         <nav
           aria-label="Communications filters"
-          className={`shrink-0 border-b border-[var(--border-faint)] bg-[var(--surface-2)] md:w-[168px] md:border-b-0 md:border-r ${
+          className={`shrink-0 border-b border-[var(--border-faint)] bg-[var(--surface-2)] md:w-[132px] md:border-b-0 md:border-r lg:w-[168px] ${
             mobileOpen ? "hidden md:block" : ""
           }`}
         >
@@ -559,7 +565,7 @@ export default function CommunicationsRoom({
 
         {/* ── LIST ────────────────────────────────────────────────────── */}
         <section
-          className={`flex min-h-0 min-w-0 flex-col border-[var(--border-faint)] md:w-[340px] md:shrink-0 md:border-r lg:w-[380px] ${
+          className={`flex min-h-0 min-w-0 flex-col border-[var(--border-faint)] md:w-[264px] md:shrink-0 md:border-r lg:w-[320px] xl:w-[380px] ${
             mobileOpen ? "hidden md:flex" : "flex"
           }`}
         >
@@ -715,8 +721,8 @@ export default function CommunicationsRoom({
           ) : (
             <>
               {/* Header */}
-              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
-                <div className="min-w-0">
+              <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
+                <div className="min-w-0 basis-[220px] grow">
                   <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                     {selected.kind === "request" ? "Purchase Request" : "Message"}
                   </div>
@@ -760,8 +766,8 @@ export default function CommunicationsRoom({
               {/* Purchase-request summary strip */}
               {selected.kind === "request" && (
                 <div className="shrink-0 border-b border-[var(--border-faint)] px-4 py-3">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
-                    <div>
+                  <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+                    <div className="min-w-0">
                       <div className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
                         Requester
                       </div>
@@ -803,7 +809,7 @@ export default function CommunicationsRoom({
                       </div>
                     </div>
                     {selected.request.status === "pending" && (
-                      <div className="col-span-2 flex items-end gap-2 sm:col-span-4 lg:col-span-1">
+                      <div className="flex basis-full items-end gap-2 pt-1 lg:basis-auto lg:pt-0">
                         <button
                           type="button"
                           onClick={() => act(selected.request.id, "accepted")}

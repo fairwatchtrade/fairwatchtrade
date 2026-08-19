@@ -147,10 +147,18 @@ export function folderCounts(items: CommItem[]): Record<CommFolder, number> {
   };
 }
 
-/** The two doors. Requests opens the Requests filter; Messages opens
-    Messages. Same room either way. */
-export function folderForModule(module: "requests" | "messages"): CommFolder {
-  return module === "requests" ? "requests" : "messages";
+/** The door(s) into the room. The rail has ONE Communications entry
+    (founder ruling 2026-08-19: one doorway, one room, filters inside),
+    which opens on All — the live desk. The legacy module values stay
+    valid as deep-link addresses: a purchase-request notification enters
+    at module=requests (Requests filter), correspondence email links at
+    module=messages (Messages filter). Same room, always. */
+export function folderForModule(
+  module: "communications" | "requests" | "messages"
+): CommFolder {
+  if (module === "requests") return "requests";
+  if (module === "messages") return "messages";
+  return "all";
 }
 
 /** Client-side list search across the fields a seller actually scans. */

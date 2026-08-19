@@ -201,7 +201,7 @@ const PRIMARY_LINKS: NavLink[] = [
 ];
 
 const SECONDARY_LINKS: NavLink[] = [
-  { label: "Correspondence", href: "/account?module=messages" },
+  { label: "Correspondence", href: "/account?module=communications" },
   { label: "About", href: "/about" },
 ];
 

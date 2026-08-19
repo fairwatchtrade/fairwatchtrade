@@ -147,6 +147,7 @@ type ModuleId =
   | "inventory"
   | "accelerator"
   | "market"
+  | "communications"
   | "messages"
   | "requests"
   | "saved"
@@ -187,10 +188,14 @@ function dialThumbUrl(photos?: ListingPhoto[]): string | null {
 /* WS2 (v2.88) — the strict deep-link allowlist: every REAL module, never the
    "soon" placeholders (a ?module=market URL must not select an empty room).
    Unknown/absent values fall to Inventory, the account's default task. */
+/* "communications" is the rail door; "messages" and "requests" survive
+   ONLY as deep-link addresses (notification → requests filter, email →
+   messages filter). All three render the same room. */
 const NAVIGABLE_MODULE_IDS = [
   "dashboard",
   "inventory",
   "accelerator",
+  "communications",
   "messages",
   "requests",
   "saved",
@@ -736,7 +741,9 @@ export default function AccountDashboard({
   const moduleTitle =
     activeModule === "dashboard"
       ? "Overview"
-      : activeModule === "messages" || activeModule === "requests"
+      : activeModule === "communications" ||
+          activeModule === "messages" ||
+          activeModule === "requests"
         ? "Communications"
         : activeModule === "accelerator"
           ? "Review Imported Drafts"
@@ -767,7 +774,11 @@ export default function AccountDashboard({
             badges are the dashboard's existing state — no second fetch. */}
         <AccountRail
           surface="account"
-          activeModule={activeModule}
+          activeModule={
+            activeModule === "messages" || activeModule === "requests"
+              ? "communications"
+              : activeModule
+          }
           onSelectModule={selectModule}
           unreadThreads={unreadThreadCount}
           pendingRequests={pendingRequestCount}
@@ -810,7 +821,9 @@ export default function AccountDashboard({
                   <span className="md:hidden">
                     {activeModule === "saved"
                       ? "Saved Searches"
-                      : activeModule === "messages" || activeModule === "requests"
+                      : activeModule === "communications" ||
+                          activeModule === "messages" ||
+                          activeModule === "requests"
                         ? "Communications"
                         : "Listings"}
                   </span>
@@ -912,7 +925,9 @@ export default function AccountDashboard({
               onBackToOverview={() => selectModule("dashboard")}
               initialTab={acceleratorTab}
             />
-          ) : activeModule === "messages" || activeModule === "requests" ? (
+          ) : activeModule === "communications" ||
+            activeModule === "messages" ||
+            activeModule === "requests" ? (
             /* v5.93 — the Communications room renders ONCE, outside the
                mobile/desktop split (the Saved Searches / Accelerator
                precedent): a second CSS-hidden mount would give the room two

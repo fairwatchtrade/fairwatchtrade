@@ -71,9 +71,10 @@ function request(over = {}) {
   };
 }
 
-/* ── Doors ── */
-assert.equal(folderForModule("requests"), "requests");
-assert.equal(folderForModule("messages"), "messages");
+/* ── The door and the deep-link addresses ── */
+assert.equal(folderForModule("communications"), "all"); // the one rail door
+assert.equal(folderForModule("requests"), "requests"); // notification address
+assert.equal(folderForModule("messages"), "messages"); // email address
 
 /* ── Folder law ── */
 {
