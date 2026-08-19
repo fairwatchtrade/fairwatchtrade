@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import DialReveal from "@/components/DialReveal";
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
@@ -46,12 +46,14 @@ export default function ListingGallery({
   initialIndex = 0,
   brandLabel,
   dialUrl,
+  desktopDrawer,
 }: {
   photos: string[];
   initialIndex?: number;
   brandLabel: string;
   modelLabel: string | null;
   dialUrl?: string | null;
+  desktopDrawer?: ReactNode;
 }) {
   /* ── WHY NO FOCAL FRAMING HERE (v3.7) ──────────────────────────────────
      The seller's hero CHOICE reaches this component, as initialIndex. Their
@@ -259,22 +261,38 @@ export default function ListingGallery({
               <NavArrowMark />
             </button>
           )}
+
+          {/* The desktop Drawer belongs to the rendered photograph, not to
+              the governed stage or the gallery flow beneath it. `contents`
+              keeps the hero wrapper as the positioned containing block, so
+              the Drawer's inset-y-0 resolves to the image's exact top and
+              bottom at every responsive size. */}
+          {desktopDrawer && (
+            <div data-desktop-drawer-slot="" className="hidden min-[56rem]:contents">
+              {desktopDrawer}
+            </div>
+          )}
+
+          {/* Paid folding-loupe asset, now the control by itself. It remains
+              just below the photograph's lower-right corner, anchored to this
+              exact image box rather than to the wider gallery column. The
+              invisible 36px button preserves a usable target without drawing
+              a box around the mark. */}
+          <button
+            type="button"
+            aria-label="Inspect photo"
+            title="Inspect photo"
+            onClick={() => setInspecting(true)}
+            className="absolute -bottom-9 right-0 z-20 grid h-9 w-9 place-items-center bg-transparent p-0 text-[var(--platinum)] transition-colors hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-2"
+          >
+            <LoupeIcon size={24} />
+          </button>
         </div>
       </div>
 
-      {/* Inspect — the explicit door into the inspection state. Sits at the
-          hero's upper-right, clear of the arrows (vertical centre) and Dial
-          Reveal (lower-right). */}
-      <div className="mt-2 flex justify-end">
-        <button
-          type="button"
-          onClick={() => setInspecting(true)}
-          className="inline-flex min-h-[36px] items-center gap-2 border border-[var(--border-subtle)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum-dim)]"
-        >
-          <LoupeIcon size={18} />
-          Inspect photo
-        </button>
-      </div>
+      {/* Reserve the loupe's below-photo lane so thumbnails never collide
+          with the icon-only trigger. */}
+      <div aria-hidden="true" className="h-9" />
 
       {/* ── Inspection overlay ── */}
       {inspecting && (

@@ -224,7 +224,7 @@ export default function ListingActionRail({
     </div>
   );
 
-  /* ── STACKED LAYOUT — the same request immediately below the gallery. ── */
+  /* ── STACKED LAYOUT — the same request in the narrow content flow. ── */
   if (variant === "inline") {
     return (
       <>

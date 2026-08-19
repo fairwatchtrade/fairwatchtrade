@@ -484,13 +484,10 @@ export default async function ListingDetailPage({
         {/* ── OPENING — the approved two-column composition at 896px; plain
                stacked flow below it. align-items:start so the rail's 112px
                stagger reads as intended rather than being stretched. ── */}
-        {/* v2.14 — the opening grid now has TWO rows in column 1: the gallery
-            row and the content row. This exists for exactly one reason: the
-            Collector's Drawer is a LISTING feature, and its spine rail (below)
-            inherits the gallery's height by occupying the gallery's grid row —
-            pure CSS, no measurement, no gallery coupling. gap-y is explicitly
-            zero so the split renders pixel-identically to the old single
-            column (identity keeps its own top margin). */}
+        {/* The opening grid has two rows in column 1: gallery, then content.
+            The desktop Drawer now lives inside ListingGallery's exact rendered
+            hero rectangle, so this grid no longer owns Drawer height. gap-y
+            remains zero because identity keeps its own top margin. */}
         {/* v2.17 moved the grid off its original hard xl existence threshold,
             so the spine rail exists — and inherits the gallery row's height —
             across the desktop range. v5.82 aligns the complete two-column
@@ -514,30 +511,10 @@ export default async function ListingDetailPage({
             self-gates — or a band appears showing two navigation mechanisms at
             once. Below the handoff: the locked mobile ruling, as before. */}
         <div className="relative min-[56rem]:grid min-[56rem]:grid-cols-[minmax(0,974px)_clamp(224px,20vw,276px)] min-[56rem]:grid-rows-[auto_auto] min-[56rem]:items-start min-[56rem]:gap-x-[var(--space-6)] min-[56rem]:gap-y-0">
-          {/* ── SPINE RAIL (v2.14) — a gallery-width grid item sharing the
-                 gallery's cell (col 1, row 1) with self-stretch, so its height
-                 IS the gallery's height by grid construction. Below the
-                 two-column handoff the desktop shell itself stays on the same
-                 82px visual gutter: 50px shell margin + 32px inner padding.
-                 The gallery and this containing block therefore share x=82,
-                 keeping the Drawer's existing −65px spine offset at the same
-                 17px visual edge on both sides of the rail collapse. No
-                 recentering compensation is needed, and ListingGallery still
-                 has ZERO knowledge of the Drawer. */}
-          <div className="relative hidden w-full min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:block min-[56rem]:justify-self-start min-[56rem]:self-stretch">
-            <CollectorsDrawer
-              listingId={listing.id}
-              browseHref={browseHref}
-              browseLabel={browseLabel}
-              similarHref={similarHref}
-            />
-          </div>
-
-          {/* GALLERY CELL — col 1, row 1. Its content defines the row height
-              the spine rail inherits. v2.25: `relative`, because the mobile
-              Collector's Drawer anchors here (inset-y-0) so its height IS the
-              gallery's height — the same zero-knowledge law the desktop spine
-              rail obeys; ListingGallery still knows nothing of any Drawer. */}
+          {/* GALLERY CELL — col 1, row 1. `relative` remains the mobile
+              Drawer's existing containing block. The desktop Drawer is passed
+              through to ListingGallery and mounted inside the actual rendered
+              hero-image rectangle instead. */}
           <div className="relative min-[56rem]:col-start-1 min-[56rem]:row-start-1">
             {/* SECTION 1 — Media gallery */}
             {photoUrls.length > 0 && (
@@ -548,6 +525,14 @@ export default async function ListingDetailPage({
                    is deliberately not applied to an uncropped hero. */
                 brandLabel={listing.brand}
                 modelLabel={listing.model}
+                desktopDrawer={
+                  <CollectorsDrawer
+                    listingId={listing.id}
+                    browseHref={browseHref}
+                    browseLabel={browseLabel}
+                    similarHref={similarHref}
+                  />
+                }
                 dialUrl={dialPhotoUrl} /* v2.19 — Dial Reveal RECONNECTED as
                     Discovery Mode. This is the exact one-line reversal of the
                     v2.18 founder disable: dialPhotoUrl has been computed
@@ -581,30 +566,10 @@ export default async function ListingDetailPage({
             )}
           </div>
 
-          {/* CONTENT CELL — col 1, row 2: the collapsed purchase handoff first,
-              then the listing's normal identity and story flow. */}
+          {/* CONTENT CELL — col 1, row 2: listing identity. The narrow-layout
+              Purchase Request now follows the seller narrative in lower flow,
+              so the watch is discovered before the offer surface. */}
           <div className="w-full max-w-[518px] min-[56rem]:col-start-1 min-[56rem]:row-start-2 min-[56rem]:max-w-none">
-
-        {/* STACKED PURCHASE HANDOFF (<896px). This is the existing inline
-            dressing in the first position after the gallery. It consumes the
-            same provider's live open/offer/note state as the rail; no form or
-            controller is duplicated. The gallery keeps its own boundary width
-            through this handoff; moving the request does not resize it. */}
-        <div data-purchase-inline="" className="min-[56rem]:hidden">
-          <ListingActionRail
-            variant="inline"
-            listingId={listing.id}
-            sellerId={listing.seller_id}
-            sellerName={sellerName}
-            priceText={priceText}
-            isOwner={isOwner}
-            requestStatus={myLatestRequest?.status ?? null}
-            listingStatus={listing.status}
-            askingPrice={listing.asking_price}
-            askingCurrency={listing.asking_currency}
-            canRequestInline={!!user}
-          />
-        </div>
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
             when real data is present and DialReveal component exists").
@@ -829,6 +794,27 @@ export default async function ListingDetailPage({
             </p>
           </section>
         )}
+
+        {/* STACKED PURCHASE HANDOFF (<896px). This is the existing inline
+            request, relocated intact after the seller narrative so buyers
+            meet the watch before the offer surface. It still consumes the
+            provider's single live open/offer/note state; no second form or
+            state owner exists. */}
+        <div data-purchase-inline="" className="min-[56rem]:hidden">
+          <ListingActionRail
+            variant="inline"
+            listingId={listing.id}
+            sellerId={listing.seller_id}
+            sellerName={sellerName}
+            priceText={priceText}
+            isOwner={isOwner}
+            requestStatus={myLatestRequest?.status ?? null}
+            listingStatus={listing.status}
+            askingPrice={listing.asking_price}
+            askingCurrency={listing.asking_currency}
+            canRequestInline={!!user}
+          />
+        </div>
 
         {/* CORRESPONDENCE — v2.7, Surface 1 per the final ruling. The
             reserved Section 5 message-stream slot becomes the conversation's

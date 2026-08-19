@@ -11,7 +11,7 @@ import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
    INTEGRATED TOOL SPINE — production implementation of Study D (approved).
 
    The collapsed trigger is no longer a labeled tab: it is the Drawer's own
-   exposed tool spine — full gallery height at the gallery's left edge,
+   exposed tool spine — full rendered-photo height at the photograph's left edge,
    showing restrained line icons of the three functions inside, with a
    rightward opening cue. Opening reveals the same object: the spine stays in
    exactly the same position and becomes the Drawer's internal left icon
@@ -48,23 +48,16 @@ import SavedSearchQuickLinks from "@/components/SavedSearchQuickLinks";
    list anchored top:119px, rows exactly 88px; foot at bottom:26px. Kicker +
    title occupy the space above 119px (ends ~93px — verified no overlap).
 
-   ── GEOMETRIC OWNERSHIP (v2.14) ────────────────────────────────────────
-   The Drawer is a LISTING feature, not a gallery feature. It now anchors to
-   a zero-width "spine rail" that page.tsx places in the listing opening
-   grid, occupying the gallery's own grid row — so the rail's height equals
-   the gallery's height by pure CSS (no measurement), and its left edge is
-   the listing content edge, independent of the gallery column's width.
+   ── GEOMETRIC OWNERSHIP ────────────────────────────────────────────────
+   ListingGallery mounts this Drawer inside the exact-aspect wrapper that is
+   also the rendered photograph's box. The spine and panel use inset-y-0, so
+   their top and bottom equal the image top and bottom by construction. They
+   do not measure or inherit the gallery stage, thumbnail flow, or viewport.
 
-   The spine sits in the page's existing 82px left GUTTER: left:-65px from
-   the content edge = 48px spine centered in the gutter ((82−48)/2 = 17px of
-   air each side; 17+48 = 65). It no longer touches the photograph at all
-   when collapsed, its backdrop is the stable page ink rather than a
-   varying dial, and it cannot move or vanish when the gallery column
-   resizes — the content edge is fixed for every xl viewport. The old
-   `thumbStrip` inset died with the old anchor: a spine in the gutter covers
-   no thumbnails. (The open panel may overlay the gallery, including its
-   thumb strip — the original v2.11 overlay behavior, explicitly retained by
-   this flight's brief; not a law, just not today's question.)
+   The spine remains left:-65px from the photograph's left edge, preserving
+   the established 48px spine relationship to the page gutter. Opening the
+   panel overlays the photograph only; controls and thumbnails beneath the
+   hero are outside the Drawer's containing block.
    NOTE: the -65px derives from the Listing Detail two-column composition's
    82px left gutter. If that gutter ever changes, this offset changes with it —
    they are one design fact in two files.
@@ -537,11 +530,6 @@ export default function CollectorsDrawer({
                 </span>
               </div>
               <SavedSearchQuickLinks />
-              <p
-                className={`mt-[17px] text-[11px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--slate)] ${glassText}`}
-              >
-                Names reopen their saved browse query immediately.
-              </p>
             </section>
           </div>
 

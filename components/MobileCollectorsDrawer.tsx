@@ -291,9 +291,6 @@ export default function MobileCollectorsDrawer({
               </span>
             </div>
             <SavedSearchQuickLinks />
-            <p className="mt-[17px] hidden text-[11px] uppercase leading-[1.5] tracking-[0.09em] text-[var(--muted)] min-[470px]:block">
-              Names reopen their saved browse query immediately.
-            </p>
           </section>
         </div>
       </aside>
