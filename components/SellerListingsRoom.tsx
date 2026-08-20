@@ -85,6 +85,7 @@ export type ListingThreadStat = {
 type TabId =
   | "all"
   | "published"
+  | "private_active"
   | "reserved"
   | "draft"
   | "pending_review"
@@ -358,6 +359,52 @@ export default function SellerListingsRoom({
   } | null>(null);
   const [removedNotice, setRemovedNotice] = useState<string | null>(null);
 
+  /* Private Listing V1 — the intended buyer's display name, so the seller
+     always knows WHO a private listing is for. public_seller_profiles is
+     the sanctioned public-name path; silence renders the quiet generic. */
+  const [privateBuyerNames, setPrivateBuyerNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const missing = [
+      ...new Set(
+        listings
+          .map((l) => l.private_buyer_id)
+          .filter(Boolean) as string[]
+      ),
+    ].filter((id) => !(id in privateBuyerNames));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("public_seller_profiles")
+          .select("id, display_name")
+          .in("id", missing);
+        if (cancelled || !Array.isArray(data)) return;
+        setPrivateBuyerNames((prev) => {
+          const next = { ...prev };
+          for (const row of data as { id: string; display_name: string | null }[]) {
+            if (row.display_name) next[row.id] = row.display_name;
+          }
+          return next;
+        });
+      } catch {
+        /* the generic simply stands */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings]);
+
+  function privateBuyerName(l: { private_buyer_id?: string | null }): string {
+    return (
+      (l.private_buyer_id && privateBuyerNames[l.private_buyer_id]) ||
+      "its intended buyer"
+    );
+  }
+
   /* Stage 7 — Delete Listing. Only ever opened on a Removed listing, and the
      dialog asks the server for the verdict; this holds nothing but which
      listing is being asked about. */
@@ -416,6 +463,7 @@ export default function SellerListingsRoom({
   const counts = {
     all: listings.length,
     published: listings.filter((l) => l.status === "published").length,
+    private_active: listings.filter((l) => l.status === "private_active").length,
     reserved: listings.filter((l) => l.status === "reserved").length,
     draft: listings.filter((l) => l.status === "draft").length,
     pending_review: listings.filter((l) => l.status === "pending_review").length,
@@ -429,6 +477,12 @@ export default function SellerListingsRoom({
   const tabs: Array<{ id: TabId; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.all },
     { id: "published", label: "Published", count: counts.published },
+    /* Private Listing V1 — same conditional-tab rule as Sale Pending: the
+       filter appears once the seller actually has one; private rows always
+       remain under All regardless. */
+    ...(counts.private_active > 0
+      ? [{ id: "private_active" as TabId, label: "Private", count: counts.private_active }]
+      : []),
     ...(counts.reserved > 0
       ? [{ id: "reserved" as TabId, label: "Sale Pending", count: counts.reserved }]
       : []),
@@ -1005,6 +1059,28 @@ export default function SellerListingsRoom({
                     go against the seller. The reason is the founder's own
                     persisted message: the same words that were emailed, never
                     the founder-only reviewer note. */}
+                {/* Private Listing V1 — who this listing is for, said in the
+                    seller's own panel. Same card grammar as the states around
+                    it. */}
+                {selected.status === "private_active" && (
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    This is a private listing — visible only to{" "}
+                    <span className="text-[var(--platinum-dim)]">
+                      {privateBuyerName(selected)}
+                    </span>
+                    .
+                    <span className="mt-1 block">
+                      It never appears on Browse, in search, or in public
+                      counts. They&apos;ve been notified and can make an offer
+                      through the normal purchase path.
+                    </span>
+                    <span className="mt-1 block">
+                      Withdraw Private Listing below takes it back — they lose
+                      access, and the listing stays yours.
+                    </span>
+                  </div>
+                )}
+
                 {selected.status === "rejected" && (
                   <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
                     This listing won&apos;t be going live on FairWatchTrade.
@@ -1127,7 +1203,8 @@ export default function SellerListingsRoom({
                     must never compete with View Listing for the eye. */}
                 {(selected.status === "published" ||
                   selected.status === "reserved" ||
-                  selected.status === "pending_review") && (
+                  selected.status === "pending_review" ||
+                  selected.status === "private_active") && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1143,9 +1220,13 @@ export default function SellerListingsRoom({
                     }}
                     className="border border-[var(--border-subtle)] px-3 py-[11px] text-center text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition-colors hover:border-[var(--border-mid)] hover:text-[var(--platinum-dim)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
                   >
-                    Pause Listing
+                    {selected.status === "private_active"
+                      ? "Withdraw Private Listing"
+                      : "Pause Listing"}
                     <span className="mt-0.5 block text-[11px] normal-case tracking-[0.5px] text-[var(--muted)]">
-                      Take it off the market, keep the listing
+                      {selected.status === "private_active"
+                        ? "Take it back — the buyer loses access"
+                        : "Take it off the market, keep the listing"}
                     </span>
                   </button>
                 )}

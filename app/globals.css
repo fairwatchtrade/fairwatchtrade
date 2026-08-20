@@ -213,6 +213,11 @@ html[data-theme="dark"] { color-scheme: dark; }
   --lc-rejected-line:        light-dark(rgba(160,59,51,0.5), rgba(190,86,80,0.44));
   --lc-rejected-wash:        light-dark(var(--state-wash), rgba(190,86,80,0.05));
   --lc-rejected-badge:       light-dark(#A03B33, #DB8E88);
+  /* Private Listing (v5.98) — a quiet slate-blue family: unmistakably its
+     own state, never competing with Published green or Sale Pending gold. */
+  --lc-private_active-line:  light-dark(rgba(62,78,110,0.5), rgba(159,179,224,0.42));
+  --lc-private_active-wash:  light-dark(var(--state-wash), rgba(159,179,224,0.045));
+  --lc-private_active-badge: light-dark(#3E4E6E, #9FB3E0);
   --lc-reserved-line:        light-dark(rgba(110,90,37,0.55), rgba(228,216,188,0.62));
   --lc-reserved-wash:        light-dark(var(--state-wash), rgba(228,216,188,0.05));
   --lc-reserved-badge:       light-dark(#6E5A25, #EFE4CB);

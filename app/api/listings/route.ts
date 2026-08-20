@@ -120,6 +120,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Light shape — mirrors ListingDraft without importing it server-side.
 type PublishBody = {
+  /** Private Listing V1 — a message thread the caller participates in; the
+      server derives the one authorized buyer from it. Never a buyer id. */
+  privateThreadId?: string;
   brand?: string;
   customBrandFlag?: boolean;
   model?: string;
@@ -231,7 +234,7 @@ function sanitizeMediaMeta(raw: unknown[] | undefined): MediaMetaEntry[] {
   return out;
 }
 
-type ListingStatus = "published" | "pending_review";
+type ListingStatus = "published" | "pending_review" | "private_active";
 
 /* ── v2.24 · Aubrey execution — run the image-authenticity check for every
       correlatable photo that doesn't yet have an active completed result,
@@ -561,6 +564,44 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* ── Private Listing V1 (v5.98) — the conversation-led buyer seam ────────
+        The client may name a MESSAGE THREAD, never a buyer. The server
+        derives the buyer from the thread's participants and requires the
+        caller to be the other one — so a forged id, a stranger's thread, or
+        a retyped email can never target a buyer the seller has no
+        relationship with. RLS on message_threads independently hides foreign
+        threads, so the read below returns nothing unless the caller is a
+        real participant. */
+  let privateBuyerId: string | null = null;
+  const privateThreadId =
+    typeof body.privateThreadId === "string" ? body.privateThreadId.trim() : "";
+  if (privateThreadId) {
+    const { data: thread } = await supabase
+      .from("message_threads")
+      .select("id, participant_a_id, participant_b_id")
+      .eq("id", privateThreadId)
+      .maybeSingle();
+    const isParticipant =
+      !!thread &&
+      (thread.participant_a_id === user.id || thread.participant_b_id === user.id);
+    const counterpart = !thread
+      ? null
+      : thread.participant_a_id === user.id
+        ? thread.participant_b_id
+        : thread.participant_a_id;
+    if (!isParticipant || !counterpart || counterpart === user.id) {
+      return NextResponse.json(
+        {
+          error: "invalid_private_thread",
+          detail:
+            "This private listing must start from one of your own buyer conversations.",
+        },
+        { status: 400 }
+      );
+    }
+    privateBuyerId = counterpart;
+  }
+
   /* ── Money Truth Stage B — one governed resolution, used everywhere below.
         Amount and currency are accepted together or not at all; ambiguous or
         symbol-laden notation is refused with the parser's own reason. The
@@ -790,7 +831,7 @@ export async function POST(request: NextRequest) {
         needs attention (integrity_hold_reason). A NULL hold reason now means
         "nothing the system objects to" — the ordinary founder queue — which
         is exactly what NULL already meant for the dealer/founder path. ── */
-  const initialStatus: ListingStatus = "pending_review";
+  let initialStatus: ListingStatus = "pending_review";
   let holdReason: IntegrityHoldReason | null = null;
   if (hasCorrelatableMedia) {
     if (serviceUnavailable || !service) {
@@ -805,6 +846,16 @@ export async function POST(request: NextRequest) {
       // now recorded as the absence of a hold reason, never as publication.
       holdReason = gate.holdReason;
     }
+  }
+
+  /* Private Listing V1 — activation is seller-direct (Product Law: Private
+     Draft → Private Active needs no founder gate; nothing goes public), but
+     the photograph trust rules are NOT weakened: an integrity hold sends the
+     private submission into the same pending_review witness path every
+     listing gets, and founder approval of a private-intended row lands back
+     on 'private_active' (the admin status route knows), never 'published'. */
+  if (privateBuyerId && !holdReason) {
+    initialStatus = "private_active";
   }
 
   const row: Record<string, unknown> = {
@@ -841,6 +892,13 @@ export async function POST(request: NextRequest) {
   const presentation = sanitizePhotoPresentation(body.photoPresentation);
   if (!isDefaultPresentation(presentation)) {
     row.photo_presentation = presentation;
+  }
+
+  // Private Listing V1 — the one authorized buyer rides the row itself; the
+  // DB CHECK (private_active ⇒ buyer present) keeps state and relationship
+  // one fact.
+  if (privateBuyerId) {
+    row.private_buyer_id = privateBuyerId;
   }
 
   // v2.2 columns join the row ONLY when the wizard fields are present.

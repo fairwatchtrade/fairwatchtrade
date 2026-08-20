@@ -96,7 +96,7 @@ export async function POST(req: Request) {
   // source of truth, not anything the browser sent.
   const { data: listing, error: listingError } = await supabase
     .from("listings")
-    .select("id, brand, model, reference, seller_id, asking_price, asking_currency, status")
+    .select("id, brand, model, reference, seller_id, asking_price, asking_currency, status, private_buyer_id")
     .eq("id", listingId)
     .single();
 
@@ -106,7 +106,14 @@ export async function POST(req: Request) {
 
   // Availability: exists but no longer open to new requests (e.g. reserved after
   // an accepted offer). Typed so the UI shows the "no longer available" state.
-  if (listing.status !== "published") {
+  // Private Listing V1 (v5.98): a Private Active listing enters the SAME
+  // machinery, but only for its one authorized buyer — an eligibility
+  // extension, not a second engine. The database creation guard enforces the
+  // same rule independently; this check exists for the clean status code.
+  const privateForMe =
+    listing.status === "private_active" &&
+    (listing as { private_buyer_id?: string | null }).private_buyer_id === user.id;
+  if (listing.status !== "published" && !privateForMe) {
     return NextResponse.json(
       { error: "listing_unavailable", detail: "This watch is no longer available for a new purchase request." },
       { status: 409 }

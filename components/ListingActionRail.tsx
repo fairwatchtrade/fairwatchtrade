@@ -162,6 +162,25 @@ export default function ListingActionRail({
     );
   }
 
+  /* Private Listing V1 — the authorized buyer sees a normal, trustworthy
+     listing with one quiet truth added: this watch is offered to them alone.
+     Only the authorized buyer and the seller can fetch a private row at all
+     (RLS), so this renders for exactly one person. */
+  const privateMarker =
+    listingStatus === "private_active" && !isOwner ? (
+      <div className="inline-block border border-[var(--lc-private_active-line)] px-4 py-3 text-[11px] tracking-[0.5px]">
+        <div
+          className="uppercase tracking-[2px]"
+          style={{ color: "var(--lc-private_active-badge)" }}
+        >
+          Private listing
+        </div>
+        <div className="mt-1 text-[var(--muted)]">
+          Offered to you alone — this watch is not on the public market.
+        </div>
+      </div>
+    ) : null;
+
   const purchaseBlock = ctaState === "owner" ? null : ctaState === "reserved" ? (
     <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
       <div className="inline-block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 text-[11px] tracking-[0.5px]">
@@ -175,6 +194,7 @@ export default function ListingActionRail({
     </div>
   ) : (
     <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
+      {privateMarker}
       {requestStatus === "declined" && (
         <div className="inline-block border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
           Your previous request was declined

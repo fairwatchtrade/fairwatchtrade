@@ -362,11 +362,18 @@ export async function POST(request: NextRequest) {
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, brand, model, reference, seller_id, status")
+    .select("id, brand, model, reference, seller_id, status, private_buyer_id")
     .eq("id", listingId)
     .maybeSingle();
 
-  if (!listing || listing.status !== "published") {
+  // Private Listing V1 (v5.98): the one authorized buyer may open
+  // correspondence on their private listing exactly like a public buyer
+  // would — same thread home, same machinery. Anyone else keeps 404.
+  const privateForMe =
+    !!listing &&
+    listing.status === "private_active" &&
+    (listing as { private_buyer_id?: string | null }).private_buyer_id === user.id;
+  if (!listing || (listing.status !== "published" && !privateForMe)) {
     return NextResponse.json({ error: "listing_not_found" }, { status: 404 });
   }
   if (listing.seller_id === user.id) {

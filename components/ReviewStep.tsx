@@ -82,6 +82,8 @@ export default function ReviewStep({
   onAdmissionChange,
   captureSessionId,
   publishRequestId,
+  privateThreadId,
+  privateBuyerName,
   onPublished,
   photoRedactions,
   onApplyRedaction,
@@ -98,6 +100,11 @@ export default function ReviewStep({
   // style) if mounted without them.
   captureSessionId?: string;
   publishRequestId?: string;
+  /** Private Listing V1 — the buyer conversation this listing is for. When
+      present the final action ACTIVATES a private listing (visible only to
+      that buyer) instead of submitting for public review. */
+  privateThreadId?: string;
+  privateBuyerName?: string;
   // List From Phone — lets SellFlow close its server draft (idempotent) once
   // the real listing exists. Additive; publish behavior itself is untouched.
   onPublished?: (listingId: string) => void;
@@ -114,6 +121,9 @@ export default function ReviewStep({
   // v2.24 · a publish can land held (pending_review) — the seller sees the
   // locked held-state copy, never a false "live".
   const [held, setHeld] = useState(false);
+  // Private Listing V1 — the server's own answer that the listing went
+  // Private Active (never inferred client-side).
+  const [privateActivated, setPrivateActivated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   // Focus returns to the utility when the editor closes — the proven
@@ -177,6 +187,9 @@ export default function ReviewStep({
           description: draft.description,
           descriptionPassedAI: draft.descriptionPassedAI,
           scoreState: toScoringState(draft),
+          // Private Listing V1 — names the CONVERSATION; the server derives
+          // and verifies the buyer from its participants.
+          ...(privateThreadId ? { privateThreadId } : {}),
           // v2.24 · additive — desktop media correlation + idempotency.
           // media_meta mirrors the mobile wizard's shape; storage_path is the
           // upload pathname, category the seller's tag (draft.photos only
@@ -215,6 +228,7 @@ export default function ReviewStep({
          distinguishes the two messages — `held` is the server's own answer to
          "is there something for a human to look at", never a signal name. */
       setHeld(data?.held === true);
+      setPrivateActivated(data?.status === "private_active");
       setPublished(true);
       if (data?.id && onPublished) onPublished(String(data.id));
     } catch {
@@ -236,6 +250,26 @@ export default function ReviewStep({
         <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[var(--slate)]">
           Your listing is saved and is not visible to buyers yet. Most reviews
           require no action from the seller.
+        </p>
+      </div>
+    );
+  }
+
+  if (published && privateActivated) {
+    return (
+      <div className="py-12 text-center">
+        <div className="mb-6 font-display text-[28px] font-light text-[var(--platinum)]">
+          Your private listing is active.
+        </div>
+        <p className="mx-auto mb-4 max-w-md font-display text-[16px] font-light italic leading-[1.8] text-[var(--muted)]">
+          Your watch is ready for its collector.
+        </p>
+        <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[var(--slate)]">
+          {draft.brand} {draft.model || draft.reference} is now visible to{" "}
+          {privateBuyerName || "your buyer"} — and to no one else. It will not
+          appear on Browse, in search, or in any public count. They have been
+          notified and can make an offer through the normal purchase path.
+          You&apos;ll find it under your listings as Private.
         </p>
       </div>
     );
@@ -526,8 +560,22 @@ export default function ReviewStep({
         </p>
       )}
 
+      {privateThreadId && (
+        <p className="mb-2 mt-6 border border-[var(--lc-private_active-line)] px-3 py-2 text-center text-[12px] leading-[1.6] text-[var(--slate)]">
+          <span className="uppercase tracking-[1.6px] text-[var(--lc-private_active-badge)]">
+            Private listing
+          </span>
+          <span className="mt-0.5 block">
+            Activates immediately for {privateBuyerName || "your buyer"} — and
+            no one else. Never public.
+          </span>
+        </p>
+      )}
+
       <p className="mb-4 mt-6 text-center font-display text-[15px] font-light italic text-[var(--muted)]">
-        Your watch is ready for its next collector.
+        {privateThreadId
+          ? "Your watch is ready for its collector."
+          : "Your watch is ready for its next collector."}
       </p>
 
       <div className="flex justify-end">
@@ -539,7 +587,13 @@ export default function ReviewStep({
           }`}
         >
           {publishing && <WatchSpinner size={16} />}
-          {publishing ? "Submitting…" : "Submit for Review"}
+          {publishing
+            ? privateThreadId
+              ? "Activating…"
+              : "Submitting…"
+            : privateThreadId
+              ? "Activate Private Listing"
+              : "Submit for Review"}
         </button>
       </div>
     </div>

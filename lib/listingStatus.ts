@@ -33,6 +33,14 @@ export const LIFECYCLE_STATUSES = [
   "rejected",
   "reserved",
   "removed",
+  /* Private Listing V1 (v5.98) — a real listing offered to exactly ONE
+     authorized buyer. Its own status value on purpose: every public surface
+     filters status='published', so private rows are excluded from Browse,
+     search, counts, broadcast bells, and saved-search matching BY
+     CONSTRUCTION. Written by the private creation path and by founder
+     approval of a held private submission; absent from WRITABLE_STATUSES
+     because the founder dropdown must not hand-place it. */
+  "private_active",
 ] as const;
 
 export type LifecycleStatus = (typeof LIFECYCLE_STATUSES)[number];
@@ -79,6 +87,7 @@ const STATUS_LABELS: Record<LifecycleStatus, string> = {
      who has just shipped a watch should find Delete without first learning
      that this product has a lifecycle. */
   removed: "Paused",
+  private_active: "Private",
 };
 
 export function sellerLabel(status: string): string {

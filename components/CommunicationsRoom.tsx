@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   buildItems,
@@ -790,6 +791,26 @@ export default function CommunicationsRoom({
                   </div>
                 )}
               </div>
+
+              {/* Private Listing V1 — the conversation-led doorway. From a
+                  real buyer conversation the seller can list a watch for
+                  exactly this person, never the public. The buyer is derived
+                  from the thread relationship server-side; this link only
+                  names the thread. Quiet by design: one line, no card, no
+                  competition with the correspondence itself. */}
+              {paneThread && paneThread.otherId && (
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-2">
+                  <span className="text-[11px] text-[var(--muted)]">
+                    Have a watch meant for {panePerson}?
+                  </span>
+                  <Link
+                    href={`/sell?privateThread=${paneThread.id}`}
+                    className="text-[11px] uppercase tracking-[1.3px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                  >
+                    Create Private Listing for This Buyer
+                  </Link>
+                </div>
+              )}
 
               {/* Purchase-request summary strip */}
               {selected.kind === "request" && (

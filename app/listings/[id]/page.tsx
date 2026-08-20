@@ -252,7 +252,18 @@ export default async function ListingDetailPage({
   // authorized viewer. RLS already restricts a reserved row to the seller and
   // the accepted buyer (published stays public), so an unauthorized viewer
   // still receives no row here and correctly falls through to notFound().
-  if (error || !data || (data.status !== "published" && data.status !== "reserved")) {
+  /* Private Listing V1 (v5.98) — 'private_active' joins the renderable
+     states. WHO can fetch the row is decided by RLS (seller, the one
+     authorized buyer, accepted-request buyer); an unauthorized account gets
+     no row above and lands in this same notFound() with zero metadata —
+     the URL grants nothing. */
+  if (
+    error ||
+    !data ||
+    (data.status !== "published" &&
+      data.status !== "reserved" &&
+      data.status !== "private_active")
+  ) {
     notFound();
   }
 

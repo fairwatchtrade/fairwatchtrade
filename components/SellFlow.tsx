@@ -308,7 +308,17 @@ function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
 }
 
 
-export default function SellFlow() {
+export default function SellFlow({
+  privateThreadId,
+  privateBuyerName,
+}: {
+  /** Private Listing V1 — when present, the wizard is creating a listing for
+      the ONE buyer behind this conversation. The server re-derives and
+      re-verifies the buyer from the thread; these props only carry the
+      relationship through the flow and name the recipient truthfully. */
+  privateThreadId?: string;
+  privateBuyerName?: string;
+} = {}) {
   const [draft, setDraft] = useState<ListingDraft>(emptyDraft);
   const [step, setStepRaw] = useState(0);
   /* Furthest step the seller has actually reached. Clickability is keyed off
@@ -888,6 +898,8 @@ export default function SellFlow() {
               )}
               <ReviewStep
                 draft={draft}
+                privateThreadId={privateThreadId}
+                privateBuyerName={privateBuyerName}
                 /* Presentation is draft state like any other field, so it
                    rides the existing server-draft autosave and survives a
                    refresh or a phone handoff without new plumbing. */

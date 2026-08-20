@@ -311,7 +311,7 @@ export async function POST(
   const { data: current, error: readErr } = await service
     .from("listings")
     .select(
-      "details, status, seller_id, brand, model, reference, asking_price, asking_currency, public_code"
+      "details, status, seller_id, brand, model, reference, asking_price, asking_currency, public_code, private_buyer_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -355,10 +355,23 @@ export async function POST(
     }
   }
 
+  /* Private Listing V1 (v5.98) — a private-intended row (private_buyer_id
+     set) that the founder APPROVES becomes 'private_active', never
+     'published': approval releases it to its one authorized buyer, not to
+     Browse. Every other decision (reject / clarify / return to draft) keeps
+     its ordinary meaning. The publication email below keys on
+     data.status === 'published', so a private approval sends no "your
+     listing is live" mail — the buyer's doorbell fires from the database
+     trigger on this same transition. */
+  const effectiveStatus =
+    status === "published" && current.private_buyer_id
+      ? "private_active"
+      : status;
+
   const { data, error } = await service
     .from("listings")
     .update({
-      status: status as AllowedStatus,
+      status: effectiveStatus as AllowedStatus,
       rejection_reason: rejectionReason,
       // v2.24 · a human decision leaves no system hold behind, and the
       // clarification note exists only during an active clarification round.

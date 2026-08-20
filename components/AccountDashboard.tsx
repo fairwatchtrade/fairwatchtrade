@@ -131,6 +131,9 @@ export type AccountListing = {
   removed_at?: string | null;
   removal_reason_code?: string | null;
   removal_reason_note?: string | null;
+  /** Private Listing V1 — the ONE authorized buyer, set only on private
+      rows. Optional so every pre-private surface keeps rendering. */
+  private_buyer_id?: string | null;
 };
 
 /** One recorded adjudication decision, seller-visible fields only. The
