@@ -1341,17 +1341,23 @@ export default function MarketplaceControl({
           )}
 
           {/* ── OPERATIONAL: ledger + persistent inspector ──────────────────
-              Physical width law: the row grid's minimum is ~714px
-              (280 + 3×110 + 80 + padding). The inspector column (330/360px)
-              is reserved ONLY when the container holds both side by side
-              (≥1050px ⇒ ledger column ≥720px, still above the row minimum);
-              otherwise the inspector stacks below the ledger. Rows keep
-              their five columns only while the ledger can hold them
-              (≥740px), else the compact identity+price treatment. Nothing
-              can underlap by construction. */}
+              THE FLOW LAW (founder ruling, 2026-08-20, after two rejected
+              attempts — do not re-litigate): the ledger is the primary
+              long-list surface and ALWAYS owns the full workspace width.
+              The selected-listing inspector is an OPAQUE OVERLAY pinned to
+              the upper-right; rows pass beneath it and are covered — never
+              visible through it — and everything below the overlay's actual
+              height is full-width by construction. Do NOT "fix" overlap by
+              reserving a column, narrowing rows, floating, hiding columns,
+              or shrinking type: permanently narrowing the list to preserve
+              an upper-page pane is the exact rejected geometry. The one
+              container boundary below governs only the sanctioned narrow
+              collapse (inspector stacks beneath the list, §19); it plays no
+              part in overlap prevention. min-h keeps a short/filtered list
+              from letting the overlay spill past the workspace. */}
           {view.mode === "operational" ? (
-            <div className="@min-[1050px]:grid @min-[1050px]:grid-cols-[minmax(0,1fr)_330px] @min-[1600px]:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="min-w-0 @min-[1050px]:border-r @min-[1050px]:border-[var(--border-faint)]">
+            <div className="relative @min-[1050px]:min-h-[660px]">
+              <div className="min-w-0">
                 {/* List head — the four meaningful columns sort (asc/desc,
                     active in gold), same behavior as the Detailed headers. */}
                 <div className="hidden grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] border-b border-[var(--border-subtle)] bg-white/[0.02] @min-[740px]:grid">
@@ -1433,8 +1439,11 @@ export default function MarketplaceControl({
                 </div>
               </div>
 
-              {/* Persistent inspector */}
-              <aside className="border-t border-[var(--border-faint)] @min-[1050px]:border-t-0">
+              {/* Persistent inspector — opaque overlay, upper-right. The
+                  explicit background is load-bearing: a transparent pane
+                  let underlying row cells ghost through (the Human SEE-it
+                  defect). Narrow containers: static, stacks below the list. */}
+              <aside className="border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg">
                 {selected ? (
                   <div className="p-4">
                     <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
