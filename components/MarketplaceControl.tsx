@@ -99,7 +99,7 @@ const DETAIL_COLUMNS: Array<{
   sortDesc?: McSort;
 }> = [
   { key: "seller", label: "Seller", width: 140 },
-  { key: "status", label: "Status", width: 120, sortAsc: "status_asc" },
+  { key: "status", label: "Status", width: 120, sortAsc: "status_asc", sortDesc: "status_desc" },
   { key: "price", label: "Price", width: 110, sortAsc: "price_asc", sortDesc: "price_desc" },
   { key: "currency", label: "Currency", width: 84 },
   { key: "condition", label: "Condition", width: 110 },
@@ -270,6 +270,49 @@ function Thumb({ row, size }: { row: McRow; size: number }) {
     >
       No photo
     </div>
+  );
+}
+
+/* ── Column sort header — one behavior for Operational AND Detailed ──────
+   Ancestry: the previous admin table's click-to-sort header (restored after
+   the redesign dropped it from the default room). First click on a column
+   sorts descending, second flips ascending; the active column shows gold +
+   ↑/↓. Sorting is server-side and always returns to page 1 (the caller's
+   onSort does both). */
+function sortStateOf(sort: McSort, asc?: McSort, desc?: McSort): "asc" | "desc" | null {
+  if (asc && sort === asc) return "asc";
+  if (desc && sort === desc) return "desc";
+  return null;
+}
+
+function SortHead({
+  label,
+  asc,
+  desc,
+  sort,
+  onSort,
+}: {
+  label: string;
+  asc?: McSort;
+  desc?: McSort;
+  sort: McSort;
+  onSort: (next: McSort) => void;
+}) {
+  const state = sortStateOf(sort, asc, desc);
+  const next: McSort =
+    state === "desc" ? ((asc ?? desc) as McSort) : ((desc ?? asc) as McSort);
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(next)}
+      aria-sort={state === "asc" ? "ascending" : state === "desc" ? "descending" : undefined}
+      className={`text-left uppercase tracking-[1.8px] ${
+        state ? "text-[var(--gold)]" : "hover:text-[var(--platinum)]"
+      }`}
+    >
+      {label}
+      {state === "asc" ? " ↑" : state === "desc" ? " ↓" : ""}
+    </button>
   );
 }
 
@@ -580,6 +623,12 @@ export default function MarketplaceControl({
       life,
       status: v.status && LIFE_STATUSES[life].includes(v.status) ? v.status : null,
     }));
+    setPage(1);
+  }, []);
+
+  /* Column sorting — see SortHead (module level). Server-side, page resets. */
+  const applySort = useCallback((next: McSort) => {
+    setView((v) => ({ ...v, sort: next }));
     setPage(1);
   }, []);
 
@@ -1295,24 +1344,32 @@ export default function MarketplaceControl({
               Physical width law: the row grid's minimum is ~714px
               (280 + 3×110 + 80 + padding). The inspector column (330/360px)
               is reserved ONLY when the container holds both side by side
-              (≥1100px ⇒ ledger column ≥770px); otherwise the inspector
-              stacks below the ledger. Rows keep their five columns only
-              while the ledger can hold them (≥740px), else the compact
-              identity+price treatment. Nothing can underlap by
-              construction. */}
+              (≥1050px ⇒ ledger column ≥720px, still above the row minimum);
+              otherwise the inspector stacks below the ledger. Rows keep
+              their five columns only while the ledger can hold them
+              (≥740px), else the compact identity+price treatment. Nothing
+              can underlap by construction. */}
           {view.mode === "operational" ? (
-            <div className="@min-[1100px]:grid @min-[1100px]:grid-cols-[minmax(0,1fr)_330px] @min-[1600px]:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="min-w-0 @min-[1100px]:border-r @min-[1100px]:border-[var(--border-faint)]">
-                {/* List head */}
+            <div className="@min-[1050px]:grid @min-[1050px]:grid-cols-[minmax(0,1fr)_330px] @min-[1600px]:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 @min-[1050px]:border-r @min-[1050px]:border-[var(--border-faint)]">
+                {/* List head — the four meaningful columns sort (asc/desc,
+                    active in gold), same behavior as the Detailed headers. */}
                 <div className="hidden grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] border-b border-[var(--border-subtle)] bg-white/[0.02] @min-[740px]:grid">
-                  {["Listing", "Price", "Status", "Listed", "Action"].map((h) => (
-                    <div
-                      key={h}
-                      className="px-3 py-2 text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]"
-                    >
-                      {h}
-                    </div>
-                  ))}
+                  <div className="px-3 py-2 text-[9px] text-[var(--muted)]">
+                    <SortHead label="Listing" asc="brand_asc" desc="brand_desc" sort={view.sort} onSort={applySort} />
+                  </div>
+                  <div className="px-3 py-2 text-[9px] text-[var(--muted)]">
+                    <SortHead label="Price" asc="price_asc" desc="price_desc" sort={view.sort} onSort={applySort} />
+                  </div>
+                  <div className="px-3 py-2 text-[9px] text-[var(--muted)]">
+                    <SortHead label="Status" asc="status_asc" desc="status_desc" sort={view.sort} onSort={applySort} />
+                  </div>
+                  <div className="px-3 py-2 text-[9px] text-[var(--muted)]">
+                    <SortHead label="Listed" asc="created_asc" desc="created_desc" sort={view.sort} onSort={applySort} />
+                  </div>
+                  <div className="px-3 py-2 text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]">
+                    Action
+                  </div>
                 </div>
 
                 <div className={loading ? "opacity-60 transition-opacity" : ""}>
@@ -1377,7 +1434,7 @@ export default function MarketplaceControl({
               </div>
 
               {/* Persistent inspector */}
-              <aside className="border-t border-[var(--border-faint)] @min-[1100px]:border-t-0">
+              <aside className="border-t border-[var(--border-faint)] @min-[1050px]:border-t-0">
                 {selected ? (
                   <div className="p-4">
                     <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
@@ -1517,22 +1574,10 @@ export default function MarketplaceControl({
                       className="sticky left-0 z-[5] bg-[var(--surface)] px-3 py-2.5 font-normal"
                       style={{ minWidth: 280 }}
                     >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          set("sort", view.sort === "brand_asc" ? "created_desc" : "brand_asc")
-                        }
-                        className={`uppercase tracking-[1.8px] ${
-                          view.sort === "brand_asc" ? "text-[var(--gold)]" : "hover:text-[var(--platinum)]"
-                        }`}
-                      >
-                        Listing{view.sort === "brand_asc" ? " ↑" : ""}
-                      </button>
+                      <SortHead label="Listing" asc="brand_asc" desc="brand_desc" sort={view.sort} onSort={applySort} />
                     </th>
                     {visibleColumns.map((col) => {
                       const sortable = col.sortAsc || col.sortDesc;
-                      const activeAsc = col.sortAsc && view.sort === col.sortAsc;
-                      const activeDesc = col.sortDesc && view.sort === col.sortDesc;
                       return (
                         <th
                           key={col.key}
@@ -1540,28 +1585,13 @@ export default function MarketplaceControl({
                           style={{ width: colWidth(col.key), minWidth: colWidth(col.key) }}
                         >
                           {sortable ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (col.sortAsc && col.sortDesc) {
-                                  set(
-                                    "sort",
-                                    activeDesc ? col.sortAsc : (col.sortDesc as McSort)
-                                  );
-                                } else {
-                                  const target = (col.sortAsc ?? col.sortDesc) as McSort;
-                                  set("sort", view.sort === target ? "created_desc" : target);
-                                }
-                              }}
-                              className={`uppercase tracking-[1.8px] ${
-                                activeAsc || activeDesc
-                                  ? "text-[var(--gold)]"
-                                  : "hover:text-[var(--platinum)]"
-                              }`}
-                            >
-                              {col.label}
-                              {activeAsc ? " ↑" : activeDesc ? " ↓" : ""}
-                            </button>
+                            <SortHead
+                              label={col.label}
+                              asc={col.sortAsc}
+                              desc={col.sortDesc}
+                              sort={view.sort}
+                              onSort={applySort}
+                            />
                           ) : (
                             col.label
                           )}

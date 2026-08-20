@@ -99,7 +99,9 @@ export type McSort =
   | "price_desc"
   | "price_asc"
   | "status_asc"
-  | "brand_asc";
+  | "status_desc"
+  | "brand_asc"
+  | "brand_desc";
 
 export type McQuery = {
   view: LifeView;
@@ -447,9 +449,19 @@ export async function fetchMarketplace(
         .order("status", { ascending: true })
         .order("created_at", { ascending: false });
       break;
+    case "status_desc":
+      builder = builder
+        .order("status", { ascending: false })
+        .order("created_at", { ascending: false });
+      break;
     case "brand_asc":
       builder = builder
         .order("brand", { ascending: true })
+        .order("created_at", { ascending: false });
+      break;
+    case "brand_desc":
+      builder = builder
+        .order("brand", { ascending: false })
         .order("created_at", { ascending: false });
       break;
     default:
@@ -499,7 +511,9 @@ export function parseMcQuery(params: URLSearchParams): McQuery {
     "price_desc",
     "price_asc",
     "status_asc",
+    "status_desc",
     "brand_asc",
+    "brand_desc",
   ];
   return {
     view: isLifeView(view) ? view : "current",
