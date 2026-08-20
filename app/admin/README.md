@@ -17,6 +17,19 @@ query or a lifecycle mapping — not in client state.
 | Prefs API | `app/api/admin/marketplace/prefs/route.ts` | GET/PUT per-admin presentation state (`admin_view_preferences`, RLS-own) |
 | Bulk API | `app/api/admin/marketplace/bulk/route.ts` | POST preview/execute for Take-Off-Market and Permanent Delete |
 | Room UI | `components/MarketplaceControl.tsx` | Ledger + persistent inspector (Operational) / configurable table (Detailed) |
+
+**The Operational flow law (founder ruling, 2026-08-20, two rejected attempts
+behind it):** the ledger ALWAYS owns the full workspace width; the
+selected-listing inspector is an OPAQUE OVERLAY pinned upper-right. Rows pass
+beneath it and are covered — never visible through it — and everything below
+the overlay's actual height is full-width. Never "fix" overlap here by
+reserving a column, narrowing rows, hiding columns, or shrinking type:
+permanently narrowing the long list to preserve an upper-page pane is the
+exact rejected geometry. The pane's explicit `bg-[var(--surface)]` is
+load-bearing (a transparent pane ghosts row cells through — the original
+defect). Layout variants in this component are Tailwind v4 CONTAINER queries
+(`@min-[…]:`); a misspelled variant compiles silently to nothing, so after
+any edit grep the built CSS for `@container (min-width:` before shipping.
 | Migration | `supabase/migrations/20260820160000_marketplace_control_room.sql` | Admin closure causes, founder authority on the governed RPCs, prefs table, indexes |
 
 ## Lifecycle mapping (deliberate, not prototype-derived)
