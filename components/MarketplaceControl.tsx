@@ -944,8 +944,18 @@ export default function MarketplaceControl({
           ))}
         </section>
 
-        {/* ── The workspace ─────────────────────────────────────────────── */}
-        <section className="border border-[var(--border-subtle)] bg-[var(--surface)]">
+        {/* ── The workspace ─────────────────────────────────────────────────
+            @container: every layout boundary inside keys on THIS element's
+            width, never the viewport. The rail collapses (238px ↔ 72px), so
+            the same viewport can offer two different widths here — viewport
+            breakpoints are structurally the wrong tool and produced the
+            ledger-under-inspector underlap the Human SEE-it caught. The
+            inspector column is reserved only when the container can
+            physically hold the ledger's minimum row grid BESIDE it; the
+            five-column row grid exists only when the ledger can physically
+            hold it. Below each threshold the composition stacks or
+            compacts deliberately — geometry, not clipping. */}
+        <section className="@container border border-[var(--border-subtle)] bg-[var(--surface)]">
           {/* Lifecycle tabs */}
           <div role="tablist" aria-label="Lifecycle view" className="grid grid-cols-2 border-b border-[var(--border-subtle)] md:grid-cols-4">
             {LIFE_ORDER.map((life) => {
@@ -984,8 +994,10 @@ export default function MarketplaceControl({
             })}
           </div>
 
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-faint)] px-3 py-2.5">
+          {/* Controls — search/status/seller/attention + the view switch.
+              py/gap lifted one notch (SEE-it finding 3): the clusters read
+              as deliberately grouped, not compressed. */}
+          <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-faint)] px-4 py-3.5">
             <div className="relative min-w-[220px] flex-1">
               <input
                 value={qInput}
@@ -1074,7 +1086,7 @@ export default function MarketplaceControl({
           </div>
 
           {/* Context chips + view management */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-faint)] px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-faint)] px-4 py-3">
             {(
               [
                 { key: "new24h" as const, label: "New · 24h" },
@@ -1279,12 +1291,20 @@ export default function MarketplaceControl({
             </div>
           )}
 
-          {/* ── OPERATIONAL: ledger + persistent inspector ────────────────── */}
+          {/* ── OPERATIONAL: ledger + persistent inspector ──────────────────
+              Physical width law: the row grid's minimum is ~714px
+              (280 + 3×110 + 80 + padding). The inspector column (330/360px)
+              is reserved ONLY when the container holds both side by side
+              (≥1100px ⇒ ledger column ≥770px); otherwise the inspector
+              stacks below the ledger. Rows keep their five columns only
+              while the ledger can hold them (≥740px), else the compact
+              identity+price treatment. Nothing can underlap by
+              construction. */}
           {view.mode === "operational" ? (
-            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_330px] min-[1800px]:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="min-w-0 lg:border-r lg:border-[var(--border-faint)]">
+            <div className="@min-[1100px]:grid @min-[1100px]:grid-cols-[minmax(0,1fr)_330px] @min-[1600px]:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 @min-[1100px]:border-r @min-[1100px]:border-[var(--border-faint)]">
                 {/* List head */}
-                <div className="hidden grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] border-b border-[var(--border-subtle)] bg-white/[0.02] md:grid">
+                <div className="hidden grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] border-b border-[var(--border-subtle)] bg-white/[0.02] @min-[740px]:grid">
                   {["Listing", "Price", "Status", "Listed", "Action"].map((h) => (
                     <div
                       key={h}
@@ -1319,7 +1339,7 @@ export default function MarketplaceControl({
                             }
                           }}
                           aria-pressed={isSelected}
-                          className={`relative grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border-faint)] px-3 py-2.5 outline-none focus-visible:ring-1 focus-visible:ring-[var(--gold)] md:grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] md:gap-0 ${
+                          className={`relative grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border-faint)] px-3 py-2.5 outline-none focus-visible:ring-1 focus-visible:ring-[var(--gold)] @min-[740px]:grid-cols-[minmax(280px,1.45fr)_110px_110px_110px_80px] @min-[740px]:gap-0 ${
                             isSelected ? "bg-[var(--gold-whisper)]" : "hover:bg-white/[0.02]"
                           }`}
                           style={
@@ -1331,16 +1351,16 @@ export default function MarketplaceControl({
                           }
                         >
                           {identityCell(row, 48)}
-                          <div className="text-right font-display text-[14px] text-[var(--platinum)] md:px-3 md:text-left">
+                          <div className="text-right font-display text-[14px] text-[var(--platinum)] @min-[740px]:px-3 @min-[740px]:text-left">
                             {formatMoney(Number(row.asking_price), row.asking_currency)}
                           </div>
-                          <div className="hidden md:block md:px-3">
+                          <div className="hidden @min-[740px]:block @min-[740px]:px-3">
                             <StatusPill status={row.status} />
                           </div>
-                          <div className="hidden text-[11px] text-[var(--muted)] md:block md:px-3">
+                          <div className="hidden text-[11px] text-[var(--muted)] @min-[740px]:block @min-[740px]:px-3">
                             {relativeDate(row.created_at)}
                           </div>
-                          <div className="hidden md:block md:px-3">
+                          <div className="hidden @min-[740px]:block @min-[740px]:px-3">
                             <Link
                               href={`/admin/listings/${row.id}`}
                               onClick={(e) => e.stopPropagation()}
@@ -1357,32 +1377,33 @@ export default function MarketplaceControl({
               </div>
 
               {/* Persistent inspector */}
-              <aside className="border-t border-[var(--border-faint)] lg:border-t-0">
+              <aside className="border-t border-[var(--border-faint)] @min-[1100px]:border-t-0">
                 {selected ? (
                   <div className="p-4">
                     <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
                       Selected listing
                     </div>
-                    <div className="mt-1.5 font-display text-[19px] font-light leading-tight text-[var(--platinum)]">
-                      {selected.brand}
-                      <br />
-                      {selected.model ?? "—"}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[var(--muted)]">
-                      Ref. {selected.reference}
-                    </div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[2px] text-[var(--gold)]">
-                      {selected.public_code ?? "—"}
-                    </div>
-
-                    <div className="mt-3">
-                      {selected.thumb ? (
-                        <Thumb row={selected} size={280} />
-                      ) : (
-                        <div className="grid h-[120px] place-items-center border border-[var(--border-faint)] text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                          No listing photograph
+                    {/* Operations pane, not a photo panel (SEE-it finding 2):
+                        the photograph joins the identity header at thumbnail
+                        scale so lifecycle state, reasons, and actions own the
+                        pane's vertical priority. The watch still anchors —
+                        photo + serif identity lead — it just stops being a
+                        gallery. */}
+                    <div className="mt-2 flex items-start gap-3">
+                      <Thumb row={selected} size={88} />
+                      <div className="min-w-0">
+                        <div className="font-display text-[17px] font-light leading-tight text-[var(--platinum)]">
+                          {selected.brand}
+                          <br />
+                          {selected.model ?? "—"}
                         </div>
-                      )}
+                        <div className="mt-1 text-[11px] text-[var(--muted)]">
+                          Ref. {selected.reference}
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[2px] text-[var(--gold)]">
+                          {selected.public_code ?? "—"}
+                        </div>
+                      </div>
                     </div>
 
                     <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 border-y border-[var(--border-faint)] py-3">
@@ -1622,7 +1643,7 @@ export default function MarketplaceControl({
           )}
 
           {/* Footer — range, pagination, page size */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-3 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-4 py-3">
             <div className="text-[11px] text-[var(--muted)]">
               {payload.total === 0
                 ? "No matching listings"
