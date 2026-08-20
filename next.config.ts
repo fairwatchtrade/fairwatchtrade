@@ -16,7 +16,16 @@ const nextConfig: NextConfig = {
      exist"). Externalizing keeps the package — binary included — traced
      verbatim into every function that dynamically imports the PDF
      renderer. puppeteer-core rides along for the same reason. */
-  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  /* v5.97 — sharp joins explicitly. Next externalizes sharp by default, but
+     the production lambdas began failing to dlopen its libvips payload
+     (observed live on /api/presentation-thumb: ERR_DLOPEN_FAILED
+     libvips-cpp.so.8.18.3 missing — the trace copied @img/sharp-linux-x64
+     yet dropped @img/sharp-libvips-linux-x64, killing every Browse card).
+     Repo inputs were unchanged since the route's live-proven era, so the
+     inclusion is now explicit and deterministic, exactly the Chromium
+     ruling above: never depend on the builder tracing a native payload
+     it cannot see. */
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "sharp"],
 
   /* The Chromium binary is opened via fs at runtime, which static tracing
      cannot see — the bin payload must be included explicitly for every
@@ -37,6 +46,31 @@ const nextConfig: NextConfig = {
     ],
     "/api/admin/listings/[id]/recheck": [
       "./node_modules/@sparticuz/chromium/bin/**",
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
+    ],
+
+    /* v5.97 — every lambda that decodes pixels carries sharp's native
+       payload explicitly (the platform packages under @img/ hold libvips;
+       the builder installs only its own platform's variants, so the glob
+       stays small). The five routes below are the complete set of sharp
+       importers: the Gallery-card trim, serial blurring, dealer logo
+       derivation, and the Aubrey Check pair. */
+    "/api/presentation-thumb": [
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
+    ],
+    "/api/blur-serial": [
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
+    ],
+    "/api/account/dealer-profile": [
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
+    ],
+    "/api/listings": [
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
     ],
   },
 };
