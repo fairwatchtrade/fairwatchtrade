@@ -828,7 +828,11 @@ export default function CommunicationsRoom({
                     <h3 className="mt-[2px] truncate font-display text-[18px] font-light text-[var(--platinum)]">
                       {paneTitle}
                     </h3>
-                    <div className="mt-[2px] truncate text-[12px] text-[var(--muted)]">
+                    {/* Wraps rather than truncates: the Identity Law says the
+                        exact listing code stays visible after the user opens
+                        the correspondence — a truncated line eats the code
+                        first at narrow widths. */}
+                    <div className="mt-[2px] text-[12px] leading-[1.5] text-[var(--muted)]">
                       {panePerson}
                       {paneReference ? ` · Ref. ${paneReference}` : ""}
                       {paneCode ? (
