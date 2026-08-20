@@ -1,28 +1,45 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import AdminDashboard, { type AdminListing } from "@/components/AdminDashboard";
+import AccountRail from "@/components/AccountRail";
+import MarketplaceControl, { type McPrefs } from "@/components/MarketplaceControl";
+import { DEFAULT_MC_QUERY, fetchMarketplacePayload } from "@/lib/marketplaceControlData";
 
 /* ────────────────────────────────────────────────────────────────────────
-   ADMIN — /admin  (v1.95)
+   MARKETPLACE CONTROL — /admin
 
-   Founder-only operator control room. Answers one question: "What needs my
-   attention right now?" Server component, server-fetched, no client fetching.
+   The founder's marketplace operations room (2026-08-20 competing Design
+   Gate: watch-centered ledger + persistent selected-listing inspector;
+   dense configurable table on demand). Replaces the v1.95 AdminDashboard
+   composition; the five placeholder Phase-2 cards are deliberately gone.
 
-   Route protection is a hardcoded single-UID check — no role system, no
-   middleware gate. Anyone who isn't the founder is silently redirected to /;
-   the route simply doesn't exist for them (no error, no "unauthorized" page).
+   Route protection is the established hardcoded single-UID check — no role
+   system, no middleware gate. Anyone who isn't the founder is silently
+   redirected to /. This page renders inside the ordinary FWT shell (NavBar +
+   MarketBar from the root layout) with the Account workspace rail beside it:
+   Marketplace Control is FairWatchTrade becoming more capable, not a
+   detached admin console. The rail entry exists only for the founder; the
+   visual continuity does not widen access — this gate and every
+   /api/admin/marketplace route's own gate stay the authority.
 
-   PRIVACY: combined_score / significance_score / score_state are NEVER shown
-   on BUYER-FACING surfaces (protects the curation engine from gaming). The
-   founder admin DOES see significance_score here — catching an anomalous score
-   (e.g. anything that shouldn't be possible under the engine's floor) is part
-   of "what needs my attention." Admin is gated to a single founder UID, so this
-   is the operator viewing their own data, not a buyer leak. PFC274 = 62 — the
-   evaluate route is untouched.
+   THE READ PATH (v3.74 pattern, unchanged in shape): identity is proved by
+   the session client; only past the redirect does the trusted client read.
+   listings_select_public_or_own is never widened. Server component — the
+   service key never reaches a bundle.
+
+   The initial payload is fetched here with the DEFAULT query (CURRENT,
+   newest first) so first paint is real data; every later interaction goes
+   through /api/admin/marketplace with server-side filter/sort/pagination —
+   the room never loads the retained listing universe into the browser.
+
+   PRIVACY: significance_score is founder-facing here exactly as it was in
+   the previous admin table; it is NEVER rendered on buyer-facing surfaces.
+   PFC274 = 62 — the evaluate route is untouched.
    ──────────────────────────────────────────────────────────────────────── */
 
 const ADMIN_USER_ID = "77a6893a-54fe-4373-9bf7-3327d0ba69cf";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -34,68 +51,29 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  /* ── Founder gate passed. Read with the trusted client. ─────────────────
-     The session client is bound by listings_select_public_or_own, which has
-     no founder exception — correctly, because it is the canonical PUBLIC
-     predicate and must not be widened. Reading /admin through it meant the
-     operator control room silently showed a fraction of the truth: only the
-     founder's own listings, only the founder's own profile row, and a
-     notification count scoped the same way. A second seller's submission
-     could sit in pending_review and never appear in the attention queue at
-     all.
-
-     Same shape the adjudication page already uses one level down
-     (app/admin/listings/[id]/page.tsx), for the same reason and with the same
-     ordering: identity is proved by the session client above, and only past
-     that redirect does the trusted client read. Server component — the
-     service key never reaches a bundle. Ordinary seller and anon RLS is
-     untouched; nothing about who may READ the table changed, only which
-     client this already-founder-only page asks with. ── */
   const db = createServiceClient();
+  const payload = await fetchMarketplacePayload(db, DEFAULT_MC_QUERY);
 
-  // Full inventory, newest first — powers the attention queue, stat cards, and table.
-  const { data: listingsData } = await db
-    .from("listings")
-    .select(
-      "id, brand, model, reference, condition, asking_price, asking_currency, status, created_at, seller_id, completeness_score, significance_score, description_passed_ai, custom_brand_flag"
-    )
-    .order("created_at", { ascending: false });
+  /* Presentation preferences are the founder's own row (RLS-own table);
+     the session client reads them. Absent row → defaults. */
+  let prefs: McPrefs = {};
+  try {
+    const { data } = await supabase
+      .from("admin_view_preferences")
+      .select("prefs")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (data?.prefs && typeof data.prefs === "object") prefs = data.prefs as McPrefs;
+  } catch {
+    /* preferences are presentation only — the room opens on defaults */
+  }
 
-  // Seller display-name lookup.
-  const { data: profiles } = await db
-    .from("profiles")
-    .select("id, display_name");
-
-  // Total notifications sent (count only).
-  const { count: notificationCount } = await db
-    .from("notifications")
-    .select("*", { count: "exact", head: true });
-
-  const listings = (Array.isArray(listingsData) ? listingsData : []) as AdminListing[];
-
-  // Derived pipeline counts — computed server-side (not in the client).
-  const now = Date.now();
-  const yesterday = now - 24 * 60 * 60 * 1000;
-  const lastWeek = now - 7 * 24 * 60 * 60 * 1000;
-
-  const published = listings.filter((l) => l.status === "published");
-  const drafts = listings.filter((l) => l.status === "draft");
-  const rejected = listings.filter((l) => l.status === "rejected");
-  const last24h = listings.filter((l) => new Date(l.created_at).getTime() > yesterday);
-  const last7d = listings.filter((l) => new Date(l.created_at).getTime() > lastWeek);
-
-  const sellerMap: Record<string, string> = Object.fromEntries(
-    (profiles ?? []).map((p) => [p.id, p.display_name ?? "Unknown"])
+  return (
+    <div className="flex min-h-screen bg-[var(--ink)]">
+      <AccountRail surface="marketplace" marketplaceControl />
+      <div className="min-w-0 flex-1">
+        <MarketplaceControl initial={payload} initialPrefs={prefs} />
+      </div>
+    </div>
   );
-
-  const counts = {
-    published: published.length,
-    drafts: drafts.length,
-    rejected: rejected.length,
-    last24h: last24h.length,
-    last7d: last7d.length,
-    notifications: notificationCount ?? 0,
-  };
-
-  return <AdminDashboard listings={listings} sellerMap={sellerMap} counts={counts} />;
 }

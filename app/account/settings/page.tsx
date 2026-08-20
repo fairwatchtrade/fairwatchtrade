@@ -32,7 +32,10 @@ export default async function AccountSettingsPage() {
 
   return (
     <div className="flex min-h-screen bg-[var(--ink)]">
-      <AccountRail surface="settings" />
+      <AccountRail
+        surface="settings"
+        marketplaceControl={user.id === "77a6893a-54fe-4373-9bf7-3327d0ba69cf"}
+      />
       <div className="min-w-0 flex-1">
         <AccountSettings
           userId={user.id}

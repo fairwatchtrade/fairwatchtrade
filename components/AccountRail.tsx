@@ -80,6 +80,14 @@ const ICONS = {
       <path d="M19 12a7 7 0 0 0-.1-1l2-1-2-3-2 1a7 7 0 0 0-2-1l-.3-2h-4l-.3 2a7 7 0 0 0-2 1l-2-1-2 3 2 1a7 7 0 0 0 0 2l-2 1 2 3 2-1a7 7 0 0 0 2 1l.3 2h4l.3-2a7 7 0 0 0 2-1l2 1 2-3-2-1a7 7 0 0 0 .1-1z" />
     </svg>
   ),
+  control: (
+    <svg viewBox="0 0 24 24">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+      <circle cx="9" cy="7" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="7" cy="17" r="1.6" />
+    </svg>
+  ),
   marketIntel: (
     <svg viewBox="0 0 24 24">
       <path d="M4 18V9M10 18V5M16 18v-7M22 18v-4" />
@@ -121,19 +129,28 @@ export default function AccountRail({
   onSelectModule,
   unreadThreads,
   pendingRequests,
+  marketplaceControl = false,
 }: {
-  surface: "account" | "settings";
+  surface: "account" | "settings" | "marketplace";
   activeModule?: string;
   onSelectModule?: (id: ModuleId) => void;
   unreadThreads?: number;
   pendingRequests?: number;
+  /** Founder-only Marketplace Control entry. The mounting SERVER page
+      decides this from the session (never a client-side check), so the
+      destination is rendered only for a user the gate would admit — no
+      dead door for ordinary sellers, no founder UID in any bundle. */
+  marketplaceControl?: boolean;
 }) {
-  /* Standalone badge truth (settings surface only, and only when the
+  /* Standalone badge truth (standalone surfaces only, and only when the
      mounting page passed nothing): the same two established reads
      AccountDashboard performs, unchanged. Silence → no badge. */
   const [ownUnread, setOwnUnread] = useState<number | undefined>(undefined);
   const [ownPending, setOwnPending] = useState<number | undefined>(undefined);
-  const fetchOwn = surface === "settings" && unreadThreads === undefined && pendingRequests === undefined;
+  const fetchOwn =
+    (surface === "settings" || surface === "marketplace") &&
+    unreadThreads === undefined &&
+    pendingRequests === undefined;
 
   useEffect(() => {
     if (!fetchOwn) return;
@@ -232,6 +249,16 @@ export default function AccountRail({
           chevron
           ariaCurrent={surface === "settings" ? "page" : undefined}
         />
+        {marketplaceControl && (
+          <RailItem
+            icon={ICONS.control}
+            label="Marketplace Control"
+            href="/admin"
+            active={surface === "marketplace"}
+            chevron
+            ariaCurrent={surface === "marketplace" ? "page" : undefined}
+          />
+        )}
       </RailSection>
       <RailSection label="Coming next">
         <RailItem icon={ICONS.marketIntel} label="Market Intel" soon />

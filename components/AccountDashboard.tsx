@@ -525,6 +525,7 @@ export default function AccountDashboard({
   listings,
   decisions = [],
   publishedAt = {},
+  marketplaceControl = false,
 }: {
   listings: AccountListing[];
   /** Adjudication history for these listings, newest first. Optional so any
@@ -533,6 +534,9 @@ export default function AccountDashboard({
   /** listing id -> ISO timestamp of the decision that first published it.
       Absent = never published, or published before the event table existed. */
   publishedAt?: Record<string, string>;
+  /** Founder-only Marketplace Control rail entry — decided by the server
+      page from the session, passed through untouched. */
+  marketplaceControl?: boolean;
 }) {
   /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
      ?module=saved deep link becomes the general convention: every real
@@ -786,6 +790,7 @@ export default function AccountDashboard({
           onSelectModule={selectModule}
           unreadThreads={unreadThreadCount}
           pendingRequests={pendingRequestCount}
+          marketplaceControl={marketplaceControl}
         />
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}

@@ -119,6 +119,16 @@ export default async function AccountPage({
   }
 
   return (
-    <AccountDashboard listings={listings} decisions={decisions} publishedAt={publishedAt} />
+    <AccountDashboard
+      listings={listings}
+      decisions={decisions}
+      publishedAt={publishedAt}
+      /* Founder-only Marketplace Control rail entry (§2 of the room's build
+         order): decided here on the server, so ordinary sellers get no dead
+         door and no UID reaches a bundle. The /admin page and every
+         /api/admin route still run their own gates — this is display truth,
+         never authorization. */
+      marketplaceControl={user.id === "77a6893a-54fe-4373-9bf7-3327d0ba69cf"}
+    />
   );
 }
