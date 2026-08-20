@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import HelpBubble from "@/components/HelpBubble";
 import {
   buildItems,
   folderCounts,
@@ -555,8 +556,25 @@ export default function CommunicationsRoom({
             mobileOpen ? "hidden md:block" : ""
           }`}
         >
-          <div className="hidden px-4 pb-2 pt-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] md:block">
-            Inbox
+          <div className="relative hidden items-center gap-1 px-4 pb-2 pt-4 md:flex">
+            <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
+              Inbox
+            </span>
+            {/* The state law, taught in FairWatchTrade's ONE help language —
+                the shared HelpBubble with its gold ?, anchored speech bubble,
+                caret on the trigger, and established open/close behavior.
+                This replaced a permanent sentence that sat in the rail. */}
+            <HelpBubble
+              label="How reading works"
+              historyKey="fwtCommunicationsReadHelp"
+              title="Reading changes only read state"
+              bubbleClassName="left-0 top-[calc(100%+10px)] w-[240px] rounded-2xl"
+              caretTracksTrigger
+            >
+              <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
+                Reading does not resolve requests or archive conversations.
+              </p>
+            </HelpBubble>
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 py-2 md:block md:space-y-[2px] md:overflow-visible md:px-2 md:py-0">
             {(Object.keys(FOLDER_LABEL) as CommFolder[]).map((f) => {
@@ -587,9 +605,6 @@ export default function CommunicationsRoom({
               );
             })}
           </div>
-          <p className="hidden border-t border-[var(--border-faint)] px-4 py-3 text-[11px] leading-[1.5] text-[var(--muted)] md:mx-2 md:mt-3 md:block md:px-2">
-            Reading does not resolve a request and does not archive a conversation.
-          </p>
         </nav>
 
         {/* ── LIST ────────────────────────────────────────────────────── */}
@@ -644,7 +659,9 @@ export default function CommunicationsRoom({
                       onClick={() => selectItem(item.key, { explicit: true })}
                       aria-current={isActive ? "true" : undefined}
                       className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
-                        isActive ? "bg-[var(--hover-wash)]" : "hover:bg-[var(--hover-wash)]"
+                        isActive
+                          ? "bg-[var(--hover-wash)] shadow-[inset_2px_0_0_0_var(--gold)]"
+                          : "hover:bg-[var(--hover-wash)]"
                       }`}
                     >
                       <span
@@ -693,7 +710,9 @@ export default function CommunicationsRoom({
                     onClick={() => selectItem(item.key, { explicit: true })}
                     aria-current={isActive ? "true" : undefined}
                     className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
-                      isActive ? "bg-[var(--hover-wash)]" : "hover:bg-[var(--hover-wash)]"
+                      isActive
+                        ? "bg-[var(--hover-wash)] shadow-[inset_2px_0_0_0_var(--gold)]"
+                        : "hover:bg-[var(--hover-wash)]"
                     }`}
                   >
                     <span aria-hidden="true" className="mt-[6px] h-[6px] w-[6px]" />
@@ -805,7 +824,7 @@ export default function CommunicationsRoom({
                   </span>
                   <Link
                     href={`/sell?privateThread=${paneThread.id}`}
-                    className="text-[11px] uppercase tracking-[1.3px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                    className="border border-[var(--border-gold)] px-2.5 py-1 text-[11px] uppercase tracking-[1.3px] text-[var(--gold-subtle)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--gold)]"
                   >
                     Create Private Listing for This Buyer
                   </Link>
