@@ -20,6 +20,8 @@
 import assert from "node:assert/strict";
 import {
   buildItems,
+  requestCode,
+  requestThumb,
   folderCounts,
   folderItems,
   folderForModule,
@@ -34,7 +36,10 @@ import {
 function thread(over = {}) {
   return {
     id: "t1",
-    listing: { id: "L1", brand: "Parmigiani", model: "Tonda", reference: "PF012", thumbUrl: null },
+    listing: {
+      id: "L1", brand: "Parmigiani", model: "Tonda", reference: "PF012",
+      publicCode: "q15932", thumbUrl: null,
+    },
     subject: null,
     otherId: "buyer-1",
     otherName: "A Collector",
@@ -134,6 +139,9 @@ assert.equal(folderForModule("messages"), "messages"); // email address
 
   /* ── Search ── */
   assert.equal(searchItems(items, "parmigiani").length, 5);
+  // The exact listing code is a scanning identity — searching it finds the
+  // listing-bound threads (Identity Law 2026-08-19).
+  assert.equal(searchItems(folderItems(items, "messages"), "q15932").length, 2);
   assert.equal(searchItems(folderItems(items, "messages"), "case clean").length, 1);
   assert.equal(searchItems(items, "no such watch").length, 0);
 }
@@ -188,6 +196,29 @@ assert.equal(folderForModule("messages"), "messages"); // email address
   );
   assert.equal(requestLabel(request({ status: "cancelled" })), "closed");
   assert.equal(requestLabel(request({ status: "superseded" })), "superseded");
+
+  /* Identity Law: the code comes from the LIVE embed only — a terminal
+     request whose listing is gone shows nothing rather than an invention. */
+  assert.equal(requestCode(request()), null); // no embed on the fixture
+  assert.equal(
+    requestCode(request({ listings: { brand: "Rolex", model: "Datejust", reference: "79173", public_code: "x38205" } })),
+    "x38205"
+  );
+  assert.equal(requestThumb(request()), null);
+  assert.equal(
+    requestThumb(
+      request({
+        listings: {
+          brand: "Rolex", model: null, reference: "79173",
+          photos: [
+            { category: "Caseback", photo: { url: "https://x/cb.jpg" } },
+            { category: "Dial", photo: { url: "https://x/dial.jpg" } },
+          ],
+        },
+      })
+    ),
+    "https://x/dial.jpg" // Dial wins over upload order
+  );
 
   // Snapshot identity survives a vanished listing.
   assert.equal(requestTitle(request()), "Parmigiani Tonda");

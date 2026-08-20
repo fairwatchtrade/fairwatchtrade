@@ -25,6 +25,9 @@ export type CommListing = {
   brand: string;
   model: string | null;
   reference: string;
+  /** The exact FairWatchTrade listing code — mandatory identity on every
+      listing-bound Communications surface (Identity Law 2026-08-19). */
+  publicCode: string | null;
   thumbUrl: string | null;
 };
 
@@ -51,6 +54,7 @@ type CommRequestListing = {
   brand: string;
   model: string | null;
   reference: string;
+  public_code?: string | null;
   photos?: CommListingPhoto[];
 };
 
@@ -173,6 +177,7 @@ export function searchItems(items: CommItem[], query: string): CommItem[] {
             i.thread.listing?.brand,
             i.thread.listing?.model,
             i.thread.listing?.reference,
+            i.thread.listing?.publicCode,
             i.thread.subject,
             i.thread.lastMessage?.body,
           ]
@@ -180,6 +185,7 @@ export function searchItems(items: CommItem[], query: string): CommItem[] {
             i.request.listing_brand,
             i.request.listing_model,
             i.request.listing_reference,
+            requestCode(i.request),
             i.request.notes,
             i.request.status,
           ];
@@ -269,6 +275,24 @@ export function requestLabel(r: CommRequest): string {
     return "closed";
   }
   return REQUEST_STATUS_LABEL[r.status] ?? r.status;
+}
+
+/** The exact listing code a request row shows. Live embed only — a
+    terminal request whose listing is gone shows NOTHING here rather than
+    an invented code (no listing relationship = no code). */
+export function requestCode(r: CommRequest): string | null {
+  const listing = Array.isArray(r.listings) ? r.listings[0] : r.listings;
+  return listing?.public_code ?? null;
+}
+
+/** The request's watch thumbnail, from the live embed's photos — Dial
+    first, else the first photograph, else nothing. Never fabricated. */
+export function requestThumb(r: CommRequest): string | null {
+  const listing = Array.isArray(r.listings) ? r.listings[0] : r.listings;
+  const photos = listing?.photos;
+  if (!Array.isArray(photos) || photos.length === 0) return null;
+  const dial = photos.find((p) => p?.category === "Dial");
+  return (dial ?? photos[0])?.photo?.url ?? null;
 }
 
 export function requestTitle(r: CommRequest): string {

@@ -11,7 +11,9 @@ import {
   folderForModule,
   matchThreadForRequest,
   requestKey,
+  requestCode,
   requestLabel,
+  requestThumb,
   requestTitle,
   resolveDeepLink,
   searchItems,
@@ -536,6 +538,25 @@ export default function CommunicationsRoom({
       ? (selected.thread.listing?.reference ?? null)
       : (selected?.request.listing_reference ?? null);
 
+  /* The watch-context anchor (rulings 2026-08-19): a listing-bound
+     conversation keeps its watch visibly attached — small thumbnail + the
+     exact FWT listing code. No listing relationship → nothing invented;
+     a private listing created from a conversation anchors through its own
+     listing-bound correspondence the moment it exists. */
+  const paneCode =
+    selected?.kind === "thread"
+      ? (selected.thread.listing?.publicCode ?? null)
+      : selected
+        ? requestCode(selected.request)
+        : null;
+
+  const paneThumb =
+    selected?.kind === "thread"
+      ? (selected.thread.listing?.thumbUrl ?? null)
+      : selected
+        ? requestThumb(selected.request)
+        : null;
+
   const panePerson =
     selected?.kind === "thread"
       ? selected.thread.otherName
@@ -688,10 +709,20 @@ export default function CommunicationsRoom({
                         >
                           {title}
                         </span>
-                        {t.lastMessage && (
-                          <span className="block truncate font-display text-[12px] font-light italic text-[var(--muted)]">
-                            &ldquo;{t.lastMessage.body.slice(0, 80)}
-                            {t.lastMessage.body.length > 80 ? "…" : ""}&rdquo;
+                        {(t.listing?.publicCode || t.lastMessage) && (
+                          <span className="block truncate text-[12px] text-[var(--muted)]">
+                            {t.listing?.publicCode && (
+                              <span className="tracking-[0.6px] text-[var(--slate)]">
+                                {t.listing.publicCode}
+                              </span>
+                            )}
+                            {t.listing?.publicCode && t.lastMessage && " · "}
+                            {t.lastMessage && (
+                              <span className="font-display font-light italic">
+                                &ldquo;{t.lastMessage.body.slice(0, 70)}
+                                {t.lastMessage.body.length > 70 ? "…" : ""}&rdquo;
+                              </span>
+                            )}
                           </span>
                         )}
                       </span>
@@ -724,6 +755,14 @@ export default function CommunicationsRoom({
                         {requestTitle(r)}
                       </span>
                       <span className="mt-[2px] block truncate text-[12px] text-[var(--platinum-dim)]">
+                        {requestCode(r) && (
+                          <>
+                            <span className="tracking-[0.6px] text-[var(--slate)]">
+                              {requestCode(r)}
+                            </span>
+                            {" · "}
+                          </>
+                        )}
                         Purchase request · {offer}
                       </span>
                     </span>
@@ -770,16 +809,39 @@ export default function CommunicationsRoom({
             <>
               {/* Header */}
               <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
-                <div className="min-w-0 basis-[220px] grow">
-                  <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
-                    {selected.kind === "request" ? "Purchase Request" : "Message"}
-                  </div>
-                  <h3 className="mt-[2px] truncate font-display text-[18px] font-light text-[var(--platinum)]">
-                    {paneTitle}
-                  </h3>
-                  <div className="mt-[2px] truncate text-[12px] text-[var(--muted)]">
-                    {panePerson}
-                    {paneReference ? ` · Ref. ${paneReference}` : ""}
+                <div className="flex min-w-0 basis-[220px] grow items-start gap-3">
+                  {/* The eye gets an object, not more chrome: the watch
+                      itself, small and quiet, anchoring the correspondence.
+                      Rendered ONLY when a real listing owns the thread. */}
+                  {paneThumb && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={paneThumb}
+                      alt=""
+                      className="mt-[2px] h-11 w-11 shrink-0 border border-[var(--border-faint)] object-cover"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                      {selected.kind === "request" ? "Purchase Request" : "Message"}
+                    </div>
+                    <h3 className="mt-[2px] truncate font-display text-[18px] font-light text-[var(--platinum)]">
+                      {paneTitle}
+                    </h3>
+                    <div className="mt-[2px] truncate text-[12px] text-[var(--muted)]">
+                      {panePerson}
+                      {paneReference ? ` · Ref. ${paneReference}` : ""}
+                      {paneCode ? (
+                        <>
+                          {" · Listing "}
+                          <span className="tracking-[0.6px] text-[var(--slate)]">
+                            {paneCode}
+                          </span>
+                        </>
+                      ) : (
+                        ""
+                      )}
+                    </div>
                   </div>
                 </div>
                 {paneThread && (

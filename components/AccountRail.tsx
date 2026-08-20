@@ -192,7 +192,10 @@ export default function AccountRail({
       title="Your Workspace"
       ariaLabel="Account navigation"
     >
-      <RailSection label="Workspace">
+      {/* No "WORKSPACE" eyebrow — "Your Workspace" above already names this
+          rail (ruling 2026-08-19: one label, one real job). COMING NEXT
+          below keeps its label; that split is real information. */}
+      <RailSection>
         {MODULE_ITEMS.map((m) => {
           const isActive = surface === "account" && activeModule === m.id;
           /* One door, one indicator: everything currently needing the

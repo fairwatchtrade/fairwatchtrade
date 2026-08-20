@@ -656,7 +656,7 @@ export default function AccountDashboard({
           `id, listing_id, buyer_id, listing_brand, listing_model, listing_reference,
            proposed_purchase_price, listing_price, proposed_currency, listing_currency,
            shipping_terms, included_items, notes, status, closure_cause, created_at, updated_at,
-           listings ( brand, model, reference, photos )`
+           listings ( brand, model, reference, public_code, photos )`
         )
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false });

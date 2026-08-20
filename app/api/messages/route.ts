@@ -45,6 +45,7 @@ type ListingLite = {
   brand: string;
   model: string | null;
   reference: string;
+  public_code: string | null;
   photos: { photo: { url: string }; category: string }[] | null;
 };
 
@@ -104,7 +105,10 @@ export async function GET() {
   // select-own — the view is what display names are shared through.
   const [{ data: listings }, { data: profiles }, { data: allMessages }] = await Promise.all([
     listingIds.length > 0
-      ? supabase.from("listings").select("id, brand, model, reference, photos").in("id", listingIds)
+      ? supabase
+          .from("listings")
+          .select("id, brand, model, reference, public_code, photos")
+          .in("id", listingIds)
       : Promise.resolve({ data: [] as ListingLite[] }),
     otherIds.length > 0
       ? supabase.from("public_seller_profiles").select("id, display_name").in("id", otherIds)
@@ -146,6 +150,11 @@ export async function GET() {
             brand: listing.brand,
             model: listing.model,
             reference: listing.reference,
+            /* Communications Listing Identity Law (2026-08-19): every
+               listing-bound Communications surface shows the exact FWT
+               listing code. The name says WHAT the watch is; the code says
+               WHICH listing owns the correspondence. */
+            publicCode: listing.public_code ?? null,
             thumbUrl: dialThumb(listing.photos),
           }
         : null,

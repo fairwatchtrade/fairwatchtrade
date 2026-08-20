@@ -246,13 +246,17 @@ export function RailSection({
   exit = false,
   children,
 }: {
-  label: string;
+  /** Optional since the Workspace-eyebrow ruling (2026-08-19): one label
+      does one real job — a section whose rail header already names it
+      renders no repeated eyebrow. Sections with a real semantic split
+      (e.g. "Coming next") keep theirs. */
+  label?: string;
   exit?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className={`fwt-rail-section${exit ? " fwt-rail-section--exit" : ""}`}>
-      <div className="fwt-rail-section-label">{label}</div>
+      {label && <div className="fwt-rail-section-label">{label}</div>}
       {children}
     </div>
   );
