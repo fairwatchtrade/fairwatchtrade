@@ -1,9 +1,14 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import AccountRail from "@/components/AccountRail";
 import MarketplaceControl, { type McPrefs } from "@/components/MarketplaceControl";
-import { DEFAULT_MC_QUERY, fetchMarketplacePayload } from "@/lib/marketplaceControlData";
+import {
+  DEFAULT_MC_QUERY,
+  PER_OPTIONS,
+  fetchMarketplacePayload,
+} from "@/lib/marketplaceControlData";
 
 /* ────────────────────────────────────────────────────────────────────────
    MARKETPLACE CONTROL — /admin
@@ -51,11 +56,10 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const db = createServiceClient();
-  const payload = await fetchMarketplacePayload(db, DEFAULT_MC_QUERY);
-
   /* Presentation preferences are the founder's own row (RLS-own table);
-     the session client reads them. Absent row → defaults. */
+     the session client reads them. Absent row → defaults. Read BEFORE the
+     initial payload fetch so an explicitly chosen page size shapes the very
+     first query — no second fetch, no visible page-size snap. */
   let prefs: McPrefs = {};
   try {
     const { data } = await supabase
@@ -68,11 +72,42 @@ export default async function AdminPage() {
     /* preferences are presentation only — the room opens on defaults */
   }
 
+  /* Device-class page-size default, resolved ONCE at the server: phones get
+     a 25-row ledger page, desktops 50. Client-hint header first (Chromium
+     sends it on every request), UA substring as the fallback. This is a
+     device-class decision, not a viewport measurement — resizing a desktop
+     window never churns the page size, and first paint never snaps. An
+     explicit founder choice (Rows control / saved view, persisted in prefs)
+     always outranks the device default. */
+  const h = await headers();
+  const chMobile = h.get("sec-ch-ua-mobile");
+  const isMobile = chMobile
+    ? chMobile === "?1"
+    : /Mobi|Android/i.test(h.get("user-agent") ?? "");
+  const devicePer = isMobile ? 25 : 50;
+  /* Only a page size the founder explicitly chose counts (perExplicit flag,
+     written by the Rows control / saved-view path). A bare stored `per`
+     without the flag is residue of older always-persist builds — ignored,
+     and stripped by the room's next preference save. */
+  const lastUsed = prefs.marketplaceControl?.lastUsed;
+  const firstPaintPer =
+    lastUsed?.perExplicit === true &&
+    typeof lastUsed.per === "number" &&
+    (PER_OPTIONS as readonly number[]).includes(lastUsed.per)
+      ? lastUsed.per
+      : devicePer;
+
+  const db = createServiceClient();
+  const payload = await fetchMarketplacePayload(db, {
+    ...DEFAULT_MC_QUERY,
+    per: firstPaintPer,
+  });
+
   return (
     <div className="flex min-h-screen bg-[var(--ink)]">
       <AccountRail surface="marketplace" marketplaceControl />
       <div className="min-w-0 flex-1">
-        <MarketplaceControl initial={payload} initialPrefs={prefs} />
+        <MarketplaceControl initial={payload} initialPrefs={prefs} initialPer={devicePer} />
       </div>
     </div>
   );

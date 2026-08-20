@@ -75,7 +75,12 @@ type SavedView = { name: string; state: ViewState };
 
 export type McPrefs = {
   marketplaceControl?: {
-    lastUsed?: Partial<ViewState>;
+    /* perExplicit marks a page size the founder actually chose (Rows
+       control / saved view). Older builds persisted `per` on every save, so
+       a bare stored `per` WITHOUT this flag is residue of the device
+       default, not a choice — it is ignored on restore and stripped by the
+       next persist. */
+    lastUsed?: Partial<ViewState> & { perExplicit?: boolean };
     savedViews?: SavedView[];
   };
 };
@@ -132,7 +137,11 @@ function defaultColumns(): ColumnsState {
   };
 }
 
-function defaultViewState(): ViewState {
+/* defaultPer is the DEVICE-CLASS default resolved by the server page
+   (mobile 25 / desktop 50). An explicit founder choice overrides it via
+   prefs; the device default itself is never persisted, so a phone visit can
+   never quietly rewrite the desktop page size (or vice versa). */
+function defaultViewState(defaultPer: number): ViewState {
   return {
     mode: "operational",
     life: "current",
@@ -144,16 +153,37 @@ function defaultViewState(): ViewState {
     requests: false,
     attention: false,
     sort: "created_desc",
-    per: 50,
+    per: defaultPer,
     columns: defaultColumns(),
   };
 }
 
+/* Bounded page navigation: Previous · 1 · 2 · 3 · … · N · Next. Always the
+   first/last page, a window around the current one, ellipses for the rest. */
+function pageWindow(current: number, count: number): Array<number | "…"> {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
+  const wanted = new Set(
+    [1, 2, current - 1, current, current + 1, count - 1, count].filter(
+      (n) => n >= 1 && n <= count
+    )
+  );
+  const out: Array<number | "…"> = [];
+  let prev = 0;
+  for (const n of [...wanted].sort((a, b) => a - b)) {
+    if (n - prev > 1) out.push("…");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
 /* Presentation config survives across sessions; the OPERATING position does
    not — the room always opens on CURRENT with no residual filters (the
-   lifecycle law: CURRENT is the default operating surface). */
-function restoredViewState(prefs: McPrefs): ViewState {
-  const base = defaultViewState();
+   lifecycle law: CURRENT is the default operating surface). A stored `per`
+   exists ONLY when the founder explicitly chose one (Rows control / saved
+   view) — the persistence path strips it otherwise. */
+function restoredViewState(prefs: McPrefs, defaultPer: number): ViewState {
+  const base = defaultViewState(defaultPer);
   const last = prefs.marketplaceControl?.lastUsed;
   if (!last) return base;
   return {
@@ -161,7 +191,12 @@ function restoredViewState(prefs: McPrefs): ViewState {
     mode: last.mode === "detailed" ? "detailed" : "operational",
     sort:
       typeof last.sort === "string" && last.sort ? (last.sort as McSort) : base.sort,
-    per: typeof last.per === "number" ? last.per : base.per,
+    per:
+      last.perExplicit === true &&
+      typeof last.per === "number" &&
+      (PER_OPTIONS as readonly number[]).includes(last.per)
+        ? last.per
+        : base.per,
     columns: {
       order: Array.isArray(last.columns?.order)
         ? reconcileOrder(last.columns.order)
@@ -578,11 +613,29 @@ function BulkDialog({
 export default function MarketplaceControl({
   initial,
   initialPrefs,
+  initialPer,
 }: {
   initial: McPayload;
   initialPrefs: McPrefs;
+  /** Device-class page-size default resolved by the SERVER page (mobile 25 /
+      desktop 50). The server fetches the initial payload at this size — or
+      at the stored explicit choice when one exists — so first paint and
+      client state agree and there is no mount-time page-size snap. */
+  initialPer: number;
 }) {
-  const [view, setView] = useState<ViewState>(() => restoredViewState(initialPrefs));
+  const [view, setView] = useState<ViewState>(() =>
+    restoredViewState(initialPrefs, initialPer)
+  );
+  /* True only when the founder has explicitly chosen a page size (Rows
+     control or a saved view). Only an explicit choice is ever persisted. */
+  const [perExplicit, setPerExplicit] = useState<boolean>(() => {
+    const last = initialPrefs.marketplaceControl?.lastUsed;
+    return (
+      last?.perExplicit === true &&
+      typeof last.per === "number" &&
+      (PER_OPTIONS as readonly number[]).includes(last.per)
+    );
+  });
   const [savedViews, setSavedViews] = useState<SavedView[]>(
     () => initialPrefs.marketplaceControl?.savedViews ?? []
   );
@@ -591,8 +644,12 @@ export default function MarketplaceControl({
   const [payload, setPayload] = useState<McPayload>(initial);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<McRow | null>(initial.rows[0] ?? null);
+  /* The room OPENS unselected (mobile correction order §5): no inspector, no
+     selected row, the ledger fully unobstructed. Selection is an explicit
+     act and is reversible without resetting any room state. */
+  const [selected, setSelected] = useState<McRow | null>(null);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [bulkSeller, setBulkSeller] = useState("");
@@ -602,6 +659,10 @@ export default function MarketplaceControl({
 
   const firstFetch = useRef(true);
   const fetchSeq = useRef(0);
+  const asideRef = useRef<HTMLElement | null>(null);
+  /* Set only by a real user tap — a background refresh updating the selected
+     row's data must never yank the viewport to the inspector. */
+  const scrollToInspector = useRef(false);
 
   const set = useCallback(<K extends keyof ViewState>(key: K, value: ViewState[K]) => {
     setView((v) => ({ ...v, [key]: value }));
@@ -659,9 +720,12 @@ export default function MarketplaceControl({
       if (!res.ok) throw new Error(data?.detail ?? "Read failed.");
       if (seq === fetchSeq.current) {
         setPayload(data as McPayload);
+        /* Sticky, never automatic: an existing selection survives a filter
+           change (context preserved), but the room NEVER selects a listing
+           on its own — unselected stays unselected. */
         setSelected((sel) => {
+          if (!sel) return null;
           const rows = (data as McPayload).rows;
-          if (!sel) return rows[0] ?? null;
           return rows.find((r) => r.id === sel.id) ?? sel;
         });
       }
@@ -677,10 +741,12 @@ export default function MarketplaceControl({
   useEffect(() => {
     if (firstFetch.current) {
       firstFetch.current = false;
-      /* The server rendered the initial payload with the DEFAULT query. A
-         restored preference that changes the query (sort / page size) must
-         refetch once; otherwise the server data is already current. */
-      if (view.sort === "created_desc" && view.per === 50) return;
+      /* The server rendered the initial payload with the default query at
+         the resolved page size (initial.per is the server's truth — device
+         default or the stored explicit choice). A restored preference that
+         changes the query beyond that (sort) must refetch once; otherwise
+         the server data is already current. */
+      if (view.sort === "created_desc" && view.per === initial.per) return;
     }
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh closes over the full query string
@@ -694,18 +760,25 @@ export default function MarketplaceControl({
       return;
     }
     const t = setTimeout(() => {
+      /* Page size is persisted ONLY as an explicit choice, marked by the
+         perExplicit flag; a device-class default must never masquerade as
+         one (JSON.stringify drops the undefined key, which also strips
+         legacy always-persisted `per` residue). */
+      const lastUsed = perExplicit
+        ? { ...view, perExplicit: true }
+        : { ...view, per: undefined };
       void fetch("/api/admin/marketplace/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prefs: { marketplaceControl: { lastUsed: view, savedViews } },
+          prefs: { marketplaceControl: { lastUsed, savedViews } },
         }),
       }).catch(() => {
         /* preference persistence is best-effort — the room never breaks over it */
       });
     }, 800);
     return () => clearTimeout(t);
-  }, [view, savedViews]);
+  }, [view, savedViews, perExplicit]);
 
   /* ── Derived presentation ────────────────────────────────────────────── */
   const counts = payload.counts;
@@ -719,6 +792,16 @@ export default function MarketplaceControl({
   const attentionFor = (id: string): string[] => payload.attention[id] ?? [];
   const anyFilterActive =
     !!view.status || !!view.q || !!view.seller || view.new24h || view.dealer || view.requests || view.attention;
+  /* Everything the narrow Filters disclosure can conceal (q stays visible in
+     the search box) — the toggle wears this count so a hidden active filter
+     is never invisible. */
+  const hiddenFilterCount =
+    (view.status ? 1 : 0) +
+    (view.seller ? 1 : 0) +
+    (view.attention ? 1 : 0) +
+    (view.new24h ? 1 : 0) +
+    (view.dealer ? 1 : 0) +
+    (view.requests ? 1 : 0);
 
   const from = payload.total === 0 ? 0 : (payload.page - 1) * payload.per + 1;
   const to = Math.min(payload.total, payload.page * payload.per);
@@ -784,8 +867,10 @@ export default function MarketplaceControl({
   function applySavedView(name: string) {
     const sv = savedViews.find((s) => s.name === name);
     if (!sv) return;
+    // A saved view's captured page size is an explicit choice being restored.
+    if (typeof sv.state.per === "number") setPerExplicit(true);
     setView({
-      ...defaultViewState(),
+      ...defaultViewState(initialPer),
       ...sv.state,
       columns: {
         order: reconcileOrder(sv.state.columns?.order ?? []),
@@ -811,7 +896,8 @@ export default function MarketplaceControl({
   }
 
   function resetToDefault() {
-    setView(defaultViewState());
+    setView(defaultViewState(initialPer));
+    setPerExplicit(false);
     setQInput("");
     setPage(1);
   }
@@ -928,17 +1014,61 @@ export default function MarketplaceControl({
     }
   }
 
+  /* ── Selection is a round trip (mobile correction order §3–§5) ──────────
+     Tap a listing → the inspector is brought into view automatically when
+     it is STACKED (below the ledger); the desktop overlay never scrolls.
+     "Back to list" returns to the exact selected row — same page, same
+     filters/sort/lifecycle, same selection, useful scroll position — and
+     clearing the selection removes the inspector entirely without touching
+     any other room state. */
   function selectRow(row: McRow) {
+    scrollToInspector.current = true;
     setSelected(row);
+  }
+
+  useEffect(() => {
+    if (!scrollToInspector.current || !selected) return;
+    scrollToInspector.current = false;
+    const el = asideRef.current;
+    if (el && getComputedStyle(el).position !== "absolute") {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selected]);
+
+  function scrollToSelectedRow(id: string) {
+    document
+      .querySelector(`[data-mc-row="${id}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* Back to the exact selected row — selection intact, row still lit. Only
+     offered where the inspector is stacked; the desktop overlay never took
+     the founder away from the list in the first place. */
+  function backToList() {
+    if (selected) scrollToSelectedRow(selected.id);
+  }
+
+  function clearSelection() {
+    const wasId = selected?.id;
+    const el = asideRef.current;
+    const stacked = el ? getComputedStyle(el).position !== "absolute" : false;
+    setSelected(null);
+    // Stacked: land back on the row that was selected, not at a random depth.
+    if (stacked && wasId) requestAnimationFrame(() => scrollToSelectedRow(wasId));
   }
 
   const exact = payload.exact;
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
-      <div className="px-4 py-6 md:px-8">
+      {/* Pre-list runway compression (mobile correction order): on a phone
+          the ledger's first row must arrive fast — the head keeps its
+          identity but sheds the explainer prose and one padding notch, and
+          the operating strip tightens to two short rows. All of it
+          viewport-gated; the approved desktop composition is unchanged. */}
+      <div className="px-4 py-4 md:px-8 md:py-6">
         {/* ── Page head ─────────────────────────────────────────────────── */}
-        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 md:mb-5 md:gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-[3px] text-[var(--gold-dim)]">
               Admin · Marketplace Operations
@@ -946,21 +1076,21 @@ export default function MarketplaceControl({
             <h1 className="mt-1 font-display text-[26px] font-light text-[var(--platinum)]">
               Marketplace Control
             </h1>
-            <p className="mt-1 max-w-[640px] text-[12px] leading-relaxed text-[var(--muted)]">
+            <p className="mt-1 hidden max-w-[640px] text-[12px] leading-relaxed text-[var(--muted)] sm:block">
               Operate current inventory first. Retrieve cold history deliberately. The room
               stays calm even when dealer intake adds hundreds of watches at once.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link
               href="/admin/vault-review"
-              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+              className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] sm:px-4 sm:py-2 sm:text-[11px]"
             >
               ◈ Vault Review →
             </Link>
             <Link
               href="/admin/dealer-accelerator"
-              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+              className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] sm:px-4 sm:py-2 sm:text-[11px]"
             >
               ◈ Dealer Accelerator Review →
             </Link>
@@ -970,7 +1100,7 @@ export default function MarketplaceControl({
         {/* ── Operating strip (truthful runtime counts) ─────────────────── */}
         <section
           aria-label="Marketplace operating summary"
-          className="mb-4 grid grid-cols-2 border border-[var(--border-subtle)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5"
+          className="mb-4 grid grid-cols-3 border border-[var(--border-subtle)] bg-[var(--surface)] lg:grid-cols-5"
         >
           {[
             { k: "Current", v: counts.current, cls: "text-[var(--platinum)]" },
@@ -985,10 +1115,14 @@ export default function MarketplaceControl({
           ].map((m) => (
             <div
               key={m.k}
-              className="border-b border-r border-[var(--border-faint)] px-4 py-3 last:border-r-0 lg:border-b-0"
+              className="border-b border-r border-[var(--border-faint)] px-2.5 py-2 last:border-r-0 sm:px-4 sm:py-3 lg:border-b-0"
             >
-              <div className="text-[9px] uppercase tracking-[2px] text-[var(--muted)]">{m.k}</div>
-              <div className={`mt-0.5 font-display text-[22px] font-light ${m.cls}`}>{m.v}</div>
+              <div className="text-[8px] uppercase tracking-[1.5px] text-[var(--muted)] sm:text-[9px] sm:tracking-[2px]">
+                {m.k}
+              </div>
+              <div className={`mt-0.5 font-display text-[18px] font-light sm:text-[22px] ${m.cls}`}>
+                {m.v}
+              </div>
             </div>
           ))}
         </section>
@@ -1045,9 +1179,15 @@ export default function MarketplaceControl({
 
           {/* Controls — search/status/seller/attention + the view switch.
               py/gap lifted one notch (SEE-it finding 3): the clusters read
-              as deliberately grouped, not compressed. */}
+              as deliberately grouped, not compressed.
+              NARROW (pre-list runway compression): only the search box and a
+              Filters toggle stay on the runway; every other control folds
+              behind the toggle. On @min-[740px] the fold wrapper becomes
+              display:contents — its children rejoin this flex row exactly as
+              the approved desktop composition laid them, so wide containers
+              are untouched by construction. */}
           <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-faint)] px-4 py-3.5">
-            <div className="relative min-w-[220px] flex-1">
+            <div className="relative min-w-[180px] flex-1">
               <input
                 value={qInput}
                 onChange={(e) => setQInput(e.target.value)}
@@ -1060,6 +1200,22 @@ export default function MarketplaceControl({
               </span>
             </div>
 
+            <button
+              type="button"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((o) => !o)}
+              className={`h-[34px] border px-3 text-[11px] uppercase tracking-[1px] transition-colors @min-[740px]:hidden ${
+                filtersOpen || hiddenFilterCount > 0
+                  ? "border-[var(--border-gold)] text-[var(--gold)]"
+                  : "border-[var(--border-mid)] text-[var(--muted)]"
+              }`}
+            >
+              Filters{hiddenFilterCount > 0 ? ` · ${hiddenFilterCount}` : ""}
+            </button>
+
+            <div
+              className={`${filtersOpen ? "flex" : "hidden"} w-full flex-wrap items-center gap-2.5 @min-[740px]:contents`}
+            >
             <label className="flex h-[34px] items-center gap-2 border border-[var(--border-mid)] px-2">
               <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">Status</span>
               <select
@@ -1132,10 +1288,14 @@ export default function MarketplaceControl({
                 </button>
               ))}
             </div>
+            </div>
           </div>
 
-          {/* Context chips + view management */}
-          <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-faint)] px-4 py-3">
+          {/* Context chips + view management — folds with the narrow Filters
+              disclosure (runway compression); always present @min-[740px]. */}
+          <div
+            className={`${filtersOpen ? "flex" : "hidden"} flex-wrap items-center gap-2.5 border-b border-[var(--border-faint)] px-4 py-3 @min-[740px]:flex`}
+          >
             {(
               [
                 { key: "new24h" as const, label: "New · 24h" },
@@ -1165,7 +1325,7 @@ export default function MarketplaceControl({
                 type="button"
                 onClick={() => {
                   setView((v) => ({
-                    ...defaultViewState(),
+                    ...defaultViewState(initialPer),
                     mode: v.mode,
                     life: v.life,
                     sort: v.sort,
@@ -1392,6 +1552,7 @@ export default function MarketplaceControl({
                       return (
                         <div
                           key={row.id}
+                          data-mc-row={row.id}
                           role="button"
                           tabIndex={0}
                           onClick={() => selectRow(row)}
@@ -1442,12 +1603,41 @@ export default function MarketplaceControl({
               {/* Persistent inspector — opaque overlay, upper-right. The
                   explicit background is load-bearing: a transparent pane
                   let underlying row cells ghost through (the Human SEE-it
-                  defect). Narrow containers: static, stacks below the list. */}
-              <aside className="border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg">
+                  defect). Narrow containers: static, stacks below the list —
+                  and when nothing is selected it is absent entirely (the
+                  completely unselected state), so the phone ledger carries
+                  no orphan placeholder band. */}
+              <aside
+                ref={asideRef}
+                className={`${selected ? "" : "hidden @min-[1050px]:block"} border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg`}
+              >
                 {selected ? (
                   <div className="p-4">
-                    <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
-                      Selected listing
+                    {/* The round trip's return half: Back to list rides the
+                        stacked inspector home to the exact selected row
+                        (selection intact); × ends the selection entirely —
+                        the completely unselected state, one tap away. */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
+                        Selected listing
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={backToList}
+                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] @min-[1050px]:hidden"
+                        >
+                          ‹ Back to list
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          aria-label="Clear selection"
+                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--platinum)]"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
                     {/* Operations pane, not a photo panel (SEE-it finding 2):
                         the photograph joins the identity header at thumbnail
@@ -1641,6 +1831,7 @@ export default function MarketplaceControl({
                       return (
                         <tr
                           key={row.id}
+                          data-mc-row={row.id}
                           onClick={() => selectRow(row)}
                           className={`cursor-pointer border-b border-[var(--border-faint)] align-top ${
                             isSelected ? "bg-[var(--gold-whisper)]" : "hover:bg-white/[0.02]"
@@ -1699,9 +1890,32 @@ export default function MarketplaceControl({
               >
                 ‹
               </button>
-              <span className="px-1 text-[11px] text-[var(--platinum-dim)]">
-                {payload.page} / {pageCount}
-              </span>
+              {pageWindow(payload.page, pageCount).map((it, i) =>
+                it === "…" ? (
+                  <span
+                    key={`gap-${i}`}
+                    aria-hidden="true"
+                    className="px-0.5 text-[11px] text-[var(--muted)]"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={it}
+                    type="button"
+                    onClick={() => setPage(it)}
+                    aria-label={`Page ${it}`}
+                    aria-current={payload.page === it ? "page" : undefined}
+                    className={`h-[28px] min-w-[28px] border px-1 text-[12px] ${
+                      payload.page === it
+                        ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--gold)]"
+                        : "border-[var(--border-mid)] text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
+                    }`}
+                  >
+                    {it}
+                  </button>
+                )
+              )}
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
@@ -1717,6 +1931,7 @@ export default function MarketplaceControl({
               <select
                 value={view.per}
                 onChange={(e) => {
+                  setPerExplicit(true);
                   set("per", Number(e.target.value));
                   setPage(1);
                 }}

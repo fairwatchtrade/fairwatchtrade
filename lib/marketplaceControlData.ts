@@ -142,7 +142,7 @@ const CODE_SHAPE = /^[a-z][0-9]{5}$/i;
 export const PER_OPTIONS = [25, 50, 100] as const;
 
 function clampPer(per: number): number {
-  return (PER_OPTIONS as readonly number[]).includes(per) ? per : 50;
+  return (PER_OPTIONS as readonly number[]).includes(per) ? per : 25;
 }
 
 /* Same shape AccountDashboard proves: photos jsonb is an array of
@@ -425,6 +425,10 @@ export async function fetchMarketplace(
     builder = builder.or(clauses.join(","));
   }
 
+  /* Every sort ends on the id tiebreak: created_at can collide (dealer
+     bursts insert in the same instant), and a non-deterministic order
+     across page boundaries silently duplicates or drops rows between
+     pages. */
   switch (query.sort) {
     case "created_asc":
       builder = builder.order("created_at", { ascending: true });
@@ -467,6 +471,7 @@ export async function fetchMarketplace(
     default:
       builder = builder.order("created_at", { ascending: false });
   }
+  builder = builder.order("id", { ascending: true });
 
   const offset = (page - 1) * per;
   const { data, count, error } = await builder.range(offset, offset + per - 1);
@@ -526,7 +531,7 @@ export function parseMcQuery(params: URLSearchParams): McQuery {
     attention: params.get("attention") === "1",
     sort: (SORTS as string[]).includes(sort) ? (sort as McSort) : "created_desc",
     page: Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1),
-    per: Number.parseInt(params.get("per") ?? "50", 10) || 50,
+    per: Number.parseInt(params.get("per") ?? "25", 10) || 25,
   };
 }
 
@@ -541,5 +546,7 @@ export const DEFAULT_MC_QUERY: McQuery = {
   attention: false,
   sort: "created_desc",
   page: 1,
-  per: 50,
+  /* 25 is the room's bounded default (mobile correction order) — small
+     enough for a phone, and a founder-chosen page size persists via prefs. */
+  per: 25,
 };

@@ -11,12 +11,13 @@ query or a lifecycle mapping — not in client state.
 
 | Piece | Where | Job |
 |---|---|---|
-| Server page | `app/admin/page.tsx` | Founder gate (hardcoded UID) → service-client initial read (DEFAULT query: CURRENT, newest first) → mounts rail + room |
+| Server page | `app/admin/page.tsx` | Founder gate (hardcoded UID) → resolves device-class page size → service-client initial read (CURRENT, newest first) → mounts rail + room |
 | Data layer | `lib/marketplaceControlData.ts` | THE one source for lifecycle mapping, Needs-Attention predicates, and the ledger query. Page and API both call it; they cannot drift |
 | List API | `app/api/admin/marketplace/route.ts` | GET — server-side search/filter/sort/pagination |
 | Prefs API | `app/api/admin/marketplace/prefs/route.ts` | GET/PUT per-admin presentation state (`admin_view_preferences`, RLS-own) |
 | Bulk API | `app/api/admin/marketplace/bulk/route.ts` | POST preview/execute for Take-Off-Market and Permanent Delete |
 | Room UI | `components/MarketplaceControl.tsx` | Ledger + persistent inspector (Operational) / configurable table (Detailed) |
+| Migration | `supabase/migrations/20260820160000_marketplace_control_room.sql` | Admin closure causes, founder authority on the governed RPCs, prefs table, indexes |
 
 **The Operational flow law (founder ruling, 2026-08-20, two rejected attempts
 behind it):** the ledger ALWAYS owns the full workspace width; the
@@ -30,7 +31,34 @@ load-bearing (a transparent pane ghosts row cells through — the original
 defect). Layout variants in this component are Tailwind v4 CONTAINER queries
 (`@min-[…]:`); a misspelled variant compiles silently to nothing, so after
 any edit grep the built CSS for `@container (min-width:` before shipping.
-| Migration | `supabase/migrations/20260820160000_marketplace_control_room.sql` | Admin closure causes, founder authority on the governed RPCs, prefs table, indexes |
+
+## Pagination is real bounded data behavior
+
+Every page of the ledger is one `.range()` window on the server — the room
+never fetches the universe and hides rows. Two properties are load-bearing:
+
+- **Deterministic order across pages:** every sort in `fetchMarketplace()`
+  ends on an `id` tiebreak. Without it, rows whose sort key collides
+  (dealer-burst `created_at`, equal prices, same status) can silently
+  duplicate on one page and vanish from the next.
+- **Device-class page size, explicit-choice persistence:** the server page
+  resolves the default ONCE per request — phones 25, desktops 50 — from
+  `sec-ch-ua-mobile` (UA substring fallback). It is a device-class decision,
+  not a viewport measurement: resizing a window never churns it, and first
+  paint is fetched at the resolved size so nothing snaps on mount. A page
+  size chosen through the Rows control or restored by a saved view is an
+  EXPLICIT preference and persists in prefs marked with a `perExplicit: true`
+  flag beside it; the persistence path strips `per` otherwise, so a phone
+  visit can never quietly rewrite the desktop default (or vice versa). A
+  stored `per` WITHOUT the flag is residue of older builds that persisted it
+  on every save — restore ignores it and the next save strips it.
+
+Selection on a phone is a round trip: the room opens completely unselected;
+tapping a row scrolls to the stacked inspector; "Back to list" returns to
+the exact selected row (selection intact); × clears selection entirely. The
+narrow runway folds every control except search behind the Filters toggle —
+on wide containers the fold wrapper is `display: contents`, so the approved
+desktop composition is untouched by construction.
 
 ## Lifecycle mapping (deliberate, not prototype-derived)
 
