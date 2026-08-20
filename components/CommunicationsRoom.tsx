@@ -593,7 +593,7 @@ export default function CommunicationsRoom({
               caretTracksTrigger
             >
               <p className="text-[13px] leading-[1.65] text-[var(--slate)]">
-                Reading does not resolve requests or archive conversations.
+                It does not resolve requests or archive conversations.
               </p>
             </HelpBubble>
           </div>
