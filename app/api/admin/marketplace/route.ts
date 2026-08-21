@@ -29,27 +29,15 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  /* ⚠⚠ TEMPORARY REVIEW WINDOW — 2026-08-20. DISPOSABLE. RESTORE ON CLOSE.
-     Suspended alongside the /admin page gate for a short external design
-     review, by explicit founder authorization. This is the READ door only —
-     it returns the same ledger the room already renders. The BULK route
-     (take-off-market, permanent delete) and the PREFS route keep their
-     founder gates, so a reviewer can read the room but cannot mutate a
-     listing or overwrite saved views.
-
-     RESTORE BY DELETING THIS COMMENT AND UNCOMMENTING:
-       if (!user) {
-         return NextResponse.json(
-           { error: "not_authenticated", detail: "Sign in required." },
-           { status: 401 }
-         );
-       }
-       if (user.id !== ADMIN_USER_ID) {
-         return NextResponse.json({ error: "forbidden", detail: "Admin only." }, { status: 403 });
-       }
-     ⚠⚠ */
-  void user;
-  void ADMIN_USER_ID;
+  if (!user) {
+    return NextResponse.json(
+      { error: "not_authenticated", detail: "Sign in required." },
+      { status: 401 }
+    );
+  }
+  if (user.id !== ADMIN_USER_ID) {
+    return NextResponse.json({ error: "forbidden", detail: "Admin only." }, { status: 403 });
+  }
 
   let db;
   try {

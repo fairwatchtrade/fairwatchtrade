@@ -32,6 +32,63 @@ defect). Layout variants in this component are Tailwind v4 CONTAINER queries
 (`@min-[…]:`); a misspelled variant compiles silently to nothing, so after
 any edit grep the built CSS for `@container (min-width:` before shipping.
 
+## Selection is bounded by CONTEXT, and configuration is transient
+
+Two laws that read as UI polish and are actually the room's operating model.
+Both were founder SEE-it corrections; both had a plausible-looking wrong
+version in the code first.
+
+**Selection lives only inside the current result context.** It survives a
+filter, sort, page, lifecycle, or page-size change *while the listing is
+still part of what the ledger is showing* — and clears the moment it is not.
+The earlier version ended its reconciliation with `?? sel`, which kept the
+previous row **object** alive when the refetched set no longer held it: the
+inspector went on describing a listing the ledger beneath it did not
+contain. If you are tempted to restore stickiness "so context survives
+navigation", that is the bug, not the feature. The one row that counts as
+present without being in `rows` is `payload.exact` — the Exact Identifier
+Search Law returns it deliberately, so it is part of this context even when
+it sits outside the active filters.
+
+Selection is never set automatically. It clears three ways: the inspector
+×, Escape, or a click on genuinely neutral workspace. "Neutral" is defined
+by **exclusion** in `MC_INTERACTIVE` — rows, every control, labels, the
+inspector (`data-mc-keep`), and the confirmation dialog (`data-mc-keep`) all
+opt out, and what remains is background. **Add any new bare-`div` control to
+that selector or it will silently double as a dismissal target.** Neither
+path resets search, filters, sort, lifecycle, page, page size, or saved
+views: putting the inspector down is not a way of starting over.
+
+**No selection = no inspector surface, at every width.** The pane does not
+exist unless a listing is selected; it is not an empty frame holding an
+instruction. Removing it costs the ledger nothing because the pane is
+absolutely positioned — rows already run the full workspace width beneath it.
+
+**Configuration never survives leaving the view it configures.** Columns
+belongs to Detailed, so all three paths that can change mode — the mode
+toggle, applying a saved view, and Reset — close it. Without that, leaving
+Detailed merely *hid* the panel while `columnsOpen` stayed true, and
+returning resurrected a panel the founder never reopened. It closes on Done,
+Escape, and neutral click. Escape is graduated: it never reaches around an
+open confirmation dialog.
+
+**Show, Order, and Sort are three different behaviors and are kept apart.**
+Visibility is the checkbox grid; order is a short strip of only the columns
+actually in the table, reading left-to-right as the table reads; sorting
+lives on the table headers. Reorder skips to the next *visible* neighbour —
+swapping against the immediate entry in the stored order can swap against a
+hidden column and appear to do nothing, which is most of why the control
+once felt broken.
+
+**Saved views are provenance, not a mode.** `appliedFrom` records which
+preset the arrangement was restored from; whether that name is still true is
+**derived every render** by comparing `viewFingerprint()` of the working view
+against `reconcileSavedView()` of the preset. That is why change-and-change-
+back restores the name, and why nothing has to remember to clear it. There is
+no "inside a saved view" state, so there is no exit ceremony — and Reset to
+FWT Default resets the *arrangement* only. It has never deleted a saved view
+and must not start.
+
 ## Pagination is real bounded data behavior
 
 Every page of the ledger is one `.range()` window on the server — the room
@@ -55,7 +112,8 @@ never fetches the universe and hides rows. Two properties are load-bearing:
 
 Selection on a phone is a round trip: the room opens completely unselected;
 tapping a row scrolls to the stacked inspector; "Back to list" returns to
-the exact selected row (selection intact); × clears selection entirely. The
+the exact selected row (selection intact); × clears selection entirely (see
+the selection-context law above for when it clears on its own). The
 narrow runway folds every control except search behind the Filters toggle —
 on wide containers the fold wrapper is `display: contents`, so the approved
 desktop composition is untouched by construction.

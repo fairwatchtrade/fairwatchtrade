@@ -8,8 +8,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
+import HelpBubble from "@/components/HelpBubble";
 import { formatMoney } from "@/lib/formatMoney";
 import { adminLabel, statusTokenKey } from "@/lib/listingStatus";
 import {
@@ -39,10 +41,14 @@ import {
    loads the retained listing universe into the browser. CURRENT stays
    operationally small even when history becomes enormous.
 
-   Selection is sticky on purpose: the inspector keeps the last selected
-   listing even when a filter change drops its row from the page, so
-   operating context survives navigation (§7 "preserve coherent selection
-   where possible").
+   Selection is sticky WITHIN a result context, never beyond it. A filter,
+   sort, page, or lifecycle change preserves the selection as long as the
+   listing is still part of what the ledger is showing; the moment the
+   current context no longer contains it, the selection clears. The room
+   must never hold an inspector open on a listing the visible ledger does
+   not contain — that stale pane was the founder SEE-it defect. It is
+   cleared three ways: the inspector ×, a click on genuinely neutral
+   workspace, or falling out of context. It is never set automatically.
 
    PFC274 = 62 — no scoring machinery is touched here; significance is
    displayed to the founder only, exactly as the previous admin table did.
@@ -126,6 +132,85 @@ const DETAIL_COLUMNS: Array<{
 const COL_MIN = 60;
 const COL_MAX = 420;
 const MAX_SAVED_VIEWS = 8;
+
+/* Everything a founder can aim at. A click landing inside any of these is
+   aimed work — it keeps its meaning and never doubles as a dismissal. Rows
+   carry data-mc-row (they select); the inspector and the confirmation dialog
+   carry data-mc-keep; the column resize grips are role="separator". Anything
+   NOT matching this is background, and clicking background puts a transient
+   surface down. Add to this list before adding any new bare-div control. */
+const MC_INTERACTIVE =
+  '[data-mc-row],[data-mc-keep],a,button,input,select,textarea,label,option,summary,[role="tab"],[role="dialog"],[role="separator"]';
+
+/* ── The room's dropdown ────────────────────────────────────────────────
+   FairWatchTrade already has a select language; this room simply had not
+   spoken it. The parts that carry over from the established treatment
+   (Account Settings, the Sell Flow fields) are the option list painted in
+   --surface-2 with --platinum text — without it the native menu drops a
+   bright platform slab into a dark room — and gold on focus.
+
+   What was missing here was the chrome. A bare <select> paints the
+   platform's own arrow and focus ring, which is precisely the
+   half-finished-browser-furniture read: FWT type inside, Windows outside.
+   appearance-none removes it and the shell supplies the caret and a
+   focus-within gold edge, so the whole control lights as one object
+   instead of the platform lighting the inner element.
+
+   It stays a real <select> on purpose. Keyboard behavior, type-ahead,
+   option semantics, mobile's native picker, and assistive technology are
+   all free here and are all work to rebuild badly — the complaint was
+   material, not mechanism, so only the material changed. Legibility is
+   token-driven, so Daylight and dark both follow the theme. */
+const MC_SELECT =
+  "appearance-none bg-transparent pr-4 text-[var(--platinum)] outline-none [&>option]:bg-[var(--surface-2)] [&>option]:text-[var(--platinum)]";
+
+function McSelect({
+  label,
+  value,
+  onChange,
+  ariaLabel,
+  dense = false,
+  selectClassName = "",
+  children,
+}: {
+  label?: string;
+  value: string | number;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  dense?: boolean;
+  selectClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label
+      className={`flex items-center gap-2 border border-[var(--border-mid)] transition-colors focus-within:border-[var(--gold-dim)] ${
+        dense ? "h-[26px] px-1.5" : "h-[34px] px-2"
+      }`}
+    >
+      {label && (
+        <span className="whitespace-nowrap text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+          {label}
+        </span>
+      )}
+      <span className="relative flex min-w-0 items-center">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={ariaLabel ?? label}
+          className={`${MC_SELECT} ${dense ? "text-[11px]" : "text-[12px]"} ${selectClassName}`}
+        >
+          {children}
+        </select>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 text-[8px] leading-none text-[var(--muted)]"
+        >
+          ▼
+        </span>
+      </span>
+    </label>
+  );
+}
 
 function defaultColumns(): ColumnsState {
   return {
@@ -219,6 +304,50 @@ function reconcileOrder(stored: string[]): string[] {
   const kept = stored.filter((k) => known.includes(k));
   const missing = known.filter((k) => !kept.includes(k));
   return [...kept, ...missing];
+}
+
+/* The arrangement a saved preset actually becomes when restored — defaults
+   underneath, the preset over them, columns reconciled against the columns
+   that exist today. ONE definition, used both to apply a preset and to ask
+   whether the working view is still that preset; if those two ever answered
+   differently, a restored view would instantly stop calling itself by name. */
+function reconcileSavedView(sv: SavedView, defaultPer: number): ViewState {
+  return {
+    ...defaultViewState(defaultPer),
+    ...sv.state,
+    columns: {
+      order: reconcileOrder(sv.state.columns?.order ?? []),
+      hidden: (sv.state.columns?.hidden ?? []).filter((k) =>
+        DETAIL_COLUMNS.some((c) => c.key === k)
+      ),
+      widths: sv.state.columns?.widths ?? {},
+    },
+  };
+}
+
+/* Order-independent identity of an arrangement. An array, not the object, so
+   two views built by different spread paths cannot compare unequal purely
+   because their keys were written in a different order. */
+function viewFingerprint(v: ViewState): string {
+  return JSON.stringify([
+    v.mode,
+    v.life,
+    v.status,
+    v.q,
+    v.seller,
+    v.new24h,
+    v.dealer,
+    v.requests,
+    v.attention,
+    v.sort,
+    v.per,
+    v.columns.order.join(","),
+    [...v.columns.hidden].sort().join(","),
+    Object.keys(v.columns.widths)
+      .sort()
+      .map((k) => `${k}:${v.columns.widths[k]}`)
+      .join(","),
+  ]);
 }
 
 /* ── Small shared bits ─────────────────────────────────────────────────── */
@@ -461,7 +590,13 @@ function BulkDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4">
+    /* data-mc-keep: the room's neutral-click dismissal must not reach through
+       an open confirmation. The dialog keeps its own explicit close controls
+       — a destructive confirmation is not something a stray click puts down. */
+    <div
+      data-mc-keep
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4"
+    >
       <div className="max-h-[85vh] w-full max-w-[560px] overflow-y-auto border border-[var(--border-mid)] bg-[var(--surface)] p-6">
         <div className="text-[10px] uppercase tracking-[2.5px] text-[var(--gold-dim)]">
           {op === "delete" ? "Permanent Delete" : "Take Off Market"}
@@ -649,6 +784,11 @@ export default function MarketplaceControl({
      act and is reversible without resetting any room state. */
   const [selected, setSelected] = useState<McRow | null>(null);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  /* Provenance of the current arrangement, NOT a mode. It names the preset
+     the working view was last restored from; whether that name still holds
+     is derived below. There is no "inside a saved view" state to leave and
+     no exit ceremony — the label simply stops being true. */
+  const [appliedFrom, setAppliedFrom] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -667,6 +807,22 @@ export default function MarketplaceControl({
   const set = useCallback(<K extends keyof ViewState>(key: K, value: ViewState[K]) => {
     setView((v) => ({ ...v, [key]: value }));
   }, []);
+
+  /* Derived, not tracked. appliedFrom records which preset the arrangement
+     was last restored from; whether that name is still TRUE is answered by
+     comparing the two arrangements on every render. Deriving it rather than
+     clearing it in an effect buys real behavior: change a control and the
+     name goes, change it back and the name returns, because the question is
+     always "is this still that preset?" and never "has something happened
+     since?". Nothing to keep in sync, nothing to forget to clear. */
+  const appliedView = useMemo(() => {
+    if (!appliedFrom) return null;
+    const sv = savedViews.find((s) => s.name === appliedFrom);
+    if (!sv) return null;
+    return viewFingerprint(reconcileSavedView(sv, initialPer)) === viewFingerprint(view)
+      ? appliedFrom
+      : null;
+  }, [appliedFrom, savedViews, view, initialPer]);
 
   /* q debounce — typing never spams the server. */
   useEffect(() => {
@@ -720,13 +876,22 @@ export default function MarketplaceControl({
       if (!res.ok) throw new Error(data?.detail ?? "Read failed.");
       if (seq === fetchSeq.current) {
         setPayload(data as McPayload);
-        /* Sticky, never automatic: an existing selection survives a filter
-           change (context preserved), but the room NEVER selects a listing
-           on its own — unselected stays unselected. */
+        /* Sticky within context, never automatic, never a ghost. The
+           selection survives a filter/sort/page change while the listing is
+           still part of what this result actually contains — and is dropped
+           the moment it is not. The old `?? sel` fallback kept the previous
+           row object alive, so the inspector could describe a listing the
+           ledger beneath it no longer held. The exact-identifier row counts
+           as present even when it sits outside the active filters: the
+           payload returns it deliberately (Exact Identifier Search Law), so
+           it is part of this context, not a leftover from the last one. */
         setSelected((sel) => {
           if (!sel) return null;
-          const rows = (data as McPayload).rows;
-          return rows.find((r) => r.id === sel.id) ?? sel;
+          const next = data as McPayload;
+          const fresh = next.rows.find((r) => r.id === sel.id);
+          if (fresh) return fresh;
+          if (next.exact && next.exact.id === sel.id) return next.exact;
+          return null;
         });
       }
     } catch (e) {
@@ -843,12 +1008,21 @@ export default function MarketplaceControl({
     );
   }
 
-  function moveColumn(key: string, dir: -1 | 1) {
+  /* Reorder acts on what the founder can actually SEE. The stored order
+     array holds all eighteen columns including the hidden ones, so swapping
+     blindly with the immediate neighbour could swap a column against a
+     hidden entry and change nothing on screen — press, no movement, press
+     again, still nothing. That is most of why this control read as fiddly.
+     Skip to the next VISIBLE neighbour instead: one press, one visible move,
+     every time. Hidden entries keep their slots and are simply passed over. */
+  function moveVisibleColumn(key: string, dir: -1 | 1) {
     setView((v) => {
       const order = [...v.columns.order];
       const i = order.indexOf(key);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= order.length) return v;
+      if (i < 0) return v;
+      let j = i + dir;
+      while (j >= 0 && j < order.length && v.columns.hidden.includes(order[j])) j += dir;
+      if (j < 0 || j >= order.length) return v;
       [order[i], order[j]] = [order[j], order[i]];
       return { ...v, columns: { ...v.columns, order } };
     });
@@ -864,24 +1038,21 @@ export default function MarketplaceControl({
   }
 
   /* ── Saved views ─────────────────────────────────────────────────────── */
+  /* Applying a preset RESTORES it as the live working view. It does not put
+     the room into a mode: the very next control change is ordinary, and the
+     only thing that happens is the preset's name stops being displayed. */
   function applySavedView(name: string) {
     const sv = savedViews.find((s) => s.name === name);
     if (!sv) return;
     // A saved view's captured page size is an explicit choice being restored.
     if (typeof sv.state.per === "number") setPerExplicit(true);
-    setView({
-      ...defaultViewState(initialPer),
-      ...sv.state,
-      columns: {
-        order: reconcileOrder(sv.state.columns?.order ?? []),
-        hidden: (sv.state.columns?.hidden ?? []).filter((k) =>
-          DETAIL_COLUMNS.some((c) => c.key === k)
-        ),
-        widths: sv.state.columns?.widths ?? {},
-      },
-    });
+    setAppliedFrom(name);
+    setView(reconcileSavedView(sv, initialPer));
     setQInput(sv.state.q ?? "");
     setPage(1);
+    /* Restoring an arrangement is not the same as reopening the panel used
+       to build it: configuration starts closed and deliberate. */
+    setColumnsOpen(false);
   }
 
   function saveCurrentView() {
@@ -891,15 +1062,26 @@ export default function MarketplaceControl({
       const rest = views.filter((v) => v.name !== name);
       return [...rest, { name, state: view }].slice(-MAX_SAVED_VIEWS);
     });
+    /* The arrangement on screen now genuinely IS this preset, so it is named
+       as such — until the next control change makes it the founder's own. */
+    setAppliedFrom(name);
     setSaveName("");
     setSaveOpen(false);
   }
 
+  /* Back to the FairWatchTrade baseline arrangement. It resets how the room
+     is ARRANGED and nothing else: saved views are presentation state the
+     founder deliberately named, and Reset has never had any business
+     deleting them. Selection is not special-cased here — the refetch that
+     follows drops it if the default view no longer contains it, which is the
+     same context law every other filter change obeys. */
   function resetToDefault() {
     setView(defaultViewState(initialPer));
     setPerExplicit(false);
     setQInput("");
     setPage(1);
+    setAppliedFrom(null);
+    setColumnsOpen(false);
   }
 
   /* ── Single-listing governed actions (inspector) ─────────────────────── */
@@ -1057,10 +1239,67 @@ export default function MarketplaceControl({
     if (stacked && wasId) requestAnimationFrame(() => scrollToSelectedRow(wasId));
   }
 
+  /* ── Putting a transient surface down ──────────────────────────────────
+     Two ways out of a selection or an open configuration panel, neither of
+     which disturbs a single piece of working state: a click on genuinely
+     neutral workspace, and Escape. Both are additions — the inspector × is
+     untouched and still the explicit control.
+
+     "Neutral" is defined by exclusion, and the exclusion list is the safety
+     property: anything a founder could be aiming at keeps its click. Rows
+     (they select), every control, every label, the inspector itself, and the
+     bulk confirmation dialog all opt out via MC_INTERACTIVE. What is left is
+     background — padding, the head, the metrics strip, the empty run below
+     the last row. A click there means "nothing", and nothing is exactly what
+     the room then shows.
+
+     Deliberately NOT reset by either path: search, filters, sort, lifecycle,
+     page, page size, saved views. Putting the inspector down is not a way of
+     starting over. */
+  function dismissOnNeutral(e: ReactMouseEvent) {
+    if (e.button !== 0 || bulk) return;
+    if (!selected && !columnsOpen) return;
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest(MC_INTERACTIVE)) return;
+    /* A click that ends a text drag is a selection gesture, not a dismissal. */
+    if ((window.getSelection()?.toString().length ?? 0) > 0) return;
+    setColumnsOpen(false);
+    setSelected(null);
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      /* The destructive confirmation owns the keyboard while it is open —
+         this room does not reach around an open dialog. */
+      if (bulk) return;
+      if (saveOpen) {
+        setSaveOpen(false);
+        setSaveName("");
+        return;
+      }
+      if (columnsOpen) {
+        setColumnsOpen(false);
+        return;
+      }
+      if (selected) clearSelection();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clearSelection is stable within a render pass
+  }, [bulk, saveOpen, columnsOpen, selected]);
+
   const exact = payload.exact;
 
   return (
-    <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
+    /* The neutral-click dismissal listens at the room's outer edge so every
+       piece of background is covered by one handler instead of a scatter of
+       overlay divs. Escape is its keyboard equivalent (see the effect above),
+       which is why this is a plain listener and not a control. */
+    <main
+      className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]"
+      onClick={dismissOnNeutral}
+    >
       {/* Pre-list runway compression (mobile correction order): on a phone
           the ledger's first row must arrive fast — the head keeps its
           identity but sheds the explainer prose and one padding notch, and
@@ -1216,43 +1455,38 @@ export default function MarketplaceControl({
             <div
               className={`${filtersOpen ? "flex" : "hidden"} w-full flex-wrap items-center gap-2.5 @min-[740px]:contents`}
             >
-            <label className="flex h-[34px] items-center gap-2 border border-[var(--border-mid)] px-2">
-              <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">Status</span>
-              <select
-                value={view.status ?? ""}
-                onChange={(e) => {
-                  set("status", e.target.value || null);
-                  setPage(1);
-                }}
-                className="bg-transparent text-[12px] text-[var(--platinum)] outline-none"
-              >
-                <option value="">All {LIFE_META[view.life].name.toLowerCase()}</option>
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {adminLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <McSelect
+              label="Status"
+              value={view.status ?? ""}
+              onChange={(v) => {
+                set("status", v || null);
+                setPage(1);
+              }}
+            >
+              <option value="">All {LIFE_META[view.life].name.toLowerCase()}</option>
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {adminLabel(s)}
+                </option>
+              ))}
+            </McSelect>
 
-            <label className="flex h-[34px] items-center gap-2 border border-[var(--border-mid)] px-2">
-              <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">Seller</span>
-              <select
-                value={view.seller ?? ""}
-                onChange={(e) => {
-                  set("seller", e.target.value || null);
-                  setPage(1);
-                }}
-                className="max-w-[160px] bg-transparent text-[12px] text-[var(--platinum)] outline-none"
-              >
-                <option value="">All sellers</option>
-                {payload.sellers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <McSelect
+              label="Seller"
+              value={view.seller ?? ""}
+              onChange={(v) => {
+                set("seller", v || null);
+                setPage(1);
+              }}
+              selectClassName="max-w-[160px] truncate"
+            >
+              <option value="">All sellers</option>
+              {payload.sellers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </McSelect>
 
             <button
               type="button"
@@ -1277,7 +1511,15 @@ export default function MarketplaceControl({
                   key={m}
                   type="button"
                   aria-pressed={view.mode === m}
-                  onClick={() => set("mode", m)}
+                  onClick={() => {
+                    set("mode", m);
+                    /* Configuration belongs to the view it configures.
+                       Leaving Detailed closes Columns, so returning later
+                       cannot resurrect a panel the founder never reopened —
+                       the trap he hit. The other two paths that change mode
+                       (applying a saved view, Reset) close it as well. */
+                    if (m !== "detailed") setColumnsOpen(false);
+                  }}
                   className={`h-[32px] px-3 text-[11px] uppercase tracking-[1.5px] ${
                     view.mode === m
                       ? "bg-[var(--gold-whisper)] text-[var(--gold)]"
@@ -1342,23 +1584,61 @@ export default function MarketplaceControl({
             )}
 
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              {savedViews.length > 0 && (
-                <label className="flex items-center gap-1.5">
-                  <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">Views</span>
-                  <select
-                    value=""
-                    onChange={(e) => e.target.value && applySavedView(e.target.value)}
-                    className="border border-[var(--border-faint)] bg-transparent px-1.5 py-1 text-[11px] text-[var(--platinum)]"
+              {/* The one place the current / preset / default relationship is
+                  made visible. The control shows the preset the arrangement
+                  was last restored from, and shows "Current arrangement" the
+                  moment any control moves — which is the whole mental model
+                  stated by the interface instead of explained in a manual:
+                  a preset is somewhere you came FROM, never a mode you are
+                  IN, so there is nothing to exit. The help carries the rest,
+                  including the one thing a founder cannot see and might
+                  reasonably fear — that Reset does not delete his views. */}
+              {/* relative: HelpBubble renders its trigger and its bubble as
+                  SIBLINGS, so the bubble anchors to THIS element, not to the
+                  trigger. Without it the bubble escapes to the nearest
+                  positioned ancestor and lands somewhere else entirely. */}
+              <span data-mc-keep className="relative flex items-center gap-1.5">
+                {savedViews.length > 0 && (
+                  <McSelect
+                    label="Views"
+                    ariaLabel="Apply a saved view"
+                    dense
+                    value={appliedView ?? ""}
+                    onChange={(v) => v && applySavedView(v)}
+                    selectClassName="max-w-[150px] truncate"
                   >
-                    <option value="">Apply…</option>
+                    <option value="">Current arrangement</option>
                     {savedViews.map((sv) => (
                       <option key={sv.name} value={sv.name}>
                         {sv.name}
                       </option>
                     ))}
-                  </select>
-                </label>
-              )}
+                  </McSelect>
+                )}
+                <HelpBubble
+                  label="Saved views help"
+                  historyKey="mc-views-help"
+                  title="Views"
+                  caretTracksTrigger
+                  bubbleClassName="right-0 top-[26px] w-[min(300px,calc(100vw-32px))]"
+                >
+                  <p>
+                    This room remembers where you left it on its own — the arrangement
+                    you were last using comes back with you. There is nothing you have
+                    to save to keep it.
+                  </p>
+                  <p className="mt-2">
+                    A saved view is an optional named preset. Applying one restores that
+                    arrangement as your live working view; change any control afterward
+                    and it is simply yours again. You are never <em>inside</em> a saved
+                    view, so there is nothing to leave.
+                  </p>
+                  <p className="mt-2">
+                    <strong>Reset to FWT Default</strong> returns the room to the
+                    FairWatchTrade baseline arrangement. It never deletes a saved view.
+                  </p>
+                </HelpBubble>
+              </span>
               {saveOpen ? (
                 <span className="flex items-center gap-1.5">
                   <input
@@ -1414,50 +1694,104 @@ export default function MarketplaceControl({
             </div>
           </div>
 
-          {/* Column manager (Detailed) */}
+          {/* ── Column configuration (Detailed) ──────────────────────────
+              A temporary adjustment surface, not a second product. It is
+              therefore easy to put down — Done, Escape, or a click on
+              neutral workspace — and it never survives leaving Detailed.
+
+              Show and Order are separated because they are separate
+              behaviors (sorting is a third, and lives on the table headers
+              where the founder is already looking). Conflating them into one
+              eighteen-row grid of checkbox + ↑ + ↓ is what made ordinary
+              table setup feel like operating a small application: the grid
+              wrapped, so "up" pointed at a column that was visually to the
+              left, and the arrows moved entries against hidden columns and
+              appeared to do nothing. Show is now a plain scan of what
+              exists; Order is a short strip of only what is in the table,
+              reading left-to-right exactly as the table reads. */}
           {view.mode === "detailed" && columnsOpen && (
-            <div className="border-b border-[var(--border-faint)] px-3 py-3">
-              <div className="mb-2 text-[10px] uppercase tracking-[2px] text-[var(--muted)]">
-                Detailed columns — show, hide, reorder
+            <div
+              data-mc-keep
+              className="border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3.5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                  Detailed columns
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setColumnsOpen(false)}
+                  className="border border-[var(--border-mid)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)]"
+                >
+                  Done
+                </button>
               </div>
-              <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                {view.columns.order.map((key, i) => {
-                  const col = DETAIL_COLUMNS.find((c) => c.key === key);
-                  if (!col) return null;
-                  const hidden = view.columns.hidden.includes(key);
-                  return (
-                    <li key={key} className="flex items-center gap-2 text-[12px]">
-                      <input
-                        id={`col-${key}`}
-                        type="checkbox"
-                        checked={!hidden}
-                        onChange={() => toggleColumn(key)}
-                      />
-                      <label htmlFor={`col-${key}`} className="flex-1 text-[var(--platinum-dim)]">
-                        {col.label}
-                      </label>
+
+              <div className="mt-3 text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                Show
+              </div>
+              <ul className="mt-1.5 grid grid-cols-2 gap-x-5 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
+                {DETAIL_COLUMNS.map((col) => (
+                  <li key={col.key} className="flex items-center gap-2 text-[12px]">
+                    <input
+                      id={`col-${col.key}`}
+                      type="checkbox"
+                      checked={!view.columns.hidden.includes(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="accent-[var(--gold)]"
+                    />
+                    <label
+                      htmlFor={`col-${col.key}`}
+                      className="flex-1 cursor-pointer text-[var(--platinum-dim)]"
+                    >
+                      {col.label}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                  Order
+                </span>
+                <span className="text-[10px] text-[var(--muted)]">
+                  left to right, as the table reads
+                </span>
+              </div>
+              {visibleColumns.length === 0 ? (
+                <div className="mt-1.5 text-[11px] italic text-[var(--muted)]">
+                  Every column is hidden — the table shows the listing alone.
+                </div>
+              ) : (
+                <ol className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {visibleColumns.map((col, i) => (
+                    <li
+                      key={col.key}
+                      className="flex items-center gap-0.5 border border-[var(--border-faint)] py-0.5 pl-2.5 pr-0.5 text-[11px] text-[var(--platinum-dim)]"
+                    >
+                      <span className="mr-1">{col.label}</span>
                       <button
                         type="button"
-                        aria-label={`Move ${col.label} earlier`}
-                        onClick={() => moveColumn(key, -1)}
+                        aria-label={`Move ${col.label} left`}
+                        onClick={() => moveVisibleColumn(col.key, -1)}
                         disabled={i === 0}
-                        className="border border-[var(--border-faint)] px-1.5 text-[11px] text-[var(--muted)] disabled:opacity-30"
+                        className="px-1.5 text-[12px] leading-none text-[var(--muted)] transition-colors hover:text-[var(--platinum)] disabled:opacity-25 disabled:hover:text-[var(--muted)]"
                       >
-                        ↑
+                        ‹
                       </button>
                       <button
                         type="button"
-                        aria-label={`Move ${col.label} later`}
-                        onClick={() => moveColumn(key, 1)}
-                        disabled={i === view.columns.order.length - 1}
-                        className="border border-[var(--border-faint)] px-1.5 text-[11px] text-[var(--muted)] disabled:opacity-30"
+                        aria-label={`Move ${col.label} right`}
+                        onClick={() => moveVisibleColumn(col.key, 1)}
+                        disabled={i === visibleColumns.length - 1}
+                        className="px-1.5 text-[12px] leading-none text-[var(--muted)] transition-colors hover:text-[var(--platinum)] disabled:opacity-25 disabled:hover:text-[var(--muted)]"
                       >
-                        ↓
+                        ›
                       </button>
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ol>
+              )}
             </div>
           )}
 
@@ -1600,18 +1934,27 @@ export default function MarketplaceControl({
                 </div>
               </div>
 
-              {/* Persistent inspector — opaque overlay, upper-right. The
-                  explicit background is load-bearing: a transparent pane
+              {/* Selected-listing inspector — opaque overlay, upper-right.
+                  The explicit background is load-bearing: a transparent pane
                   let underlying row cells ghost through (the Human SEE-it
-                  defect). Narrow containers: static, stacks below the list —
-                  and when nothing is selected it is absent entirely (the
-                  completely unselected state), so the phone ledger carries
-                  no orphan placeholder band. */}
-              <aside
-                ref={asideRef}
-                className={`${selected ? "" : "hidden @min-[1050px]:block"} border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg`}
-              >
-                {selected ? (
+                  defect). Narrow containers: static, stacks below the list.
+
+                  NO SELECTION = NO INSPECTOR SURFACE, at every width. The
+                  pane does not exist unless a listing is selected — it is
+                  not an empty frame holding an instruction. The phone lost
+                  its placeholder band in the mobile correction; the desktop
+                  kept a centered "Select a listing to inspect it here." in
+                  an otherwise empty overlay, which is the same orphan one
+                  breakpoint up. Removing it costs the ledger nothing: the
+                  pane is absolutely positioned, so rows already run the full
+                  workspace width beneath it (the flow law) — what leaves is
+                  a floating empty box, not a column. */}
+              {selected && (
+                <aside
+                  ref={asideRef}
+                  data-mc-keep
+                  className="border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg"
+                >
                   <div className="p-4">
                     {/* The round trip's return half: Back to list rides the
                         stacked inspector home to the exact selected row
@@ -1756,12 +2099,8 @@ export default function MarketplaceControl({
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="p-6 text-center font-display text-[12px] italic text-[var(--muted)]">
-                    Select a listing to inspect it here.
-                  </div>
-                )}
-              </aside>
+                </aside>
+              )}
             </div>
           ) : (
             /* ── DETAILED: operator-configurable audit table ─────────────── */
@@ -1926,24 +2265,23 @@ export default function MarketplaceControl({
                 ›
               </button>
             </div>
-            <label className="flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
-              Rows
-              <select
-                value={view.per}
-                onChange={(e) => {
-                  setPerExplicit(true);
-                  set("per", Number(e.target.value));
-                  setPage(1);
-                }}
-                className="border border-[var(--border-mid)] bg-transparent px-1.5 py-1 text-[11px] text-[var(--platinum)]"
-              >
-                {PER_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <McSelect
+              label="Rows"
+              ariaLabel="Rows per page"
+              dense
+              value={view.per}
+              onChange={(v) => {
+                setPerExplicit(true);
+                set("per", Number(v));
+                setPage(1);
+              }}
+            >
+              {PER_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </McSelect>
           </div>
         </section>
 
@@ -1963,23 +2301,20 @@ export default function MarketplaceControl({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="flex h-[34px] items-center gap-2 border border-[var(--border-mid)] px-2">
-                <span className="text-[9px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                  Seller
-                </span>
-                <select
-                  value={bulkSeller}
-                  onChange={(e) => setBulkSeller(e.target.value)}
-                  className="max-w-[180px] bg-transparent text-[12px] text-[var(--platinum)] outline-none"
-                >
-                  <option value="">Choose…</option>
-                  {payload.sellers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <McSelect
+                label="Seller"
+                ariaLabel="Seller for bulk operation"
+                value={bulkSeller}
+                onChange={setBulkSeller}
+                selectClassName="max-w-[180px] truncate"
+              >
+                <option value="">Choose…</option>
+                {payload.sellers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </McSelect>
               <button
                 type="button"
                 disabled={bulkLoading}
