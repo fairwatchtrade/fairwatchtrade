@@ -1278,6 +1278,15 @@ export default function MarketplaceControl({
         setSaveName("");
         return;
       }
+      /* Escape inside a text field belongs to that field. A founder mid-query
+         who presses it means "never mind, this text" — losing the inspector
+         selection instead would be exactly the accidental control loss this
+         pair of exits exists to avoid. */
+      const el = document.activeElement;
+      const typing =
+        (el instanceof HTMLInputElement && el.type !== "checkbox") ||
+        el instanceof HTMLTextAreaElement;
+      if (typing) return;
       if (columnsOpen) {
         setColumnsOpen(false);
         return;
