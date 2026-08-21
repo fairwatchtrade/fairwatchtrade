@@ -991,32 +991,45 @@ export default function MarketplaceControl({
      metadata columns were never crowded; they were simply never given any
      of the extra room.
 
-     Giving Listing a real width hands the surplus back, and each visible
-     metadata column takes an EQUAL share of it. Equal, not proportional to
-     base, for two reasons: a 60px "AI" column scaled proportionally becomes
-     a 190px column holding a tick, and — the load-bearing one — drag-resize
-     still tracks the cursor. Under proportional scaling a 50px drag moves
-     the boundary ~150px and the column runs away from the pointer; under an
-     equal share it moves ~44px.
+     Giving Listing a FIXED width hands the surplus back, and each metadata
+     column claims a proportional slice of whatever remains. Both halves of
+     that are load-bearing, and both were measured rather than assumed:
 
-     Narrow behavior is untouched BY CONSTRUCTION: max(0px, …) means there is
-     no share to hand out once the bases no longer fit, every column falls
-     back to exactly its base width, and the table overflows into the
-     existing horizontal scroll as before. The widths resolve against the
-     table's own box in CSS, so there is no measurement, no resize observer,
-     and nothing to re-run on a window drag. */
-  const detailBaseTotal =
-    LISTING_COL_BASE + visibleColumns.reduce((n, c) => n + colWidth(c.key), 0);
-  const detailShare =
-    visibleColumns.length > 0
-      ? `max(0px, (100% - ${detailBaseTotal}px) / ${visibleColumns.length})`
-      : "0px";
+     · The slice must be expressed as a PERCENTAGE of the leftover, not as
+       base+extra in pixels. A table in auto layout treats plain pixel widths
+       as mere ratios once there is surplus and rescales every column
+       including Listing — measured at 2750px, plain widths put Listing back
+       at 843px. A percentage-based column claims its width against the table
+       box, which is what actually pins Listing at its 340.
+     · The distribution is proportional to base, so the column hierarchy
+       survives: Seller stays the widest, AI the narrowest, instead of every
+       column converging on one uniform width.
 
-  /* Base + its share of whatever the monitor has spare. minWidth stays the
-     base, so the share can only ever ADD room, never take any. */
+     Measured at a 2750px table (a maximized 4K window): Listing 340, Seller
+     439, Status 376, Price 345, Year/Compl/Signif 238, AI 188, Created 345,
+     with zero gap after Listing.
+
+     ⚠ The cost, stated plainly: drag-resize is amplified at wide widths. The
+     handle sets a column's BASE, and the base is scaled by
+     (leftover / Σbase) — about 3.1× on a maximized 4K window — so a 50px
+     drag moves the boundary roughly 150px. A zero-delta grab still moves
+     nothing, so nothing jumps on mousedown; the edge simply outruns the
+     pointer. That is the price of filling the width, and filling the width
+     is what was asked for.
+
+     Narrow behavior is untouched BY CONSTRUCTION: minWidth holds every
+     column at its base, the percentages can only ever hand out room that
+     exists, and once the bases no longer fit the table overflows into the
+     existing horizontal scroll exactly as before. Verified live at 900px —
+     all columns at base, scrolling restored. It is pure CSS against the
+     table's own box: no measurement, no resize observer, nothing to re-run
+     on a window drag. */
+  const detailMetaBase = visibleColumns.reduce((n, c) => n + colWidth(c.key), 0);
+
   function detailColStyle(key: string): CSSProperties {
+    const slice = detailMetaBase > 0 ? colWidth(key) / detailMetaBase : 0;
     return {
-      width: `calc(${colWidth(key)}px + ${detailShare})`,
+      width: `calc((100% - ${LISTING_COL_BASE}px) * ${slice.toFixed(5)})`,
       minWidth: colWidth(key),
     };
   }
