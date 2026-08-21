@@ -52,9 +52,19 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || user.id !== ADMIN_USER_ID) {
-    redirect("/");
-  }
+  /* ⚠⚠ TEMPORARY REVIEW WINDOW — 2026-08-20. DISPOSABLE. RESTORE ON CLOSE.
+     The founder gate below is deliberately suspended for a short external
+     design review of this room, by explicit founder authorization. It is the
+     ONLY suspended gate on the page. Nothing else was widened: the bulk
+     route, the prefs route, /admin/listings/[id], every other /api/admin/*
+     route and every RLS policy are untouched and still founder-only.
+
+     RESTORE BY DELETING THIS COMMENT AND UNCOMMENTING:
+       if (!user || user.id !== ADMIN_USER_ID) {
+         redirect("/");
+       }
+     ⚠⚠ */
+  const isFounder = !!user && user.id === ADMIN_USER_ID;
 
   /* Presentation preferences are the founder's own row (RLS-own table);
      the session client reads them. Absent row → defaults. Read BEFORE the
@@ -65,7 +75,9 @@ export default async function AdminPage() {
     const { data } = await supabase
       .from("admin_view_preferences")
       .select("prefs")
-      .eq("user_id", user.id)
+      /* Review window: a non-founder viewer matches no row, so the room
+         opens on defaults and the founder's saved views stay private. */
+      .eq("user_id", isFounder && user ? user.id : "00000000-0000-0000-0000-000000000000")
       .maybeSingle();
     if (data?.prefs && typeof data.prefs === "object") prefs = data.prefs as McPrefs;
   } catch {
