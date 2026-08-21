@@ -178,6 +178,27 @@ html[data-theme="dark"] { color-scheme: dark; }
   --danger:       light-dark(#A03B33, #E07070);  /* deep restrained red, not candy */
   --success:      light-dark(#2E7D4F, #70C090);  /* deep muted green, not emerald */
 
+  /* ── DAYLIGHT COOL ACCENT (Design Gate 2026-08-21) ──
+     "Browse is object-led. Workspaces are interface-led.
+      Warm room. Cool accent. Rare enough to matter."
+
+     A single mineral blue, the one cool note in an otherwise warm palette.
+     It exists to mark INTERFACE STATE — which row is selected, which filter
+     is active, which labels are merely informational — so that gold can go
+     back to meaning identity and value rather than doing both jobs at once.
+
+     Rarity is the whole point and is enforced by USE, not by CSS: this
+     token has exactly three sanctioned placements, all inside the
+     Communications room, and expansion to any other surface waits on a
+     human visual acceptance that has not happened yet. Before reaching for
+     it anywhere else, check that decision has actually been made.
+
+     The dark arm is a lightened mineral, not the same hex: #3B5360 is a
+     deep blue chosen against warm ivory and would sink into the night ink
+     to the point of vanishing. Both arms are one token — deliberately no
+     -light/-dark variants, no derived shades. */
+  --mineral:      light-dark(#3B5360, #7FA3B8);
+
   /* ── BORDER TOKENS ──
      Light borders carry more of the surface-definition job (luminance
      separation alone weakens on paper), so the light arms are warm

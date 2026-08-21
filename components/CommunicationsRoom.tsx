@@ -135,6 +135,22 @@ const FOLDER_EMPTY: Record<CommFolder, string> = {
   archived: "No archived correspondence.",
 };
 
+/* ── Informational eyebrow (Cool Accent Design Gate 2026-08-21) ──
+   The small caps labels that name a FACT rather than assert identity or
+   value: Requester, Offer, Asking, Status, and the note-with-offer line.
+   They carry the mineral accent so gold is left holding the things that
+   are genuinely about identity — the Purchase Request kicker and You,
+   both of which deliberately keep their gold and are NOT written with
+   this class.
+
+   One constant rather than the same string repeated at each label, so the
+   sanctioned set is countable in one place: an eyebrow is mineral because
+   it was added here, never because someone matched a nearby class. Note
+   that the Archive control shares these exact type metrics while staying
+   neutral — buttons are protected scope — which is precisely the reason
+   this is a named constant and not a search-and-replace target. */
+const INFO_EYEBROW = "text-[11px] uppercase tracking-[1.2px] text-[var(--mineral)]";
+
 export default function CommunicationsRoom({
   module,
   threads,
@@ -608,11 +624,21 @@ export default function CommunicationsRoom({
                   type="button"
                   onClick={() => chooseFolder(f)}
                   aria-current={active ? "true" : undefined}
-                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-[7px] text-[12px] transition md:w-full ${
+                  /* Active filter = a 2px mineral underline (Cool Accent
+                     Design Gate 2026-08-21). It replaces the gold left rule
+                     that marked this before: the marker is interface state,
+                     not identity, so it hands the job to the cool accent and
+                     gives gold back to the things that are actually about
+                     value. The border is always present and merely loses its
+                     colour when inactive, so switching filters cannot shift
+                     the stack by two pixels. Unlike the old rule it is not
+                     md-gated — the narrow horizontal filter strip reads as a
+                     tab bar, which is exactly what an underline is for. */
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-[7px] text-[12px] transition md:w-full ${
                     active
-                      ? "bg-[var(--hover-wash)] text-[var(--platinum)]"
-                      : "text-[var(--slate)] hover:text-[var(--platinum)]"
-                  } md:border-l-2 ${active ? "md:border-[var(--gold)]" : "md:border-transparent"}`}
+                      ? "border-[var(--mineral)] bg-[var(--hover-wash)] text-[var(--platinum)]"
+                      : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
+                  }`}
                 >
                   <span>{FOLDER_LABEL[f]}</span>
                   <span
@@ -681,7 +707,7 @@ export default function CommunicationsRoom({
                       aria-current={isActive ? "true" : undefined}
                       className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
                         isActive
-                          ? "bg-[var(--hover-wash)] shadow-[inset_2px_0_0_0_var(--gold)]"
+                          ? "bg-[var(--hover-wash)] shadow-[inset_3px_0_0_0_var(--mineral)]"
                           : "hover:bg-[var(--hover-wash)]"
                       }`}
                     >
@@ -742,7 +768,7 @@ export default function CommunicationsRoom({
                     aria-current={isActive ? "true" : undefined}
                     className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
                       isActive
-                        ? "bg-[var(--hover-wash)] shadow-[inset_2px_0_0_0_var(--gold)]"
+                        ? "bg-[var(--hover-wash)] shadow-[inset_3px_0_0_0_var(--mineral)]"
                         : "hover:bg-[var(--hover-wash)]"
                     }`}
                   >
@@ -902,7 +928,7 @@ export default function CommunicationsRoom({
                 <div className="shrink-0 border-b border-[var(--border-faint)] px-4 py-3">
                   <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
+                      <div className={INFO_EYEBROW}>
                         Requester
                       </div>
                       <div className="mt-[2px] truncate text-[13px] text-[var(--platinum-dim)]">
@@ -910,7 +936,7 @@ export default function CommunicationsRoom({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
+                      <div className={INFO_EYEBROW}>
                         Offer
                       </div>
                       <div className="mt-[2px] font-display text-[16px] font-light text-[var(--platinum)]">
@@ -921,7 +947,7 @@ export default function CommunicationsRoom({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
+                      <div className={INFO_EYEBROW}>
                         Asking
                       </div>
                       <div className="mt-[2px] font-display text-[16px] font-light text-[var(--platinum-dim)]">
@@ -932,7 +958,7 @@ export default function CommunicationsRoom({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">
+                      <div className={INFO_EYEBROW}>
                         Status
                       </div>
                       <div
@@ -1005,7 +1031,16 @@ export default function CommunicationsRoom({
                 {selected.kind === "request" && selected.request.notes && (
                   <div className="mb-4 max-w-[720px] border border-[var(--border-faint)] bg-[var(--surface-2)] px-3 py-2.5">
                     <div className="mb-1 flex items-baseline justify-between gap-4">
-                      <span className="text-[11px] uppercase tracking-[1.5px] text-[var(--slate)]">
+                      {/* Note with offer — the fifth sanctioned mineral
+                          eyebrow. Kept at its own 1.5px tracking rather than
+                          folded into INFO_EYEBROW: this label sits over a
+                          quoted note, not in the summary strip, and its
+                          metrics are shared with the message-sender line
+                          beside it. Only the colour is the accent's business.
+                          The requester's name rides inside the same label, so
+                          it takes the same colour — one eyebrow, one voice,
+                          rather than a two-tone label the gate never drew. */}
+                      <span className="text-[11px] uppercase tracking-[1.5px] text-[var(--mineral)]">
                         {requesterName(selected.request)} · Note with offer
                       </span>
                       <span className="text-[11px] text-[var(--muted)]">
