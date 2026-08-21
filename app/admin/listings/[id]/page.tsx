@@ -255,8 +255,14 @@ const C = {
   divider: "#23272f",
   text: "#C6CCD8",
   bright: "#E6E8EC",
-  muted: "#8b93a1",
-  faint: "#565f89",
+  /* Founder SEE-it 2026-08-21: the original dim tiers (#8b93a1 / #565f89)
+     failed the legibility floor on the founder's own monitor at full
+     brightness — #565f89 computes to ~2.8:1 on these panels, decorative
+     contrast carrying FUNCTIONAL sentences. Lifted to ~8:1 / ~5:1. The
+     hierarchy survives; the strain does not. Functional sentences use
+     muted or better; faint is for genuinely tertiary metadata only. */
+  muted: "#A4ACBB",
+  faint: "#8189A0",
   gold: "#E0A83C",
   green: "#70C090",
   red: "#DB8E88",
@@ -585,7 +591,7 @@ export default async function ListingReviewPage({
                 ))}
               </tbody>
             </table>
-            <p style={{ color: C.faint, fontSize: 12, marginTop: 12, lineHeight: 1.6 }}>
+            <p style={{ color: C.muted, fontSize: 12, marginTop: 12, lineHeight: 1.6 }}>
               The listing row no longer exists. This is the minimal deletion
               record, not an archive — durable history (completed sales,
               adjudication events, purchase requests) survives independently
@@ -656,12 +662,12 @@ export default async function ListingReviewPage({
               style={{ color: C.gold, textDecoration: "none" }}
             >
               Next in review queue: {nextPending.brand} {nextPending.model} →
-              <span style={{ color: C.faint, marginLeft: 8 }}>
+              <span style={{ color: C.muted, marginLeft: 8 }}>
                 ({pendingCount} waiting)
               </span>
             </Link>
           ) : (
-            <span style={{ color: C.faint }}>Review queue clear</span>
+            <span style={{ color: C.muted }}>Review queue clear</span>
           )}
         </div>
 
@@ -815,7 +821,7 @@ export default async function ListingReviewPage({
               )}
               {panelPhotos.length === 0 && <span>no photographs on record</span>}
             </div>
-            <div style={{ marginTop: 6, color: C.faint, fontSize: 12 }}>
+            <div style={{ marginTop: 6, color: C.muted, fontSize: 12 }}>
               Provider evidence is context, never the decision — in either direction.
               A clean record does not imply approval, and a finding does not imply
               guilt. Listings have been correctly rejected on a fully clean record.
@@ -874,7 +880,7 @@ export default async function ListingReviewPage({
         <div style={panel}>
           <div style={kicker}>Seller context</div>
           {!seller ? (
-            <div style={{ fontSize: 12, color: C.faint }}>
+            <div style={{ fontSize: 12, color: C.muted }}>
               No seller record could be loaded for this listing.
             </div>
           ) : (
@@ -905,7 +911,7 @@ export default async function ListingReviewPage({
                 Prior adverse decisions across this seller&rsquo;s listings
               </div>
               {seller.adverseHistory.length === 0 ? (
-                <div style={{ fontSize: 12, color: C.faint }}>
+                <div style={{ fontSize: 12, color: C.muted }}>
                   None recorded. (The decision log began 2026-08-07 — earlier decisions
                   have no rows and are reported as absent, not as clean.)
                 </div>
@@ -948,7 +954,7 @@ export default async function ListingReviewPage({
         <div style={panel}>
           <div style={kicker}>Decision history — this listing</div>
           {decisionEvents.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.faint }}>
+            <div style={{ fontSize: 12, color: C.muted }}>
               No decision events recorded. (The append-only log began 2026-08-07 —
               earlier decisions predate it and are reported as absent.)
             </div>
@@ -981,7 +987,7 @@ export default async function ListingReviewPage({
                       }}
                     >
                       {DECISION_LABEL[e.decision] ?? e.decision}
-                      <div style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>
+                      <div style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
                         {e.prior_status ?? "—"} → {e.resulting_status ?? "—"}
                       </div>
                     </td>
@@ -992,7 +998,7 @@ export default async function ListingReviewPage({
                           <span style={{ color: C.text }}>{e.seller_message}</span>&rdquo;
                         </span>
                       ) : (
-                        <span style={{ color: C.faint }}>No seller message (approval)</span>
+                        <span style={{ color: C.muted }}>No seller message (approval)</span>
                       )}
                     </td>
                   </tr>
@@ -1000,7 +1006,7 @@ export default async function ListingReviewPage({
               </tbody>
             </table>
           )}
-          <div style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 1.6 }}>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
             Append-only (listing_decision_events). The &ldquo;current review
             record&rdquo; in the strip above is the separate, mutable truth
             (listing_integrity_reviews) — the two are deliberately different systems
@@ -1058,7 +1064,7 @@ export default async function ListingReviewPage({
           <div style={subhead}>Purchase requests ({lifecycleRequests.length})</div>
 
           {lifecycleRequests.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.faint }}>
+            <div style={{ fontSize: 12, color: C.muted }}>
               No purchase request was ever made on this listing.
             </div>
           ) : (
@@ -1110,13 +1116,13 @@ export default async function ListingReviewPage({
           <div style={subhead}>Permanent-delete eligibility</div>
 
           {!deleteEligibility ? (
-            <div style={{ fontSize: 12, color: C.faint }}>
+            <div style={{ fontSize: 12, color: C.muted }}>
               Eligibility unavailable — the check did not answer.
             </div>
           ) : deleteEligibility.eligible_for_permanent_delete ? (
             <div style={{ fontSize: 13, color: C.green, lineHeight: 1.6 }}>
               Currently eligible for permanent deletion.
-              <div style={{ color: C.faint, fontSize: 12, marginTop: 4 }}>
+              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
                 Snapshot only — nothing is stored, and the purge stage must re-check
                 under its own lock before destroying anything.
               </div>
