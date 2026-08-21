@@ -585,7 +585,12 @@ const PANEL_CSS = `
 .aubrey-head{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
 .aubrey-kicker{color:var(--gold);font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:7px}
 .aubrey-title{font:400 24px/1.1 var(--display);color:var(--platinum);margin:0}
-.aubrey-intro{max-width:650px;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+/* Sitka Text proof (2026-08-21, bounded): this ONE narrative sentence is
+   named in the order. font-family only — size, line-height, colour and
+   spacing are the artifact's and are untouched. Local face, serif
+   fallback, no webfont asset. Nothing else in this panel changes: the
+   rows, labels and controls stay on the UI face by design. */
+.aubrey-intro{max-width:650px;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.6;font-family:"Sitka Text",Sitka,Georgia,Cambria,"Times New Roman",serif}
 .execution{text-align:right;flex-shrink:0}
 .execution-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
 .execution-value{font-size:11px;color:var(--platinum-dim)}

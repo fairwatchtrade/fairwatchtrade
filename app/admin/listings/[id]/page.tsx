@@ -269,6 +269,33 @@ const C = {
   link: "#7aa2f7",
 } as const;
 
+/* ── SITKA TEXT PROOF (bounded, reversible — 2026-08-21) ───────────────
+   A typography-only test: does a text face made for reading break the
+   wall-of-text feel of this room's truth-bearing prose, without tipping it
+   into something editorial or bookish?
+
+   PROSE is applied ONLY to founder-facing reasoning — full sentences that
+   carry truth and must be READ: the evidence-both-directions law, the
+   why-here explanations, lifecycle narrative, seller-context sentences, the
+   append-only explainer, empty states, and caveats.
+
+   It is deliberately NOT applied to buttons, tabs, status pills, eyebrows,
+   section labels, table values, action labels, queue counts, dates, or any
+   other chrome — those stay on the room's UI face, because the contrast
+   between the two is the entire point of the proof. If prose and controls
+   both changed, the test would prove nothing.
+
+   NOTHING ELSE MOVES: no size, no line-height, no spacing, no colour, no
+   layout. font-family is the only property this proof touches, which is
+   also what makes it reversible in one line.
+
+   Sitka Text ships with Windows and is requested as a LOCAL face — no
+   webfont asset, no network request, no licensing dependency. Any machine
+   without it falls through the stack to its own serif; the room degrades to
+   exactly what it looks like today. */
+const PROSE =
+  '"Sitka Text", Sitka, Georgia, Cambria, "Times New Roman", serif';
+
 const wrap: React.CSSProperties = {
   minHeight: "100vh",
   background: C.page,
@@ -525,7 +552,7 @@ export default async function ListingReviewPage({
         <Link href="/admin" style={{ color: C.link, textDecoration: "none" }}>
           ← Marketplace Control
         </Link>
-        <div style={{ marginTop: 16, color: "#e07070" }}>
+        <div style={{ marginTop: 16, color: "#e07070", fontFamily: PROSE }}>
           Admin read channel unavailable — the listing could not be loaded. This is a
           server configuration problem, not a missing listing.
         </div>
@@ -591,7 +618,7 @@ export default async function ListingReviewPage({
                 ))}
               </tbody>
             </table>
-            <p style={{ color: C.muted, fontSize: 12, marginTop: 12, lineHeight: 1.6 }}>
+            <p style={{ color: C.muted, fontSize: 12, marginTop: 12, lineHeight: 1.6, fontFamily: PROSE }}>
               The listing row no longer exists. This is the minimal deletion
               record, not an archive — durable history (completed sales,
               adjudication events, purchase requests) survives independently
@@ -775,7 +802,7 @@ export default async function ListingReviewPage({
             decision is human, in BOTH directions. */}
         <div style={panel}>
           <div style={kicker}>Why is it here</div>
-          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, fontFamily: PROSE }}>
             {currentStatus === "pending_review" ? (
               <div>
                 Submitted for review and awaiting a founder decision.
@@ -821,7 +848,7 @@ export default async function ListingReviewPage({
               )}
               {panelPhotos.length === 0 && <span>no photographs on record</span>}
             </div>
-            <div style={{ marginTop: 6, color: C.muted, fontSize: 12 }}>
+            <div style={{ marginTop: 6, color: C.muted, fontSize: 12, fontFamily: PROSE }}>
               Provider evidence is context, never the decision — in either direction.
               A clean record does not imply approval, and a finding does not imply
               guilt. Listings have been correctly rejected on a fully clean record.
@@ -835,7 +862,7 @@ export default async function ListingReviewPage({
         {(isPrivateIntended || currentStatus === "private_active") && (
           <div style={panel}>
             <div style={kicker}>Private listing seam</div>
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, fontFamily: PROSE }}>
               {currentStatus === "private_active" ? (
                 <>
                   This listing is <span style={{ color: C.green }}>private_active</span> —
@@ -880,11 +907,11 @@ export default async function ListingReviewPage({
         <div style={panel}>
           <div style={kicker}>Seller context</div>
           {!seller ? (
-            <div style={{ fontSize: 12, color: C.muted }}>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
               No seller record could be loaded for this listing.
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, fontFamily: PROSE }}>
               <div>
                 <span style={{ color: C.bright, fontWeight: 600 }}>{sellerName}</span>
                 {seller.memberSince && (
@@ -911,7 +938,7 @@ export default async function ListingReviewPage({
                 Prior adverse decisions across this seller&rsquo;s listings
               </div>
               {seller.adverseHistory.length === 0 ? (
-                <div style={{ fontSize: 12, color: C.muted }}>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
                   None recorded. (The decision log began 2026-08-07 — earlier decisions
                   have no rows and are reported as absent, not as clean.)
                 </div>
@@ -954,7 +981,7 @@ export default async function ListingReviewPage({
         <div style={panel}>
           <div style={kicker}>Decision history — this listing</div>
           {decisionEvents.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.muted }}>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
               No decision events recorded. (The append-only log began 2026-08-07 —
               earlier decisions predate it and are reported as absent.)
             </div>
@@ -1006,7 +1033,7 @@ export default async function ListingReviewPage({
               </tbody>
             </table>
           )}
-          <div style={{ color: C.muted, fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 8, lineHeight: 1.6, fontFamily: PROSE }}>
             Append-only (listing_decision_events). The &ldquo;current review
             record&rdquo; in the strip above is the separate, mutable truth
             (listing_integrity_reviews) — the two are deliberately different systems
@@ -1023,7 +1050,7 @@ export default async function ListingReviewPage({
           <div style={kicker}>Lifecycle</div>
 
           {currentStatus === "removed" ? (
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, fontFamily: PROSE }}>
               The seller paused this listing
               {typeof listing.removed_at === "string"
                 ? ` on ${new Date(listing.removed_at).toLocaleString("en-US")}`
@@ -1049,13 +1076,13 @@ export default async function ListingReviewPage({
               </div>
               {/* The single most misreadable fact on this page, so it is
                   stated rather than left to be inferred from an absence. */}
-              <div style={{ color: C.muted, marginTop: 6, fontSize: 12 }}>
+              <div style={{ color: C.muted, marginTop: 6, fontSize: 12, fontFamily: PROSE }}>
                 No transaction was written. A removal records why the watch left
                 the market, never that FairWatchTrade sold it.
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: C.muted }}>
+            <div style={{ fontSize: 13, color: C.muted, fontFamily: PROSE }}>
               This listing is {adminLabel(currentStatus).toLowerCase()} — it has not been
               removed.
             </div>
@@ -1064,7 +1091,7 @@ export default async function ListingReviewPage({
           <div style={subhead}>Purchase requests ({lifecycleRequests.length})</div>
 
           {lifecycleRequests.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.muted }}>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
               No purchase request was ever made on this listing.
             </div>
           ) : (
@@ -1116,19 +1143,19 @@ export default async function ListingReviewPage({
           <div style={subhead}>Permanent-delete eligibility</div>
 
           {!deleteEligibility ? (
-            <div style={{ fontSize: 12, color: C.muted }}>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
               Eligibility unavailable — the check did not answer.
             </div>
           ) : deleteEligibility.eligible_for_permanent_delete ? (
-            <div style={{ fontSize: 13, color: C.green, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: C.green, lineHeight: 1.6, fontFamily: PROSE }}>
               Currently eligible for permanent deletion.
-              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+              <div style={{ color: C.muted, fontSize: 12, marginTop: 4, fontFamily: PROSE }}>
                 Snapshot only — nothing is stored, and the purge stage must re-check
                 under its own lock before destroying anything.
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, fontFamily: PROSE }}>
               Blocked.
               <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
                 {deleteEligibility.blockers.map((b, i) => (
@@ -1144,7 +1171,7 @@ export default async function ListingReviewPage({
               thing most likely to look like a bug from this page. */}
           {currentStatus === "removed" &&
             lifecycleRequests.some((r) => r.status === "accepted") && (
-              <div style={{ marginTop: 10, fontSize: 12, color: C.green, lineHeight: 1.6 }}>
+              <div style={{ marginTop: 10, fontSize: 12, color: C.green, lineHeight: 1.6, fontFamily: PROSE }}>
                 An accepted request survives removal deliberately — the seller
                 cannot walk away from an agreed deal by taking the listing down.
               </div>
