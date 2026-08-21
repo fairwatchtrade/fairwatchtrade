@@ -28,7 +28,12 @@ built to refuse. Provider output is context for a human decision.
 
 The room presents both and never merges them: the review record appears in
 the "why is it here" strip (mutable current truth), the event log in
-"Decision history" (append-only). **Do not create a third review-state or
+"Decision history" (append-only). **That distinction is deliberately NOT
+stated in the room's visible copy** — founder SEE-it, 2026-08-21: table
+names, "append-only", "mutable truth" and "separate systems" are
+implementation detail and belong here, not on a page someone is trying to
+make a decision on. Keep the architecture honest in code and in this file;
+keep it out of the UI. **Do not create a third review-state or
 history table.** If new persisted state is genuinely required, extend one of
 these two and write down why here.
 
@@ -126,3 +131,30 @@ select l.id from listings l
 # reachability (founder session required; anonymous → redirect to /)
 curl -s -o /dev/null -w "%{http_code}" https://www.fairwatchtrade.com/admin/listings/<id>
 ```
+
+
+## Where the founder-facing answers come from (SEE-it cleanup, 2026-08-21)
+
+- **Why a prior listing was refused** (Seller context rows) —
+  `listing_decision_events.seller_message` for that exact event: the message
+  the seller actually received, verbatim, per-event. When it is absent the
+  row says **"Reason not recorded"**. It is NEVER inferred from evidence.
+  A listing can hold a fully clean Aubrey record and still be correctly
+  rejected, so "evidence exists" can never be rendered as a reason.
+  ⚠ `listing_integrity_reviews.admin_notes` is deliberately NOT used as a
+  fallback here: the note is LISTING-scoped, not event-scoped, so pinning
+  it to one decision among several would be an invented attribution.
+- **Prior-listing identity** — `brand`, `model`, `public_code` joined from
+  the seller's own listing rows, so a history row names a watch instead of
+  saying "another listing". The drill-down link remains, as the secondary
+  route to detail.
+- **Purchase-request buyer** — `purchase_requests.buyer_id` resolved through
+  `profiles.display_name` via the service client (profiles is select-own;
+  a session read returns nothing for anyone but the founder). Unresolved
+  ids render the product's standard "FairWatchTrade Member" — never a raw
+  id. No buyer dossier, no scoring, no seller-risk surface exists or should.
+- **Reviewer note is OPTIONAL and always was** — the submit path attaches it
+  only when non-empty (`if (note.trim())`) and no action requires it. A
+  routine approval needs no note. The adverse paths are unchanged: reject,
+  clarify and return still require their seller-facing message, enforced in
+  the status route regardless of which component posts.

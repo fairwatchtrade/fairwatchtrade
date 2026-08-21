@@ -96,9 +96,13 @@ type MediaRow = {
 };
 
 /* One purchase request on this listing, as the founder needs to read it:
-   the state AND the attribution, never the state alone. buyer_id is
-   deliberately not selected — this panel answers "what happened to this
-   listing", and naming the buyers is not part of that question. */
+   the state AND the attribution, never the state alone.
+
+   The buyer used to be deliberately withheld here, on the reasoning that
+   this panel answers "what happened to this listing" and naming buyers was
+   not part of that question. The founder's SEE-it overruled it, correctly:
+   a row carrying when and how much but not WHO is the one shape a person
+   cannot reconcile against their own memory of the conversation. */
 type LifecycleRequest = {
   id: string;
   status: string;
@@ -107,6 +111,11 @@ type LifecycleRequest = {
   proposed_currency: string | null;
   created_at: string;
   updated_at: string | null;
+  /* Who asked. Added on the founder's SEE-it: a request row that says when
+     and how much but not WHO is only two thirds of an event, and the
+     missing third is the one a person remembers. Resolved to a display
+     name below; the id itself is never rendered. */
+  buyer_id: string | null;
 };
 
 /* One row of the append-only decision log, as written by the status route.
@@ -144,6 +153,18 @@ type SellerContext = {
     created_at: string;
     listing_id: string;
     thisListing: boolean;
+    /* WHY it was refused, taken from the message actually sent to the
+       seller with that decision. Null becomes "Reason not recorded" — it
+       is never filled in from evidence, because a listing can hold a
+       perfectly clean record and still be correctly rejected. Inferring a
+       reason from the presence of evidence is the exact mistake this room
+       exists to avoid. */
+    reason: string | null;
+    /* Identity of the other listing, so the row can name a watch instead
+       of saying "another listing". */
+    brand: string | null;
+    model: string | null;
+    code: string | null;
   }[];
 };
 
@@ -386,6 +407,12 @@ export default async function ListingReviewPage({
   /* Seller context — recorded facts about the person behind the listing.
      Absence of any piece degrades that piece, never the room. */
   let seller: SellerContext | null = null;
+  /* buyer_id → display name, for the purchase-request rows. Same profiles
+     read the seller context uses, and same reason it goes through the
+     service client: profiles is select-own, so a session read returns
+     nothing for anyone but the founder themselves. An unresolved id simply
+     renders the quiet generic rather than an id. */
+  let buyerNames: Record<string, string> = {};
   try {
     const service = createServiceClient();
     const { data } = await service.from("listings").select("*").eq("id", id).maybeSingle();
@@ -415,11 +442,31 @@ export default async function ListingReviewPage({
       const { data: requestRows } = await service
         .from("purchase_requests")
         .select(
-          "id, status, closure_cause, proposed_purchase_price, proposed_currency, created_at, updated_at"
+          "id, status, closure_cause, proposed_purchase_price, proposed_currency, created_at, updated_at, buyer_id"
         )
         .eq("listing_id", id)
         .order("created_at", { ascending: false });
       lifecycleRequests = (requestRows ?? []) as LifecycleRequest[];
+
+      const buyerIds = Array.from(
+        new Set(
+          lifecycleRequests
+            .map((r) => r.buyer_id)
+            .filter((b): b is string => typeof b === "string" && b.length > 0)
+        )
+      );
+      if (buyerIds.length > 0) {
+        const { data: buyerRows } = await service
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", buyerIds);
+        for (const b of (buyerRows ?? []) as {
+          id: string;
+          display_name: string | null;
+        }[]) {
+          if (b.display_name) buyerNames[b.id] = b.display_name;
+        }
+      }
 
       const { data: eligibilityRow } = await service.rpc(
         "listing_delete_eligibility",
@@ -447,9 +494,18 @@ export default async function ListingReviewPage({
             .select("display_name, created_at")
             .eq("id", sellerId)
             .maybeSingle(),
-          service.from("listings").select("id, status").eq("seller_id", sellerId),
+          service
+            .from("listings")
+            .select("id, status, brand, model, public_code")
+            .eq("seller_id", sellerId),
         ]);
-        const rows = (theirListings ?? []) as { id: string; status: string }[];
+        const rows = (theirListings ?? []) as {
+          id: string;
+          status: string;
+          brand: string | null;
+          model: string | null;
+          public_code: string | null;
+        }[];
         const listingCounts: Record<string, number> = {};
         for (const r of rows) {
           listingCounts[r.status] = (listingCounts[r.status] ?? 0) + 1;
@@ -458,7 +514,7 @@ export default async function ListingReviewPage({
         if (rows.length > 0) {
           const { data: advRows } = await service
             .from("listing_decision_events")
-            .select("decision, created_at, listing_id")
+            .select("decision, created_at, listing_id, seller_message")
             .in(
               "listing_id",
               rows.map((r) => r.id)
@@ -466,11 +522,27 @@ export default async function ListingReviewPage({
             .neq("decision", "approved")
             .order("id", { ascending: false })
             .limit(20);
+          const byId = new Map(rows.map((r) => [r.id, r]));
           adverseHistory = ((advRows ?? []) as {
             decision: string;
             created_at: string;
             listing_id: string;
-          }[]).map((e) => ({ ...e, thisListing: e.listing_id === id }));
+            seller_message: string | null;
+          }[]).map((e) => {
+            const l = byId.get(e.listing_id);
+            return {
+              decision: e.decision,
+              created_at: e.created_at,
+              listing_id: e.listing_id,
+              thisListing: e.listing_id === id,
+              /* The message the seller actually received with this exact
+                 decision — per-event and verbatim, never reconstructed. */
+              reason: e.seller_message?.trim() ? e.seller_message.trim() : null,
+              brand: l?.brand ?? null,
+              model: l?.model ?? null,
+              code: l?.public_code ?? null,
+            };
+          });
         }
         seller = {
           displayName:
@@ -828,7 +900,6 @@ export default async function ListingReviewPage({
                 {panelReview.resolvedAt
                   ? ` · resolved ${fmtDate(panelReview.resolvedAt)}`
                   : " · unresolved"}
-                {" — this is the mutable current truth (listing_integrity_reviews); the decision log further down is the separate append-only history."}
               </div>
             )}
             <div style={{ marginTop: 10, color: C.muted }}>
@@ -848,10 +919,13 @@ export default async function ListingReviewPage({
               )}
               {panelPhotos.length === 0 && <span>no photographs on record</span>}
             </div>
+            {/* The doctrine is unchanged; only the voice is. The previous
+                wording stated it like a disclaimer written by a lawyer for
+                another lawyer — accurate, and skipped over. Evidence is
+                still not a verdict in EITHER direction. */}
             <div style={{ marginTop: 6, color: C.muted, fontSize: 12, fontFamily: PROSE }}>
-              Provider evidence is context, never the decision — in either direction.
-              A clean record does not imply approval, and a finding does not imply
-              guilt. Listings have been correctly rejected on a fully clean record.
+              Aubrey informs the review; it does not decide it. Clean evidence is not
+              automatic approval, and a finding is not proof of wrongdoing.
             </div>
           </div>
         </div>
@@ -945,28 +1019,69 @@ export default async function ListingReviewPage({
               ) : (
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <tbody>
-                    {seller.adverseHistory.map((e, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${C.divider}` }}>
-                        <td style={{ padding: "5px 8px 5px 0", color: C.muted, width: 120 }}>
-                          {fmtDate(e.created_at)}
-                        </td>
-                        <td style={{ padding: "5px 8px", color: C.text }}>
-                          {DECISION_LABEL[e.decision] ?? e.decision}
-                        </td>
-                        <td style={{ padding: "5px 8px" }}>
-                          {e.thisListing ? (
-                            <span style={{ color: C.gold }}>this listing</span>
-                          ) : (
-                            <Link
-                              href={`/admin/listings/${e.listing_id}`}
-                              style={{ color: C.link, textDecoration: "none" }}
-                            >
-                              another listing →
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {seller.adverseHistory.map((e, i) => {
+                      const watch = [e.brand, e.model].filter(Boolean).join(" ").trim();
+                      return (
+                        <tr key={i} style={{ borderBottom: `1px solid ${C.divider}` }}>
+                          <td
+                            style={{
+                              padding: "7px 8px 7px 0",
+                              color: C.muted,
+                              width: 120,
+                              verticalAlign: "top",
+                            }}
+                          >
+                            {fmtDate(e.created_at)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              color: C.text,
+                              width: 170,
+                              verticalAlign: "top",
+                            }}
+                          >
+                            {DECISION_LABEL[e.decision] ?? e.decision}
+                            {/* Which watch, named — the drill-down stays, but
+                                as a secondary route to more detail rather
+                                than the only way to learn anything. */}
+                            <div style={{ marginTop: 2 }}>
+                              {e.thisListing ? (
+                                <span style={{ color: C.gold, fontSize: 11 }}>this listing</span>
+                              ) : (
+                                <Link
+                                  href={`/admin/listings/${e.listing_id}`}
+                                  style={{
+                                    color: C.link,
+                                    textDecoration: "none",
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  {watch || "View listing"}
+                                  {e.code ? ` · ${e.code}` : ""} →
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                          {/* WHY. The message the seller was actually sent
+                              with this decision, verbatim. When none was
+                              recorded the row says so — it is never inferred
+                              from evidence, because a clean record and a
+                              correct rejection coexist in this very data. */}
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              color: e.reason ? C.text : C.faint,
+                              verticalAlign: "top",
+                              fontFamily: PROSE,
+                              lineHeight: 1.55,
+                            }}
+                          >
+                            {e.reason ?? "Reason not recorded"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -982,8 +1097,9 @@ export default async function ListingReviewPage({
           <div style={kicker}>Decision history — this listing</div>
           {decisionEvents.length === 0 ? (
             <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
-              No decision events recorded. (The append-only log began 2026-08-07 —
-              earlier decisions predate it and are reported as absent.)
+              No decision history recorded for this listing. Earlier decisions may not
+              appear here because decision history tracking began on Aug 7, 2026.
+              <div style={{ marginTop: 4 }}>Current review status is shown above.</div>
             </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -1033,12 +1149,7 @@ export default async function ListingReviewPage({
               </tbody>
             </table>
           )}
-          <div style={{ color: C.muted, fontSize: 12, marginTop: 8, lineHeight: 1.6, fontFamily: PROSE }}>
-            Append-only (listing_decision_events). The &ldquo;current review
-            record&rdquo; in the strip above is the separate, mutable truth
-            (listing_integrity_reviews) — the two are deliberately different systems
-            and this room never merges them.
-          </div>
+
         </div>
 
         {/* ── 7 · LIFECYCLE — what happened to this listing and to the
@@ -1099,7 +1210,19 @@ export default async function ListingReviewPage({
               <tbody>
                 {lifecycleRequests.map((r) => (
                   <tr key={r.id} style={{ borderBottom: `1px solid ${C.divider}` }}>
-                    <td style={{ padding: "6px 8px 6px 0", color: C.muted, width: 150 }}>
+                    {/* Who asked. A resolved display name, or the same quiet
+                        generic the rest of the product uses when a member
+                        has not set one — never a raw id. */}
+                    <td
+                      style={{
+                        padding: "6px 8px 6px 0",
+                        color: C.text,
+                        width: 170,
+                      }}
+                    >
+                      {(r.buyer_id && buyerNames[r.buyer_id]) || "FairWatchTrade Member"}
+                    </td>
+                    <td style={{ padding: "6px 8px", color: C.muted, width: 110 }}>
                       {new Date(r.created_at).toLocaleDateString("en-US")}
                     </td>
                     <td style={{ padding: "6px 8px", color: C.text, width: 130 }}>

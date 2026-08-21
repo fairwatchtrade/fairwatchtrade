@@ -488,7 +488,12 @@ export default function IntegrityEvidencePanel({
             <div className="detail-row"><b>Current hold</b><span>{currentHold}</span></div>
             <div className="detail-row"><b>Review status</b><span>{reviewStatusValue}</span></div>
             <div className="detail-row"><b>Prior decision</b><span>{priorSummary}</span></div>
-            <div className="detail-row"><b>Decision recorded</b><span>{fmtDate(review?.resolvedAt ?? null)}</span></div>
+            {/* A bare em dash reads as a rendering failure, not as a fact.
+                An unrecorded timestamp is a real state and is named. */}
+            <div className="detail-row">
+              <b>Decision recorded</b>
+              <span>{review?.resolvedAt ? fmtDate(review.resolvedAt) : "Not recorded"}</span>
+            </div>
             {(review?.status === "clarification_requested" || clarifyOpen) && (
               <div className="seller-copy">
                 <strong>Seller-facing clarification copy</strong>
@@ -523,10 +528,11 @@ export default function IntegrityEvidencePanel({
           <section className="review-block">
             <h3>Reviewer note</h3>
             <div className="prior-decision">
-              <b>Bounded internal note</b>
+              <b>Bounded internal note · optional</b>
               <span>
-                Founder-only. Describe the evidence reviewed and the reason for the human
-                decision. Do not infer intent.
+                Founder-only, and never required — a routine approval needs no note.
+                When it is worth recording, describe the evidence reviewed and the
+                reason for the decision. Do not infer intent.
               </span>
             </div>
             <div className="note-wrap">
@@ -535,7 +541,7 @@ export default function IntegrityEvidencePanel({
                 onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))}
                 disabled={busy}
                 maxLength={NOTE_MAX}
-                placeholder="Record a concise evidence-based note…"
+                placeholder="Optional — record a concise evidence-based note…"
                 className="reviewer-note"
               />
               <div className="note-foot">
