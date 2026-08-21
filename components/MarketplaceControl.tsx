@@ -131,6 +131,12 @@ const DETAIL_COLUMNS: Array<{
 
 const COL_MIN = 60;
 const COL_MAX = 420;
+/* The Listing column is the star and keeps a real column of its own — but a
+   FIXED one, so the metadata columns receive the surplus on a wide monitor
+   instead of it all pooling here. MIN is what it may compress to before the
+   table starts scrolling horizontally (the pre-existing narrow behavior). */
+const LISTING_COL_BASE = 340;
+const LISTING_COL_MIN = 280;
 const MAX_SAVED_VIEWS = 8;
 
 /* Everything a founder can aim at. A click landing inside any of these is
@@ -976,6 +982,44 @@ export default function MarketplaceControl({
     .filter((k) => !view.columns.hidden.includes(k))
     .map((k) => DETAIL_COLUMNS.find((c) => c.key === k))
     .filter((c): c is (typeof DETAIL_COLUMNS)[number] => !!c);
+
+  /* ── Detailed table: the metadata columns fill a wide monitor ──────────
+     (founder SEE-it, 2026-08-21: "the Listing column sits in another
+     county"). The Listing cell carried a min-width and NO width, so in an
+     auto-layout table it absorbed every surplus pixel — on a 4K monitor the
+     row read as two disconnected halves with a dead band between them. The
+     metadata columns were never crowded; they were simply never given any
+     of the extra room.
+
+     Giving Listing a real width hands the surplus back, and each visible
+     metadata column takes an EQUAL share of it. Equal, not proportional to
+     base, for two reasons: a 60px "AI" column scaled proportionally becomes
+     a 190px column holding a tick, and — the load-bearing one — drag-resize
+     still tracks the cursor. Under proportional scaling a 50px drag moves
+     the boundary ~150px and the column runs away from the pointer; under an
+     equal share it moves ~44px.
+
+     Narrow behavior is untouched BY CONSTRUCTION: max(0px, …) means there is
+     no share to hand out once the bases no longer fit, every column falls
+     back to exactly its base width, and the table overflows into the
+     existing horizontal scroll as before. The widths resolve against the
+     table's own box in CSS, so there is no measurement, no resize observer,
+     and nothing to re-run on a window drag. */
+  const detailBaseTotal =
+    LISTING_COL_BASE + visibleColumns.reduce((n, c) => n + colWidth(c.key), 0);
+  const detailShare =
+    visibleColumns.length > 0
+      ? `max(0px, (100% - ${detailBaseTotal}px) / ${visibleColumns.length})`
+      : "0px";
+
+  /* Base + its share of whatever the monitor has spare. minWidth stays the
+     base, so the share can only ever ADD room, never take any. */
+  function detailColStyle(key: string): CSSProperties {
+    return {
+      width: `calc(${colWidth(key)}px + ${detailShare})`,
+      minWidth: colWidth(key),
+    };
+  }
 
   const codeShapedQuery = CODE_SHAPE.test(view.q.trim());
 
@@ -2119,7 +2163,7 @@ export default function MarketplaceControl({
                   <tr className="border-b border-[var(--border-subtle)] text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]">
                     <th
                       className="sticky left-0 z-[5] bg-[var(--surface)] px-3 py-2.5 font-normal"
-                      style={{ minWidth: 280 }}
+                      style={{ width: LISTING_COL_BASE, minWidth: LISTING_COL_MIN }}
                     >
                       <SortHead label="Listing" asc="brand_asc" desc="brand_desc" sort={view.sort} onSort={applySort} />
                     </th>
@@ -2129,7 +2173,7 @@ export default function MarketplaceControl({
                         <th
                           key={col.key}
                           className="relative px-3 py-2.5 font-normal"
-                          style={{ width: colWidth(col.key), minWidth: colWidth(col.key) }}
+                          style={detailColStyle(col.key)}
                         >
                           {sortable ? (
                             <SortHead
@@ -2190,7 +2234,10 @@ export default function MarketplaceControl({
                               : undefined
                           }
                         >
-                          <td className="sticky left-0 z-[4] bg-[var(--surface)] px-3 py-2.5" style={{ minWidth: 280 }}>
+                          <td
+                            className="sticky left-0 z-[4] bg-[var(--surface)] px-3 py-2.5"
+                            style={{ width: LISTING_COL_BASE, minWidth: LISTING_COL_MIN }}
+                          >
                             <div className="flex items-start justify-between gap-2">
                               {identityCell(row, 40)}
                               <Link
@@ -2206,7 +2253,7 @@ export default function MarketplaceControl({
                             <td
                               key={col.key}
                               className="max-w-0 truncate px-3 py-2.5 text-[12px] text-[var(--platinum-dim)]"
-                              style={{ width: colWidth(col.key), minWidth: colWidth(col.key) }}
+                              style={detailColStyle(col.key)}
                             >
                               {detailCell(row, col.key)}
                             </td>
