@@ -41,9 +41,12 @@ import { BRANDS_MODELS } from "./brandsModels.ts";
 
      · whole-word / whole-phrase matches only — "ROLEX" inside a longer
        token does not count;
-     · single-word brand names must be ≥ 5 characters, so short names
-       cannot collide with incidental dial text (RADO stays quiet in V1 —
-       deliberate narrowness, not oversight);
+     · single-word brand names of 3–4 characters (Rado, Oris, Sinn, Mido)
+       are candidates with a stricter text guard: the raw OCR must carry
+       the case-exact UPPERCASE standalone word, as a dial wordmark is
+       actually set — longer names match on normalized whole words;
+     · the CLAIMED brand is never length-gated: noise guards protect
+       against arbitrary text, and the claim is not arbitrary text;
      · the claimed brand and anything sharing its tokens is exempt;
      · logo matches must clear the API's own detection threshold —
        an internal calibration, never a user-facing confidence number;
@@ -111,19 +114,35 @@ export function normalizeBrandText(s: string): string {
     .trim();
 }
 
-type VocabEntry = { name: string; norm: string };
+type VocabEntry = { name: string; norm: string; short: boolean };
 
-/** Built once at module load. Single-word names shorter than 5 characters
-    are excluded up front — they can never produce an "unmistakable" match
-    under the V1 guards, so they are not even candidates. */
-const BRAND_VOCAB: VocabEntry[] = BRANDS_MODELS.map((b) => ({
-  name: b.name,
-  norm: normalizeBrandText(b.name),
-})).filter((v) => v.norm.length > 0 && (v.norm.includes(" ") || v.norm.length >= 5));
+/** Built once at module load. Single-word names of 3–4 characters (Rado,
+    Oris, Sinn, Mido) are candidates too, but flagged `short`: their TEXT
+    matches carry an extra case-exact guard below, because four letters of
+    incidental OCR are cheaper to collide with than nine. Brand-awareness
+    lives in the LIST — an arbitrary short token can never fire; only a
+    token that exactly equals an admitted Vault brand can. */
+const BRAND_VOCAB: VocabEntry[] = BRANDS_MODELS.map((b) => {
+  const norm = normalizeBrandText(b.name);
+  return {
+    name: b.name,
+    norm,
+    short: !norm.includes(" ") && norm.length < 5,
+  };
+}).filter((v) => v.norm.length >= 3);
 
 /** Whole-word / whole-phrase presence of `phrase` inside normalized text. */
 function containsPhrase(normText: string, phrase: string): boolean {
   return ` ${normText} `.includes(` ${phrase} `);
+}
+
+/** The extra guard for SHORT brand names in the text channel: the raw OCR
+    must carry the brand as a case-exact UPPERCASE standalone word, the way
+    a dial wordmark is actually set. Normalization uppercases everything,
+    so without this a lowercase prose fragment could masquerade as a
+    wordmark; four-letter names don't get that benefit of the doubt. */
+function containsShortBrandRaw(rawText: string, norm: string): boolean {
+  return new RegExp(`(?:^|[^A-Za-z0-9])${norm}(?:[^A-Za-z0-9]|$)`).test(rawText);
 }
 
 /** Vision's logo threshold — internal calibration for "unmistakable",
@@ -170,7 +189,13 @@ export function classifyIdentityConsistency(input: {
   let claimedVisible = false;
 
   for (const v of BRAND_VOCAB) {
-    const inText = containsPhrase(normText, v.norm);
+    /* Long names and phrases match on normalized whole words; short names
+       additionally require the case-exact uppercase form in the raw OCR.
+       The logo channel needs no length guard — Google identifying the mark
+       itself IS the brand-awareness. */
+    const inText = v.short
+      ? containsShortBrandRaw(ocrText, v.norm)
+      : containsPhrase(normText, v.norm);
     const inLogo = strongLogos.some((l) => normalizeBrandText(l.description) === v.norm);
     if (!inText && !inLogo) continue;
     if (isExempt(v)) {
@@ -182,8 +207,14 @@ export function classifyIdentityConsistency(input: {
     if (inLogo && !inText) foreignLogo.push(v.name);
   }
   /* The claim can also be visible without being a vocabulary entry
-     (custom-brand admissions) — check the claim's own phrase directly. */
-  if (!claimedVisible && claimedNorm.length >= 5) {
+     (custom-brand admissions) — check the claim's own phrase directly.
+     NO length gate here, ever: the ≥5 rule is noise protection for
+     scanning arbitrary text against the vocabulary, and the listing's own
+     claimed brand is not arbitrary text — it is the one string this check
+     exists to compare against. Gating it silenced claimedVisible for
+     every short-named brand (Rado, Oris, Sinn, Mido), which turned a
+     mixed-branding scene — quiet by law — into a false contradiction. */
+  if (!claimedVisible && claimedNorm.length > 0) {
     claimedVisible =
       containsPhrase(normText, claimedNorm) ||
       strongLogos.some((l) => normalizeBrandText(l.description) === claimedNorm);

@@ -11,7 +11,8 @@
      · claimed brand's own wordmark    → passed (exempt, never a finding)
      · both brandings visible          → passed (ambiguity is quiet by law)
      · no branding at all              → passed
-     · short brand names (<5 chars)    → never match as single words
+     · short brand names (3–4 chars)   → candidates, case-exact raw-OCR
+                                         guard; the CLAIM never length-gated
      · substring hits inside longer    → never match (whole-word law)
      · diacritics                      → normalized (Genève ↔ GENEVE)
      · logo below threshold            → ignored
@@ -139,6 +140,92 @@ const base = { claimedBrand: "Parmigiani Fleurier", category: "Dial", logos: [] 
   assert.equal(r.classification, "review_suggested");
   assert.ok(!/speedmaster/i.test(r.reason), "oracle leak: model name in reason");
   ok("second foreign brand fires; model name stays out of the grammar");
+}
+
+// ── Short-brand correction pins (skeptical-review blocker, 2026-08-22) ──
+// The claimed brand establishes claimedVisible regardless of name length;
+// short Vault brands still function as foreign candidates under the
+// case-exact raw-OCR guard. Four required cases plus the guards.
+
+// 11 · Claim Rado + RADO ROLEX -> quiet mixed-brand scene (the blocker).
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rado", category: "Dial", logos: [],
+    ocrText: "RADO ROLEX",
+  });
+  assert.equal(r.classification, "passed");
+  assert.equal(r.detail.note, "both_claimed_and_other_branding_visible");
+  ok("claim Rado + RADO ROLEX -> quiet (mixed scene, not contradiction)");
+}
+
+// 12 · Claim Oris + ORIS ROLEX -> quiet.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Oris", category: "Dial", logos: [],
+    ocrText: "ORIS ROLEX",
+  });
+  assert.equal(r.classification, "passed");
+  ok("claim Oris + ORIS ROLEX -> quiet");
+}
+
+// 13 · Claim Rado + RADO alone -> no contradiction.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rado", category: "Dial", logos: [], ocrText: "RADO",
+  });
+  assert.equal(r.classification, "passed");
+  ok("claim Rado + RADO -> passed");
+}
+
+// 14 · Claim Rado + only ROLEX -> review_suggested (real contradiction).
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rado", category: "Dial", logos: [], ocrText: "ROLEX",
+  });
+  assert.equal(r.classification, "review_suggested");
+  ok("claim Rado + only ROLEX -> review_suggested");
+}
+
+// 15 · Short FOREIGN brand still fires: claim Rolex + visible RADO. The
+//      fix must not buy the mixed-brand correction with a new
+//      false-negative class.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rolex", category: "Dial", logos: [], ocrText: "RADO",
+  });
+  assert.equal(r.classification, "review_suggested");
+  assert.ok(r.reason.includes("Rado"));
+  ok("claim Rolex + visible RADO -> review_suggested (short foreign fires)");
+}
+
+// 16 · The short-brand case-exact guard: lowercase prose never fires.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rolex", category: "Dial", logos: [],
+    ocrText: "el dorado strap co",
+  });
+  assert.equal(r.classification, "passed");
+  ok("lowercase/embedded short tokens -> quiet (case-exact guard)");
+}
+
+// 17 · Short token inside a longer uppercase run never fires.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rolex", category: "Dial", logos: [],
+    ocrText: "COLORADO SPRINGS",
+  });
+  assert.equal(r.classification, "passed");
+  ok("COLORADO does not contain a standalone RADO -> quiet");
+}
+
+// 18 · Short brand via strong logo channel fires without text.
+{
+  const r = classifyIdentityConsistency({
+    claimedBrand: "Rolex", category: "Dial",
+    logos: [{ description: "Rado", score: 0.9 }], ocrText: "",
+  });
+  assert.equal(r.classification, "review_suggested");
+  ok("short foreign brand via strong logo -> review_suggested");
 }
 
 console.log(`\nidentity-consistency: ${n} pins hold.`);
