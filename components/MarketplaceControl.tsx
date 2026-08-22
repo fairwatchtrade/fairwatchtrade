@@ -148,6 +148,14 @@ const MAX_SAVED_VIEWS = 8;
 const MC_INTERACTIVE =
   '[data-mc-row],[data-mc-keep],a,button,input,select,textarea,label,option,summary,[role="tab"],[role="dialog"],[role="separator"]';
 
+/* The FWT listing ID's reading face — Sitka locally, serif fallback, no
+   webfont asset. An identifier the founder scans and repeats aloud deserves
+   a face made for reading; the compressed UI face at small sizes was the
+   "smooshed" defect the ergonomics order names. */
+const ID_FACE: CSSProperties = {
+  fontFamily: '"Sitka Text", Sitka, Georgia, Cambria, "Times New Roman", serif',
+};
+
 /* ── The room's dropdown ────────────────────────────────────────────────
    FairWatchTrade already has a select language; this room simply had not
    spoken it. The parts that carry over from the established treatment
@@ -1172,9 +1180,70 @@ export default function MarketplaceControl({
     }
   }
 
+  /* ── Direct Re-run check (ergonomics order 2026-08-22, item 4) ─────────
+     An ENTRANCE, not machinery: the button posts to the same governed
+     founder recheck route Founder Review uses — same auth gates, same
+     provider behavior, same audit trail, no duplicate logic, no alternate
+     write path. The result carries the id of the listing it belongs to
+     and renders only while that listing is the selection — moving on
+     retires it, with no effect-driven reset. A successful re-run refreshes
+     the ledger, because release-only reconciliation can legitimately
+     change status. */
+  const [recheckState, setRecheckState] = useState<{
+    listingId: string | null;
+    busy: boolean;
+    note: { kind: "ok" | "err"; text: string } | null;
+  }>({ listingId: null, busy: false, note: null });
+
+  async function rerunCheck() {
+    if (!selected || recheckState.busy) return;
+    if (!window.confirm("Re-run The Aubrey Check for this listing's photographs?")) return;
+    const listingId = selected.id;
+    setRecheckState({ listingId, busy: true, note: null });
+    try {
+      const res = await fetch(`/api/admin/listings/${listingId}/recheck`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        rechecked?: number;
+        error?: string;
+        detail?: string;
+      };
+      if (!res.ok) {
+        setRecheckState({
+          listingId,
+          busy: false,
+          note: {
+            kind: "err",
+            text: data?.detail || data?.error || `Re-run failed (${res.status}).`,
+          },
+        });
+      } else {
+        setRecheckState({
+          listingId,
+          busy: false,
+          note: { kind: "ok", text: `Re-ran ${data.rechecked ?? 0} check(s).` },
+        });
+        void refresh();
+      }
+    } catch {
+      setRecheckState({
+        listingId,
+        busy: false,
+        note: { kind: "err", text: "Network error — nothing was re-run." },
+      });
+    }
+  }
+
   /* ── Renderers ───────────────────────────────────────────────────────── */
 
   function identityCell(row: McRow, thumbSize: number) {
+    /* Identity hierarchy (ergonomics order 2026-08-22): watch name first,
+       then the FWT LISTING ID — the operational anchor the founder orients
+       and acts by in this room — then the manufacturer reference, quieter
+       than the ID but genuinely readable, never smooshed. The ID wears the
+       established mineral identifier treatment and the Sitka reading face;
+       mineral stays confined to identifiers — never the row. */
     return (
       <div className="flex min-w-0 items-start gap-3">
         <Thumb row={row} size={thumbSize} />
@@ -1185,9 +1254,17 @@ export default function MarketplaceControl({
           <div className="truncate font-display text-[15px] font-light text-[var(--platinum)]">
             {row.model ?? "—"}
           </div>
-          <div className="truncate text-[10px] text-[var(--muted)]">Ref. {row.reference}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-[1.6px] text-[var(--gold)]">
+          <div
+            className="mt-0.5 text-[12px] uppercase tracking-[1.6px] text-[var(--mineral)]"
+            style={ID_FACE}
+          >
             {row.public_code ?? "—"}
+          </div>
+          <div
+            className="truncate text-[11px] tracking-[0.02em] text-[var(--muted)]"
+            title={row.reference}
+          >
+            Ref. {row.reference}
           </div>
         </div>
       </div>
@@ -1984,11 +2061,15 @@ export default function MarketplaceControl({
                           <div className="hidden text-[11px] text-[var(--muted)] @min-[740px]:block @min-[740px]:px-3">
                             {relativeDate(row.created_at)}
                           </div>
-                          <div className="hidden @min-[740px]:block @min-[740px]:px-3">
+                          <div className="hidden @min-[740px]:block">
+                            {/* A real hit target, not a text sliver: the link
+                                fills its cell to ~38px tall with working
+                                padding, restrained face unchanged. Row
+                                selection is untouched — the click stops here. */}
                             <Link
                               href={`/admin/listings/${row.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)] hover:text-[var(--gold)]"
+                              className="flex min-h-[38px] items-center px-3 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)] hover:bg-[var(--gold-whisper)] hover:text-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--gold)]"
                             >
                               Open →
                             </Link>
@@ -2062,11 +2143,14 @@ export default function MarketplaceControl({
                           <br />
                           {selected.model ?? "—"}
                         </div>
-                        <div className="mt-1 text-[11px] text-[var(--muted)]">
-                          Ref. {selected.reference}
-                        </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-[2px] text-[var(--gold)]">
+                        <div
+                          className="mt-1 text-[13px] uppercase tracking-[2px] text-[var(--mineral)]"
+                          style={ID_FACE}
+                        >
                           {selected.public_code ?? "—"}
+                        </div>
+                        <div className="mt-1 text-[11px] tracking-[0.02em] text-[var(--muted)]">
+                          Ref. {selected.reference}
                         </div>
                       </div>
                     </div>
@@ -2144,6 +2228,28 @@ export default function MarketplaceControl({
                         >
                           View Listing →
                         </Link>
+                      )}
+                      <button
+                        type="button"
+                        disabled={recheckState.busy}
+                        onClick={rerunCheck}
+                        className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] disabled:opacity-40"
+                      >
+                        {recheckState.busy && recheckState.listingId === selected.id
+                          ? "Re-running…"
+                          : "Re-run Check"}
+                      </button>
+                      {recheckState.note && recheckState.listingId === selected.id && (
+                        <div
+                          role="status"
+                          className={`px-0.5 text-[11px] leading-snug ${
+                            recheckState.note.kind === "ok"
+                              ? "text-[var(--success)]"
+                              : "text-[var(--danger)]"
+                          }`}
+                        >
+                          {recheckState.note.text}
+                        </div>
                       )}
                       {["published", "reserved", "pending_review"].includes(selected.status) && (
                         <button
@@ -2256,7 +2362,7 @@ export default function MarketplaceControl({
                               <Link
                                 href={`/admin/listings/${row.id}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="whitespace-nowrap text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)] hover:text-[var(--gold)]"
+                                className="flex min-h-[36px] items-center whitespace-nowrap px-3 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)] hover:bg-[var(--gold-whisper)] hover:text-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--gold)]"
                               >
                                 Open →
                               </Link>
