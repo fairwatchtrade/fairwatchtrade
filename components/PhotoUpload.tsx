@@ -52,7 +52,7 @@ export type PhotoUploadHandle = { uploadFiles: (files: FileList) => void };
 // PHOTO_LAYER_MAP and this CATEGORY_OPTIONS list are not a perfect 1:1 set
 // (e.g. "Wrist shot"/"Other"/"Bracelet/Strap" coverage differs). Left as-is
 // intentionally — do not reconcile in this flight.
-const CATEGORY_OPTIONS: { value: string; required?: boolean }[] = [
+const CATEGORY_OPTIONS: { value: string; required?: boolean; label?: string }[] = [
   { value: "Dial", required: true },
   { value: "Caseback", required: true },
   { value: "Clasp/Pin Buckle", required: true },
@@ -63,6 +63,15 @@ const CATEGORY_OPTIONS: { value: string; required?: boolean }[] = [
   { value: "Full watch, strap/bracelet extended" },
   { value: "Box" },
   { value: "Papers/Warranty" },
+  /* Service documentation for EVERY seller (2026-08-22 order) — the
+     category "Service Evidence" already existed with exactly this
+     semantic, ruled distinct from Papers/Warranty (identity docs vs
+     evidence of service/repair/maintenance) and private-by-default via
+     servicePublicOptIn. Reused rather than duplicated: a second stored
+     value for the same concept would fork the taxonomy. Only the menu
+     LABEL is the order's wording; the stored value stays the ruled one,
+     so the Rolex corridor's requirement matching is untouched. */
+  { value: "Service Evidence", label: "Service Receipt / Records" },
   { value: "Wrist shot" },
   { value: "Other" },
 ];
@@ -116,9 +125,14 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
   initialPhotos?: UploadedPhotoMeta[];
 }>(
   function PhotoUpload({ onChange, extraCategories, initialPhotos }, ref) {
+    /* Deduped by value: the Rolex corridor still passes "Service Evidence"
+       through extraCategories, and now the base list carries it too — one
+       menu entry, not two. */
     const categoryOptions = [
       ...CATEGORY_OPTIONS,
-      ...(extraCategories ?? []).map((value) => ({ value } as { value: string; required?: boolean })),
+      ...(extraCategories ?? [])
+        .filter((value) => !CATEGORY_OPTIONS.some((c) => c.value === value))
+        .map((value) => ({ value } as { value: string; required?: boolean; label?: string })),
     ];
     const [items, setItems] = useState<Item[]>(() =>
       (initialPhotos ?? []).map((p) => ({
@@ -476,7 +490,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                   <option value="" style={OPTION_STYLE}>Tag photo…</option>
                   {categoryOptions.map((c) => (
                     <option key={c.value} value={c.value} style={OPTION_STYLE}>
-                      {c.required ? `${c.value} *` : c.value}
+                      {(c.label ?? c.value) + (c.required ? " *" : "")}
                     </option>
                   ))}
                 </select>

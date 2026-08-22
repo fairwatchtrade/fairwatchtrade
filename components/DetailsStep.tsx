@@ -43,7 +43,7 @@ function MovementFrequencyInput({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       onChange={(e) => onChange(vphInputDigits(e.target.value))}
-      placeholder="28,800 vph (4 Hz)"
+     
       inputMode="numeric"
       spellCheck={false}
     />
@@ -502,7 +502,26 @@ export default function DetailsStep({
   // suggestions pause here for the seller's choice, a clean note advances
   // silently. FAIL OPEN on any error — a network hiccup must never trap a seller
   // on this step.
+  /* Step-level required answers, validated on the Continue CLICK rather
+     than by disabling the button. One list so every missing control
+     highlights at once — never one-at-a-time whack-a-mole. Crown present
+     is currently its only member. */
+  const missingRequired: { key: string; anchor: string }[] =
+    d.crownPresent === undefined
+      ? [{ key: "crownPresent", anchor: "crown-present-field" }]
+      : [];
+  const [assist, setAssist] = useState(false);
+
   async function handleContinue() {
+    /* First click with something missing: highlight, scroll, stay. The
+       seller answers OR clicks Continue again — the step never traps. */
+    if (missingRequired.length > 0 && !assist) {
+      setAssist(true);
+      document
+        .getElementById(missingRequired[0].anchor)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     const note = (draft.provenanceNote ?? "").trim();
     if (note.length === 0) {
       onProceed();
@@ -578,7 +597,6 @@ export default function DetailsStep({
               value={d.movementType ?? ""}
               onChange={(v) => set("movementType", v)}
               suggestions={MOVEMENT_TYPES}
-              placeholder="Automatic"
             />
           </Field>
 
@@ -595,15 +613,15 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Calibre / movement reference (optional)">
-            <input className={inputCls} value={d.calibre ?? ""} onChange={(e) => set("calibre", e.target.value)} placeholder="e.g. Cal. 1020, Calibre 89" spellCheck={false} />
+            <input className={inputCls} value={d.calibre ?? ""} onChange={(e) => set("calibre", e.target.value)} spellCheck={false} />
           </Field>
 
           <Field label="Jewel count (optional)">
-            <input className={inputCls} value={d.jewels ?? ""} onChange={(e) => set("jewels", e.target.value)} placeholder="25" inputMode="numeric" />
+            <input className={inputCls} value={d.jewels ?? ""} onChange={(e) => set("jewels", e.target.value)} inputMode="numeric" />
           </Field>
 
           <Field label="Power reserve (optional)">
-            <input className={inputCls} value={d.powerReserve ?? ""} onChange={(e) => set("powerReserve", e.target.value)} placeholder="e.g. 8 days, 72 hours" />
+            <input className={inputCls} value={d.powerReserve ?? ""} onChange={(e) => set("powerReserve", e.target.value)} />
           </Field>
         </div>
       </Chapter>
@@ -614,11 +632,11 @@ export default function DetailsStep({
       <Chapter numeral="II" title="The Case" caption="Case dimensions and materials." chapterKey="case">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Case size (mm)">
-            <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} placeholder="e.g. 40" inputMode="decimal" />
+            <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} inputMode="decimal" />
           </Field>
 
           <Field label="Case thickness (mm, optional)">
-            <input className={inputCls} value={d.caseThicknessMm ?? ""} onChange={(e) => set("caseThicknessMm", e.target.value)} placeholder="e.g. 8.7" inputMode="decimal" />
+            <input className={inputCls} value={d.caseThicknessMm ?? ""} onChange={(e) => set("caseThicknessMm", e.target.value)} inputMode="decimal" />
           </Field>
 
           <Field label="Case material">
@@ -637,7 +655,6 @@ export default function DetailsStep({
                 set("caseMaterial", v);
               }}
               suggestions={CASE_MATERIALS}
-              placeholder="Stainless Steel"
               otherOption={{
                 label: "Other…",
                 onSelect: () => {
@@ -647,7 +664,7 @@ export default function DetailsStep({
               }}
             />
             {otherMaterial && (
-              <input className={`${inputCls} mt-2`} value={d.caseMaterial ?? ""} onChange={(e) => set("caseMaterial", e.target.value)} placeholder="e.g. Palladium" spellCheck={false} />
+              <input className={`${inputCls} mt-2`} value={d.caseMaterial ?? ""} onChange={(e) => set("caseMaterial", e.target.value)} spellCheck={false} />
             )}
           </Field>
 
@@ -656,7 +673,6 @@ export default function DetailsStep({
               value={d.caseColorFinish ?? ""}
               onChange={(v) => set("caseColorFinish", v)}
               suggestions={CASE_COLOR_FINISHES}
-              placeholder="e.g. Silver-tone with polished and brushed surfaces"
             />
           </Field>
 
@@ -665,7 +681,6 @@ export default function DetailsStep({
               value={d.casebackType ?? ""}
               onChange={(v) => set("casebackType", v)}
               suggestions={CASEBACK_TYPES}
-              placeholder="Solid"
             />
           </Field>
 
@@ -674,7 +689,6 @@ export default function DetailsStep({
               value={d.crystalMaterial ?? ""}
               onChange={(v) => set("crystalMaterial", v)}
               suggestions={CRYSTAL_MATERIALS}
-              placeholder="Sapphire"
             />
           </Field>
 
@@ -683,7 +697,6 @@ export default function DetailsStep({
               value={d.waterResistance ?? ""}
               onChange={(v) => set("waterResistance", v)}
               suggestions={WATER_RESISTANCE_OPTIONS}
-              placeholder="100 m"
             />
           </Field>
         </div>
@@ -699,14 +712,23 @@ export default function DetailsStep({
               value={d.dialColorType ?? ""}
               onChange={(v) => set("dialColorType", v)}
               suggestions={DIAL_COLOR_SUGGESTIONS}
-              placeholder="Abyss Blue sunburst"
             />
           </Field>
 
-          <div className="flex items-end pb-1">
+          <div
+            id="crown-present-field"
+            className={`flex items-end pb-1 ${
+              assist && d.crownPresent === undefined
+                ? "border-l-2 border-[var(--gold)] pl-3 -ml-3"
+                : ""
+            }`}
+          >
             {/* Required ANSWER, not a required crown. "No" is fully valid —
                 a missing crown is truthful — but silence is not, because it
-                cannot be told apart from a deliberate No. */}
+                cannot be told apart from a deliberate No. The gold left rule
+                appears after an assisted Continue click and stays until the
+                question is answered — gentle and persistent, not a trap:
+                Continue itself still advances on the next click. */}
             <BinaryChoice
               label="Crown present"
               name="crown-present"
@@ -727,7 +749,6 @@ export default function DetailsStep({
               value={d.closureType ?? ""}
               onChange={(v) => set("closureType", v)}
               suggestions={CLOSURE_TYPES}
-              placeholder="Deployant Clasp"
             />
           </Field>
 
@@ -736,12 +757,11 @@ export default function DetailsStep({
               value={d.bezelMaterial ?? ""}
               onChange={(v) => set("bezelMaterial", v)}
               suggestions={BEZEL_MATERIALS}
-              placeholder="Ceramic"
             />
           </Field>
 
           <Field label="Bracelet wrist size range (optional)">
-            <input className={inputCls} value={d.braceletWristSize ?? ""} onChange={(e) => set("braceletWristSize", e.target.value)} placeholder="Fits wrists up to 7.5 in" />
+            <input className={inputCls} value={d.braceletWristSize ?? ""} onChange={(e) => set("braceletWristSize", e.target.value)} />
           </Field>
 
           <div className="flex items-end pb-1">
@@ -978,13 +998,18 @@ export default function DetailsStep({
           inside the step, never after its exit. */}
       {!review && (
         <div className="mt-8">
-          {/* The Crown present answer is required to leave this step. The
-              reason is stated where the seller is blocked, not only up at
-              the control, so a disabled Continue is never a mystery. */}
-          {d.crownPresent === undefined && (
-            <p className="mb-3 text-[12px] text-[var(--muted)]">
-              Please answer <span className="text-[var(--platinum)]">Crown present</span> above
-              — <span className="text-[var(--platinum)]">No</span> is a perfectly good answer.
+          {/* Continue assists instead of disabling itself (2026-08-22
+              order). The old model disabled the button on an unanswered
+              Crown present and made the seller hunt the page for the
+              reason. Now the first click validates the step, highlights
+              every missing control at once, and scrolls to the first —
+              and a second click still advances, because Crown present is
+              an admission-condition question that must not hard-block
+              Details (founder ruling; its relocation into curation is a
+              separate seam, stated in the return). */}
+          {assist && missingRequired.length > 0 && (
+            <p className="mb-3 text-[12px] text-[var(--gold)]">
+              Please complete the highlighted field(s).
             </p>
           )}
           {admissionUnclassified.length > 0 && (
@@ -1006,7 +1031,7 @@ export default function DetailsStep({
           <button
             type="button"
             onClick={handleContinue}
-            disabled={reviewing || d.crownPresent === undefined || admissionHolds}
+            disabled={reviewing || admissionHolds}
             className={`flex items-center gap-2 bg-[var(--cta-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               reviewing ? "cursor-wait" : ""
             }`}

@@ -85,40 +85,60 @@ export default function ListingScoreMeter({
 
       {/* Checklist */}
       <ul className="mt-3 space-y-1.5">
-        {score.completenessDetail.items.map((item) => (
-          <li key={item.key} className="flex items-start gap-2 text-[12px]">
-            <span
-              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${
-                item.done
-                  ? "bg-emerald-500 text-black"
-                  : "border border-white/20 text-transparent"
-              }`}
-            >
-              ✓
-            </span>
-            <span className="min-w-0">
+        {score.completenessDetail.items.map((item) => {
+          /* Reconstructable arithmetic (2026-08-22 order): the founder
+             added the visible weights and got 20 against a /22 meter,
+             and saw a green check over a (1/2). Two display truths fix
+             both, using only the item data already here:
+
+               · the CHECK means EARNED === MAX, nothing less. A bucket
+                 that awards partial credit (Documentation at Papers
+                 Only, Box & papers at 1 of 2) shows a gold half-marker
+                 instead — honest progress, never false completion.
+               · every row's points have a visible home: full or empty
+                 rows show the bucket weight (+N); partially-earned rows
+                 show "+earned of max"; Box & papers keeps its real
+                 fraction AND now carries its weight beside it, which is
+                 the +2 that made the old visible sum 20 instead of 22.
+
+             Scoring is untouched — this is the same data, finally adding
+             up in public. */
+          const full = item.earned === item.max;
+          const partial = item.earned > 0 && !full;
+          const isBoxPapers = /box\s*&\s*papers/i.test(item.label);
+          return (
+            <li key={item.key} className="flex items-start gap-2 text-[12px]">
               <span
-                className={item.done ? "text-[var(--platinum)]" : "text-[var(--muted)]"}
+                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                  full
+                    ? "bg-emerald-500 text-black"
+                    : partial
+                      ? "border border-[var(--gold)] text-[var(--gold)]"
+                      : "border border-white/20 text-transparent"
+                }`}
               >
-                {item.label}
+                {full ? "✓" : partial ? "·" : "✓"}
               </span>
-              {!item.done && (
-                <span className="text-[var(--muted)]"> — {item.hint}</span>
-              )}
-              {/* The suffix is a bonus WEIGHT, not a photo count —
-                  "Required photos (0/6)" read as zero-of-six photographs.
-                  Compact +N names the award. ONE deliberate exception:
-                  Box & papers has real one-of-two progress (box shot,
-                  papers shot), so its fraction is genuine and stays.
-                  Values come from the same item data; scoring untouched. */}
-              <span className="ml-1 text-[11px] text-[var(--muted)] tabular-nums">
-                {/box\s*&\s*papers/i.test(item.label)
-                  ? `(${item.earned}/${item.max})`
-                  : `+${item.max}`}
+              <span className="min-w-0">
+                <span
+                  className={full || partial ? "text-[var(--platinum)]" : "text-[var(--muted)]"}
+                >
+                  {item.label}
+                </span>
+                {!full && (
+                  <span className="text-[var(--muted)]"> — {item.hint}</span>
+                )}
+                <span className="ml-1 text-[11px] text-[var(--muted)] tabular-nums">
+                  {isBoxPapers
+                    ? `(${item.earned}/${item.max}) · +${item.max}`
+                    : partial
+                      ? `+${item.earned} of ${item.max}`
+                      : `+${item.max}`}
+                </span>
               </span>
-            </span>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {/* Destination line — always present, even at score 0. Not a reward. */}
