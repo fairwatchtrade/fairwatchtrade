@@ -12,7 +12,10 @@ import IntegrityEvidencePanel, {
   type PanelPhotoState,
   type PanelReview,
 } from "@/components/IntegrityEvidencePanel";
-import { PROVIDER_IMAGE_AUTHENTICITY } from "@/lib/integrity";
+import {
+  PROVIDER_IDENTITY_CONSISTENCY,
+  PROVIDER_IMAGE_AUTHENTICITY,
+} from "@/lib/integrity";
 import { adminLabel } from "@/lib/listingStatus";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -407,12 +410,21 @@ export default async function ListingReviewPage({
   /* Seller context — recorded facts about the person behind the listing.
      Absence of any piece degrades that piece, never the room. */
   let seller: SellerContext | null = null;
+  /* Identity Consistency — the third provider's answer for this listing.
+     The row that speaks per photograph: active completed attempt first,
+     else the latest attempt of any kind (same rule buildPanelPhoto uses
+     for its provider). Findings carry the five-part grammar in `reason`. */
+  let identityRows: {
+    state: "finding" | "clean" | "unavailable" | "pending";
+    category: string | null;
+    reason: string | null;
+  }[] = [];
   /* buyer_id → display name, for the purchase-request rows. Same profiles
      read the seller context uses, and same reason it goes through the
      service client: profiles is select-own, so a session read returns
      nothing for anyone but the founder themselves. An unresolved id simply
      renders the quiet generic rather than an id. */
-  let buyerNames: Record<string, string> = {};
+  const buyerNames: Record<string, string> = {};
   try {
     const service = createServiceClient();
     const { data } = await service.from("listings").select("*").eq("id", id).maybeSingle();
@@ -599,6 +611,58 @@ export default async function ListingReviewPage({
         }
 
         panelPhotos = media.map((m) => buildPanelPhoto(m, providerRows, urlByPath));
+
+        /* Identity Consistency rows, both correlation states, one speaking
+           row per photograph. Absence of rows renders NOTHING below — a
+           listing from before the provider existed carries no panel, and
+           absence is never presented as clean. */
+        const idRows: AubreyProviderRow[] = [];
+        const { data: idPost } = await service
+          .from("listing_integrity_provider_results")
+          .select(
+            "id, media_id, capture_session_id, storage_path, execution_status, classification, is_active, attempt_number, reason, detail"
+          )
+          .eq("provider", PROVIDER_IDENTITY_CONSISTENCY)
+          .in("media_id", mediaIds);
+        idRows.push(...((idPost ?? []) as AubreyProviderRow[]));
+        if (sessionIds.length > 0) {
+          const { data: idPre } = await service
+            .from("listing_integrity_provider_results")
+            .select(
+              "id, media_id, capture_session_id, storage_path, execution_status, classification, is_active, attempt_number, reason, detail"
+            )
+            .eq("provider", PROVIDER_IDENTITY_CONSISTENCY)
+            .in("capture_session_id", sessionIds)
+            .is("media_id", null);
+          idRows.push(...((idPre ?? []) as AubreyProviderRow[]));
+        }
+        identityRows = media
+          .map((m) => {
+            const mine = idRows
+              .filter(
+                (r) =>
+                  r.media_id === m.id ||
+                  (r.media_id === null &&
+                    r.capture_session_id === m.capture_session_id &&
+                    r.storage_path === m.storage_path)
+              )
+              .sort((a, b) => (b.attempt_number ?? 0) - (a.attempt_number ?? 0));
+            const row =
+              mine.find((r) => r.execution_status === "completed" && r.is_active === true) ??
+              mine[0] ??
+              null;
+            if (!row) return null;
+            const state =
+              row.execution_status === "completed" && row.is_active === true
+                ? row.classification === "passed"
+                  ? ("clean" as const)
+                  : ("finding" as const)
+                : row.execution_status === "pending"
+                  ? ("pending" as const)
+                  : ("unavailable" as const);
+            return { state, category: m.category, reason: row.reason };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
       }
 
       const { data: reviewRow } = await service
@@ -956,6 +1020,52 @@ export default async function ListingReviewPage({
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── IDENTITY CONSISTENCY — does the photograph contradict the
+            claim? Renders ONLY when provider rows exist for this listing's
+            photographs: a listing from before the provider carries no panel,
+            because absence of a check is not a clean result and must not
+            dress as one. A finding renders its five-part grammar verbatim —
+            the reason IS the evidence — and decides nothing. */}
+        {identityRows.length > 0 && (
+          <div style={panel}>
+            <div style={kicker}>Identity consistency</div>
+            {identityRows.some((r) => r.state === "finding") ? (
+              identityRows
+                .filter((r) => r.state === "finding")
+                .map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontSize: 13,
+                      color: C.text,
+                      lineHeight: 1.7,
+                      fontFamily: PROSE,
+                      whiteSpace: "pre-line",
+                      borderLeft: `3px solid ${C.gold}`,
+                      paddingLeft: 12,
+                      marginTop: i > 0 ? 14 : 0,
+                    }}
+                  >
+                    {r.reason ??
+                      "A contradiction was recorded for this photograph, but its explanation could not be read."}
+                  </div>
+                ))
+            ) : identityRows.every((r) => r.state === "unavailable" || r.state === "pending") ? (
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
+                The identity check could not complete for this listing&rsquo;s inspected
+                photographs. That is an operational fact about the checker — it is not
+                evidence about the seller, and it holds nothing.
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: PROSE }}>
+                No contradiction between the claimed identity and what is visible in the
+                inspected photograph{identityRows.length === 1 ? "" : "s"}. As with all
+                evidence here, a quiet result informs the review — it does not decide it.
+              </div>
+            )}
           </div>
         )}
 

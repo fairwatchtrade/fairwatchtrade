@@ -66,6 +66,48 @@ Approve; the routing itself lives in the route. Do not flatten
 `private_active` into generic public lifecycle behavior, and do not build a
 second approval path for it.
 
+## Identity Consistency — the third provider (Flight A)
+
+**The misconception to kill here:** clean Aubrey passes say NOTHING about
+whether the photographed watch is the claimed watch. The founder proved it:
+a Parmigiani-claimed listing with unmistakable Rolex photographs activated
+with 11 clean provenance passes — all CORRECT, because provenance was never
+the question. `identity_consistency` asks the missing question.
+
+- **Question:** does a photograph visibly contradict the claimed brand?
+  V1 = unmistakable foreign wordmark/logo only. NO reference/model/material/
+  era inference — silence is the designed output for ambiguity.
+- **Where:** `lib/identityConsistency.ts` (Google Vision TEXT+LOGO on the
+  same key Aubrey uses; vocabulary = the Vault's own `BRANDS_MODELS` names,
+  whole-word matched, single words ≥5 chars, claim-token-overlap exempt,
+  mixed-branding scenes quiet). Pure core `classifyIdentityConsistency()`
+  is pinned by `scripts/identity-consistency.test.mjs`.
+- **Seam:** third provider on the SAME post-upload path, Dial-tagged photos
+  only (routing law: the tag chooses where to look; pixels decide what is
+  seen). Also runs on the founder recheck route. Provider constant
+  `PROVIDER_IDENTITY_CONSISTENCY` in `lib/integrity.ts`.
+- **Flag:** `IDENTITY_CONSISTENCY=on` (env). Own switch, deliberately NOT
+  Aubrey's — inert until the founder enables it, killable without touching
+  provenance.
+- **Promotion & holds are inherited, not invented:** a `review_suggested`
+  row promotes through the SAME `buildPromotedEvidenceRows()` callers
+  (provider-agnostic by construction) and holds a submission via the SAME
+  `finding_review` witness rule ("either provider — holds"). The gate's
+  unavailability/coverage holds are image_authenticity-scoped, so an
+  unavailable identity row can never hold anything — failure law satisfied
+  structurally, not by discipline.
+- **Adverse `reason` IS the evidence:** the five-part grammar (CLAIM /
+  VISIBLE OBSERVATION / CONTRADICTION / WHAT POINTS THE OTHER WAY /
+  DECISION: none — human review required), rendered verbatim in this
+  room's "Identity consistency" panel. The panel renders ONLY when rows
+  exist — a pre-provider listing shows nothing, because an unrun check is
+  not a clean result.
+- **Never:** a `listing_integrity_reviews` row from provider execution;
+  confidence percentages; changes inside `imageAuthenticity.ts` (its
+  documented v2.24 lesson — semantic similarity is not provenance — stays
+  where it is; this provider is a different file asking a different
+  question).
+
 ## Evidence-schema cautions (learned, not theoretical)
 
 - **`cause_group_key`** — unreliable: inconsistent, sometimes null,

@@ -2,12 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
+  PROVIDER_IDENTITY_CONSISTENCY,
   PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_ADMIN_RECHECK,
   aggregateIntegrityForListing,
   buildPromotedEvidenceRows,
   isSystemReleasableHold,
 } from "@/lib/integrity";
+import {
+  executeIdentityConsistencyCheck,
+  identityConsistencyEnabled,
+} from "@/lib/identityConsistency";
 import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
@@ -100,7 +105,7 @@ export async function POST(
 
   const { data: listing, error: listingErr } = await service
     .from("listings")
-    .select("id, status, integrity_hold_reason, photos")
+    .select("id, status, integrity_hold_reason, photos, brand")
     .eq("id", id)
     .maybeSingle();
   if (listingErr) {
@@ -218,6 +223,96 @@ export async function POST(
       }
     })
   );
+
+  /* ── 4b · Identity Consistency recheck — same deactivate-then-attempt
+        shape as the Aubrey pass above, scoped to its own provider rows and
+        to Dial-tagged media only (the packet's routing law). Gated on its
+        own flag: while off, a founder recheck re-runs provenance exactly as
+        before and identity writes nothing. Promotion in step 5 is already
+        provider-agnostic, so a contradiction recorded here promotes with no
+        further wiring. ── */
+  if (identityConsistencyEnabled()) {
+    const claimedBrand = typeof listing.brand === "string" ? listing.brand : "";
+    const idTargets = targets.filter((m) => m.category === "Dial");
+    if (claimedBrand && idTargets.length > 0) {
+      const idIds = idTargets.map((m) => m.id);
+      const { data: idPrior, error: idPriorErr } = await service
+        .from("listing_integrity_provider_results")
+        .select("id, media_id, capture_session_id, storage_path, attempt_number, execution_status, is_active")
+        .eq("provider", PROVIDER_IDENTITY_CONSISTENCY)
+        .or(
+          `media_id.in.(${idIds.join(",")}),and(media_id.is.null,storage_path.in.(${idTargets
+            .map((m) => `"${m.storage_path}"`)
+            .join(",")}))`
+        );
+      if (idPriorErr) {
+        console.error("[identity] recheck prior read failed:", idPriorErr.message);
+      } else {
+        const idMaxAttempt = new Map<string, number>();
+        const idDeactivate: string[] = [];
+        for (const row of idPrior ?? []) {
+          const target = idTargets.find(
+            (m) =>
+              row.media_id === m.id ||
+              (row.media_id === null &&
+                row.capture_session_id === m.capture_session_id &&
+                row.storage_path === m.storage_path)
+          );
+          if (!target) continue;
+          idMaxAttempt.set(
+            target.id,
+            Math.max(idMaxAttempt.get(target.id) ?? 0, row.attempt_number ?? 0)
+          );
+          if (row.execution_status === "completed" && row.is_active === true) {
+            idDeactivate.push(row.id);
+          }
+        }
+        if (idDeactivate.length > 0) {
+          const { error: idDeactErr } = await service
+            .from("listing_integrity_provider_results")
+            .update({ is_active: false })
+            .in("id", idDeactivate);
+          if (idDeactErr) {
+            console.error("[identity] recheck deactivate failed:", idDeactErr.message);
+          }
+        }
+        await Promise.allSettled(
+          idTargets.map(async (m) => {
+            const url = m.storage_path ? urlByPath.get(m.storage_path) : undefined;
+            const core = url
+              ? await executeIdentityConsistencyCheck({
+                  photoUrl: url,
+                  claimedBrand,
+                  category: m.category ?? null,
+                })
+              : {
+                  execution_status: "unavailable" as const,
+                  classification: null,
+                  is_active: true,
+                  completed_at: null,
+                  reason: null,
+                  detail: { note: "photo_url_missing" },
+                };
+            const { error: insErr } = await service
+              .from("listing_integrity_provider_results")
+              .insert({
+                provider: PROVIDER_IDENTITY_CONSISTENCY,
+                attempt_number: (idMaxAttempt.get(m.id) ?? 0) + 1,
+                triggered_by: TRIGGERED_BY_ADMIN_RECHECK,
+                capture_session_id: m.capture_session_id,
+                storage_path: m.storage_path,
+                category: m.category ?? null,
+                media_id: m.id,
+                ...core,
+              });
+            if (insErr && (insErr as { code?: string }).code !== "23505") {
+              console.error("[identity] recheck insert failed:", insErr.message);
+            }
+          })
+        );
+      }
+    }
+  }
 
   // 5 · promote new accepted findings (idempotent by provider_result_id).
   const { data: results, error: resultsErr } = await service

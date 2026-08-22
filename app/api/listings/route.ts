@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
+  PROVIDER_IDENTITY_CONSISTENCY,
   PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_UPLOAD,
   TRIGGERED_BY_RETRY,
@@ -15,6 +16,10 @@ import {
   aubreyEnforcementEnabled,
   executeImageAuthenticityCheck,
 } from "@/lib/imageAuthenticity";
+import {
+  executeIdentityConsistencyCheck,
+  identityConsistencyEnabled,
+} from "@/lib/identityConsistency";
 import {
   ensureExactHashAttempts,
   type ExactHashMediaRow,
@@ -308,6 +313,92 @@ async function ensureAuthenticityAttempts(params: {
     );
   } catch (e) {
     console.error("[aubrey] attempt execution failed — gate will hold:", e);
+  }
+}
+
+/* ── Identity Consistency attempts — the third provider on this seam.
+      Mirrors ensureAuthenticityAttempts row-for-row (same correlation, same
+      attempt numbering, same 23505 tolerance) with three deliberate
+      differences: its own enablement flag; Dial-tagged photographs only
+      (the packet's routing law — the tag chooses WHERE to look, the visible
+      pixels alone decide WHAT is seen); and its unavailable rows can never
+      hold a listing, because the gate's coverage requirement is
+      image_authenticity-scoped by construction. Never throws. ── */
+async function ensureIdentityConsistencyAttempts(params: {
+  service: SupabaseClient;
+  mediaMeta: MediaMetaEntry[];
+  urlByPath: Map<string, string>;
+  claimedBrand: string;
+  triggeredBy: typeof TRIGGERED_BY_UPLOAD | typeof TRIGGERED_BY_RETRY;
+}): Promise<void> {
+  const { service, mediaMeta, urlByPath, claimedBrand, triggeredBy } = params;
+  const pairs = mediaMeta.filter(
+    (m) => m.capture_session_id && m.storage_path && m.category === "Dial"
+  );
+  if (pairs.length === 0 || !claimedBrand) return;
+
+  try {
+    const sessionIds = Array.from(new Set(pairs.map((m) => m.capture_session_id as string)));
+    const { data: existing, error } = await service
+      .from("listing_integrity_provider_results")
+      .select("capture_session_id, storage_path, execution_status, is_active, attempt_number")
+      .in("capture_session_id", sessionIds)
+      .eq("provider", PROVIDER_IDENTITY_CONSISTENCY);
+    if (error) {
+      console.error("[identity] attempt-state read failed:", error.message);
+      return;
+    }
+
+    const covered = new Set<string>();
+    const maxAttempt = new Map<string, number>();
+    for (const row of existing ?? []) {
+      const key = `${row.capture_session_id}|${row.storage_path}`;
+      if (row.execution_status === "completed" && row.is_active === true) covered.add(key);
+      maxAttempt.set(key, Math.max(maxAttempt.get(key) ?? 0, row.attempt_number ?? 0));
+    }
+
+    const toRun = pairs.filter(
+      (m) => !covered.has(`${m.capture_session_id}|${m.storage_path}`)
+    );
+    if (toRun.length === 0) return;
+
+    await Promise.allSettled(
+      toRun.map(async (m) => {
+        const key = `${m.capture_session_id}|${m.storage_path}`;
+        const url = urlByPath.get(m.storage_path);
+        const core = url
+          ? await executeIdentityConsistencyCheck({
+              photoUrl: url,
+              claimedBrand,
+              category: m.category || null,
+            })
+          : {
+              execution_status: "unavailable" as const,
+              classification: null,
+              is_active: true,
+              completed_at: null,
+              reason: null,
+              detail: { note: "photo_url_missing" },
+            };
+        const { error: insErr } = await service
+          .from("listing_integrity_provider_results")
+          .insert({
+            provider: PROVIDER_IDENTITY_CONSISTENCY,
+            attempt_number: (maxAttempt.get(key) ?? 0) + 1,
+            triggered_by: triggeredBy,
+            capture_session_id: m.capture_session_id,
+            storage_path: m.storage_path,
+            category: m.category || null,
+            media_id: null,
+            ...core,
+          });
+        if (insErr && (insErr as { code?: string }).code !== "23505") {
+          console.error("[identity] provider result insert failed:", insErr.message);
+        }
+      })
+    );
+  } catch (e) {
+    console.error("[identity] attempt execution failed:", e);
   }
 }
 
@@ -815,6 +906,21 @@ export async function POST(request: NextRequest) {
       service,
       mediaMeta,
       urlByPath,
+      triggeredBy: TRIGGERED_BY_UPLOAD,
+    });
+  }
+
+  /* ── Identity Consistency on the same seam — own flag, own question.
+        Runs BEFORE the witness gate for the same reason Aubrey does: a
+        completed contradiction becomes a finding_review hold in this very
+        submission, which is exactly the seam the founder's controlled
+        mismatch test proved undefended. Inert while the flag is off. ── */
+  if (identityConsistencyEnabled() && hasCorrelatableMedia && service) {
+    await ensureIdentityConsistencyAttempts({
+      service,
+      mediaMeta,
+      urlByPath,
+      claimedBrand: body.brand ?? "",
       triggeredBy: TRIGGERED_BY_UPLOAD,
     });
   }

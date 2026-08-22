@@ -181,6 +181,14 @@ export const PROVIDER_IMAGE_AUTHENTICITY = "image_authenticity";
     The provider implementation lives in lib/aubrey/listingPhotoExactHash.ts. */
 export const PROVIDER_AUBREY_EXACT_HASH = "aubrey_exact_hash";
 
+/** Canonical provider key. LOCKED, permanent — same law as its siblings:
+    partial unique indexes key on (…, provider), so this literal must never
+    change and must never be duplicated as a bare string in a route.
+    Identity Consistency asks the third question on the upload seam: does
+    the photograph visibly contradict the claimed watch? Implementation and
+    the V1 detection boundary live in lib/identityConsistency.ts. */
+export const PROVIDER_IDENTITY_CONSISTENCY = "identity_consistency";
+
 /** triggered_by values for non-first-pass attempts (live CHECK vocabulary). */
 export const TRIGGERED_BY_RETRY = "retry";
 export const TRIGGERED_BY_ADMIN_RECHECK = "admin_recheck";
