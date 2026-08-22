@@ -943,11 +943,19 @@ export default function SellFlow({
                     .
                   </p>
                 ) : (
-                  <p className="mb-2 text-[12px] text-[var(--muted)]">
-                    Add and label the required photos to continue
-                    {draft.hasBracelet
-                      ? " (dial, caseback, clasp, and a full shot with the strap/bracelet extended)."
-                      : " (dial, caseback, and clasp)."}
+                  /* The approved cool accent marks the instructional cue — a
+                     bounded Sell Flow use of mineral, this message only. Same
+                     size, same position; the exact required-photo set is bold
+                     so the eye lands on what actually unblocks Continue.
+                     Validation itself is untouched. */
+                  <p className="mb-2 text-[12px] text-[var(--mineral)]">
+                    Add and label the required photos to continue{" "}
+                    <span className="font-semibold">
+                      {draft.hasBracelet
+                        ? "(dial, caseback, clasp, and a full shot with the strap/bracelet extended)"
+                        : "(dial, caseback, and clasp)"}
+                    </span>
+                    .
                   </p>
                 )
               )}
@@ -1448,7 +1456,11 @@ function CurationStep({
               })
             }
             onResolutionChange={setBrandIdentityResolved}
-            inputClassName={input}
+            /* Placeholder-only size reduction (founder SEE-it): at the
+                field's 16px display size the longest example brand did not
+                fit. The placeholder: variant styles ONLY the ghost example —
+                the value a seller types keeps the field's own 16px. */
+            inputClassName={`${input} placeholder:text-[13px]`}
             placeholder="e.g. Parmigiani Fleurier"
           />
         </div>
@@ -1818,11 +1830,23 @@ function PhotosStep({
           </p>
         </>
       ) : (
-        <p className="mb-6 text-[13px] text-[var(--muted)]">
-          Upload your shots and label each one. Required: dial, caseback, clasp
-          {draft.hasBracelet ? ", and a full shot with the strap/bracelet extended" : ""}. The score on the
-          right climbs as you go.
-        </p>
+        <>
+          {/* The blocking requirement stands on its own line, bold, first —
+              it is the one sentence that decides whether Continue works, and
+              it was buried mid-paragraph in helper prose. Requirements
+              themselves are unchanged; only their visibility is. */}
+          <p className="mb-1 text-[13px] font-semibold text-[var(--platinum)]">
+            Required: dial, caseback, clasp
+            {draft.hasBracelet
+              ? ", and a full shot with the strap/bracelet extended"
+              : ""}
+            .
+          </p>
+          <p className="mb-6 text-[13px] text-[var(--muted)]">
+            Upload your shots and label each one. The score on the right climbs
+            as you go.
+          </p>
+        </>
       )}
 
       <label className="mt-4 flex items-center gap-2 text-[13px] text-[var(--platinum)]">

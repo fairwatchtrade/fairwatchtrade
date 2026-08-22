@@ -91,7 +91,14 @@ export default function DescriptionStep({
   const willBeThird = draft.strikes + 1 >= 3;
 
   return (
-    <div>
+    /* h-full + flex column (founder SEE-it): the left card is a grid item
+       stretched to the height of the Listing Strength rail beside it, so a
+       fixed-height textarea left a large empty slab under the word counter.
+       The textarea now takes the slack itself — flex-1 with the same
+       minimum floors — so the card's height is spent on the seller's story
+       instead of on blank surface. Word minimum, scoring, copy and
+       validation untouched. */
+    <div className="flex h-full flex-col">
       <h2 className="font-display text-[20px] font-light text-[var(--platinum)]">
         Step 4 — Your description
       </h2>
@@ -115,7 +122,7 @@ export default function DescriptionStep({
 
            resize-none is kept deliberately: a seller dragging the corner would
            break the Listing Strength rail's alignment beside it. */
-        className="mt-4 min-h-[220px] w-full resize-none border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] leading-relaxed text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none sm:min-h-[340px]"
+        className="mt-4 min-h-[220px] flex-1 w-full resize-none border-b border-[var(--border-mid)] bg-transparent px-0 py-2 text-[14px] leading-relaxed text-[var(--platinum)] placeholder:text-[var(--void)] focus:border-[var(--gold)] focus:outline-none sm:min-h-[340px]"
         spellCheck={false}
       />
       <div className={`mt-1 text-[12px] ${enough ? "text-[var(--muted)]" : "text-[var(--gold)]"}`}>

@@ -266,7 +266,7 @@ export default function ReviewStep({
         </p>
         <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[var(--slate)]">
           {draft.brand} {draft.model || draft.reference} is now visible to{" "}
-          {privateBuyerName || "your buyer"} — and to no one else. It will not
+          {privateBuyerName || "this collector"} — and to no one else. It will not
           appear on Browse, in search, or in any public count. They have been
           notified and can make an offer through the normal purchase path.
           You&apos;ll find it under your listings as Private.
@@ -369,10 +369,13 @@ export default function ReviewStep({
             lone hero is the case that needs it most, since there is no second
             photograph to carry the watch. */}
         {photos.length > 0 && onPresentationChange && (
+          /* pb matters as much as pt (founder SEE-it): with none, the
+             control sat flush against the identity block below and read as
+             pasted over the card. Dedicated room above AND below. */
           <PhotoPresentationEntry
             buttonRef={entryRef}
             onOpen={() => setEditorOpen(true)}
-            className="px-3 pt-3"
+            className="px-3 pb-4 pt-4"
           />
         )}
 
@@ -566,8 +569,8 @@ export default function ReviewStep({
             Private listing
           </span>
           <span className="mt-0.5 block">
-            Activates immediately for {privateBuyerName || "your buyer"} — and
-            no one else. Never public.
+            Activates immediately for {privateBuyerName || "this collector"} —
+            and no one else. Only this collector can see this listing.
           </span>
         </p>
       )}

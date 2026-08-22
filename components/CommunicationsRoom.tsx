@@ -1027,7 +1027,15 @@ export default function CommunicationsRoom({
               )}
 
               {/* Correspondence body */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 max-md:min-h-[200px]">
+              {/* No flex-1 here on purpose (short-thread correction): the
+                  body takes its natural height and shrinks when a long
+                  thread needs scrolling — the FILLER below the composer
+                  absorbs the leftover instead. A three-message thread reads
+                  as messages, then the reply, then quiet space; the reply
+                  no longer sits at the bottom of an empty page. Long
+                  threads are unchanged: the body shrinks, scrolls, and the
+                  filler collapses to nothing. */}
+              <div className="min-h-0 shrink overflow-y-auto px-4 py-4 max-md:min-h-[200px]">
                 {selected.kind === "request" && selected.request.notes && (
                   <div className="mb-4 max-w-[720px] border border-[var(--border-faint)] bg-[var(--surface-2)] px-3 py-2.5">
                     <div className="mb-1 flex items-baseline justify-between gap-4">
@@ -1132,6 +1140,11 @@ export default function CommunicationsRoom({
                   </div>
                 </div>
               </div>
+              {/* The short-thread filler: absorbs whatever height the body
+                  did not need, so the composer follows the last message
+                  instead of being pinned to the bottom of the pane. In a
+                  long thread the body claims everything and this is 0px. */}
+              <div className="min-h-0 flex-1" aria-hidden="true" />
             </>
           )}
         </section>

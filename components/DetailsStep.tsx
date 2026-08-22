@@ -51,13 +51,48 @@ function MovementFrequencyInput({
 }
 
 const MOVEMENT_TYPES = ["Automatic", "Manual Wind", "Quartz"];
+/* Closure taxonomy (founder correction, 2026-08-21). Deployant and
+   Folding / Fold-over are DELIBERATELY distinct and must never be
+   re-collapsed into one entry: a true deployant keeps the strap captive
+   and continuous when opened, while a folding/fold-over mechanism may
+   fully separate. That difference is meaningful buyer information about
+   how the watch behaves on the wrist, not naming trivia.
+
+   "None / Strap Only" predates this list and stays: a head-only sale has
+   no closure to name, and removing a legitimate recorded answer would
+   strand existing drafts. Free text still works — TypeaheadField treats
+   this list as suggestions, never a closed set. */
 const CLOSURE_TYPES = [
-  "Pin Buckle",
-  "Folding / Deployant Clasp",
+  "Pin Buckle (Tang / Ardillon)",
+  "Deployant Clasp",
+  "Butterfly / Hidden Clasp",
+  "Folding / Fold-over Clasp",
+  "Diver / Safety Clasp",
+  "Sliding / Adjustable Clasp",
+  "Jewelry Clasp",
+  "Velcro / Hook-and-Loop",
   "None / Strap Only",
   "Other",
 ];
 const CASEBACK_TYPES = ["Solid", "Exhibition / Display", "Other"];
+
+/* Case color / finish suggestions (founder correction, 2026-08-21).
+   Common collector/manufacturer descriptions surfaced through the SAME
+   TypeaheadField Crystal Material already uses — suggestions are sugar,
+   never a closed taxonomy, and a legitimate custom description (a
+   manufacturer finish name, a patina note) types straight through. */
+const CASE_COLOR_FINISHES = [
+  "Silver-tone",
+  "Yellow gold-tone",
+  "Rose gold-tone",
+  "Two-tone",
+  "Black (DLC / PVD)",
+  "Bronze",
+  "Polished",
+  "Brushed",
+  "Brushed and polished",
+  "Bead-blasted / sandblasted",
+];
 const CRYSTAL_MATERIALS = ["Sapphire", "Hesalite / Acrylic", "Mineral", "Other"];
 const CASE_MATERIALS = [
   "Stainless Steel",
@@ -530,7 +565,7 @@ export default function DetailsStep({
       </h2>
       <p className="mt-1 text-[13px] text-[var(--muted)]">
         The specifics collectors look for. Optional fields are marked — skip what
-        you can&apos;t confirm rather than guessing.
+        you can&apos;t confirm rather than guess.
       </p>
 
       {/* ─────────────────────────────────────────────────────────────
@@ -617,7 +652,12 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Case color / finish">
-            <input className={inputCls} value={d.caseColorFinish ?? ""} onChange={(e) => set("caseColorFinish", e.target.value)} placeholder="e.g. Silver-tone with polished and brushed surfaces" spellCheck={false} />
+            <TypeaheadField
+              value={d.caseColorFinish ?? ""}
+              onChange={(v) => set("caseColorFinish", v)}
+              suggestions={CASE_COLOR_FINISHES}
+              placeholder="e.g. Silver-tone with polished and brushed surfaces"
+            />
           </Field>
 
           <Field label="Caseback type">
@@ -687,7 +727,7 @@ export default function DetailsStep({
               value={d.closureType ?? ""}
               onChange={(v) => set("closureType", v)}
               suggestions={CLOSURE_TYPES}
-              placeholder="Folding / Deployant Clasp"
+              placeholder="Deployant Clasp"
             />
           </Field>
 

@@ -43,7 +43,23 @@ export default function ListingScoreMeter({
         <div className="text-[28px] font-light leading-none text-[var(--platinum)] tabular-nums">
           {score.combined}
         </div>
-        <ListingScoreHelp score={score.combined} />
+        <ListingScoreHelp
+          score={score.combined}
+          /* Presentation truth for the guide (SEE-it correction): which
+             criteria the CURRENT listing already satisfies, so the guide
+             never recommends work that is already done. Read from the same
+             score detail and photo tags the meter already renders — nothing
+             recomputed, nothing touched in scoring. */
+          satisfied={{
+            mandatory: score.completenessDetail.items.find((i) => i.key === "mandatory")?.done ?? false,
+            wrist: score.completenessDetail.items.find((i) => i.key === "wrist")?.done ?? false,
+            movement: score.completenessDetail.items.find((i) => i.key === "movement")?.done ?? false,
+            documentation: score.completenessDetail.items.find((i) => i.key === "documentation")?.done ?? false,
+            docPhotos: score.completenessDetail.items.find((i) => i.key === "docPhotos")?.done ?? false,
+            description: score.completenessDetail.items.find((i) => i.key === "description")?.done ?? false,
+            caseback: listing.photoCategories.includes("Caseback"),
+          }}
+        />
         <div className="text-[11px] text-[var(--muted)]">
           {score.significance} significance
           <span className="text-[var(--gold)]">
@@ -89,8 +105,16 @@ export default function ListingScoreMeter({
               {!item.done && (
                 <span className="text-[var(--muted)]"> — {item.hint}</span>
               )}
+              {/* The suffix is a bonus WEIGHT, not a photo count —
+                  "Required photos (0/6)" read as zero-of-six photographs.
+                  Compact +N names the award. ONE deliberate exception:
+                  Box & papers has real one-of-two progress (box shot,
+                  papers shot), so its fraction is genuine and stays.
+                  Values come from the same item data; scoring untouched. */}
               <span className="ml-1 text-[11px] text-[var(--muted)] tabular-nums">
-                ({item.earned}/{item.max})
+                {/box\s*&\s*papers/i.test(item.label)
+                  ? `(${item.earned}/${item.max})`
+                  : `+${item.max}`}
               </span>
             </span>
           </li>

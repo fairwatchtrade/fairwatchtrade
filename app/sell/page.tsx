@@ -43,11 +43,19 @@ function SellPageInner() {
           return;
         }
         const data = await res.json().catch(() => null);
-        const name =
+        const raw =
           typeof data?.thread?.otherName === "string" ? data.thread.otherName : null;
+        /* The API's generic fallback identity is honest machinery, but it is
+           machine language — "FairWatchTrade Member" on a private-listing
+           header reads like a database default where a relationship should
+           be. A usable display name is used normally; the generic becomes
+           null here so every surface below speaks collector language
+           instead. The thread is still perfectly valid either way — the
+           BINDING is the thread id, never the name. */
+        const name = raw === "FairWatchTrade Member" ? "" : raw;
         if (cancelled) return;
-        if (name) {
-          setBuyerName(name);
+        if (name !== null) {
+          setBuyerName(name || null);
           setPrivateState("ready");
         } else {
           setPrivateState("invalid");
@@ -74,7 +82,7 @@ function SellPageInner() {
           {isPrivate ? (
             <>
               <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
-                List your watch for {buyerName}.
+                {buyerName ? `List your watch for ${buyerName}.` : "List your watch for this collector."}
               </h1>
               <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
                 A private listing — the same real FairWatchTrade listing, for one
@@ -86,12 +94,15 @@ function SellPageInner() {
                   className="text-[11px] uppercase tracking-[2px]"
                   style={{ color: "var(--lc-private_active-badge)" }}
                 >
-                  Private listing · for {buyerName}
+                  {buyerName ? `Private listing · for ${buyerName}` : "Private listing for this collector"}
                 </div>
                 <p className="mt-1 text-[13px] leading-[1.6] text-[var(--slate)]">
-                  Visible only to {buyerName}. It will never appear on Browse, in
-                  search, or in any public count — and they can make an offer
-                  through the normal purchase path the moment you activate it.
+                  {buyerName
+                    ? `Visible only to ${buyerName}. It`
+                    : "Only this collector can see this listing. It"}{" "}
+                  will never appear on Browse, in search, or in any public
+                  count — and they can make an offer through the normal
+                  purchase path the moment you activate it.
                 </p>
               </div>
             </>

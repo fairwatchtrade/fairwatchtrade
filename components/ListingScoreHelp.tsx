@@ -1,28 +1,115 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-// The centralized tier logic (acting as your "Black Box" barrier)
-const SCORE_TIERS = [
-  { max: 49, name: "Incomplete", next: "Basic", advice: "Focus on the fundamentals: upload at least 4 clear photos, set an asking price, and complete all required fields." },
-  { max: 59, name: "Basic", next: "Solid", advice: "Add a description in your own voice. Explain why you bought the piece and its history; authenticity starts with your story." },
-  { max: 69, name: "Solid", next: "Strong", advice: "Add a wrist shot for scale and a photo of the case back to show the integrity of the rear casing." },
-  { max: 79, name: "Strong", next: "Collector Grade", advice: "Include 'Box and Papers' photos if available. If missing, provide a clear statement regarding the origin of the piece." },
-  { max: 89, name: "Collector Grade", next: "Exceptional", advice: "Include movement photography (if accessible) or macro shots of the dial/indices to highlight the condition." },
-  { max: 94, name: "Exceptional", next: "Museum Grade", advice: "Provide supporting evidence: service records, original purchase receipts, or a detailed timeline of ownership history." },
-  { max: 100, name: "Museum Grade", next: null, advice: "Outstanding listing quality. This represents the FairWatchTrade standard for documentation and transparency." }
+/* Which criteria the CURRENT listing already satisfies — handed in by the
+   meter from the same score detail and photo tags it renders. Presentation
+   truth only; nothing here reads or touches scoring. */
+export type SatisfiedCriteria = {
+  mandatory: boolean;
+  wrist: boolean;
+  movement: boolean;
+  documentation: boolean;
+  docPhotos: boolean;
+  description: boolean;
+  caseback: boolean;
+};
+
+/* The centralized tier logic (the "Black Box" barrier). Tier names and
+   thresholds are unchanged. What changed (founder SEE-it): advice is now
+   DERIVED against the listing instead of stamped per band — the guide
+   recommended "a photo of the case back" to a listing whose caseback was
+   already tagged, because the old advice string could not see the listing
+   at all. Each tier's advice is a function of what is satisfied; a tier
+   whose every suggestion is already met answers null and the guide falls
+   through to the next genuinely useful suggestion. The original sentences
+   are preserved verbatim wherever they still apply. */
+const SCORE_TIERS: {
+  max: number;
+  name: string;
+  next: string | null;
+  advice: (done: SatisfiedCriteria) => string | null;
+}[] = [
+  {
+    max: 49, name: "Incomplete", next: "Basic",
+    advice: (done) =>
+      done.mandatory
+        ? null
+        : "Focus on the fundamentals: upload at least 4 clear photos, set an asking price, and complete all required fields.",
+  },
+  {
+    max: 59, name: "Basic", next: "Solid",
+    advice: (done) =>
+      done.description
+        ? null
+        : "Add a description in your own voice. Explain why you bought the piece and its history; authenticity starts with your story.",
+  },
+  {
+    max: 69, name: "Solid", next: "Strong",
+    advice: (done) => {
+      if (!done.wrist && !done.caseback)
+        return "Add a wrist shot for scale and a photo of the case back to show the integrity of the rear casing.";
+      if (!done.wrist) return "Add a wrist shot for scale.";
+      if (!done.caseback)
+        return "Add a photo of the case back to show the integrity of the rear casing.";
+      return null;
+    },
+  },
+  {
+    max: 79, name: "Strong", next: "Collector Grade",
+    advice: (done) =>
+      done.docPhotos
+        ? null
+        : "Include 'Box and Papers' photos if available. If missing, provide a clear statement regarding the origin of the piece.",
+  },
+  {
+    max: 89, name: "Collector Grade", next: "Exceptional",
+    advice: (done) =>
+      done.movement
+        ? null
+        : "Include movement photography (if accessible) or macro shots of the dial/indices to highlight the condition.",
+  },
+  {
+    max: 94, name: "Exceptional", next: "Museum Grade",
+    advice: (done) =>
+      done.documentation
+        ? null
+        : "Provide supporting evidence: service records, original purchase receipts, or a detailed timeline of ownership history.",
+  },
+  {
+    max: 100, name: "Museum Grade", next: null,
+    advice: () =>
+      "Outstanding listing quality. This represents the FairWatchTrade standard for documentation and transparency.",
+  },
 ];
 
 function getTierContext(score: number) {
   return SCORE_TIERS.find(t => score <= t.max) || SCORE_TIERS[SCORE_TIERS.length - 1];
 }
 
-interface ListingScoreHelpProps {
-  score: number;
+/* The advice shown: from the score tier forward, the first tier whose
+   derived advice still has something to say. The "Path to X" label follows
+   the tier that actually supplied the advice, so the guide never says
+   "Path to Solid" while giving a later suggestion. */
+function getGuidance(score: number, done: SatisfiedCriteria) {
+  const startIdx = SCORE_TIERS.findIndex(t => score <= t.max);
+  const idx = startIdx < 0 ? SCORE_TIERS.length - 1 : startIdx;
+  for (let i = idx; i < SCORE_TIERS.length; i++) {
+    const advice = SCORE_TIERS[i].advice(done);
+    if (advice) return { advice, next: SCORE_TIERS[i].next };
+  }
+  const last = SCORE_TIERS[SCORE_TIERS.length - 1];
+  return { advice: last.advice(done) ?? "", next: last.next };
 }
 
-export default function ListingScoreHelp({ score }: ListingScoreHelpProps) {
+interface ListingScoreHelpProps {
+  score: number;
+  satisfied: SatisfiedCriteria;
+}
+
+export default function ListingScoreHelp({ score, satisfied }: ListingScoreHelpProps) {
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const tierContext = getTierContext(score);
+  const guidance = getGuidance(score, satisfied);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -59,15 +146,15 @@ export default function ListingScoreHelp({ score }: ListingScoreHelpProps) {
           </div>
 
           <div className="bg-[var(--surface)] rounded p-3 mb-1">
-            {tierContext.next ? (
+            {guidance.next ? (
               <>
-                <span className="block text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Path to {tierContext.next}</span>
-                <p className="text-[var(--platinum-dim)] leading-relaxed">{tierContext.advice}</p>
+                <span className="block text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Path to {guidance.next}</span>
+                <p className="text-[var(--platinum-dim)] leading-relaxed">{guidance.advice}</p>
               </>
             ) : (
               <>
                 <span className="block text-xs text-[var(--gold)] uppercase tracking-wider mb-1">Maximum Achieved</span>
-                <p className="text-[var(--platinum-dim)] leading-relaxed">{tierContext.advice}</p>
+                <p className="text-[var(--platinum-dim)] leading-relaxed">{guidance.advice}</p>
               </>
             )}
           </div>
