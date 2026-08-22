@@ -31,20 +31,26 @@ const nextConfig: NextConfig = {
      cannot see — the bin payload must be included explicitly for every
      function that can render a Dossier PDF. Scoped to those routes only:
      the payload is ~50MB and does not belong in every lambda. */
+  /* These keys are picomatch route globs, not plain strings — an unescaped
+     dynamic segment like [id] is a character class matching a single "i" or
+     "d", so the include silently applies to no real route (observed live:
+     the recheck lambda shipped without libvips and died ERR_DLOPEN_FAILED
+     while the statically-keyed /api/listings lambda loaded sharp fine).
+     Dynamic segments in keys must escape their brackets. */
   outputFileTracingIncludes: {
-    "/api/internal/collector-dossiers/regenerate/[listingId]": [
+    "/api/internal/collector-dossiers/regenerate/\\[listingId\\]": [
       "./node_modules/@sparticuz/chromium/bin/**",
     ],
-    "/api/internal/collector-dossiers/draft-preview/[referenceId]/pdf": [
+    "/api/internal/collector-dossiers/draft-preview/\\[referenceId\\]/pdf": [
       "./node_modules/@sparticuz/chromium/bin/**",
     ],
     "/api/internal/collector-dossiers/breguet-5967bb-11-9w6/pdf": [
       "./node_modules/@sparticuz/chromium/bin/**",
     ],
-    "/api/admin/listings/[id]/status": [
+    "/api/admin/listings/\\[id\\]/status": [
       "./node_modules/@sparticuz/chromium/bin/**",
     ],
-    "/api/admin/listings/[id]/recheck": [
+    "/api/admin/listings/\\[id\\]/recheck": [
       "./node_modules/@sparticuz/chromium/bin/**",
       "./node_modules/sharp/**",
       "./node_modules/@img/**",
