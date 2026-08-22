@@ -837,14 +837,16 @@ export default async function ListingReviewPage({
     return null;
   })();
 
-  /* Evidence posture, counted for the why-strip. The counts NAME the state
-     of the record; the sentence beside them refuses the shortcut — clean
-     evidence is not a verdict, and a real rejected listing with eleven
-     clean passes is the standing proof. */
-  const adverseCount = panelPhotos.filter(
-    (p) => p.state === "full" || p.state === "partial"
-  ).length;
-  const cleanCount = panelPhotos.filter((p) => p.state === "clean").length;
+  /* Evidence posture for the why-strip — one truthful sentence across ALL
+     providers, never one provider's count wearing the whole record's name
+     (the old authenticity-only count said "no active provider findings"
+     while an Identity Consistency contradiction sat directly below it).
+     Detailed coverage and denominators belong to the per-provider blocks;
+     this line only says whether anything is raising its hand right now. */
+  const totalActiveFindings =
+    panelPhotos.filter((p) => p.state === "full" || p.state === "partial").length +
+    identityCoverage.findings +
+    exactHashCoverage.findings;
 
   const price =
     typeof listing.asking_price === "number" || typeof listing.asking_price === "string"
@@ -1019,21 +1021,19 @@ export default async function ListingReviewPage({
               </div>
             )}
             <div style={{ marginTop: 10, color: C.muted }}>
-              Photograph evidence:{" "}
-              {adverseCount > 0 ? (
-                <span style={{ color: C.gold }}>
-                  {adverseCount} of {panelPhotos.length} with an active provider finding
+              {panelPhotos.length === 0 ? (
+                <span>Photograph evidence: no photographs on record</span>
+              ) : totalActiveFindings > 0 ? (
+                <span>
+                  Provider evidence:{" "}
+                  <span style={{ color: C.gold }}>
+                    {totalActiveFindings} active finding
+                    {totalActiveFindings === 1 ? "" : "s"}.
+                  </span>
                 </span>
               ) : (
-                <span>no active provider findings</span>
+                <span>Provider evidence: no active findings.</span>
               )}
-              {cleanCount > 0 && (
-                <span>
-                  {" "}
-                  · {cleanCount} clean {cleanCount === 1 ? "pass" : "passes"}
-                </span>
-              )}
-              {panelPhotos.length === 0 && <span>no photographs on record</span>}
             </div>
             {/* The doctrine is unchanged; only the voice is. The previous
                 wording stated it like a disclaimer written by a lawyer for
