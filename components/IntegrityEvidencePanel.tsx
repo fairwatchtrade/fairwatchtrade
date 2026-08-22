@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  composeProviderCoverage,
+  coverageLine,
+  isFullyClean,
+  type CoverageState,
+} from "@/lib/integrityCoverage";
 
 /* ════════════════════════════════════════════════════════════════════════
    IntegrityEvidencePanel — components/IntegrityEvidencePanel.tsx   (v2.24)
@@ -180,6 +186,7 @@ export default function IntegrityEvidencePanel({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [techOpen, setTechOpen] = useState(false);
 
   const ordered = [...photos].sort(
     (a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state]
@@ -188,6 +195,23 @@ export default function IntegrityEvidencePanel({
   const compact = ordered.filter((p) => STATE_ORDER[p.state] > 2);
 
   const findings = photos.filter((p) => p.state === "full" || p.state === "partial").length;
+
+  /* This provider's own coverage summary, derived from the same speaking
+     states the rows render — a summary that cannot disagree with its
+     records. When nothing raised its hand and nothing is missing, the
+     summary IS the founder-facing payload and the per-photo records
+     collapse behind an explicit disclosure. */
+  const STATE_TO_COVERAGE: Record<PanelPhotoState, CoverageState> = {
+    full: "finding",
+    partial: "finding",
+    unavailable: "unavailable",
+    pending: "pending",
+    clean: "clean",
+    excluded: "not_eligible",
+  };
+  const coverage = composeProviderCoverage(photos.map((p) => STATE_TO_COVERAGE[p.state]));
+  const allQuiet =
+    coverage.findings === 0 && coverage.unavailable === 0 && coverage.pending === 0;
 
   /* Listing-level execution summary for the shared header. */
   const exec = ((): { label: string; tone: "ok" | "hold" | "danger" | "" } => {
@@ -421,8 +445,16 @@ export default function IntegrityEvidencePanel({
           </p>
         </div>
         <div className="execution">
-          <div className="execution-label">Provider execution</div>
+          {/* Named for the ONE provider this block describes — never a
+              generic "provider execution" that reads as the whole Aubrey
+              Check passing while a sibling provider holds an adverse
+              result on the same listing. */}
+          <div className="execution-label">Image authenticity</div>
           <div className={`execution-value ${exec.tone}`}>{exec.label}</div>
+          <div className="execution-coverage">
+            {isFullyClean(coverage) ? "✓ " : ""}
+            {coverageLine(coverage)}
+          </div>
         </div>
       </header>
 
@@ -443,8 +475,34 @@ export default function IntegrityEvidencePanel({
         <>
           {fullSections.map(renderPhotoSection)}
 
-          {compact.length > 0 && (
+          {compact.length > 0 && allQuiet && !techOpen ? (
             <div className="compact-list">
+              <button
+                type="button"
+                className="compact-row tech-toggle"
+                onClick={() => setTechOpen(true)}
+              >
+                <span className="compact-state">
+                  Per-photograph technical records — the coverage summary above is the
+                  current truth
+                </span>
+                <span className="compact-toggle">
+                  View technical records ({compact.length})
+                </span>
+              </button>
+            </div>
+          ) : compact.length > 0 ? (
+            <div className="compact-list">
+              {allQuiet && (
+                <button
+                  type="button"
+                  className="compact-row tech-toggle"
+                  onClick={() => setTechOpen(false)}
+                >
+                  <span className="compact-state">Per-photograph technical records</span>
+                  <span className="compact-toggle">Hide technical records ↑</span>
+                </button>
+              )}
               {compact.map((p) =>
                 expanded[p.mediaId] ? (
                   <div key={p.mediaId}>
@@ -477,7 +535,7 @@ export default function IntegrityEvidencePanel({
                 )
               )}
             </div>
-          )}
+          ) : null}
         </>
       )}
 
@@ -653,6 +711,8 @@ const PANEL_CSS = `
 .compact-cat{color:var(--platinum-dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 .compact-state{color:var(--muted);font-size:10px;line-height:1.4}
 .compact-toggle{color:#92AFE9;font-size:9px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.compact-row.tech-toggle{grid-template-columns:minmax(0,1fr) auto}
+.execution-coverage{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5;max-width:360px}
 .panel-feedback{margin-top:12px;font-size:12px;padding:6px 10px;border:1px solid #5a2a2a;background:#241315;color:#f0857d}
 .panel-feedback.ok{border-color:#2e5a34;background:#132417;color:#7fd18a}
 .actions{padding:14px 16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:#0F1319}

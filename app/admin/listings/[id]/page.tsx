@@ -13,9 +13,18 @@ import IntegrityEvidencePanel, {
   type PanelReview,
 } from "@/components/IntegrityEvidencePanel";
 import {
+  PROVIDER_AUBREY_EXACT_HASH,
   PROVIDER_IDENTITY_CONSISTENCY,
   PROVIDER_IMAGE_AUTHENTICITY,
 } from "@/lib/integrity";
+import {
+  composeProviderCoverage,
+  coverageLine,
+  isFullyClean,
+  pickSpeakingRow,
+  speakingCoverageState,
+  type CoverageState,
+} from "@/lib/integrityCoverage";
 import { adminLabel } from "@/lib/listingStatus";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -214,21 +223,16 @@ function buildPanelPhoto(
   rows: AubreyProviderRow[],
   urlByPath: Map<string, string>
 ): PanelPhoto {
-  // The row that speaks for this photo: the active completed attempt if one
-  // exists, else the latest attempt of any kind.
-  const mine = rows
-    .filter(
-      (r) =>
-        r.media_id === media.id ||
-        (r.media_id === null &&
-          r.capture_session_id === media.capture_session_id &&
-          r.storage_path === media.storage_path)
-    )
-    .sort((a, b) => (b.attempt_number ?? 0) - (a.attempt_number ?? 0));
-  const row =
-    mine.find((r) => r.execution_status === "completed" && r.is_active === true) ??
-    mine[0] ??
-    null;
+  // The row that speaks for this photo: the shared speaking-row rule
+  // (active completed attempt first, else the latest attempt of any kind).
+  const mine = rows.filter(
+    (r) =>
+      r.media_id === media.id ||
+      (r.media_id === null &&
+        r.capture_session_id === media.capture_session_id &&
+        r.storage_path === media.storage_path)
+  );
+  const row = pickSpeakingRow(mine);
 
   let state: PanelPhotoState;
   if (media.capture_source === "dealer_import") {
@@ -419,6 +423,15 @@ export default async function ListingReviewPage({
     category: string | null;
     reason: string | null;
   }[] = [];
+  /* Per-photograph coverage states for the per-provider summaries — one
+     state per photograph of the listing, derived through the SAME speaking
+     rule the detailed rows use, so a summary can never disagree with the
+     records beneath it. Identity's eligible set is Dial-tagged photographs
+     (the provider's routing law); exact-hash and authenticity examine every
+     non-dealer-import photograph. */
+  let identityStates: CoverageState[] = [];
+  let exactHashStates: CoverageState[] = [];
+  let exactHashHasRows = false;
   /* buyer_id → display name, for the purchase-request rows. Same profiles
      read the seller context uses, and same reason it goes through the
      service client: profiles is select-own, so a session read returns
@@ -636,33 +649,65 @@ export default async function ListingReviewPage({
             .is("media_id", null);
           idRows.push(...((idPre ?? []) as AubreyProviderRow[]));
         }
-        identityRows = media
-          .map((m) => {
-            const mine = idRows
-              .filter(
-                (r) =>
-                  r.media_id === m.id ||
-                  (r.media_id === null &&
-                    r.capture_session_id === m.capture_session_id &&
-                    r.storage_path === m.storage_path)
-              )
-              .sort((a, b) => (b.attempt_number ?? 0) - (a.attempt_number ?? 0));
-            const row =
-              mine.find((r) => r.execution_status === "completed" && r.is_active === true) ??
-              mine[0] ??
-              null;
-            if (!row) return null;
-            const state =
-              row.execution_status === "completed" && row.is_active === true
-                ? row.classification === "passed"
-                  ? ("clean" as const)
-                  : ("finding" as const)
-                : row.execution_status === "pending"
-                  ? ("pending" as const)
-                  : ("unavailable" as const);
-            return { state, category: m.category, reason: row.reason };
-          })
-          .filter((r): r is NonNullable<typeof r> => r !== null);
+        identityRows = [];
+        identityStates = media.map((m) => {
+          const mine = idRows.filter(
+            (r) =>
+              r.media_id === m.id ||
+              (r.media_id === null &&
+                r.capture_session_id === m.capture_session_id &&
+                r.storage_path === m.storage_path)
+          );
+          const row = pickSpeakingRow(mine);
+          /* Eligibility follows the provider's routing law (Dial-tagged,
+             never dealer-import) — but a photograph the provider actually
+             examined is eligible by that fact, whatever its tag says. */
+          const eligible =
+            row !== null ||
+            (m.capture_source !== "dealer_import" && m.category === "Dial");
+          if (!eligible) return "not_eligible";
+          const state = speakingCoverageState(row);
+          if (row) identityRows.push({ state, category: m.category, reason: row.reason });
+          return state;
+        });
+
+        /* Aubrey exact hash — the third provider's coverage. Summary-only:
+           its per-photo records have no evidence panel of their own, but
+           "what ran" must include it or the room's coverage story is
+           incomplete. Absence of rows renders nothing below — a listing
+           the provider never touched carries no summary dressed as one. */
+        const ehRows: AubreyProviderRow[] = [];
+        const { data: ehPost } = await service
+          .from("listing_integrity_provider_results")
+          .select(
+            "id, media_id, capture_session_id, storage_path, execution_status, classification, is_active, attempt_number, reason, detail"
+          )
+          .eq("provider", PROVIDER_AUBREY_EXACT_HASH)
+          .in("media_id", mediaIds);
+        ehRows.push(...((ehPost ?? []) as AubreyProviderRow[]));
+        if (sessionIds.length > 0) {
+          const { data: ehPre } = await service
+            .from("listing_integrity_provider_results")
+            .select(
+              "id, media_id, capture_session_id, storage_path, execution_status, classification, is_active, attempt_number, reason, detail"
+            )
+            .eq("provider", PROVIDER_AUBREY_EXACT_HASH)
+            .in("capture_session_id", sessionIds)
+            .is("media_id", null);
+          ehRows.push(...((ehPre ?? []) as AubreyProviderRow[]));
+        }
+        exactHashHasRows = ehRows.length > 0;
+        exactHashStates = media.map((m) => {
+          if (m.capture_source === "dealer_import") return "not_eligible";
+          const mine = ehRows.filter(
+            (r) =>
+              r.media_id === m.id ||
+              (r.media_id === null &&
+                r.capture_session_id === m.capture_session_id &&
+                r.storage_path === m.storage_path)
+          );
+          return speakingCoverageState(pickSpeakingRow(mine));
+        });
       }
 
       const { data: reviewRow } = await service
@@ -775,6 +820,13 @@ export default async function ListingReviewPage({
   const isPrivateIntended =
     typeof listing.private_buyer_id === "string" && listing.private_buyer_id !== "";
   const holdReason = (listing.integrity_hold_reason as string | null) ?? null;
+
+  /* Per-provider coverage summaries — the room tells the founder what
+     happened before it asks them to read the evidence log. Counts come
+     from the per-photograph speaking states above (active attempts only),
+     never raw row counts. */
+  const identityCoverage = composeProviderCoverage(identityStates);
+  const exactHashCoverage = composeProviderCoverage(exactHashStates);
 
   /* First photograph as the identity anchor — the same JSON the raw record
      carries, surfaced instead of buried. */
@@ -1032,6 +1084,31 @@ export default async function ListingReviewPage({
         {identityRows.length > 0 && (
           <div style={panel}>
             <div style={kicker}>Identity consistency</div>
+            {/* The provider's own coverage summary — its Dial-only eligible
+                set keeps its own denominator; it never borrows image
+                authenticity's. */}
+            <div
+              style={{
+                fontSize: 12,
+                marginBottom: 10,
+                color:
+                  identityCoverage.findings > 0 || identityCoverage.unavailable > 0
+                    ? C.gold
+                    : C.green,
+              }}
+            >
+              {isFullyClean(identityCoverage) ? "✓ " : ""}
+              {coverageLine(identityCoverage, ["contradiction", "contradictions"])}
+            </div>
+            {identityCoverage.notEligible > 0 && (
+              <div
+                style={{ fontSize: 11, color: C.muted, marginBottom: 10, fontFamily: PROSE }}
+              >
+                {identityCoverage.notEligible} photograph
+                {identityCoverage.notEligible === 1 ? " is" : "s are"} not eligible for
+                this check — it examines Dial-tagged photographs only.
+              </div>
+            )}
             {identityRows.some((r) => r.state === "finding") ? (
               identityRows
                 .filter((r) => r.state === "finding")
@@ -1082,6 +1159,34 @@ export default async function ListingReviewPage({
           review={panelReview}
           photos={panelPhotos}
         />
+
+        {/* ── AUBREY EXACT HASH — the third provider's coverage, summary
+            only. Its per-photo records carry no evidence panel of their
+            own; the summary states what ran so the room's coverage story
+            is complete. Renders only when the provider actually touched
+            this listing — absence is never dressed as clean. */}
+        {exactHashHasRows && (
+          <div style={panel}>
+            <div style={kicker}>Aubrey exact hash</div>
+            <div
+              style={{
+                fontSize: 12,
+                color:
+                  exactHashCoverage.findings > 0 || exactHashCoverage.unavailable > 0
+                    ? C.gold
+                    : C.green,
+              }}
+            >
+              {isFullyClean(exactHashCoverage) ? "✓ " : ""}
+              {coverageLine(exactHashCoverage, ["recurrence finding", "recurrence findings"])}
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 6, fontFamily: PROSE }}>
+              Byte-exact recurrence of these photographs across FairWatchTrade listings.
+              As with all evidence here, a quiet result informs the review — it does not
+              decide it.
+            </div>
+          </div>
+        )}
 
         {/* ── 5 · SELLER CONTEXT ──────────────────────────────────────────
             Recorded facts about the person behind the listing — the third
