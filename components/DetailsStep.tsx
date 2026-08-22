@@ -22,6 +22,12 @@ import {
 } from "@/lib/admission/requirementProfile";
 import WatchSpinner from "@/components/WatchSpinner";
 import { formatMovementFrequency, vphInputDigits } from "@/lib/movementFrequency";
+import {
+  MISSING_REQUIRED_CLS,
+  continueHeld,
+  detailsMissingRequired,
+  typeaheadMenuOptions,
+} from "@/lib/sellValidation";
 
 /* Digits while editing, presentation at rest. The stored draft value is
    always bare digits (or a legacy string being progressively cleaned as the
@@ -307,11 +313,10 @@ function TypeaheadField({
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(() => {
-    const q = value.trim().toLowerCase();
-    if (!q) return suggestions.slice(0, maxSuggestions);
-    return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, maxSuggestions);
-  }, [value, suggestions, maxSuggestions]);
+  const filtered = useMemo(
+    () => typeaheadMenuOptions(value, suggestions, maxSuggestions),
+    [value, suggestions, maxSuggestions]
+  );
 
   const showMenu = focused && (filtered.length > 0 || !!otherOption);
   // Rows in render order: filtered suggestions, then the optional pinned row.
@@ -391,6 +396,11 @@ function TypeaheadField({
           setFocused(true);
           setActiveIdx(0);
         }}
+        /* Committing a suggestion by mouse closes the menu while the input
+           KEEPS focus, so a second click fires no focus event and the menu
+           stayed shut — the founder had to erase a chosen Closure type to
+           get the choices back. Clicking a populated field reopens them. */
+        onClick={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
@@ -506,20 +516,27 @@ export default function DetailsStep({
      than by disabling the button. One list so every missing control
      highlights at once — never one-at-a-time whack-a-mole. Crown present
      is currently its only member. */
-  const missingRequired: { key: string; anchor: string }[] =
-    d.crownPresent === undefined
-      ? [{ key: "crownPresent", anchor: "crown-present-field" }]
-      : [];
+  const missingRequired = detailsMissingRequired(d);
   const [assist, setAssist] = useState(false);
+  /* A control wears the alarm only after a Continue press has revealed the
+     step's missing answers — never while the seller is still filling it in
+     for the first time. */
+  const missing = (key: string) =>
+    assist && missingRequired.some((m) => m.key === key);
 
   async function handleContinue() {
-    /* First click with something missing: highlight, scroll, stay. The
-       seller answers OR clicks Continue again — the step never traps. */
-    if (missingRequired.length > 0 && !assist) {
+    /* A Continue press with something missing reveals every missing control
+       at once and scrolls to the first. A BLOCKING miss (an emptied Case
+       size) keeps the step open on every press; a non-blocking one (Crown
+       present) lets the seller past on the second. */
+    if (continueHeld(missingRequired, assist)) {
       setAssist(true);
-      document
-        .getElementById(missingRequired[0].anchor)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const first = missingRequired[0];
+      const el = document.getElementById(first.anchor);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.querySelector<HTMLElement>("input, select, textarea")?.focus({
+        preventScroll: true,
+      });
       return;
     }
     const note = (draft.provenanceNote ?? "").trim();
@@ -632,7 +649,12 @@ export default function DetailsStep({
       <Chapter numeral="II" title="The Case" caption="Case dimensions and materials." chapterKey="case">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Case size (mm)">
-            <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} inputMode="decimal" />
+            {/* Required, and an emptied field STAYS empty: the seller's
+                clear is an answer, and Continue holds the step until a
+                real value is entered rather than restoring the old one. */}
+            <div id="case-size-field" className={missing("caseSizeMm") ? MISSING_REQUIRED_CLS : ""}>
+              <input className={inputCls} value={d.caseSizeMm ?? ""} onChange={(e) => set("caseSizeMm", e.target.value)} inputMode="decimal" />
+            </div>
           </Field>
 
           <Field label="Case thickness (mm, optional)">
@@ -718,22 +740,24 @@ export default function DetailsStep({
           <div
             id="crown-present-field"
             className={`flex items-end pb-1 ${
-              assist && d.crownPresent === undefined
-                ? "border-l-2 border-[var(--gold)] pl-3 -ml-3"
-                : ""
+              missing("crownPresent") ? MISSING_REQUIRED_CLS : ""
             }`}
           >
-            {/* Required ANSWER, not a required crown. "No" is fully valid —
-                a missing crown is truthful — but silence is not, because it
-                cannot be told apart from a deliberate No. The gold left rule
-                appears after an assisted Continue click and stays until the
-                question is answered — gentle and persistent, not a trap:
-                Continue itself still advances on the next click. */}
+            {/* An ANSWER is wanted, not a crown. "No" is fully valid — a
+                missing crown is truthful — but silence is not, because it
+                cannot be told apart from a deliberate No. The alarm appears
+                after an assisted Continue press and stays until answered,
+                and Continue still advances on the next press: this question
+                does not block Details (its relocation into admission is a
+                separate governed seam). Because it does not block, it no
+                longer LABELS itself `required` — the word and the behavior
+                have to tell the seller the same story. */}
             <BinaryChoice
               label="Crown present"
               name="crown-present"
               value={d.crownPresent}
               onChange={(v) => set("crownPresent", v)}
+              hideRequiredHint
             />
           </div>
         </div>
@@ -1009,7 +1033,8 @@ export default function DetailsStep({
               separate seam, stated in the return). */}
           {assist && missingRequired.length > 0 && (
             <p className="mb-3 text-[12px] text-[var(--gold)]">
-              Please complete the highlighted field(s).
+              Please complete the highlighted field
+              {missingRequired.length === 1 ? "" : "s"}.
             </p>
           )}
           {admissionUnclassified.length > 0 && (
@@ -1076,8 +1101,13 @@ function Chapter({
       <p className="mt-1 text-[12px] leading-[1.5] text-[var(--muted)]">
         {caption}
       </p>
-      <div className="mt-3 h-px w-full bg-[var(--border-faint)]" />
-      <div className="mt-5">{children}</div>
+      {/* A short rule under the heading, not a full-width one. Every input
+          on this step is an underline, so a hairline spanning the column
+          read as an empty text field waiting to be filled — architecture
+          mistaken for a control. Shortened and given more air beneath, it
+          reads as the chapter mark it always was. */}
+      <div className="mt-3 h-px w-10 bg-[var(--border-mid)]" />
+      <div className="mt-6">{children}</div>
     </section>
   );
 }
@@ -1157,12 +1187,17 @@ export function BinaryChoice({
   onChange,
   name,
   sentenceLegend,
+  hideRequiredHint,
 }: {
   label: string;
   value: boolean | undefined;
   onChange: (v: boolean) => void;
   name: string;
   sentenceLegend?: boolean;
+  /** Suppresses the `required` word for a question that does not actually
+      block its step. The admission entry conditions DO block, so they keep
+      it; Crown present does not, so it must not claim otherwise. */
+  hideRequiredHint?: boolean;
 }) {
   const answered = value !== undefined;
   return (
@@ -1175,7 +1210,7 @@ export function BinaryChoice({
         }
       >
         {label}
-        {!answered && (
+        {!answered && !hideRequiredHint && (
           <span className="ml-2 normal-case tracking-normal text-[var(--gold-dim)]">
             required
           </span>

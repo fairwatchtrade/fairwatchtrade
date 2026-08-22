@@ -15,6 +15,7 @@ import HelpBubble from "@/components/HelpBubble";
 import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
+import { MISSING_REQUIRED_CLS } from "@/lib/sellValidation";
 
 /* Native <option> elements don't inherit the form's dark styling — when a
    <select> opens, the browser renders the option list with defaults (often a
@@ -123,8 +124,13 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
      corridor walk lost every photo by stepping back to Photos, because
      the fresh mount emitted an empty list over the populated draft). */
   initialPhotos?: UploadedPhotoMeta[];
+  /* A Continue press validated the Photos step and something is still
+     missing: every untagged photo wears the shared missing-required
+     perimeter until it is labeled. Marking only — the required set and the
+     scoring behind it are untouched. */
+  assist?: boolean;
 }>(
-  function PhotoUpload({ onChange, extraCategories, initialPhotos }, ref) {
+  function PhotoUpload({ onChange, extraCategories, initialPhotos, assist }, ref) {
     /* Deduped by value: the Rolex corridor still passes "Service Evidence"
        through extraCategories, and now the base list carries it too — one
        menu entry, not two. */
@@ -479,6 +485,16 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                   </button>
                 </div>
 
+                <div
+                  data-photo-untagged={
+                    !it.category && !it.isWristShot ? "true" : undefined
+                  }
+                  className={
+                    assist && !it.category && !it.isWristShot
+                      ? MISSING_REQUIRED_CLS
+                      : ""
+                  }
+                >
                 <select
                   value={it.isWristShot ? "Wrist shot" : it.category}
                   onChange={(e) => setCategory(it.id, e.target.value)}
@@ -494,6 +510,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                     </option>
                   ))}
                 </select>
+                </div>
 
                 {it.category === "Full watch, strap/bracelet extended" && (
                   <p className="text-[10px] leading-snug text-[var(--muted)]">

@@ -613,9 +613,24 @@ export default function SellFlow({
         setPhoneActive(true);
         setPollLive(true);
       } else if (res.state === "STALE") {
-        // A newer revision exists (e.g. the phone saved then returned).
+        /* A newer server revision exists while THIS editor still holds the
+           baton. Adopting it here overwrote what the seller was editing at
+           that moment — the defect from the 2026-08-22 walk: a deliberately
+           cleared Case size silently repopulated from the older server copy,
+           because the whole local draft was replaced mid-edit. The active
+           editor's live work wins: re-anchor to the newer revision and write
+           our content over it. Phone-authored work is never lost this way —
+           while the phone holds the baton this effect does not run at all
+           (phoneActive returns above), and the authority-return path adopts
+           the phone's row explicitly. */
         const row = await fetchDraftRow(serverDraftId);
-        if (row) adoptRow(row);
+        if (row) {
+          revisionRef.current = row.revision;
+          const retry = await saveContent(serverDraftId, content, row.revision, "desktop");
+          if (retry.state === "SAVED" && typeof retry.revision === "number") {
+            revisionRef.current = retry.revision;
+          }
+        }
       }
     }, 1200);
     return () => {
@@ -795,6 +810,29 @@ export default function SellFlow({
       ? mandatoryDone(draft) && missingAdmissionViews.length === 0
       : true;
 
+  /* ── Photos assist (2026-08-22 founder walk) ──────────────────────────
+     Continue stays CLICKABLE while the photo requirements are incomplete.
+     The press validates the step, marks every untagged photo at once, and
+     brings the first into view. A disabled button made the seller hunt the
+     page for a reason it would not name — the same assist law Details
+     already follows. The required-photo set and the scoring behind
+     canProceed are untouched; only the button's manners changed. */
+  const [photosAssist, setPhotosAssist] = useState(false);
+  function handleStepContinue() {
+    if (step === 1 && !canProceed) {
+      setPhotosAssist(true);
+      requestAnimationFrame(() => {
+        const first =
+          document.querySelector<HTMLElement>("[data-photo-untagged='true']") ??
+          document.querySelector<HTMLElement>("[data-photo-dropzone]");
+        first?.scrollIntoView({ behavior: "smooth", block: "center" });
+        first?.querySelector<HTMLElement>("select")?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    setStep(step + 1);
+  }
+
   // ── Paused: the phone holds the baton. The flow stays mounted but inert
   // under an honest, calm panel. Not an error — a location.
   if (phoneActive) {
@@ -870,7 +908,12 @@ export default function SellFlow({
             />
           )}
           {step === 1 && (
-            <PhotosStep draft={draft} patch={patch} photoRef={photoRef} />
+            <PhotosStep
+              draft={draft}
+              patch={patch}
+              photoRef={photoRef}
+              assist={photosAssist}
+            />
           )}
           {step === 2 && (
             <DetailsStep
@@ -968,9 +1011,8 @@ export default function SellFlow({
                 </button>
                 {step < STEPS.length - 1 && step !== 3 && step !== 2 && (
                   <button
-                    onClick={() => canProceed && setStep(step + 1)}
-                    disabled={!canProceed}
-                    className="bg-[var(--cta-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={handleStepContinue}
+                    className="bg-[var(--cta-fill)] px-5 py-[13px] font-[Inter] text-[11px] font-normal uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90"
                   >
                     Continue
                   </button>
@@ -1428,8 +1470,16 @@ function CurationStep({
     }
   }
 
-  const input =
-    "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 font-display text-[16px] font-light text-[var(--platinum)] placeholder:italic placeholder:text-[var(--muted)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
+  const inputBase =
+    "w-full border-b border-[var(--border-mid)] bg-transparent px-2 py-2 text-[var(--platinum)] placeholder:italic placeholder:text-[var(--muted)] focus-visible:border-[var(--gold)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)] focus:border-[var(--border-gold)] focus:outline-none transition";
+  const input = `${inputBase} font-display text-[16px] font-light`;
+  /* Identifiers are strings to READ CHARACTER BY CHARACTER, not display
+     typography. A long Rolex Style (R79173327B6252) in the display serif at
+     16px outran its column and the seller could not see what they had typed.
+     The UI face at 14px fits the longest real identifier while editing, and
+     the stored value, matching, curation and scoring are untouched — this is
+     rendering only. */
+  const inputIdentifier = `${inputBase} font-[Inter] text-[14px] tracking-[0.02em]`;
   const label = "mb-2 block text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]";
 
   return (
@@ -1487,7 +1537,7 @@ function CurationStep({
           </label>
           <input
             id="reference"
-            className={input}
+            className={inputIdentifier}
             value={draft.reference}
             onChange={(e) => {
               patch({ reference: e.target.value });
@@ -1756,10 +1806,13 @@ function PhotosStep({
   draft,
   patch,
   photoRef,
+  assist,
 }: {
   draft: ListingDraft;
   patch: (p: Partial<ListingDraft>) => void;
   photoRef: RefObject<PhotoUploadHandle | null>;
+  /** A Continue press has validated this step — mark what is still missing. */
+  assist?: boolean;
 }) {
   const [dragCount, setDragCount] = useState(0);
   const dragOver = dragCount > 0;
@@ -1898,6 +1951,7 @@ function PhotosStep({
             ...(profile ? ["Service Evidence"] : []),
             ...(draft.hasBracelet ? ["Extra Links"] : []),
           ]}
+          assist={assist}
         />
       </div>
       {draft.hasBracelet && (
