@@ -2406,6 +2406,36 @@ export default function BrowseClient({
                 Math.max(urls.length - 1, 0)
               );
               return (
+                <>
+                {/* ── DISMISSAL CATCHER ───────────────────────────────────
+                    Every card is a link, so with the inspection open there
+                    was no neutral pixel anywhere: a click meant to put the
+                    peek down landed on whatever card sat underneath and
+                    opened that listing instead. Dismissing and navigating
+                    were the same gesture.
+
+                    This transparent layer sits between the grid and the
+                    panel, so an outside click is SWALLOWED by construction —
+                    the card's link never receives it, rather than receiving
+                    it and being asked politely not to act. It paints
+                    nothing: the peek law's "no full-viewport scrim" is about
+                    dimming the results, and the results stay fully visible
+                    and fully legible behind it. Escape already closed the
+                    panel and still does.
+
+                    The listing opens only from a deliberate activation after
+                    the peek is down — never from the same click that put it
+                    down. */}
+                <div
+                  className="fixed inset-0 z-30"
+                  aria-hidden="true"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setInspectingId(null);
+                    setInspectAnchor(null);
+                  }}
+                />
                 <div
                   className="absolute z-40"
                   style={{
@@ -2448,6 +2478,7 @@ export default function BrowseClient({
                     }}
                   />
                 </div>
+                </>
               );
             })()}
             </div>
