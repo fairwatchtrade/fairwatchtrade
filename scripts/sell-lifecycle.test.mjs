@@ -78,14 +78,45 @@ const status = read("lib/listingStatus.ts");
   );
 
   /* THE GUARD. Both conditions are required, so the generic status control
-     can no longer publish outside a recorded approval. */
+     can no longer publish outside a recorded approval.
+
+     The law MOVED to lib/listingPublicationGate when Founder Review Triage
+     added a second authorized caller (a machine approval that records itself
+     as machine). These assertions moved with it and got stronger: the rule
+     is now pinned where it is stated, AND every publication writer is pinned
+     to that one statement of it. A future writer that re-implements the
+     conditions inline fails the last assertion in this block. */
+  const gate = read("lib/listingPublicationGate.ts");
+  const triageSeam = read("lib/reviewTriageService.ts");
+
   ok(
     "publication requires the listing to be in review",
-    /priorStatus !== "pending_review"/.test(admin) && /not_in_review/.test(admin)
+    /priorStatus !== "pending_review"/.test(gate) && /not_in_review/.test(gate)
   );
   ok(
-    "publication requires the explicit approve action",
-    /reviewAction !== "approve"/.test(admin) && /approval_required/.test(admin)
+    "publication requires an explicitly recorded approval",
+    /!req\.approvalRecorded/.test(gate) && /approval_required/.test(gate)
+  );
+  ok(
+    "the availability gate is part of the same law",
+    /AVAILABILITY_NOT_IN_STOCK/.test(gate) && /not_available/.test(gate)
+  );
+  ok(
+    "the founder route reaches published only through that law",
+    /publicationRefusal\(\{/.test(admin) &&
+      /approvalRecorded: reviewAction === "approve"/.test(admin)
+  );
+  ok(
+    "automatic triage reaches published only through that same law",
+    /publicationRefusal\(\{/.test(triageSeam)
+  );
+  /* Comments are stripped first: both files EXPLAIN the rule in prose, and
+     the thing being guarded is that neither one CODES it a second time. */
+  const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "");
+  ok(
+    "and no publication writer re-implements the conditions inline",
+    !/priorStatus !== "pending_review"/.test(stripComments(admin)) &&
+      !/priorStatus !== "pending_review"/.test(stripComments(triageSeam))
   );
 
   /* PRIVATE LISTING BRANCH. Approving a private-intended row releases it to

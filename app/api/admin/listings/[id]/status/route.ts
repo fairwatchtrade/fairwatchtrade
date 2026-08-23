@@ -9,6 +9,7 @@ import {
 } from "@/lib/listingDecisionEmail";
 import { formatMoney } from "@/lib/formatMoney";
 import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
+import { availabilityOf, publicationRefusal } from "@/lib/listingPublicationGate";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/listings/[id]/status — founder status change
@@ -348,47 +349,28 @@ export async function POST(
         rejected, used to reach Browse without any recorded approval, which
         left publication with two writers and only one of them governed.
 
-        Now there is one door. The private-listing branch below rides the
-        same decision — approval releases a private row to its one authorized
-        buyer instead of Browse — so it is governed by this same gate rather
-        than sneaking past it. ── */
-  if (status === "published") {
-    if (priorStatus !== "pending_review") {
-      return NextResponse.json(
-        {
-          error: "not_in_review",
-          detail:
-            "Only a listing currently in review can be published. This listing is " +
-            `"${priorStatus ?? "unknown"}" — it must enter review first.`,
-        },
-        { status: 409 }
-      );
-    }
-    if (reviewAction !== "approve") {
-      return NextResponse.json(
-        {
-          error: "approval_required",
-          detail:
-            "Publication requires the governed approve action, so the decision is recorded. Use Approve in Founder Review.",
-        },
-        { status: 409 }
-      );
-    }
-  }
+        THE LAW ITSELF NOW LIVES IN lib/listingPublicationGate — including
+        the v2.21 availability gate, which is the same refusal. It moved
+        there when Founder Review Triage added a second authorized caller:
+        a machine approval that records itself as machine. Two callers, one
+        expression of the rule. The conditions are unchanged and so are the
+        error codes below — `priorStatus !== "pending_review"` is
+        not_in_review, a missing approve action is approval_required, and
+        'Not Currently Available' is not_available.
 
-  // v2.21 · availability gate — 'Not Currently Available' cannot publish.
+        The private-listing branch below rides the same decision — approval
+        releases a private row to its one authorized buyer instead of
+        Browse — so it is governed by this same gate rather than sneaking
+        past it. ── */
   if (status === "published") {
-    const availability =
-      current.details && typeof current.details === "object"
-        ? (current.details as Record<string, unknown>).availability
-        : undefined;
-    if (availability === "Not Currently Available") {
+    const refusal = publicationRefusal({
+      priorStatus,
+      approvalRecorded: reviewAction === "approve",
+      availability: availabilityOf(current.details),
+    });
+    if (refusal) {
       return NextResponse.json(
-        {
-          error: "not_available",
-          detail:
-            "This listing's availability is 'Not Currently Available'. It cannot be published until the dealer marks it In Stock.",
-        },
+        { error: refusal.error, detail: refusal.detail },
         { status: 409 }
       );
     }
@@ -495,6 +477,10 @@ export async function POST(
       resulting_status: data.status,
       seller_message: sellerMessage || null,
       actor_uid: user.id,
+      /* A person decided this. Triage writes the same table with
+         actor_kind 'triage' and a NULL actor, and the database refuses to
+         let those two disagree. */
+      actor_kind: "founder",
     });
     if (eventErr) {
       // The status write already landed. Say so plainly rather than pretend

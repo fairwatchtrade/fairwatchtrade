@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { runReviewTriageForListing } from "@/lib/reviewTriageService";
 import {
   PROVIDER_IDENTITY_CONSISTENCY,
   PROVIDER_IMAGE_AUTHENTICITY,
@@ -1101,6 +1102,24 @@ export async function POST(request: NextRequest) {
       priceText: emailPriceText,
       listingId: data.id,
     });
+  }
+
+  /* ── Founder Review Triage ───────────────────────────────────────────
+     The evidence work above is finished, so this is the moment the listing
+     can be triaged. ESCALATE is the overwhelmingly likely outcome and
+     changes nothing; a governed PASS or FAIL disposes the listing here and
+     keeps it out of Founder Review entirely.
+
+     NON-FATAL BY CONSTRUCTION. The seller's submission has already
+     succeeded; a triage failure must never turn that into an error. A
+     listing that could not be triaged simply stays pending_review, which is
+     where Founder Review already looks. */
+  if (data.status === "pending_review") {
+    try {
+      await runReviewTriageForListing(data.id as string);
+    } catch (e) {
+      console.error("[triage] submission triage failed:", e);
+    }
   }
 
   /* ── Submission receipt ─────────────────────────────────────────────────

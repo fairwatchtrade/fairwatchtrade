@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { triageAttentionReason } from "@/lib/reviewTriage";
 
 /* ════════════════════════════════════════════════════════════════════════
    MARKETPLACE CONTROL — server data layer (lib/marketplaceControlData.ts)
@@ -25,10 +26,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
    NEEDS ATTENTION is deterministic or nothing. Every membership comes from
    an explainable runtime fact (see attentionReasons below). No scores, no
-   heuristics, no demo sets. The stale "removed with no reason code"
-   predicate is deliberately ABSENT: since the Pause-takes-no-reason ruling
-   (20260817080000) a reasonless pause is an ordinary legal state, not a
-   problem.
+   heuristics, no demo sets. Founder Review Triage joins as one more such
+   fact: an ESCALATE is triage stating that this listing needs a person.
+   computeAttention() never RUNS triage — it is a read aggregation, and the
+   adjudication worker is lib/reviewTriageService.
+
+   The stale "removed with no reason code" predicate is deliberately ABSENT:
+   since the Pause-takes-no-reason ruling (20260817080000) a reasonless pause
+   is an ordinary legal state, not a problem.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -232,7 +237,36 @@ export async function computeAttention(
     }
   }
 
-  // Predicate group 3 — adverse decision with no recorded explanation.
+  /* Predicate group 3 — an automatic triage that declined to dispose.
+
+     ESCALATE is triage saying "a person has to look at this one", so it is
+     attention BY DEFINITION and carries its own reason into the room. PASS
+     and FAIL need no counterpart here: both move the listing out of
+     pending_review, so a disposed case simply stops matching group 1 and
+     leaves no stale founder work behind.
+
+     Read from the CURRENT row only (superseded_at is null) — an earlier
+     cycle's escalation is history, not present-tense attention. */
+  const { data: triage } = await db
+    .from("listing_review_triage")
+    .select("listing_id, outcome, reason_code, reason_detail")
+    .eq("outcome", "escalate")
+    .is("superseded_at", null);
+  const pendingIds = new Set(pendingRows.map((p) => p.id as string));
+  for (const t of Array.isArray(triage) ? triage : []) {
+    const id = t.listing_id as string;
+    // Only while the listing is still awaiting a decision.
+    if (!pendingIds.has(id)) continue;
+    add(
+      id,
+      triageAttentionReason(
+        (t.reason_code as string) ?? "unknown",
+        (t.reason_detail as string | null) ?? null
+      )
+    );
+  }
+
+  // Predicate group 4 — adverse decision with no recorded explanation.
   const { data: rejected } = await db
     .from("listings")
     .select("id, rejection_reason")

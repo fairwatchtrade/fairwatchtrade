@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendSubmissionReceivedEmail } from "@/lib/listingDecisionEmail";
+import { runReviewTriageForListing } from "@/lib/reviewTriageService";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/listings/[id]/submit-for-review — Dealer Accelerator Flight 2B
@@ -186,6 +187,22 @@ export async function POST(
       { error: "submit_failed", detail: "Could not submit this listing for review." },
       { status: 500 }
     );
+  }
+
+  /* ── Founder Review Triage ───────────────────────────────────────────
+     Reaching this line is proof of a real new review cycle — the RPC 409s on
+     anything that was not a genuine draft/rejected → pending_review move. The
+     photograph evidence for this listing was gathered at upload time, so the
+     evidence set is already complete and the listing can be triaged now.
+
+     The seller cannot influence the OUTCOME by calling this: no status
+     crosses the wire, and the seam derives the transition from the policy
+     alone. Non-fatal by construction — a triage failure must never turn a
+     successful submission into an error. */
+  try {
+    await runReviewTriageForListing(id);
+  } catch (e) {
+    console.error("[triage] resubmission triage failed:", e);
   }
 
   /* ── Submission receipt (resubmission path) ─────────────────────────────
