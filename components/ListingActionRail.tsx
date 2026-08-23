@@ -42,6 +42,9 @@ import OpenPurchaseRequestButton from "@/components/OpenPurchaseRequestButton";
    Canary: PFC274 = 62 — /api/evaluate untouched.
    ──────────────────────────────────────────────────────────────────────── */
 
+import CurationReviewCard from "@/components/CurationReviewCard";
+import type { CurationSummary } from "@/lib/curationReview";
+
 export default function ListingActionRail({
   variant,
   listingId,
@@ -55,6 +58,7 @@ export default function ListingActionRail({
   askingPrice,
   askingCurrency,
   canRequestInline = false,
+  curation,
 }: {
   /* "bar" is the compact dressing used inside the mobile Listing Detail fixed
      action bar. It renders ONLY the offer action — no price, no dealer card. */
@@ -85,6 +89,14 @@ export default function ListingActionRail({
      visitor keeps the link, so the route's server-side auth gate can send
      them to sign in and bring them back — identity is never decided here. */
   canRequestInline?: boolean;
+  /* Curation Review V1 — resolved by the page (requester-only pending is a
+     per-viewer fact, so it cannot be computed in this component). Absent
+     means the card does not render at all. */
+  curation?: {
+    signedIn: boolean;
+    state: "none" | "pending" | "completed";
+    summary: CurationSummary | null;
+  } | null;
 }) {
   const isReserved = listingStatus === "reserved";
 
@@ -283,6 +295,18 @@ export default function ListingActionRail({
           Sold by {sellerName} →
         </Link>
       </section>
+
+      {/* Curation utility sits between dealer identity and the transaction:
+          Dealer Information → Curation → Purchase Request. Informational and
+          deliberately quieter than the purchase card; never merged into it. */}
+      {curation && (
+        <CurationReviewCard
+          listingId={listingId}
+          signedIn={curation.signedIn}
+          initialState={curation.state}
+          summary={curation.summary}
+        />
+      )}
 
       {/* Purchase Request — or, for the listing's own seller, plain price
           truth. The owner card previously kept the "Purchase Request" header

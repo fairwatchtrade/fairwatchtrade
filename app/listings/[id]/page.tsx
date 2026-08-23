@@ -11,6 +11,7 @@ import ListingStageFaq from "@/components/ListingStageFaq";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
+import type { CurationSummary } from "@/lib/curationReview";
 import ListingPurchaseRequestProvider from "@/components/ListingPurchaseRequestProvider";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
 import { resolveHeroIndex, sanitizePhotoPresentation } from "@/lib/photoPresentation";
@@ -317,6 +318,46 @@ export default async function ListingDetailPage({
       .limit(1)
       .maybeSingle()
     : { data: null };
+
+  /* ── CURATION REVIEW V1 ────────────────────────────────────────────────
+     Two facts, deliberately read separately because they have different
+     audiences: the COMPLETED review is public and shown to everyone; a
+     PENDING request belongs to its requester alone (founder ruling — no
+     public "under review" state, so a request can never shade a listing
+     for other collectors).
+
+     RLS enforces this independently: the select policy admits completed
+     rows to anyone and pending rows only to their own requester. These
+     reads run on the SESSION client on purpose, so the database — not this
+     page — is the thing deciding who may see what. */
+  const { data: completedCuration } = await supabase
+    .from("listing_curation_requests")
+    .select("summary, completed_at")
+    .eq("listing_id", listing.id)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: myPendingCuration } = user
+    ? await supabase
+      .from("listing_curation_requests")
+      .select("id")
+      .eq("listing_id", listing.id)
+      .eq("requester_id", user.id)
+      .eq("status", "pending")
+      .maybeSingle()
+    : { data: null };
+
+  const curation = {
+    signedIn: !!user,
+    state: (completedCuration
+      ? "completed"
+      : myPendingCuration
+        ? "pending"
+        : "none") as "none" | "pending" | "completed",
+    summary: (completedCuration?.summary as CurationSummary | null) ?? null,
+  };
 
   // Photos: keep only entries that actually carry a URL, so category-based
   // hero detection and the URL list stay index-aligned. Service Evidence is
@@ -771,6 +812,7 @@ export default async function ListingDetailPage({
               askingPrice={listing.asking_price}
               askingCurrency={listing.asking_currency}
               canRequestInline={!!user}
+              curation={curation}
             />
             {/* Ask-the-Seller slot (founder ruling 2026-08-12): the rail's
                 dead space below the Purchase Request card. ListingCorrespondence

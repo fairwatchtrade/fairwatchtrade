@@ -2,22 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
-  PROVIDER_IDENTITY_CONSISTENCY,
-  PROVIDER_IMAGE_AUTHENTICITY,
   TRIGGERED_BY_ADMIN_RECHECK,
   aggregateIntegrityForListing,
-  buildPromotedEvidenceRows,
   isSystemReleasableHold,
 } from "@/lib/integrity";
-import {
-  executeIdentityConsistencyCheck,
-  identityConsistencyEnabled,
-} from "@/lib/identityConsistency";
-import {
-  aubreyEnforcementEnabled,
-  executeImageAuthenticityCheck,
-} from "@/lib/imageAuthenticity";
+import { aubreyEnforcementEnabled } from "@/lib/imageAuthenticity";
 import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
+import { runIntegrityProviderPass } from "@/lib/integrity/providerPass";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/listings/[id]/recheck — founder re-run of The Aubrey Check
@@ -143,197 +134,23 @@ export async function POST(
     if (url && pathname) urlByPath.set(pathname, url);
   }
 
-  // 4 · per media row: deactivate the prior active-completed Aubrey row
-  //     (both correlation states), then insert the new attempt media-keyed.
-  const mediaIds = targets.map((m) => m.id);
-  const { data: prior, error: priorErr } = await service
-    .from("listing_integrity_provider_results")
-    .select("id, media_id, capture_session_id, storage_path, attempt_number, execution_status, is_active")
-    .eq("provider", PROVIDER_IMAGE_AUTHENTICITY)
-    .or(
-      `media_id.in.(${mediaIds.join(",")}),and(media_id.is.null,storage_path.in.(${targets
-        .map((m) => `"${m.storage_path}"`)
-        .join(",")}))`
-    );
-  if (priorErr) {
-    return NextResponse.json({ error: "read_failed", detail: priorErr.message }, { status: 500 });
+  /* 4/5 · providers + evidence promotion — the SHARED seam, so the founder
+     recheck and the collector's "Double-check this listing" request run the
+     identical machinery instead of two drifting copies. The seam contains no
+     status write of any kind; reconciliation below stays here, where a
+     founder is present. */
+  const pass = await runIntegrityProviderPass({
+    service,
+    listingId: id,
+    claimedBrand: typeof listing.brand === "string" ? listing.brand : "",
+    photos: listing.photos,
+    targets,
+    triggeredBy: TRIGGERED_BY_ADMIN_RECHECK,
+  });
+  if (pass.error) {
+    return NextResponse.json({ error: "read_failed", detail: pass.error }, { status: 500 });
   }
-
-  const maxAttemptByMedia = new Map<string, number>();
-  const toDeactivate: string[] = [];
-  for (const row of prior ?? []) {
-    const target = targets.find(
-      (m) =>
-        row.media_id === m.id ||
-        (row.media_id === null &&
-          row.capture_session_id === m.capture_session_id &&
-          row.storage_path === m.storage_path)
-    );
-    if (!target) continue;
-    maxAttemptByMedia.set(
-      target.id,
-      Math.max(maxAttemptByMedia.get(target.id) ?? 0, row.attempt_number ?? 0)
-    );
-    if (row.execution_status === "completed" && row.is_active === true) {
-      toDeactivate.push(row.id);
-    }
-  }
-
-  if (toDeactivate.length > 0) {
-    const { error: deactErr } = await service
-      .from("listing_integrity_provider_results")
-      .update({ is_active: false })
-      .in("id", toDeactivate);
-    if (deactErr) {
-      return NextResponse.json(
-        { error: "deactivate_failed", detail: deactErr.message },
-        { status: 500 }
-      );
-    }
-  }
-
-  let rechecked = 0;
-  await Promise.allSettled(
-    targets.map(async (m) => {
-      const url = m.storage_path ? urlByPath.get(m.storage_path) : undefined;
-      const core = url
-        ? await executeImageAuthenticityCheck(url)
-        : {
-            execution_status: "unavailable" as const,
-            classification: null,
-            is_active: true,
-            completed_at: null,
-            reason: null,
-            detail: { note: "photo_url_missing" },
-          };
-      const { error: insErr } = await service.from("listing_integrity_provider_results").insert({
-        provider: PROVIDER_IMAGE_AUTHENTICITY,
-        attempt_number: (maxAttemptByMedia.get(m.id) ?? 0) + 1,
-        triggered_by: TRIGGERED_BY_ADMIN_RECHECK,
-        capture_session_id: m.capture_session_id,
-        storage_path: m.storage_path,
-        category: m.category ?? null,
-        media_id: m.id,
-        ...core,
-      });
-      if (insErr && (insErr as { code?: string }).code !== "23505") {
-        console.error("[aubrey] recheck insert failed:", insErr.message);
-      } else {
-        rechecked += 1;
-      }
-    })
-  );
-
-  /* ── 4b · Identity Consistency recheck — same deactivate-then-attempt
-        shape as the Aubrey pass above, scoped to its own provider rows and
-        to Dial-tagged media only (the packet's routing law). Gated on its
-        own flag: while off, a founder recheck re-runs provenance exactly as
-        before and identity writes nothing. Promotion in step 5 is already
-        provider-agnostic, so a contradiction recorded here promotes with no
-        further wiring. ── */
-  if (identityConsistencyEnabled()) {
-    const claimedBrand = typeof listing.brand === "string" ? listing.brand : "";
-    const idTargets = targets.filter((m) => m.category === "Dial");
-    if (claimedBrand && idTargets.length > 0) {
-      const idIds = idTargets.map((m) => m.id);
-      const { data: idPrior, error: idPriorErr } = await service
-        .from("listing_integrity_provider_results")
-        .select("id, media_id, capture_session_id, storage_path, attempt_number, execution_status, is_active")
-        .eq("provider", PROVIDER_IDENTITY_CONSISTENCY)
-        .or(
-          `media_id.in.(${idIds.join(",")}),and(media_id.is.null,storage_path.in.(${idTargets
-            .map((m) => `"${m.storage_path}"`)
-            .join(",")}))`
-        );
-      if (idPriorErr) {
-        console.error("[identity] recheck prior read failed:", idPriorErr.message);
-      } else {
-        const idMaxAttempt = new Map<string, number>();
-        const idDeactivate: string[] = [];
-        for (const row of idPrior ?? []) {
-          const target = idTargets.find(
-            (m) =>
-              row.media_id === m.id ||
-              (row.media_id === null &&
-                row.capture_session_id === m.capture_session_id &&
-                row.storage_path === m.storage_path)
-          );
-          if (!target) continue;
-          idMaxAttempt.set(
-            target.id,
-            Math.max(idMaxAttempt.get(target.id) ?? 0, row.attempt_number ?? 0)
-          );
-          if (row.execution_status === "completed" && row.is_active === true) {
-            idDeactivate.push(row.id);
-          }
-        }
-        if (idDeactivate.length > 0) {
-          const { error: idDeactErr } = await service
-            .from("listing_integrity_provider_results")
-            .update({ is_active: false })
-            .in("id", idDeactivate);
-          if (idDeactErr) {
-            console.error("[identity] recheck deactivate failed:", idDeactErr.message);
-          }
-        }
-        await Promise.allSettled(
-          idTargets.map(async (m) => {
-            const url = m.storage_path ? urlByPath.get(m.storage_path) : undefined;
-            const core = url
-              ? await executeIdentityConsistencyCheck({
-                  photoUrl: url,
-                  claimedBrand,
-                  category: m.category ?? null,
-                })
-              : {
-                  execution_status: "unavailable" as const,
-                  classification: null,
-                  is_active: true,
-                  completed_at: null,
-                  reason: null,
-                  detail: { note: "photo_url_missing" },
-                };
-            const { error: insErr } = await service
-              .from("listing_integrity_provider_results")
-              .insert({
-                provider: PROVIDER_IDENTITY_CONSISTENCY,
-                attempt_number: (idMaxAttempt.get(m.id) ?? 0) + 1,
-                triggered_by: TRIGGERED_BY_ADMIN_RECHECK,
-                capture_session_id: m.capture_session_id,
-                storage_path: m.storage_path,
-                category: m.category ?? null,
-                media_id: m.id,
-                ...core,
-              });
-            if (insErr && (insErr as { code?: string }).code !== "23505") {
-              console.error("[identity] recheck insert failed:", insErr.message);
-            }
-          })
-        );
-      }
-    }
-  }
-
-  // 5 · promote new accepted findings (idempotent by provider_result_id).
-  const { data: results, error: resultsErr } = await service
-    .from("listing_integrity_provider_results")
-    .select("id, provider, classification, execution_status, is_active, detail, reason")
-    .in("media_id", mediaIds);
-  if (!resultsErr) {
-    // Step 2 · the same shared builder the publish path uses, so a recheck
-    // promotion carries cause identity exactly as a first publish does.
-    const evidenceRows = await buildPromotedEvidenceRows({
-      service,
-      listingId: id,
-      results: results ?? [],
-    });
-    if (evidenceRows.length > 0) {
-      const { error: evErr } = await service
-        .from("listing_integrity_evidence")
-        .upsert(evidenceRows, { onConflict: "provider_result_id", ignoreDuplicates: true });
-      if (evErr) console.error("[aubrey] recheck evidence promotion failed:", evErr.message);
-    }
-  }
+  const rechecked = pass.ran;
 
   // 6 · release-only reconciliation — identical rules to the publish retry.
   const gateMediaMeta = targets.map((m) => ({
