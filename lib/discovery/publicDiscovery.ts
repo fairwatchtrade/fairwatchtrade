@@ -42,7 +42,12 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-export const SITE_URL = "https://fairwatchtrade.com";
+/* The host that actually SERVES, not the one that redirects to it. The apex
+   domain answers every request with a 308 to www, which a browser absorbs
+   invisibly and an agent pays for on every canonical link it follows. A
+   machine-readable canonical identity that needs a redirect to resolve is not
+   canonical. */
+export const SITE_URL = "https://www.fairwatchtrade.com";
 
 /** The governed read model. The only table-like object this surface reads. */
 const READ_MODEL = "public_discovery_listings";
@@ -390,14 +395,32 @@ export async function findRelated(
   limit: number
 ): Promise<DiscoveryRow[]> {
   const identifier = lookup.identifier.trim();
-  /* Partial match on the same identifier field. A reference that shares a
-     prefix is a plausible neighbour of the requested one; it is emphatically
-     not the requested one, which is why it lands under `related`. */
+  /* Neighbours are found by PREFIX, not by containing the whole identifier.
+     Containment finds nothing in the case that matters most: an identifier
+     one character off the real one — PFC274-0000600-B33003 against
+     ...B33002 — shares everything but its tail, and a whole-string match
+     misses it entirely. The prefix is cut at the last separator when the
+     identifier has one, because a segmented reference groups a real family
+     there; otherwise the last two characters are dropped.
+
+     These are emphatically NOT the requested identifier, which is why they
+     land under `related` and never in the answer slot. */
   const column = lookup.kind === "listing_code" ? "public_code" : "reference";
+  const lastSeparator = Math.max(
+    identifier.lastIndexOf("-"),
+    identifier.lastIndexOf("/"),
+    identifier.lastIndexOf("."),
+    identifier.lastIndexOf("_")
+  );
+  const prefix =
+    lastSeparator >= 3
+      ? identifier.slice(0, lastSeparator)
+      : identifier.slice(0, Math.max(3, identifier.length - 2));
+
   let builder = supabase
     .from(READ_MODEL)
     .select(READ_MODEL_COLUMNS)
-    .ilike(column, `%${identifier}%`)
+    .ilike(column, `${prefix}%`)
     .limit(limit + excludeIds.length);
   if (excludeIds.length > 0) {
     builder = builder.not("id", "in", `(${excludeIds.join(",")})`);
