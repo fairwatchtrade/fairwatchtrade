@@ -26,6 +26,8 @@ export type AuctionEventRow = {
   starts_at: string;
   ends_at: string | null;
   source_url: string | null;
+  preview_url: string | null;
+  catalog_url: string | null;
   online_only: boolean | null;
   updated_at: string;
 };
@@ -71,15 +73,53 @@ function fromLocalInput(v: string): string {
   return v ? new Date(v).toISOString() : "";
 }
 
-export default function AdminAuctionIngest({ events }: { events: AuctionEventRow[] }) {
+type IngestProps = {
+  events: AuctionEventRow[];
+  /* ── Room composition (Auction Operations) ──
+     editing     an existing row to open directly in the editor — explicit
+                 update path, clearly labelled, saved via confirm_update_id
+     onRowSaved  the room keeps the operational table; local list is hidden
+     showList    false inside the room (the sortable table lives there) */
+  editing?: AuctionEventRow | null;
+  onRowSaved?: (row: AuctionEventRow) => void;
+  onDoneEditing?: () => void;
+  showList?: boolean;
+};
+
+export default function AdminAuctionIngest({
+  events,
+  editing = null,
+  onRowSaved,
+  onDoneEditing,
+  showList = true,
+}: IngestProps) {
   const [pasted, setPasted] = useState("");
-  const [draft, setDraft] = useState<Draft | null>(null);
+  /* Open/Edit populates the SAME editable draft with every stored field.
+     The parent remounts this component per edit target (key=editing.id),
+     so the initializer is the whole hydration — no reset-via-effect. */
+  const [draft, setDraft] = useState<Draft | null>(() =>
+    editing
+      ? {
+          auction_house: editing.auction_house,
+          auction_title: editing.auction_title,
+          location: editing.location ?? "",
+          starts_at: editing.starts_at,
+          ends_at: editing.ends_at ?? "",
+          preview_url: editing.preview_url ?? "",
+          catalog_url: editing.catalog_url ?? "",
+          source_url: editing.source_url ?? "",
+          online_only: editing.online_only === true,
+        }
+      : null
+  );
   const [rows, setRows] = useState<AuctionEventRow[]>(events);
   const [busy, setBusy] = useState<"parse" | "save" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ existing: AuctionEventRow } | null>(null);
 
   const patch = (p: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+
 
   async function runParse() {
     if (!pasted.trim()) return;
@@ -118,6 +158,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
 
   async function runSave(confirmUpdateId?: string) {
     if (!draft) return;
+    if (!confirmUpdateId && editing) confirmUpdateId = editing.id;
     setBusy("save");
     setNote(null);
     try {
@@ -160,6 +201,8 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
         starts_at: draft.starts_at,
         ends_at: draft.ends_at || null,
         source_url: draft.source_url || null,
+        preview_url: draft.preview_url || null,
+        catalog_url: draft.catalog_url || null,
         online_only: draft.online_only ? true : null,
         updated_at: nowIso,
       };
@@ -168,6 +211,8 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
           (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)
         )
       );
+      onRowSaved?.(newRow);
+      if (editing) onDoneEditing?.();
     } catch {
       setNote("Network error — nothing was saved.");
     } finally {
@@ -212,7 +257,9 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
       {draft && (
         <div className="mt-8 border border-[var(--border-subtle)] p-4">
           <div className="mb-4 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
-            Review the draft — nothing is saved until you say so
+            {editing
+              ? `Editing existing event — ${editing.auction_house} · ${editing.auction_title}. Save updates the stored row.`
+              : "Review the draft — nothing is saved until you say so"}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -274,7 +321,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
               {busy === "save" ? "Saving…" : "Save to auction_events"}
             </button>
             <button type="button"
-              onClick={() => { setDraft(null); setConflict(null); setNote(null); }}
+              onClick={() => { setDraft(null); setConflict(null); setNote(null); if (editing) onDoneEditing?.(); }}
               className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
               Discard
             </button>
@@ -328,7 +375,9 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
         </div>
       )}
 
-      {/* ── rows already in the table ── */}
+      {/* ── rows already in the table (hidden inside Auction Operations,
+            where the sortable operational table owns this job) ── */}
+      {showList && (
       <div className="mt-12">
         <div className="mb-3 text-[11px] uppercase tracking-[3px] text-[var(--muted)]">
           auction_events · {rows.length} row{rows.length === 1 ? "" : "s"}
@@ -358,6 +407,7 @@ export default function AdminAuctionIngest({ events }: { events: AuctionEventRow
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

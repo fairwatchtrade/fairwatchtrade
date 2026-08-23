@@ -1709,6 +1709,12 @@ export default function MarketplaceControl({
             >
               ◈ Dealer Accelerator Review →
             </Link>
+            <Link
+              href="/admin/auctions"
+              className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-subtle)] hover:text-[var(--platinum)] sm:px-4 sm:py-2 sm:text-[11px]"
+            >
+              ◈ Auctions →
+            </Link>
           </div>
         </div>
 

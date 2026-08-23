@@ -78,12 +78,19 @@ export function normalizeRows(manifest, lots) {
 }
 function loadManifests() { return MANIFESTS.map((file) => { const value = JSON.parse(fs.readFileSync(file, "utf8")); if (value.manifest_version !== 1 || value.semantic_digest_version !== "monaco-landing-semantic-v1") stop(`unsupported manifest ${file}`); return { ...value, __file: file }; }); }
 async function fetchBytes(url) { const response = await fetch(url, { headers: { "user-agent": "FairWatchTrade Monaco evidence verifier/1.0" } }); if (!response.ok) stop(`${url}: HTTP ${response.status}`); return Buffer.from(await response.arrayBuffer()); }
+/* verifyMonacoSource - the acquisition-independent half of harvest. Bytes in,
+   verified normalized packet out; throws on any drift. The CLI's harvest and
+   the founder-only server seam both call THIS - one engine, two entrances.
+   Network fetching and manifest-file reading stay with the caller. */
+export function verifyMonacoSource({ manifest, manifestHash, landingHtml, catalogPdfBytes, resultsPdfBytes }) {
+  for (const [key, bytes] of [["catalog_pdf", catalogPdfBytes], ["results_pdf", resultsPdfBytes]]) if (hash(bytes) !== manifest.artifacts[key].sha256) stop(`Sale ${manifest.sale.id} ${key} durable hash drift`);
+  const lots = parseMonacoLanding(landingHtml, manifest), problems = validateLanding(manifest, landingHtml, lots);
+  if (problems.length) stop(`Sale ${manifest.sale.id} source drift: ${problems.join("; ")}`);
+  return { manifest, manifest_hash: manifestHash, landing_digest: landingSemanticDigest(manifest, lots), rows: normalizeRows(manifest, lots) };
+}
 async function harvest(manifest) {
   const [landing, catalog, results] = await Promise.all([fetchBytes(manifest.sale.landing_url), fetchBytes(manifest.artifacts.catalog_pdf.url), fetchBytes(manifest.artifacts.results_pdf.url)]);
-  for (const [key, bytes] of [["catalog_pdf", catalog], ["results_pdf", results]]) if (hash(bytes) !== manifest.artifacts[key].sha256) stop(`Sale ${manifest.sale.id} ${key} durable hash drift`);
-  const html = landing.toString("utf8"), lots = parseMonacoLanding(html, manifest), problems = validateLanding(manifest, html, lots);
-  if (problems.length) stop(`Sale ${manifest.sale.id} source drift: ${problems.join("; ")}`);
-  return { manifest, manifest_hash: hash(fs.readFileSync(manifest.__file)), landing_digest: landingSemanticDigest(manifest, lots), rows: normalizeRows(manifest, lots) };
+  return verifyMonacoSource({ manifest, manifestHash: hash(fs.readFileSync(manifest.__file)), landingHtml: landing.toString("utf8"), catalogPdfBytes: catalog, resultsPdfBytes: results });
 }
 function house() { return { name: "Monaco Legend Auctions", slug: "monaco-legend-auctions", website_url: "https://www.monacolegendauctions.com" }; }
 function artifacts(harvested) {
@@ -98,7 +105,11 @@ function artifacts(harvested) {
 }
 function wantedResult(row, sale) { return { sale_outcome: row.outcome, price_realized: row.outcome === "sold" ? row.price_realized : null, currency: row.outcome === "sold" ? sale.currency : null, price_basis: row.outcome === "sold" ? "other" : null, result_date: sale.date, source_key: row.source_key }; }
 function sameLot(a, b) { return a.brand_text === b.brand_text && a.model_text === b.model_text && a.reference_text === b.reference_text && a.description === b.description; }
-function sameResult(a, b) { return a.sale_outcome === b.sale_outcome && Number(a.price_realized) === b.price_realized && a.currency === b.currency && a.price_basis === b.price_basis; }
+/* Null-safe price comparison: passed/withdrawn/unsold rows legitimately hold
+   NULL price facts, and Number(null) is 0 — the old comparison read every
+   existing non-sold row as a contradiction on replay/re-plan, which broke
+   idempotent convergence for exactly the rows that never change. */
+function sameResult(a, b) { const samePrice = a.price_realized === null || a.price_realized === undefined ? b.price_realized === null : Number(a.price_realized) === b.price_realized; return a.sale_outcome === b.sale_outcome && samePrice && a.currency === b.currency && a.price_basis === b.price_basis; }
 async function query(request, label) { const { data, error } = await request; if (error) stop(`${label}: ${error.message}`); return data; }
 async function makePlan(harvested, client) {
   const existingHouse = await query(client.from("auction_evidence_house").select("id,name,slug,website_url").eq("slug", house().slug), "house query");
@@ -141,6 +152,39 @@ async function apply(plan, client) {
   }
   return progress;
 }
+
+/* applyMonacoPlanSlice - the bounded server twin of apply(). Walks the same
+   plan with the same check-then-act predicates and the same controlled result
+   RPC, but stops at maxRows/deadlineMs and returns a durable cursor so an
+   interrupted apply resumes exactly where it stopped. House/sale/artifact
+   ensures are idempotent and re-run cheaply at each slice start. */
+export async function applyMonacoPlanSlice(plan, client, opts = {}) {
+  const maxRows = opts.maxRows ?? Infinity, deadline = opts.deadlineMs ? Date.now() + opts.deadlineMs : Infinity;
+  const cursor = { sale_index: opts.cursor?.sale_index ?? 0, row_index: opts.cursor?.row_index ?? 0 };
+  const counts = { lots_created: 0, lots_reused: 0, results_created: 0, results_reused: 0 };
+  const reviewer = await one(client, "profiles", { id: plan.reviewer_uid }, "reviewer query");
+  if (reviewer.length !== 1) stop("founder profile missing; refusing to write");
+  let houses = await one(client, "auction_evidence_house", { slug: plan.house.slug }, "apply house query"), houseId;
+  if (houses.length === 1) houseId = houses[0].id; else if (!houses.length) { const inserted = await query(client.from("auction_evidence_house").insert(plan.house).select("id"), "house insert"); houseId = inserted[0].id; } else stop("apply duplicate house");
+  let processed = 0;
+  for (; cursor.sale_index < plan.sales.length; cursor.sale_index++, cursor.row_index = 0) {
+    const salePlan = plan.sales[cursor.sale_index];
+    let sales = await query(client.from("auction_evidence_sale").select("id").eq("house_id", houseId).eq("source_url", salePlan.sale.landing_url), `apply sale ${salePlan.id}`), saleId;
+    if (sales.length === 1) saleId = sales[0].id; else if (!sales.length) { const inserted = await query(client.from("auction_evidence_sale").insert({ house_id: houseId, sale_name: salePlan.sale.name, sale_date: salePlan.sale.date, location: salePlan.sale.location, source_url: salePlan.sale.landing_url }).select("id"), `sale ${salePlan.id} insert`); saleId = inserted[0].id; } else stop(`apply Sale ${salePlan.id}: duplicate`);
+    const artifactIds = {};
+    for (const spec of salePlan.artifact_specs) { const found = await query(client.from("auction_evidence_source_artifact").select("id,content_hash").eq("sale_id", saleId).eq("source_url", spec.source_url), `artifact ${salePlan.id}/${spec.key}`); if (found.length === 1 && found[0].content_hash === spec.content_hash) artifactIds[spec.key] = found[0].id; else if (!found.length) { const { key, ...values } = spec, inserted = await query(client.from("auction_evidence_source_artifact").insert({ ...values, sale_id: saleId, retrieved_at: new Date().toISOString() }).select("id"), `artifact insert ${salePlan.id}/${spec.key}`); artifactIds[key] = inserted[0].id; } else stop(`apply Sale ${salePlan.id}: artifact contradiction ${spec.key}`); }
+    for (; cursor.row_index < salePlan.rows.length; cursor.row_index++) {
+      if (processed >= maxRows || Date.now() > deadline) return { done: false, cursor, counts };
+      const row = salePlan.rows[cursor.row_index];
+      const lots = await query(client.from("auction_evidence_lot").select("id,brand_text,model_text,reference_text,description").eq("sale_id", saleId).eq("lot_number", row.lot_number), `lot ${salePlan.id}/${row.lot_number}`); let lotId;
+      if (lots.length === 1) { if (!sameLot(lots[0], row)) stop(`apply lot contradiction ${salePlan.id}/${row.lot_number}`); lotId = lots[0].id; counts.lots_reused++; } else if (!lots.length) { const inserted = await query(client.from("auction_evidence_lot").insert({ sale_id: saleId, lot_number: row.lot_number, brand_text: row.brand_text, model_text: row.model_text, reference_text: row.reference_text, description: row.description, source_artifact_id: artifactIds[row.source_key] }).select("id"), `lot insert ${salePlan.id}/${row.lot_number}`); lotId = inserted[0].id; counts.lots_created++; } else stop(`apply duplicate lot ${salePlan.id}/${row.lot_number}`);
+      const results = await query(client.from("auction_evidence_result").select("id,sale_outcome,price_realized,currency,price_basis").eq("lot_id", lotId).eq("is_current", true), `result ${salePlan.id}/${row.lot_number}`);
+      if (results.length === 1) { if (!sameResult(results[0], row.result)) stop(`apply result contradiction ${salePlan.id}/${row.lot_number}`); counts.results_reused++; } else if (!results.length) { const { error } = await client.rpc("auction_evidence_create_or_correct_result", { p_lot_id: lotId, p_price_realized: row.result.price_realized, p_currency: row.result.currency, p_price_basis: row.result.price_basis, p_sale_outcome: row.result.sale_outcome, p_result_date: row.result.result_date, p_source_artifact_id: artifactIds[row.result.source_key], p_supersedes_result_id: null, p_reviewer_uid: plan.reviewer_uid }); if (error) stop(`result RPC ${salePlan.id}/${row.lot_number}: ${error.message}`); counts.results_created++; } else stop(`apply duplicate result ${salePlan.id}/${row.lot_number}`);
+      processed++;
+    }
+  }
+  return { done: true, cursor, counts };
+}
 async function databaseProof(client, plan) {
   const houses = await one(client, "auction_evidence_house", { slug: plan.house.slug }, "verify house"); if (houses.length !== 1) stop("verify expected one Monaco house");
   const sales = []; for (const salePlan of plan.sales) { const found = await query(client.from("auction_evidence_sale").select("id").eq("house_id", houses[0].id).eq("source_url", salePlan.sale.landing_url), `verify Sale ${salePlan.id}`); if (found.length !== 1) stop(`verify Sale ${salePlan.id}`); const lots = await query(client.from("auction_evidence_lot").select("id").eq("sale_id", found[0].id), `verify lots ${salePlan.id}`); const results = lots.length ? await query(client.from("auction_evidence_result").select("sale_outcome").in("lot_id", lots.map((x) => x.id)).eq("is_current", true), `verify results ${salePlan.id}`) : []; sales.push({ id: salePlan.id, sale_id: found[0].id, lot_count: lots.length, result_count: results.length, outcomes: Object.fromEntries(["sold", "passed", "withdrawn", "unsold"].map((o) => [o, results.filter((r) => r.sale_outcome === o).length])) }); }
@@ -153,4 +197,7 @@ async function main() {
   if (mode === "dry-run") { const harvested = await Promise.all(manifests.map(harvest)), plan = await makePlan(harvested, db()), bytes = JSON.stringify(plan, null, 2) + "\n"; fs.writeFileSync(planPath, bytes); console.log(JSON.stringify({ mode, ok: true, plan_sha256: hash(bytes), summary: plan.summary, sales: harvested.map((h) => ({ id: h.manifest.sale.id, semantic_digest: h.landing_digest, rows: h.rows.length })) }, null, 2)); return; }
   const bytes = fs.readFileSync(planPath), plan = JSON.parse(bytes), current = manifests.map((m) => ({ id: m.sale.id, hash: hash(fs.readFileSync(m.__file)) })); if (!same(plan.manifests, current)) stop("manifest changed after dry-run"); const client = db(), applied = await apply(plan, client), proof = await databaseProof(client, plan); console.log(JSON.stringify({ mode, ok: true, plan_sha256: hash(bytes), applied, proof }, null, 2));
 }
+/* Server-seam names for the shared engine. The CLI keeps its own private
+   names; these are the same functions, not copies. */
+export { makePlan as buildMonacoPlan, apply as applyMonacoPlan, databaseProof as verifyMonacoAppliedState, artifacts as buildMonacoArtifactSpecs, house as monacoHouse };
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) main().catch((error) => { console.error(`STOP: ${error.message}`); process.exit(1); });

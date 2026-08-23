@@ -1,0 +1,106 @@
+{
+ "$comment": "Monaco Legend ET33/ET35/ET36 - Layer 2 corpus registered packet. Binds the exact verified corpus (JSONL SHA-256) and every corpus-level expectation the 2026-08-21 Final Validation Report proved. The corpus file is founder-held and staged at ingest time; this manifest never grows a hand-typed lot list. ET36 result prices are website Result (Premium) values under explicit semantic quarantine: they are never written to a realized-result field. sale chronology comes from the corpus's explicit chronological_position marker, never from date comparison at read time.",
+ "manifest_version": 1,
+ "adapter": "monaco-layer2",
+ "packet_id": "et33-et35-et36",
+ "corpus": {
+  "filename": "Monaco_ET33_ET35_ET36_821_Layer2_FINAL_2026-08-21.jsonl",
+  "sha256": "8ace4af5d275e50868ecb037ccbbf160a576f0bbee3a8af77992de43cde5a110",
+  "rows_total": 821,
+  "rights_status_all_rows": "UNRULED_INTERNAL_ONLY"
+ },
+ "house": {
+  "name": "Monaco Legend Auctions",
+  "slug": "monaco-legend-auctions",
+  "website_url": "https://www.monacolegendauctions.com"
+ },
+ "sales": [
+  {
+   "code": "ET33",
+   "name": "Exclusive Timepieces 33",
+   "date": "2024-04-20",
+   "date_end": "2024-04-21",
+   "location": "Hôtel Méridien Beach Plaza, Monaco",
+   "currency": "EUR",
+   "canonical_auction_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-33",
+   "official_result_source": "https://www.monacolegendauctions.com/writable/media/auction/0033-0000/result_0033.pdf",
+   "chronological_position_among_known_six": 1,
+   "price_semantics": [
+    "official auction result in EUR incl. premium and VAT"
+   ],
+   "expected": {
+    "rows": 278,
+    "outcomes": {
+     "sold": 272,
+     "unsold": 4,
+     "withdrawn": 2
+    },
+    "official_result_rows": 272,
+    "sold_sum_official_premium_vat_eur": 22566860,
+    "website_premium_priced_rows": 272,
+    "price_semantics_review_required_rows": 0
+   }
+  },
+  {
+   "code": "ET35",
+   "name": "Exclusive Timepieces 35",
+   "date": "2024-10-19",
+   "date_end": "2024-10-20",
+   "location": "Hôtel Méridien Beach Plaza, Monaco",
+   "currency": "EUR",
+   "canonical_auction_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-35",
+   "official_result_source": "https://www.monacolegendauctions.com/writable/media/auction/0035-0000/result_0035.pdf",
+   "chronological_position_among_known_six": 2,
+   "price_semantics": [
+    "official auction result in EUR incl. premium and VAT"
+   ],
+   "expected": {
+    "rows": 296,
+    "outcomes": {
+     "passed": 10,
+     "sold": 284,
+     "withdrawn": 2
+    },
+    "official_result_rows": 284,
+    "sold_sum_official_premium_vat_eur": 16267580,
+    "website_premium_priced_rows": 239,
+    "price_semantics_review_required_rows": 0
+   }
+  },
+  {
+   "code": "ET36",
+   "name": "Exclusive Timepieces 36",
+   "date": "2025-04-26",
+   "date_end": "2025-04-27",
+   "location": "Hôtel Méridien Beach Plaza, Monaco",
+   "currency": "EUR",
+   "canonical_auction_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-36",
+   "official_result_source": null,
+   "chronological_position_among_known_six": 3,
+   "price_semantics": [
+    "Monaco website displays 'Result (Premium)'. ET36 page does not explicitly state VAT basis. Preserve raw displayed value. Do not map to hammer_price and do not apply a 1.04 conversion. Historical cross-source evidence and Monaco premium terms indicate a VAT-basis distinction is plausible; semantic review remains required."
+   ],
+   "expected": {
+    "rows": 247,
+    "outcomes": {
+     "passed": 10,
+     "sold": 232,
+     "withdrawn": 5
+    },
+    "official_result_rows": 0,
+    "sold_sum_official_premium_vat_eur": null,
+    "website_premium_priced_rows": 232,
+    "price_semantics_review_required_rows": 247
+   }
+  }
+ ],
+ "quarantine": {
+  "ET36": {
+   "official_result_rows_must_be": 0,
+   "review_required_rows_must_be": 247,
+   "prices_withheld": true,
+   "statement": "No official ET36 result sheet was available in this acquisition. Website Result (Premium) values are source-native, on a different premium basis (documented 1.04 relationship: 1.30 TTC vs 1.25 ex-VAT premium factors), and remain quarantined. Sold outcomes ingest without realized prices until a founder semantics ruling releases them through the governed correction chain."
+  }
+ },
+ "estimates_omission_sentence": "Monaco published pre-sale estimates for these lots; estimates are deliberately not captured in this evidence layer (the schema does not model them, and realized prices are never used to carry them)."
+}

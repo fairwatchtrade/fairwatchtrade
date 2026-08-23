@@ -1,0 +1,170 @@
+# Auction Operations — two jobs, two data domains, one room
+
+`/admin/auctions` is the single obvious auction room, reached through the
+**◈ Auctions →** doorway in Marketplace Control. It hosts two founder jobs
+that share a page and **nothing else**.
+
+## The misconception this file exists to kill
+
+> "Auctions are one system."
+
+They are two, and they never merge:
+
+| | Upcoming Auctions | Auction Results |
+| --- | --- | --- |
+| Truth | future event / calendar | completed sale / historical evidence |
+| Storage | `auction_events` | `auction_evidence_*` domain |
+| Feeds | `/api/auctions` → the public MarketBar strip | Market Intel / comparables |
+| Writer | `/api/admin/auctions/save` (explicit founder save) | `auction_evidence_create_or_correct_result()` — **the only result writer in the product** |
+
+There is no shared table, no shared status, no shared lifecycle. A change to
+one side must not assume anything about the other.
+
+## Upcoming Auctions (the proven engine, untouched)
+
+`paste → parse (AI drafts, blank-over-guess) → founder review → explicit
+save → auction_events → /api/auctions → MarketBar`
+
+- `data/auctions.json` still participates in `/api/auctions`; the table wins
+  on identity collision and the endpoint fails open to JSON. Do not retire it.
+- **No stored status.** Live/Upcoming/Past is computed from the dates at read
+  time (`lib/auctions.ts` `statusOf`); a stored status is a lie waiting for
+  its birthday. This is why the room shows no Public-strip eligibility and no
+  publish/hide/delete controls — none of that state exists.
+- Open/Edit populates the same draft editor and saves through the save
+  route's existing `confirm_update_id` branch. One save path, no parallel
+  update route.
+
+## Auction Results — registered packets only
+
+V1 is an operator doorway for **three registered, already-proven packets**,
+allowlisted in `lib/auction-operations/registry.ts`:
+
+1. `phillips-sale : NY080126` — founder stages the two pinned PDFs
+2. `monaco-legend : sales-38-40-41` — server fetches the pinned URLs
+3. `monaco-layer2 : et33-et35-et36` — founder stages the hash-pinned Layer 2
+   corpus JSONL (821 verified historical lots)
+
+A new sale or house is a **reviewed manifest + adapter registration in the
+repository**, never a form field. No route accepts an arbitrary URL,
+manifest, or adapter string.
+
+### The flow, and where each rule is enforced
+
+```
+stage sources → Generate Plan (ZERO writes) → founder reviews summary+hash
+             → Apply (explicit, of that exact hash) → bounded slices → applied
+```
+
+- **Staging** (`results/uploads` route): create-only signed tokens into the
+  private `auction-operations-staging` bucket, paths server-generated under
+  `runs/<runId>/<kind>`. PDFs never cross a function body (4.5 MB ceiling).
+  Staging bytes are **never** promoted into Auction Evidence retention —
+  importer semantics stay `metadata_only`.
+- **Planning** (`results/plan` route → `lib/auction-operations/planEngine.ts`):
+  verifies every pinned hash and semantic gate, inspects live DB truth,
+  persists the deterministic plan + SHA-256 on `auction_operations_run`.
+  Writes nothing to the evidence layer — pinned by
+  `scripts/auction-operations.test.mjs`.
+- **Apply** (`results/apply` route): requires the reviewed `planSha256`,
+  re-verifies the stored bytes against it, refuses contradictions, then runs
+  bounded idempotent slices with durable cursor progress. `after()` continues
+  slices in the same invocation; an interrupted run stays truthfully
+  `applying` and the **same route resumes it** (the room polls and re-kicks;
+  the founder can also just press Apply again). There is deliberately no
+  standing cron worker: a founder-present operation that runs a few times a
+  year does not earn permanent scheduled infrastructure — if unattended
+  ingestion is ever ordered, mirror the Dealer Accelerator's DB-held-token
+  worker pattern.
+- **One engine, two entrances.** The plan/apply logic lives in the importer
+  modules themselves — `scripts/phillips-sale-import.mjs` and
+  `scripts/monaco-legend-import.mjs` export the same functions their CLIs
+  run (`main()` is guarded), and `lib/auction-operations/monaco-layer2-core.mjs`
+  emits plans in the exact shape the shared Monaco engine
+  (`applyMonacoPlanSlice`) executes. The implementation preflight suggested
+  physically relocating the engines into `lib/`; the smaller equivalent at current HEAD
+  was to keep them where their 50 existing test assertions already point and
+  export the seams. If you move them later, move the tests with them.
+
+### The ET36 price quarantine (do not "fix" this)
+
+ET36 has no official result sheet. Its prices are current-website
+"Result (Premium)" values on a **different premium basis** (the documented
+1.04 relationship: 1.30 TTC vs 1.25 ex-VAT — a caveat, never a transform to
+apply). Acquisition law: those values are never mapped to a realized-result
+field without a labelled column making the difference visible.
+`auction_evidence_result` has no such column, so ET36 sold rows carry their
+**outcome with a NULL price** — the schema allows it, the plan summary counts
+it (`et36_sold_prices_withheld`), the room shows "N unpriced", and the detail
+page prints "withheld". Release path when the founder semantics ruling lands:
+the governed correction chain, one corrected result per lot, never an UPDATE.
+Enforcement lives in `wantedLayer2Result()` in the layer2 core.
+
+### Where the behaviour actually lives (the parts that cost hours)
+
+- **The only result writer** is the `auction_evidence_create_or_correct_result`
+  RPC (SECURITY DEFINER, service_role-execute only; direct INSERT/UPDATE/
+  DELETE on results is revoked even from service_role). Everything here
+  funnels through it; `applySlice.ts` is a dispatcher, not a writer.
+- **Identity state** on the Results list comes from
+  `auction_operations_results_read_model()` in Postgres, which compares each
+  current decision's stored fingerprint against
+  `identity_resolution_claim_fingerprint('auction_lot', lot_id)`. **A stale
+  exact decision is not Resolved** — the label logic is
+  `identityStateOf()` in `lib/auction-operations/resultsPresentation.ts`.
+- **Run state** is `auction_operations_run` — private operational machinery,
+  revoked from every client role. It is *not* a sale fact: there is
+  deliberately no `ingestion_status` on `auction_evidence_sale`, because
+  expected counts live only in repo manifests and `lots == results` proves
+  nothing.
+- **Monaco chronology** is explicit, never inferred: the six known sales
+  arrive in run order, and each Layer 2 sale's
+  `chronological_position_among_known_six` marker rides into its artifact
+  attribution notes from the corpus itself.
+- **Rights** ride through ingestion unresolved: Layer 2 artifacts land
+  `permission_status=unresolved / publication_status=internal_only /
+  public_use_scope=none / retention=metadata_only`. Whether Monaco's
+  normalized facts may ever surface publicly is an **open founder ruling**
+  (`public_use_scope='normalized_facts_only'` is the value that would permit
+  it); nothing in this room or its ingestion decides that.
+
+## What is deliberately NOT built
+
+- No arbitrary-house intake, no manifest upload, no URL field.
+- No second result writer, no direct evidence inserts from any route.
+- No identity adjudication controls — the detail page inspects; no founder
+  identity-review UI exists anywhere yet, and this room must not invent one.
+- No Upcoming delete/cancel/publish/hide, no Public-strip eligibility.
+- No completed-sale ingestion status column.
+- No standing worker cron (see Apply above).
+- No retention of staged source bytes as evidence.
+
+## Verify current state
+
+```sql
+-- the sales the room lists, with rollups
+select sale_name, lot_count, current_result_count, sold_count, priced_result_count
+  from auction_operations_results_read_model() order by sale_date;
+
+-- runs and their outcomes
+select adapter_id, packet_id, state, summary->>'results_create' as created,
+       last_error_code
+  from auction_operations_run order by created_at desc limit 10;
+
+-- the quarantine held: ET36 sold rows carry no price
+select count(*) from auction_evidence_result r
+  join auction_evidence_lot l on l.id = r.lot_id
+  join auction_evidence_sale s on s.id = l.sale_id
+ where s.sale_name = 'Exclusive Timepieces 36'
+   and r.is_current and r.sale_outcome = 'sold' and r.price_realized is not null;
+-- must be 0 until the founder semantics ruling releases them
+```
+
+```bash
+node scripts/phillips-import.test.mjs
+node scripts/phillips-sale-import.test.mjs
+node scripts/monaco-legend-import.test.mjs
+node --experimental-strip-types scripts/auction-operations.test.mjs
+```
+
+`PFC274 = 62` — the evaluate route is untouched by anything in this room.

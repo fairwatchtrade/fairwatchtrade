@@ -50,6 +50,15 @@ const nextConfig: NextConfig = {
     "/api/admin/listings/\\[id\\]/status": [
       "./node_modules/@sparticuz/chromium/bin/**",
     ],
+
+    /* Auction Operations — the plan route reads the registered packet
+       manifests from the repository at runtime (fs, not import), so they
+       must be traced into the lambda explicitly or planning dies with
+       ENOENT in production while working locally. */
+    "/api/admin/auctions/results/plan": [
+      "./scripts/phillips/*.json",
+      "./scripts/monaco-legend/*.json",
+    ],
     "/api/admin/listings/\\[id\\]/recheck": [
       "./node_modules/@sparticuz/chromium/bin/**",
       "./node_modules/sharp/**",

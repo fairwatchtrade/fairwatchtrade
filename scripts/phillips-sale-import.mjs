@@ -50,9 +50,11 @@ function arg(name) {
     : null;
 }
 const has = (name) => process.argv.includes(`--${name}`);
+/* Throws instead of exiting: this module is imported by the founder-only
+   Auction Operations server seam, where a process.exit would take the whole
+   function down. The CLI tail below catches and exits - same UX, one engine. */
 function fail(msg) {
-  console.error(`\nSTOP: ${msg}`);
-  process.exit(1);
+  throw new Error(msg);
 }
 const sha256 = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 
@@ -239,7 +241,7 @@ export function planToBytes(plan) {
   return JSON.stringify(plan, null, 2) + "\n";
 }
 
-async function inspectLive(db, saleManifest) {
+export async function inspectLive(db, saleManifest) {
   const { data: houses, error: hErr } = await db
     .from("auction_evidence_house")
     .select("id")
@@ -296,6 +298,56 @@ async function inspectLive(db, saleManifest) {
     estimatesOmissionPresent: (pageArt.omission_statement ?? "").includes("estimates are deliberately not captured"),
     lotsByNumber,
     currentResultsByLot,
+  };
+}
+
+/* ── generatePhillipsSalePlan — the server entrance ──────────────────────
+   The exact plan-gen sequence main() runs, taken apart from the filesystem:
+   bytes in, deterministic plan out, zero Auction Evidence writes. The sale
+   page HTML is supplied by the caller (a staged founder file or a fetch of
+   the ONE registered auctionPageUrl) — this function performs no network
+   I/O of its own. Throws typed messages; never exits, never reads argv,
+   never writes a file. One engine, two entrances. */
+export async function generatePhillipsSalePlan({
+  saleManifest,
+  saleManifestBytes,
+  resultsPdfBytes,
+  auctionPagePdfBytes,
+  salePageHtml,
+  db,
+}) {
+  const saleManifestHash = sha256(saleManifestBytes);
+  if (sha256(resultsPdfBytes) !== saleManifest.resultsPdf.sha256) fail("results PDF hash mismatch");
+  if (sha256(auctionPagePdfBytes) !== saleManifest.auctionPagePdf.sha256)
+    fail("auction-page PDF hash mismatch");
+
+  const text = extractPdfText(resultsPdfBytes);
+  const prices = parseResultsTable(text);
+  const total = parseResultsTotal(text);
+  if (total !== saleManifest.expected.totalSoldIncludingPremium)
+    fail(`official total ${total} != expected ${saleManifest.expected.totalSoldIncludingPremium}`);
+  if (!/include the buyer'?s premium/i.test(text)) fail("premium statement missing from results PDF");
+
+  const tiles = parseSaleTiles(salePageHtml);
+  const joined = joinSaleFacts(tiles, prices, saleManifest.expected);
+  if (joined.problems.length) fail(`sale join:\n  - ${joined.problems.join("\n  - ")}`);
+
+  const live = await inspectLive(db, saleManifest);
+  const plan = buildSalePlanObject({
+    saleManifest,
+    saleManifestHash,
+    joined,
+    salePageSha256: sha256(Buffer.from(salePageHtml)),
+    live,
+  });
+  plan.resultDefaults = saleManifest.result_defaults;
+  const bytes = planToBytes(plan);
+  return {
+    plan,
+    planBytes: bytes,
+    planSha256: sha256(Buffer.from(bytes)),
+    summary: { ...plan.summary, lots: joined.rows.length, totalReconciled: joined.total },
+    contradictions: plan.contradictions,
   };
 }
 
@@ -508,5 +560,8 @@ async function main() {
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
 if (isMain) {
-  main().catch((e) => fail(e.stack ?? String(e)));
+  main().catch((e) => {
+    console.error(`\nSTOP: ${e.stack ?? String(e)}`);
+    process.exit(1);
+  });
 }

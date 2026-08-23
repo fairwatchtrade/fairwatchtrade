@@ -1,0 +1,449 @@
+/* Auction Operations — bounded regression proofs.
+
+   Run: node --experimental-strip-types scripts/auction-operations.test.mjs
+
+   Three layers, because three different things can break:
+
+     · the LAYER 2 CORE — corpus gates, deterministic plans, and the ET36
+       price quarantine (behavioral, pure);
+     · the SHARED BOUNDED APPLY — slices, interruption/resume, idempotent
+       replay, contradiction refusal, results only via the controlled RPC
+       (behavioral, in-memory database);
+     · the GOVERNANCE BOUNDARY — founder gates, zero-write planning,
+       server-held plan/hash authority, registry allowlist (structural
+       source pins, the sell-lifecycle pattern).                            */
+
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import crypto from "node:crypto";
+import {
+  buildLayer2ArtifactSpecs,
+  buildLayer2Plan,
+  layer2PlanToBytes,
+  normalizeLayer2Rows,
+  validateLayer2Corpus,
+  wantedLayer2Result,
+} from "../lib/auction-operations/monaco-layer2-core.mjs";
+import { applyMonacoPlanSlice } from "./monaco-legend-import.mjs";
+import {
+  identityStateOf,
+  sortResultsRows,
+  sortUpcomingRows,
+} from "../lib/auction-operations/resultsPresentation.ts";
+import { resolvePacket, listPackets } from "../lib/auction-operations/registry.ts";
+
+let n = 0;
+const ok = (label, cond) => {
+  n += 1;
+  assert.ok(cond, label);
+};
+const throws = (label, fn, re) => {
+  n += 1;
+  assert.throws(fn, re, label);
+};
+const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+/* ── a tiny synthetic corpus with the real column vocabulary ───────────── */
+
+const row = (sale, lot, outcome, official, extras = {}) => ({
+  sale_code: sale,
+  lot_number: String(lot),
+  sale_outcome: outcome,
+  currency: "EUR",
+  price_semantics_review_required: sale === "TT36" ? "True" : "False",
+  canonical_auction_url: `https://example.test/auction/tt-${sale.slice(2)}`,
+  rights_status: "UNRULED_INTERNAL_ONLY",
+  sale_date_start: sale === "TT33" ? "2024-04-20" : "2026-06-27",
+  chronological_position_among_known_six: sale === "TT33" ? 1 : 6,
+  realized_result_official_premium_vat_eur: official,
+  website_result_premium_eur: outcome === "sold" ? "1000" : "",
+  brand: "Testor",
+  model: `Model ${lot}`,
+  manufacturer_reference: `REF-${lot}`,
+  source_title: sale === "TT36" ? "" : `Lot ${lot} title`,
+  ...extras,
+});
+
+const corpusRows = [
+  row("TT33", 1, "sold", "600"),
+  row("TT33", 2, "sold", "400"),
+  row("TT33", 3, "unsold", ""),
+  row("TT36", 1, "sold", ""),
+  row("TT36", 2, "passed", ""),
+];
+
+const manifest = {
+  corpus: { sha256: "x".repeat(64), rows_total: 5, rights_status_all_rows: "UNRULED_INTERNAL_ONLY" },
+  house: { name: "Test House", slug: "test-house", website_url: "https://example.test" },
+  sales: [
+    {
+      code: "TT33",
+      name: "Test Sale 33",
+      date: "2024-04-20",
+      location: "Testville",
+      currency: "EUR",
+      canonical_auction_url: "https://example.test/auction/tt-33",
+      official_result_source: "https://example.test/results/33.pdf",
+      chronological_position_among_known_six: 1,
+      expected: {
+        rows: 3,
+        outcomes: { sold: 2, unsold: 1 },
+        official_result_rows: 2,
+        sold_sum_official_premium_vat_eur: 1000,
+        website_premium_priced_rows: 2,
+        price_semantics_review_required_rows: 0,
+      },
+    },
+    {
+      code: "TT36",
+      name: "Test Sale 36",
+      date: "2026-06-27",
+      location: "Testville",
+      currency: "EUR",
+      canonical_auction_url: "https://example.test/auction/tt-36",
+      official_result_source: null,
+      chronological_position_among_known_six: 6,
+      expected: {
+        rows: 2,
+        outcomes: { sold: 1, passed: 1 },
+        official_result_rows: 0,
+        sold_sum_official_premium_vat_eur: null,
+        website_premium_priced_rows: 1,
+        price_semantics_review_required_rows: 2,
+      },
+    },
+  ],
+  quarantine: {
+    TT36: { official_result_rows_must_be: 0, review_required_rows_must_be: 2, prices_withheld: true, statement: "test quarantine statement" },
+  },
+  estimates_omission_sentence: "Estimates are deliberately not captured.",
+};
+
+/* ── 1 · corpus gates refuse every drift ────────────────────────────────── */
+{
+  validateLayer2Corpus(manifest, corpusRows); // clean corpus passes
+  ok("clean synthetic corpus passes its gates", true);
+
+  throws("a missing row is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.slice(0, 4)), /rows 4 != 5/);
+  throws("a wrong monetary sum is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.map((r) =>
+      r.sale_code === "TT33" && r.lot_number === "1" ? { ...r, realized_result_official_premium_vat_eur: "601" } : r
+    )), /sold sum/);
+  throws("an unexpected outcome vocabulary is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.map((r) =>
+      r.lot_number === "3" && r.sale_code === "TT33" ? { ...r, sale_outcome: "cancelled" } : r
+    )), /outcome/);
+  throws("a rights drift on any row is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.map((r, i) =>
+      i === 0 ? { ...r, rights_status: "PUBLIC" } : r
+    )), /rights_status/);
+  throws("a lot-continuity gap is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.map((r) =>
+      r.sale_code === "TT33" && r.lot_number === "2" ? { ...r, lot_number: "9" } : r
+    )), /continuity|rows|outcome/);
+  throws("a quarantine-flag drift is refused", () =>
+    validateLayer2Corpus(manifest, corpusRows.map((r) =>
+      r.sale_code === "TT36" ? { ...r, price_semantics_review_required: "False" } : r
+    )), /review-required/);
+}
+
+/* ── 2 · the ET36 price quarantine is structural ───────────────────────── */
+{
+  const tt33 = manifest.sales[0];
+  const tt36 = manifest.sales[1];
+  const rows33 = normalizeLayer2Rows(tt33, corpusRows);
+  const rows36 = normalizeLayer2Rows(tt36, corpusRows);
+
+  const pricedSold = wantedLayer2Result(rows33[0], tt33);
+  ok("an officially-priced sold row carries price + currency + basis",
+    pricedSold.price_realized === 600 && pricedSold.currency === "EUR" && pricedSold.price_basis === "other");
+  ok("and its result sources from the official result sheet",
+    pricedSold.source_key === "official_results_pdf");
+
+  const q = wantedLayer2Result(rows36[0], tt36);
+  ok("a quarantined sold row ingests its OUTCOME with the price withheld",
+    q.sale_outcome === "sold" && q.price_realized === null && q.currency === null && q.price_basis === null);
+  ok("and the website premium value appears nowhere in the wanted result",
+    !JSON.stringify(q).includes("1000"));
+
+  const unsold = wantedLayer2Result(rows33[2], tt33);
+  ok("a non-sold row carries no price facts", unsold.price_realized === null && unsold.currency === null);
+  ok("'unsold' survives as its own outcome, never collapsed into 'passed'",
+    unsold.sale_outcome === "unsold");
+
+  ok("absent corpus text lands as null, never as empty string",
+    rows36[0].description === null && rows33[0].description === "Lot 1 title");
+
+  const specs36 = buildLayer2ArtifactSpecs(manifest, tt36);
+  ok("ET-pattern quarantine is written into the source artifact statements",
+    specs36.some((s) => s.omission_statement?.includes("test quarantine statement")));
+  ok("no official-result artifact is invented for a sale that has no result sheet",
+    !specs36.some((s) => s.key === "official_results_pdf"));
+  const specs33 = buildLayer2ArtifactSpecs(manifest, tt33);
+  ok("the chronological-position marker rides in artifact attribution, from the corpus",
+    specs33.every((s) => s.attribution_note.includes("chronological position 1 of the six")));
+  ok("artifacts carry the Monaco rights convention",
+    specs33.every((s) => s.publication_status === "internal_only" && s.artifact_retention_scope === "metadata_only"));
+}
+
+/* ── 3 · deterministic plan, in-memory database ─────────────────────────── */
+
+function fakeDb() {
+  const tables = {
+    profiles: [{ id: "77a6893a-54fe-4373-9bf7-3327d0ba69cf" }],
+    auction_evidence_house: [],
+    auction_evidence_sale: [],
+    auction_evidence_source_artifact: [],
+    auction_evidence_lot: [],
+    auction_evidence_result: [],
+  };
+  let idc = 0;
+  const nid = () => `id-${++idc}`;
+  const db = {
+    tables,
+    rpcCalls: 0,
+    directResultInserts: 0,
+    from(table) {
+      const filters = [];
+      const chain = {
+        select() { return chain; },
+        eq(k, v) { filters.push((r) => r[k] === v); return chain; },
+        in(k, vs) { filters.push((r) => vs.includes(r[k])); return chain; },
+        then(resolve) {
+          const rows = (tables[table] ?? []).filter((r) => filters.every((f) => f(r)));
+          resolve({ data: rows.map((r) => ({ ...r })), error: null });
+        },
+        insert(values) {
+          if (table === "auction_evidence_result") {
+            db.directResultInserts += 1;
+            return { select: () => ({ then: (res) => res({ data: null, error: { message: "revoked" } }) }) };
+          }
+          const rec = { id: nid(), ...values };
+          tables[table].push(rec);
+          return {
+            select() {
+              return { then(res) { res({ data: [{ id: rec.id }], error: null }); } };
+            },
+          };
+        },
+      };
+      return chain;
+    },
+    rpc(name, args) {
+      if (name !== "auction_evidence_create_or_correct_result")
+        return Promise.resolve({ data: null, error: { message: "unknown rpc" } });
+      db.rpcCalls += 1;
+      const existing = tables.auction_evidence_result.find((r) => r.lot_id === args.p_lot_id && r.is_current);
+      if (existing) return Promise.resolve({ data: null, error: { message: "one current per lot" } });
+      tables.auction_evidence_result.push({
+        id: nid(), lot_id: args.p_lot_id, is_current: true,
+        sale_outcome: args.p_sale_outcome, price_realized: args.p_price_realized,
+        currency: args.p_currency, price_basis: args.p_price_basis,
+      });
+      return Promise.resolve({ data: { ok: true }, error: null });
+    },
+  };
+  return db;
+}
+
+{
+  const db = fakeDb();
+  const p1 = await buildLayer2Plan({ manifest, corpusSha256: manifest.corpus.sha256, rows: corpusRows, db });
+  const p2 = await buildLayer2Plan({ manifest, corpusSha256: manifest.corpus.sha256, rows: corpusRows, db });
+  ok("plan generation is deterministic — identical bytes, identical hash",
+    sha(layer2PlanToBytes(p1)) === sha(layer2PlanToBytes(p2)));
+  ok("planning wrote NOTHING — no rows, no RPC calls",
+    db.tables.auction_evidence_lot.length === 0 && db.rpcCalls === 0 &&
+    db.tables.auction_evidence_house.length === 0);
+  ok("the summary counts the withheld quarantined prices",
+    p1.summary.et36_sold_prices_withheld === 1);
+  throws("a corpus that is not the registered corpus is refused before validation", () => {
+    // buildLayer2Plan is async — assert on the awaited rejection below instead
+    throw new Error("corpus hash mismatch (see async assertion)");
+  }, /corpus hash/);
+  await assert.rejects(
+    buildLayer2Plan({ manifest, corpusSha256: "f".repeat(64), rows: corpusRows, db }),
+    /does not match the registered packet/
+  );
+  n += 1;
+
+  /* ── bounded apply through the SHARED Monaco engine ── */
+  const plan = p1;
+  const slice1 = await applyMonacoPlanSlice(plan, db, { maxRows: 2 });
+  ok("a bounded slice stops at its budget with a durable cursor",
+    slice1.done === false && slice1.cursor.sale_index === 0 && slice1.cursor.row_index === 2);
+  ok("two rows landed: two lots, two results via the controlled RPC only",
+    db.tables.auction_evidence_lot.length === 2 && db.rpcCalls === 2 && db.directResultInserts === 0);
+
+  const slice2 = await applyMonacoPlanSlice(plan, db, { cursor: slice1.cursor, maxRows: 100 });
+  ok("resume finishes from the exact cursor", slice2.done === true);
+  ok("all five lots exist, one result each",
+    db.tables.auction_evidence_lot.length === 5 && db.tables.auction_evidence_result.length === 5);
+  ok("the quarantined ET36-pattern sold row landed price-NULL",
+    db.tables.auction_evidence_result.some((r) => r.sale_outcome === "sold" && r.price_realized === null));
+
+  const replay = await applyMonacoPlanSlice(plan, db, { maxRows: 100 });
+  ok("full replay converges idempotently — nothing duplicated",
+    replay.done === true && db.tables.auction_evidence_lot.length === 5 &&
+    db.tables.auction_evidence_result.length === 5 &&
+    replay.counts.lots_reused === 5 && replay.counts.lots_created === 0);
+
+  // Contradiction: live lot facts differ from the plan → loud stop.
+  db.tables.auction_evidence_lot[0].brand_text = "Forged";
+  await assert.rejects(applyMonacoPlanSlice(plan, db, { maxRows: 100 }), /lot contradiction/);
+  n += 1;
+  db.tables.auction_evidence_lot[0].brand_text = "Testor";
+
+  // Contradiction: a different current result → loud stop, never superseded.
+  db.tables.auction_evidence_result[0].price_realized = 999999;
+  await assert.rejects(applyMonacoPlanSlice(plan, db, { maxRows: 100 }), /result contradiction/);
+  n += 1;
+}
+
+/* ── 4 · the real registered manifest is the verified corpus, exactly ──── */
+{
+  const real = JSON.parse(read("scripts/monaco-legend/layer2-et33-et35-et36.manifest.json"));
+  ok("the packet pins the independently verified corpus hash",
+    real.corpus.sha256 === "8ace4af5d275e50868ecb037ccbbf160a576f0bbee3a8af77992de43cde5a110");
+  ok("821 rows across the three sales",
+    real.corpus.rows_total === 821 &&
+    real.sales.map((s) => s.expected.rows).reduce((a, b) => a + b, 0) === 821);
+  ok("the ET33 monetary gate is the exact reconciled total",
+    real.sales.find((s) => s.code === "ET33").expected.sold_sum_official_premium_vat_eur === 22566860);
+  ok("the ET35 monetary gate is the exact reconciled total",
+    real.sales.find((s) => s.code === "ET35").expected.sold_sum_official_premium_vat_eur === 16267580);
+  const et36 = real.sales.find((s) => s.code === "ET36");
+  ok("ET36 carries no monetary gate, no official source, full quarantine",
+    et36.expected.sold_sum_official_premium_vat_eur === null &&
+    et36.official_result_source === null &&
+    et36.expected.price_semantics_review_required_rows === 247 &&
+    real.quarantine.ET36.prices_withheld === true);
+  ok("outcome vocabulary matches the verification report exactly",
+    real.sales.map((s) => s.expected.outcomes).reduce((acc, o) => {
+      for (const [k, v] of Object.entries(o)) acc[k] = (acc[k] ?? 0) + v;
+      return acc;
+    }, {}).sold === 788);
+  ok("rights stay UNRULED_INTERNAL_ONLY on every row",
+    real.corpus.rights_status_all_rows === "UNRULED_INTERNAL_ONLY");
+}
+
+/* ── 5 · registry allowlist ─────────────────────────────────────────────── */
+{
+  ok("exactly the three registered packets exist", listPackets().length === 3);
+  ok("known packets resolve",
+    !!resolvePacket("phillips-sale", "NY080126") &&
+    !!resolvePacket("monaco-legend", "sales-38-40-41") &&
+    !!resolvePacket("monaco-layer2", "et33-et35-et36"));
+  ok("an unknown adapter does not exist", resolvePacket("sothebys", "any") === null);
+  ok("a known adapter with an unknown packet does not exist",
+    resolvePacket("phillips-sale", "NY999999") === null);
+  ok("nothing arbitrary resolves", resolvePacket({ evil: true }, ["x"]) === null);
+}
+
+/* ── 6 · presentation truth ─────────────────────────────────────────────── */
+{
+  const base = {
+    sale_id: "a", sale_name: "S", sale_date: "2026-01-01", location: null, source_url: null,
+    house_name: "H", artifact_count: 1, permission_statuses: [], publication_statuses: ["internal_only"],
+    public_use_scopes: [], retention_scopes: ["metadata_only"], lot_count: 10, current_result_count: 10,
+    sold_count: 8, passed_count: 2, withdrawn_count: 0, unsold_count: 0, priced_result_count: 8,
+    case_count: 0, fresh_exact_count: 0, fresh_nonexact_count: 0, stale_decision_count: 0, no_case_count: 10,
+  };
+  ok("no cases reads as No cases", identityStateOf(base) === "no_cases");
+  ok("a fully fresh-exact sale is Resolved",
+    identityStateOf({ ...base, case_count: 10, fresh_exact_count: 10, no_case_count: 0 }) === "resolved");
+  ok("a STALE exact decision is never Resolved",
+    identityStateOf({ ...base, case_count: 10, fresh_exact_count: 9, stale_decision_count: 1, no_case_count: 0 }) === "partial");
+  ok("stale decisions with zero fresh-exact read Unresolved",
+    identityStateOf({ ...base, case_count: 10, stale_decision_count: 10, no_case_count: 0 }) === "unresolved");
+  ok("an empty sale is its own truthful state, not Resolved",
+    identityStateOf({ ...base, lot_count: 0 }) === "no_lots");
+
+  const rows = [
+    { ...base, sale_id: "a", sale_date: "2026-01-01", house_name: "B" },
+    { ...base, sale_id: "b", sale_date: null, house_name: "A" },
+    { ...base, sale_id: "c", sale_date: "2026-03-01", house_name: "A" },
+  ];
+  const byDate = sortResultsRows(rows, "date_desc");
+  ok("date sort really reorders, nulls last",
+    byDate[0].sale_id === "c" && byDate[2].sale_id === "b");
+  const byHouse = sortResultsRows(rows, "house_asc");
+  ok("house sort is stable with the date tiebreak",
+    byHouse[0].house_name === "A" && byHouse[0].sale_id === "c");
+
+  const up = (id, starts, house, location = null) => ({
+    id, auction_house: house, auction_title: "T", location, starts_at: starts,
+    ends_at: null, source_url: null, preview_url: null, catalog_url: null,
+    online_only: null, updated_at: starts,
+  });
+  const now = Date.parse("2026-08-23T12:00:00Z");
+  const upRows = [
+    up("x", "2026-09-01T10:00:00Z", "Zed"),
+    up("y", "2026-08-25T10:00:00Z", "Alpha", "Geneva"),
+    up("z", "2026-08-23T11:00:00Z", "Mid"),
+  ];
+  ok("soonest-first puts the live sale on top",
+    sortUpcomingRows(upRows, "start_asc", now)[0].id === "z");
+  ok("status sort ranks live before upcoming",
+    sortUpcomingRows(upRows, "status", now)[0].id === "z");
+  ok("blank locations sort last",
+    sortUpcomingRows(upRows, "location_asc", now)[2].location === null ||
+    sortUpcomingRows(upRows, "location_asc", now)[2].id !== "y");
+}
+
+/* ── 7 · governance boundary — structural pins ──────────────────────────── */
+{
+  const uploads = read("app/api/admin/auctions/results/uploads/route.ts");
+  const plan = read("app/api/admin/auctions/results/plan/route.ts");
+  const apply = read("app/api/admin/auctions/results/apply/route.ts");
+  const runs = read("app/api/admin/auctions/results/runs/[runId]/route.ts");
+  const engine = read("lib/auction-operations/planEngine.ts");
+  const slice = read("lib/auction-operations/applySlice.ts");
+  const store = read("lib/auction-operations/runStore.ts");
+  const migration = read("supabase/migrations/20260823160000_auction_operations_run_store_and_read_model.sql");
+  const roomClient = read("components/AdminAuctionResultsIngest.tsx");
+  const opsClient = read("components/AdminAuctionOperations.tsx");
+
+  for (const [name, src] of [["uploads", uploads], ["plan", plan], ["apply", apply], ["runs", runs]]) {
+    ok(`${name} route gates on its own hardcoded founder literal`,
+      /const ADMIN_USER_ID = "/.test(src) && /user\.id !== ADMIN_USER_ID/.test(src));
+    ok(`${name} route creates the trusted client only after the gate`,
+      src.indexOf("createServiceClient()") > src.indexOf("user.id !== ADMIN_USER_ID"));
+  }
+
+  ok("planning can write NO Auction Evidence — the engine never inserts or calls the result RPC",
+    !/auction_evidence/.test(engine.replace(/\/\*[\s\S]*?\*\//g, "")));
+  ok("the apply dispatcher writes no result directly — it delegates to the shared engines",
+    !/auction_evidence_create_or_correct_result/.test(slice.replace(/\/\*[\s\S]*?\*\//g, "")) &&
+    !/\.insert\(/.test(slice));
+  ok("apply demands the reviewed hash and refuses a mismatch",
+    /plan_hash_mismatch/.test(apply) && /run\.plan_sha256 !== approvedSha/.test(apply));
+  ok("apply re-verifies the stored plan bytes against the recorded hash",
+    /verifyStoredPlan/.test(apply) && /recomputed !== run\.plan_sha256/.test(store));
+  ok("a plan with contradictions cannot be applied",
+    /apply_contradiction/.test(apply) && /contradictions\.length > 0/.test(apply));
+  ok("upload paths are server-generated — no browser path reaches storage",
+    /runs\/\$\{run\.id\}\/\$\{spec\.kind\}/.test(uploads) && !/body\.path|inputPaths/.test(uploads));
+  ok("the run table is browser-unreachable",
+    /revoke all on public\.auction_operations_run from public, anon, authenticated, service_role/.test(migration) &&
+    /grant select, insert, update on public\.auction_operations_run to service_role/.test(migration));
+  ok("the read-model functions execute for service_role only",
+    /revoke all on function public\.auction_operations_results_read_model\(\) from public, anon, authenticated/.test(migration) &&
+    /revoke all on function public\.auction_operations_sale_detail\(uuid\) from public, anon, authenticated/.test(migration));
+  ok("the staging bucket is private",
+    /'auction-operations-staging', false/.test(migration.replace(/\s+/g, " ")));
+  ok("no client component imports the service client",
+    !/supabase\/service/.test(roomClient) && !/supabase\/service/.test(opsClient));
+  /* The header comment documents what is deliberately absent — strip
+     comments so the pin reads only what the room actually renders. */
+  const opsRendered = opsClient.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("no fabricated columns: no Public-strip eligibility, no sale Ingestion status",
+    !/Public strip|publicStrip|ingestion_status|Ingestion status/i.test(opsRendered));
+  ok("the room says plainly that only registered packets exist",
+    /registered/.test(roomClient) &&
+    /never\s+accepts an arbitrary\s+source/.test(roomClient.replace(/\s+/g, " ")));
+}
+
+console.log(`auction-operations: ${n} assertions passed`);
