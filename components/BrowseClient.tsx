@@ -212,7 +212,10 @@ export type ListingRow = {
     serviceHistory?: string[];
     includedWithWatch?: string[];
   } | null;
-  combined_score: number; // private — ranking input only, never rendered
+  /* Private curation score. NOT fetched by Browse — the buyer's browser
+     never receives it (see app/browse/page.tsx). Optional so a surface that
+     does select it still type-checks; nothing here reads it. */
+  combined_score?: number;
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
   weeks_featured?: number; // optional on the row; defaults 0 if absent

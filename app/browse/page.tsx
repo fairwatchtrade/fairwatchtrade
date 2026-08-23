@@ -58,21 +58,73 @@ type ListingRow = {
     powerReserve?: string;
     caseThicknessMm?: string; // v1.58 — Phase 1B, type-only, same precedent
   } | null;
-  combined_score: number; // private — ranking input only, never rendered
   created_at: string; // ISO 8601 — ranking tie-break
   sold?: boolean; // optional on the row; defaults false if absent
   weeks_featured?: number; // optional on the row; defaults 0 if absent
   status: string;
 };
 
+/* ── BOUNDED FETCH ─────────────────────────────────────────────────────
+      The query used to be select("*") with no limit: every published row,
+      every column, every photo, in one unbounded call. At ten listings that
+      is invisible; the shape is what fails, not today's numbers.
+
+      Two bounds, both behaviour-preserving:
+
+      1 · COLUMNS. Only what Browse actually consumes. select("*") shipped
+          the private curation scores to every visitor's browser — never
+          rendered, but present in the payload and readable in devtools.
+          combined_score in particular was fetched, typed, and never read by
+          a single line of BrowseClient. The scores stay out of the buyer's
+          machine entirely now.
+          ⚠ photo_presentation is REQUIRED here and was absent from this
+          file's own row type — the cards read it for seller-authored
+          framing, and it survived only because "*" swept it in. Any future
+          narrowing must be driven by what the CLIENT reads, not by this
+          type.
+
+      2 · ROW CEILING. An explicit limit so one page load can never fetch an
+          unbounded catalogue. The ceiling is far above real inventory, so
+          nothing about today's Browse changes; it exists so the failure
+          mode at scale is a logged, deliberate truncation instead of an
+          unbounded query.
+
+      The ORDER BY exists ONLY to make that ceiling deterministic — without
+      it a truncated fetch returns an arbitrary subset. It does not decide
+      what the buyer sees: BrowseClient re-sorts the full set in memory, so
+      display order is untouched. The separate known default-sort/ORDER BY
+      product question is NOT addressed here.
+
+      This is a fetch bound, not server-side pagination. Real pagination
+      still requires the facet-count decision first — facets and filters are
+      computed client-side over the whole set, so paginating the query
+      without that ruling would silently make the counts wrong. ── */
+const BROWSE_FETCH_CEILING = 500;
+
 export default async function BrowsePage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("listings")
-    .select("*")
-    .eq("status", "published");
+    .select(
+      "id, brand, model, reference, public_code, description, year, condition, asking_price, asking_currency, photos, photo_presentation, details, created_at, sold, weeks_featured, status, in_hand_verified"
+    )
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(BROWSE_FETCH_CEILING + 1);
 
-  const rows = (!error && Array.isArray(data) ? data : []) as ListingRow[];
+  const fetched = (!error && Array.isArray(data) ? data : []) as ListingRow[];
+  /* Fetching ceiling+1 is how truncation is DETECTED rather than assumed.
+     Crossing it means the catalogue outgrew this bound and the real
+     server-side pagination flight is owed — say so loudly in the server log
+     rather than quietly serving a partial catalogue forever. */
+  const truncated = fetched.length > BROWSE_FETCH_CEILING;
+  if (truncated) {
+    console.error(
+      `[browse] published catalogue exceeds the ${BROWSE_FETCH_CEILING}-row fetch ceiling — ` +
+        "Browse is showing a truncated set. Server-side pagination is now required."
+    );
+  }
+  const rows = truncated ? fetched.slice(0, BROWSE_FETCH_CEILING) : fetched;
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
