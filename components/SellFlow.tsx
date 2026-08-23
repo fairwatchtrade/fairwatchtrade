@@ -67,6 +67,10 @@ import {
   rolexStyleReferenceLine,
   ROLEX_STYLE_DOC_FLAG,
 } from "@/lib/admission/rolexIdentifier";
+import {
+  canonicalIdentityKey,
+  canonicalKeyStillValid,
+} from "@/lib/identity/canonicalIdentity";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Very Good", "Good", "Fair"];
@@ -1346,6 +1350,91 @@ function CurationStep({
   const checkSeqRef = useRef(0);
   const refCheckCacheRef = useRef<Map<string, RefAdvisory>>(new Map());
 
+  /* ── Canonical watch identity ─────────────────────────────────────────
+     A SECOND, structurally separate pipeline that happens to share this
+     field's blur. It has its own timer, its own sequence guard and its own
+     cache key precisely so it can never be short-circuited by — or confused
+     with — the advisory above.
+
+     The advisory asks "does this look plausible?" and is model-mediated.
+     This asks "which governed Vault reference IS this?" and is
+     deterministic. Sharing one cache or one call would let an opinion start
+     minting identity, which is the one thing this seam must not do.
+
+     Resolution here is a CONVENIENCE, never the authority: publication
+     re-resolves server-side and writes its own answer. Nothing in this
+     component blocks, warns, or scores on the result — an unresolved watch
+     is an ordinary watch. */
+  const canonicalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canonicalSeqRef = useRef(0);
+
+  /* The reference a canonical resolution is made against. For the Rolex
+     corridor a documented Style resolves through its DERIVED canonical
+     reference — the same text the server persists — so the client and the
+     server can never be asking the Vault two different questions. */
+  function canonicalReferenceText(raw: string): string {
+    const trimmed = raw.trim();
+    if (!profile) return trimmed;
+    const ident = classifyRolexIdentifier(trimmed);
+    return ident.kind === "unsupported" ? trimmed : ident.reference;
+  }
+
+  function canonicalContext() {
+    return {
+      brand: draft.brand.trim(),
+      model: draft.model.trim(),
+      reference: canonicalReferenceText(draft.reference),
+    };
+  }
+
+  /* Staleness is enforced on EDIT, not on blur: the moment the identity text
+     stops matching the context a canonical id was resolved against, the id
+     goes. A stale canonical link is worse than none — it silently files this
+     watch under another watch's identity, and nothing downstream would ever
+     see the seam where it went wrong. */
+  useEffect(() => {
+    if (!draft.vaultReferenceId) return;
+    if (canonicalKeyStillValid(draft.vaultReferenceKey, canonicalContext())) return;
+    patch({ vaultReferenceId: null, vaultReferenceKey: "" });
+    // canonicalContext() reads exactly the three fields in the dep list; the
+    // early return above ends any re-entry after the clear lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.brand, draft.model, draft.reference, draft.vaultReferenceId, draft.vaultReferenceKey]);
+
+  function runCanonicalResolution() {
+    if (canonicalTimerRef.current) clearTimeout(canonicalTimerRef.current);
+    const ctx = canonicalContext();
+    const key = canonicalIdentityKey(ctx);
+    if (!key) return;                            // no context, no question
+    if (draft.vaultReferenceKey === key) return; // already answered for this text
+
+    canonicalTimerRef.current = setTimeout(async () => {
+      const seq = ++canonicalSeqRef.current;
+      try {
+        const res = await fetch("/api/canonical-reference", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ctx),
+        });
+        const data = await res.json().catch(() => null);
+        if (seq !== canonicalSeqRef.current) return; // stale — a newer edit owns the field
+        if (canonicalIdentityKey(canonicalContext()) !== key) return; // text moved on
+        /* no_match and ambiguous both land here as null — the key is still
+           recorded, so the same unresolvable text is not asked twice. */
+        patch({
+          vaultReferenceId:
+            data?.status === "resolved" && typeof data.vaultReferenceId === "string"
+              ? data.vaultReferenceId
+              : null,
+          vaultReferenceKey: key,
+        });
+      } catch {
+        /* Identity is enrichment. A failed lookup leaves the draft exactly
+           as it was and is never surfaced to the seller. */
+      }
+    }, 350);
+  }
+
   function runReferenceCheck() {
     if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
     const ref = draft.reference.trim();
@@ -1555,7 +1644,10 @@ function CurationStep({
               patch({ reference: e.target.value });
               if (advisory) setAdvisory(null); // editing clears — never nags mid-typing
             }}
-            onBlur={runReferenceCheck}
+            onBlur={() => {
+              runReferenceCheck();
+              runCanonicalResolution();
+            }}
             placeholder="e.g. reference number"
           />
           {advisory && advisory.kind !== "consistent" && (

@@ -181,6 +181,11 @@ export default function ReviewStep({
           customBrandFlag: draft.customBrandFlag,
           model: draft.model,
           reference: draft.reference,
+          /* Canonical identity rides BESIDE the seller's text, never instead
+             of it. Corroboration only: the server re-resolves from the
+             reference above and persists its own answer, so a stale or
+             absent id here costs nothing. */
+          vaultReferenceId: draft.vaultReferenceId ?? null,
           year: draft.year,
           condition: draft.condition,
           askingPrice: draft.askingPrice,

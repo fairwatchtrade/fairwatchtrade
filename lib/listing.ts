@@ -92,6 +92,24 @@ export type ListingDraft = {
      editing either value clears it (Design Gate: deliberate confirmation). */
   askingConfirmed: boolean;
   provenanceNote: string;
+  /* ── Canonical watch identity ──────────────────────────────────────────
+     The governed vault_references row this watch has been determined to
+     BE, resolved deterministically beside the reference field. It NEVER
+     replaces `reference` above — that stays exactly what the seller typed,
+     and the two are different facts with different provenance.
+
+     `vaultReferenceKey` is the identity context (brand|model|reference)
+     the id was resolved against. Carrying it makes staleness DETECTABLE
+     rather than assumed: edit any of the three and the key no longer
+     matches, so a canonical id can never remain silently attached to text
+     that no longer resolves to it. Optional so a draft written before this
+     existed resumes without migration — and an absent key reads as stale,
+     which is the safe direction.
+
+     Advisory here regardless: publication re-resolves server-side and the
+     server's answer is what persists. */
+  vaultReferenceId?: string | null;
+  vaultReferenceKey?: string;
   significanceScore: number | null; // Part 1, fixed once curation passes
   curationDecision: CurationDecision;
   curationReasoning: string;
@@ -135,6 +153,8 @@ export function emptyDraft(): ListingDraft {
     askingCurrency: "",
     askingConfirmed: false,
     provenanceNote: "",
+    vaultReferenceId: null,
+    vaultReferenceKey: "",
     significanceScore: null,
     curationDecision: "pending",
     curationReasoning: "",

@@ -22,6 +22,7 @@ import CameraCapture, { type ConfirmedCapture } from "@/components/CameraCapture
 import { type OverlayVariant } from "@/components/AlignmentOverlay";
 import WatchSpinner from "@/components/WatchSpinner";
 import { randomUUID } from "@/lib/uuid";
+import { canonicalKeyStillValid } from "@/lib/identity/canonicalIdentity";
 import PhotoPresentationEditor, {
   PhotoPresentationEntry,
 } from "@/components/PhotoPresentationEditor";
@@ -1003,6 +1004,18 @@ export default function MobileWizard({
           customBrandFlag: finalDraft.customBrandFlag,
           model: finalDraft.model,
           reference: finalDraft.reference,
+          /* The phone may have replaced the reference the desktop resolved
+             against, so the canonical id travels only while its recorded
+             identity context still matches THIS submission's text. The
+             server re-resolves regardless; this just avoids sending a value
+             we can already see is stale. */
+          vaultReferenceId: canonicalKeyStillValid(finalDraft.vaultReferenceKey, {
+            brand: finalDraft.brand,
+            model: finalDraft.model,
+            reference: finalDraft.reference,
+          })
+            ? finalDraft.vaultReferenceId ?? null
+            : null,
           year: finalDraft.year,
           condition: finalDraft.condition,
           askingPrice: finalDraft.askingPrice,

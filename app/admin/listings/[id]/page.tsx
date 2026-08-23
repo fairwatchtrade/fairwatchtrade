@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import ListingStatusControls from "@/components/ListingStatusControls";
+import CanonicalReferenceControl from "@/components/CanonicalReferenceControl";
 import {
   blockerAdminLine,
   type DeleteEligibility,
@@ -985,6 +986,14 @@ export default async function ListingReviewPage({
             </div>
           </div>
         </div>
+
+        {/* ── 1b · CANONICAL IDENTITY ─────────────────────────────────────
+            Directly beneath the identity block, because it is the same
+            question asked of a governed source: the block above is what the
+            seller SAID this watch is, and this is what it has been
+            determined to BE. Kept visibly separate so a disagreement
+            between them is legible rather than averaged away. */}
+        <CanonicalReferenceControl listingId={id} />
 
         {/* ── 2 · WHY IS IT HERE ──────────────────────────────────────────
             The reason for review, stated — never inferred from an absence.

@@ -44,6 +44,7 @@ import {
   ROLEX_IDENTIFIER_STOP,
   ROLEX_IDENTIFIER_STOP_DETAIL,
 } from "@/lib/admission/rolexIdentifier";
+import { resolveCanonicalForPersistence } from "@/lib/identity/canonicalReferenceResolver";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -138,6 +139,10 @@ type PublishBody = {
   customBrandFlag?: boolean;
   model?: string;
   reference?: string;
+  /** Canonical watch identity, CORROBORATION ONLY. The server re-resolves
+      from `reference` above and persists its own answer — a browser-supplied
+      UUID never becomes identity on the strength of having been sent. */
+  vaultReferenceId?: string | null;
   year?: string;
   condition?: string;
   askingPrice?: string;
@@ -1041,6 +1046,30 @@ export async function POST(request: NextRequest) {
     initialStatus = "private_active";
   }
 
+  /* ── CANONICAL WATCH IDENTITY ──────────────────────────────────────────
+        Resolved HERE, after the Rolex corridor has finalized body.reference,
+        so a documented Style resolves through the same derived canonical
+        reference the row is about to store — never through the raw entry.
+
+        THE BROWSER'S VALUE IS NOT TRUSTED AS AN ASSERTION. The server
+        re-resolves deterministically from the submitted identity text and
+        the server's answer is what persists; a supplied id is compared, not
+        obeyed. Zero matches and ambiguous matches both persist NULL, because
+        `vault_references.reference` is not unique and two rows sharing a
+        string are two different watches the Vault deliberately distinguishes.
+
+        This is enrichment, not a gate: a Vault read failure costs the listing
+        its canonical link and never its publication. Unresolved is the
+        ordinary, honest state. */
+  const canonical = await resolveCanonicalForPersistence(
+    {
+      brand: body.brand ?? "",
+      model: body.model ?? "",
+      reference: body.reference ?? "",
+    },
+    body.vaultReferenceId
+  );
+
   const row: Record<string, unknown> = {
     seller_id: user.id,
     status: initialStatus,
@@ -1048,6 +1077,9 @@ export async function POST(request: NextRequest) {
     custom_brand_flag: body.customBrandFlag ?? false,
     model: body.model || null,
     reference: body.reference,
+    /* Seller-stated text above; determined canonical identity here. Written
+       together, never merged — NULL is an honest value, not a gap. */
+    vault_reference_id: canonical.vaultReferenceId,
     year: body.year ?? null,
     condition: body.condition || null,
     // The governed pair, written together — plus the exact raw text the parser
