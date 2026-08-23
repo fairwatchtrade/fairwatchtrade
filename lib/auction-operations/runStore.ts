@@ -25,7 +25,10 @@ export type AuctionRun = {
   state: RunState;
   input_paths: Record<string, string>;
   source_hashes: Record<string, string>;
-  plan: unknown;
+  /** The EXACT serialized plan the recorded hash covers. Text, not jsonb -
+      jsonb re-orders keys and the hash binding would die in storage (found
+      by the first production proof). */
+  plan_bytes: string | null;
   plan_sha256: string | null;
   summary: Record<string, unknown>;
   contradictions: string[];
@@ -40,7 +43,7 @@ export type AuctionRun = {
 };
 
 const COLUMNS =
-  "id, adapter_id, packet_id, state, input_paths, source_hashes, plan, plan_sha256, summary, contradictions, progress, last_error_code, last_error_detail, created_by, created_at, updated_at, approved_at, applied_at";
+  "id, adapter_id, packet_id, state, input_paths, source_hashes, plan_bytes, plan_sha256, summary, contradictions, progress, last_error_code, last_error_detail, created_by, created_at, updated_at, approved_at, applied_at";
 
 export const sha256Hex = (buf: Buffer | string): string =>
   crypto.createHash("sha256").update(buf).digest("hex");
@@ -99,20 +102,13 @@ export async function markFailed(
   });
 }
 
-/* The plan the server holds is the only plan that exists. Canonical bytes
-   are re-derived with the same serialization every adapter used to hash at
-   plan time, so approval-by-hash cannot drift from apply-by-hash. */
-export function planBytesOf(run: AuctionRun): string {
-  return JSON.stringify(run.plan, null, 2) + "\n";
-}
-
-/** Recompute and verify the stored plan's hash. Returns the parsed plan or
-    throws — a run whose bytes no longer match its recorded hash is never
-    applied, it is a stop condition. */
+/** Recompute and verify the stored plan's hash over the EXACT stored bytes,
+    then parse. A run whose bytes no longer match its recorded hash is never
+    applied — that is a stop condition, not a repair opportunity. */
 export function verifyStoredPlan(run: AuctionRun): { plan: unknown; planSha256: string } {
-  if (!run.plan || !run.plan_sha256) throw new Error("run holds no plan");
-  const recomputed = sha256Hex(Buffer.from(planBytesOf(run)));
+  if (!run.plan_bytes || !run.plan_sha256) throw new Error("run holds no plan");
+  const recomputed = sha256Hex(Buffer.from(run.plan_bytes));
   if (recomputed !== run.plan_sha256)
     throw new Error(`stored plan bytes hash ${recomputed} != recorded ${run.plan_sha256}`);
-  return { plan: run.plan, planSha256: recomputed };
+  return { plan: JSON.parse(run.plan_bytes), planSha256: recomputed };
 }

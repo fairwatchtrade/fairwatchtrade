@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     const generated = await generatePlanForRun(service, run, packet);
     await updateRun(service, run.id, {
       state: "planned",
-      plan: generated.plan,
+      plan_bytes: generated.planBytes,
       plan_sha256: generated.planSha256,
       summary: generated.summary,
       contradictions: generated.contradictions,
