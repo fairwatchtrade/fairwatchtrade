@@ -82,6 +82,11 @@ type ListingRow = {
           framing, and it survived only because "*" swept it in. Any future
           narrowing must be driven by what the CLIENT reads, not by this
           type.
+      ⚠ `sold` is NOT a column on listings — it is an optional type field
+          that defaults to false. Naming it here made PostgREST reject the
+          ENTIRE query, so rows fell back to [] and Browse rendered empty
+          with no visible error. Verify every name against
+          information_schema before adding it to this list.
 
       2 · ROW CEILING. An explicit limit so one page load can never fetch an
           unbounded catalogue. The ceiling is far above real inventory, so
@@ -106,7 +111,7 @@ export default async function BrowsePage() {
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, public_code, description, year, condition, asking_price, asking_currency, photos, photo_presentation, details, created_at, sold, weeks_featured, status, in_hand_verified"
+      "id, brand, model, reference, public_code, description, year, condition, asking_price, asking_currency, photos, photo_presentation, details, created_at, weeks_featured, status, in_hand_verified"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false })
