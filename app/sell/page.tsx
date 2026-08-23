@@ -23,7 +23,51 @@ import SellFlow from "@/components/SellFlow";
    ──────────────────────────────────────────────────────────────────────── */
 
 function SellPageInner() {
-  const privateThreadId = useSearchParams().get("privateThread");
+  const searchParams = useSearchParams();
+  const privateThreadId = searchParams.get("privateThread");
+  /* Wanted V1 — answering a demand request. This is a SECOND, independent
+     entry: it needs no correspondence thread, so it deliberately does not
+     reuse the privateThread resolution above (nor its known direct-load
+     hydration defect). The request id names a REQUEST; the server derives
+     the buyer from it at creation time. */
+  const wantedId = searchParams.get("wanted");
+  const wantedPrivate = searchParams.get("private") === "1";
+  const [wantedState, setWantedState] = useState<
+    "none" | "resolving" | "ready" | "invalid"
+  >(wantedId ? "resolving" : "none");
+  const [wantedIdentity, setWantedIdentity] = useState<string | null>(null);
+  const [wantedPrivateOk, setWantedPrivateOk] = useState(false);
+
+  useEffect(() => {
+    if (!wantedId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/wanted/${wantedId}/peek`);
+        if (cancelled) return;
+        if (!res.ok) {
+          setWantedState("invalid");
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        const identity = typeof data?.request?.display_identity === "string"
+          ? data.request.display_identity
+          : null;
+        if (!identity) {
+          setWantedState("invalid");
+          return;
+        }
+        setWantedIdentity(identity);
+        setWantedPrivateOk(data?.request?.private_listing_ok !== false);
+        setWantedState("ready");
+      } catch {
+        if (!cancelled) setWantedState("invalid");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wantedId]);
 
   const [privateState, setPrivateState] = useState<
     "none" | "resolving" | "ready" | "invalid"
@@ -70,6 +114,10 @@ function SellPageInner() {
   }, [privateThreadId]);
 
   const isPrivate = privateState === "ready" && !!privateThreadId;
+  const isWanted = wantedState === "ready" && !!wantedId;
+  /* Private only when the seller asked AND the collector accepts private
+     listings. The server re-checks both; this only keeps the header honest. */
+  const isWantedPrivate = isWanted && wantedPrivate && wantedPrivateOk;
 
   return (
     <main className="min-h-screen bg-[var(--ink)]">
@@ -103,6 +151,25 @@ function SellPageInner() {
                   will never appear on Browse, in search, or in any public
                   count — and they can make an offer through the normal
                   purchase path the moment you activate it.
+                </p>
+              </div>
+            </>
+          ) : isWanted ? (
+            <>
+              <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
+                {isWantedPrivate ? "List this watch for one collector." : "Answer a Wanted request."}
+              </h1>
+              <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+                {wantedIdentity}
+              </p>
+              <div className="mt-4 border border-[var(--border-gold)] px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                  {isWantedPrivate ? "Private listing · for the requester" : "Answering a Wanted request"}
+                </div>
+                <p className="mt-1 text-[13px] leading-[1.6] text-[var(--slate)]">
+                  {isWantedPrivate
+                    ? "Only the collector who asked for this watch will see the listing. It will never appear on Browse, in search, or in any public count — and no message thread was needed to reach them."
+                    : "This listing will be offered as the answer to a collector's Wanted request once it exists. Photographs, review and publication rules are unchanged."}
                 </p>
               </div>
             </>
@@ -158,11 +225,31 @@ function SellPageInner() {
               Back to Communications
             </Link>
           </div>
+        ) : wantedState === "resolving" ? (
+          <p className="py-10 text-center font-display text-[14px] font-light italic text-[var(--muted)]">
+            Confirming the request…
+          </p>
+        ) : wantedState === "invalid" ? (
+          /* Refuse rather than quietly become an ordinary public listing the
+             seller did not intend — the same fail-safe the thread path uses. */
+          <div className="border border-[var(--border-faint)] px-6 py-8 text-center">
+            <p className="mx-auto max-w-[52ch] font-display text-[15px] font-light italic leading-[1.7] text-[var(--platinum-dim)]">
+              That Wanted request is no longer open for answers.
+            </p>
+            <Link
+              href="/account?module=wanted"
+              className="mt-4 inline-block border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
+            >
+              Back to Wanted Requests
+            </Link>
+          </div>
         ) : isPrivate ? (
           <SellFlow
             privateThreadId={privateThreadId as string}
             privateBuyerName={buyerName ?? undefined}
           />
+        ) : isWanted ? (
+          <SellFlow wantedRequestId={wantedId as string} wantedPrivate={isWantedPrivate} />
         ) : (
           <SellFlow />
         )}

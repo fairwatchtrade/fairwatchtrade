@@ -129,6 +129,11 @@ type PublishBody = {
   /** Private Listing V1 — a message thread the caller participates in; the
       server derives the one authorized buyer from it. Never a buyer id. */
   privateThreadId?: string;
+  /** Wanted V1 — answering a demand request. The BUYER IS RE-DERIVED FROM
+      THIS ID server-side; the browser never supplies a buyer. */
+  wantedRequestId?: string;
+  /** Seller chose Create Private Listing for Requester. */
+  wantedPrivate?: boolean;
   brand?: string;
   customBrandFlag?: boolean;
   model?: string;
@@ -694,6 +699,75 @@ export async function POST(request: NextRequest) {
     privateBuyerId = counterpart;
   }
 
+  /* ── Wanted V1 — the second governed way to reach a private listing ────
+        Answering a Wanted request binds the REQUESTER as the authorized
+        buyer. The id in the body names a REQUEST, never a person: the buyer
+        is re-derived here from the request row, exactly as the thread path
+        re-derives the counterpart. A seller cannot name their own buyer,
+        and the collector's budget and note are never read on this path.
+
+        This does NOT reuse the ?privateThread hydration route — a Wanted
+        answer requires no pre-existing correspondence, which is the whole
+        point of the founder ruling that authorized it. */
+  const wantedRequestId =
+    typeof body.wantedRequestId === "string" ? body.wantedRequestId.trim() : "";
+  let wantedRequest: { id: string; requester_id: string; private_listing_ok: boolean } | null = null;
+  let wantedClient: SupabaseClient | null = null;
+  if (wantedRequestId) {
+    try {
+      // Cached inside the helper — this is the same client, not a second one.
+      wantedClient = createServiceClient();
+    } catch {
+      return NextResponse.json(
+        {
+          error: "server_misconfigured",
+          detail: "The Wanted answer channel is unavailable. Nothing was created.",
+        },
+        { status: 500 }
+      );
+    }
+    const { data: wanted } = await wantedClient
+      .from("wanted_requests")
+      .select("id, requester_id, status, private_listing_ok")
+      .eq("id", wantedRequestId)
+      .maybeSingle();
+    if (
+      !wanted ||
+      (wanted.status !== "active" && wanted.status !== "answered") ||
+      wanted.requester_id === user.id
+    ) {
+      return NextResponse.json(
+        {
+          error: "invalid_wanted_request",
+          detail:
+            "That Wanted request is not open for answers. Nothing was created.",
+        },
+        { status: 409 }
+      );
+    }
+    wantedRequest = {
+      id: wanted.id as string,
+      requester_id: wanted.requester_id as string,
+      private_listing_ok: wanted.private_listing_ok !== false,
+    };
+    /* Private only when BOTH the seller asked for it and the collector said
+       private listings are acceptable. Otherwise this is an ordinary public
+       submission that will answer the request once it exists. */
+    if (body.wantedPrivate === true) {
+      if (!wantedRequest.private_listing_ok) {
+        return NextResponse.json(
+          {
+            error: "private_not_accepted",
+            detail:
+              "This collector did not accept private listings. Answer with a public listing instead.",
+          },
+          { status: 409 }
+        );
+      }
+      privateBuyerId = wantedRequest.requester_id;
+    }
+  }
+
   /* ── Money Truth Stage B — one governed resolution, used everywhere below.
         Amount and currency are accepted together or not at all; ambiguous or
         symbol-laden notation is refused with the parser's own reason. The
@@ -1102,6 +1176,43 @@ export async function POST(request: NextRequest) {
       priceText: emailPriceText,
       listingId: data.id,
     });
+  }
+
+  /* ── Wanted answer — the listing that was just created IS the answer ──
+        Recorded here so the collector's request shows the answer from the
+        moment the listing exists, rather than only after it publishes. The
+        unique (wanted_request_id, listing_id) constraint makes a retry
+        idempotent; the notification's dedupe key makes the bell fire once.
+        Non-fatal by construction: a successful submission must never become
+        an error because its answer bookkeeping failed. */
+  if (wantedRequest && wantedClient) {
+    try {
+      const { data: answerRow } = await wantedClient
+        .from("wanted_request_answers")
+        .insert({
+          wanted_request_id: wantedRequest.id,
+          listing_id: data.id,
+          seller_id: user.id,
+          kind: privateBuyerId ? "private_listing" : "new_listing",
+          criteria_report: {},
+        })
+        .select("id")
+        .maybeSingle();
+      await wantedClient
+        .from("wanted_requests")
+        .update({ status: "answered" })
+        .eq("id", wantedRequest.id)
+        .eq("status", "active");
+      await wantedClient.from("notifications").insert({
+        user_id: wantedRequest.requester_id,
+        type: "wanted_answer",
+        message: "A listing has been created in answer to your Wanted request.",
+        listing_id: data.id,
+        dedupe_key: `wanted_answer:${answerRow?.id ?? `${wantedRequest.id}:${data.id}`}`,
+      });
+    } catch (e) {
+      console.error("[wanted] answer bookkeeping failed:", e);
+    }
   }
 
   /* ── Founder Review Triage ───────────────────────────────────────────

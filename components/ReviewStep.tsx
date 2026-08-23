@@ -83,6 +83,8 @@ export default function ReviewStep({
   captureSessionId,
   publishRequestId,
   privateThreadId,
+  wantedRequestId,
+  wantedPrivate,
   privateBuyerName,
   onPublished,
   photoRedactions,
@@ -104,6 +106,10 @@ export default function ReviewStep({
       present the final action ACTIVATES a private listing (visible only to
       that buyer) instead of submitting for public review. */
   privateThreadId?: string;
+  /** Wanted V1 — the request this listing answers. Forwarded to the
+      create call; the SERVER re-derives the authorized buyer from it. */
+  wantedRequestId?: string;
+  wantedPrivate?: boolean;
   privateBuyerName?: string;
   // List From Phone — lets SellFlow close its server draft (idempotent) once
   // the real listing exists. Additive; publish behavior itself is untouched.
@@ -190,6 +196,9 @@ export default function ReviewStep({
           // Private Listing V1 — names the CONVERSATION; the server derives
           // and verifies the buyer from its participants.
           ...(privateThreadId ? { privateThreadId } : {}),
+          ...(wantedRequestId
+            ? { wantedRequestId, wantedPrivate: wantedPrivate === true }
+            : {}),
           // v2.24 · additive — desktop media correlation + idempotency.
           // media_meta mirrors the mobile wizard's shape; storage_path is the
           // upload pathname, category the seller's tag (draft.photos only

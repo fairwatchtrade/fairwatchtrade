@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { browseDraftHref } from "@/lib/wanted";
 import { createClient } from "@/lib/supabase/client";
 import SaveSearchControl from "@/components/SaveSearchControl";
 import {
@@ -1782,9 +1783,25 @@ export default function BrowseClient({
                 }))}
               />
             ) : (
-              <p className="text-[14px] text-[var(--slate)]">
-                No watches match your selection.
-              </p>
+              /* Wanted V1 — the zero-result seam. What the collector already
+                 narrowed down travels into the draft (browseDraftHref), so
+                 declaring the hunt does not mean typing it all again. This
+                 is the ONLY change to Browse in this flight. */
+              <div>
+                <p className="text-[14px] text-[var(--slate)]">
+                  No watches match your selection.
+                </p>
+                <p className="mt-3 text-[13px] text-[var(--muted)]">
+                  Looking for something specific? Tell FairWatchTrade, and eligible sellers can
+                  answer with a governed listing.
+                </p>
+                <Link
+                  href={browseDraftHref(searchParams)}
+                  className="mt-3 inline-block border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+                >
+                  Create Wanted Request →
+                </Link>
+              </div>
             )
           ) : (
             /* v4.93 — THE RESULTS REGION. Card grids answer to this element's

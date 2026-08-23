@@ -311,6 +311,8 @@ function deriveCompletedLayersFromDraft(draft: ListingDraft): Layer[] {
 export default function SellFlow({
   privateThreadId,
   privateBuyerName,
+  wantedRequestId,
+  wantedPrivate,
 }: {
   /** Private Listing V1 — when present, the wizard is creating a listing for
       the ONE buyer behind this conversation. The server re-derives and
@@ -318,6 +320,10 @@ export default function SellFlow({
       relationship through the flow and name the recipient truthfully. */
   privateThreadId?: string;
   privateBuyerName?: string;
+  /** Wanted V1 — the request this listing answers. Carried to the server,
+      which re-derives the authorized buyer from it. */
+  wantedRequestId?: string;
+  wantedPrivate?: boolean;
 } = {}) {
   const [draft, setDraft] = useState<ListingDraft>(emptyDraft);
   const [step, setStepRaw] = useState(0);
@@ -943,6 +949,8 @@ export default function SellFlow({
                 draft={draft}
                 privateThreadId={privateThreadId}
                 privateBuyerName={privateBuyerName}
+                wantedRequestId={wantedRequestId}
+                wantedPrivate={wantedPrivate}
                 /* Presentation is draft state like any other field, so it
                    rides the existing server-draft autosave and survives a
                    refresh or a phone handoff without new plumbing. */

@@ -197,6 +197,10 @@ const PRIMARY_LINKS: NavLink[] = [
   { label: "Browse", href: "/browse" },
   { label: "Sell", href: "/sell" },
   { label: "Catalogue", href: "/catalogue" },
+  /* Wanted sits with Catalogue in the collector grouping — the same family
+     it joins on desktop. Deliberately NOT a new top-level mobile icon: the
+     drawer gains a destination, not a navigation primitive. */
+  { label: "Wanted", href: "/wanted" },
   { label: "Vault", href: "/vault" },
 ];
 

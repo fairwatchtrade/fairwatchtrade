@@ -35,7 +35,8 @@ type ModuleId =
   | "inventory"
   | "accelerator"
   | "communications"
-  | "saved";
+  | "saved"
+  | "wanted";
 
 const ICONS = {
   overview: (
@@ -93,6 +94,15 @@ const ICONS = {
       <path d="M4 18V9M10 18V5M16 18v-7M22 18v-4" />
     </svg>
   ),
+  /* A loupe over an absence — the collector is looking FOR something. The
+     same mark the Catalogue rail uses, so one idea reads as one idea. */
+  wanted: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="6" />
+      <path d="M15.5 15.5L20 20" />
+      <path d="M11 8.5v5M8.5 11h5" />
+    </svg>
+  ),
   analytics: (
     <svg viewBox="0 0 24 24">
       <path d="M4 18l5-6 4 3 7-9" />
@@ -117,6 +127,10 @@ const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICON
   { id: "accelerator", label: "Dealer Accelerator", icon: "drafts" },
   { id: "communications", label: "Communications", icon: "messages" },
   { id: "saved", label: "Saved Searches", icon: "saved" },
+  /* Wanted Requests — collector demand this seller may answer. Seller
+     Workspace owns it by founder ruling; Dealer Room may surface the same
+     requests contextually later and is deliberately not a second door. */
+  { id: "wanted", label: "Wanted Requests", icon: "wanted" },
 ];
 
 function moduleHref(id: ModuleId): string {

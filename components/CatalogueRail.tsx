@@ -67,6 +67,15 @@ const ICONS = {
       <path d="M9 12h6M12 9v6" />
     </svg>
   ),
+  /* Wanted — a loupe over an absence: the collector is looking FOR
+     something rather than at something they own. */
+  wanted: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="6" />
+      <path d="M15.5 15.5L20 20" />
+      <path d="M11 8.5v5M8.5 11h5" />
+    </svg>
+  ),
   myCatalogue: (
     <svg viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="8" />
@@ -101,6 +110,17 @@ export default function CatalogueRail() {
           href="/watch-dna"
           active={pathname === "/watch-dna"}
           ariaCurrent={pathname === "/watch-dna" ? "page" : undefined}
+          chevron
+        />
+        {/* Wanted joins Discover because it starts where the Catalogue does
+            — with collector watch identity. New Arrivals was REMOVED by
+            founder ruling and must never return as its neighbour. */}
+        <RailItem
+          icon={ICONS.wanted}
+          label="Wanted"
+          href="/wanted"
+          active={pathname === "/wanted"}
+          ariaCurrent={pathname === "/wanted" ? "page" : undefined}
           chevron
         />
       </RailSection>
