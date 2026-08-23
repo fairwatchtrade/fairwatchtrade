@@ -3,7 +3,7 @@ import CatalogueRail from "@/components/CatalogueRail";
 import WatchDnaQuiz from "@/components/WatchDnaQuiz";
 import { isArchetypeKey } from "@/lib/watchDna";
 
-/* v3.22 — Watch DNA result brand pills become real doors to Browse (Layout's
+/* v3.22 — Watch DNA result brand pills become real doors to Browse (founder
    order, 2026-08-02). Two things the page now owns that the quiz cannot:
 
    1. BRAND AVAILABILITY. A pill may only become a link if that exact brand

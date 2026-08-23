@@ -89,7 +89,7 @@ export default function ListFromPhoneHandoff({
       aria-label="List from phone"
       className="relative mx-auto w-full max-w-[380px] border border-[var(--border-subtle)] bg-[color:light-dark(#FFFDF8,#0d1118)] p-6 text-center"
     >
-      {/* Universal close — device-run ruling (Jason + Layout Duck): the ×
+      {/* Universal close — device-run founder ruling: the ×
           is THE dismissal, with a real accessible name. Closing cancels the
           outstanding handoff (revokes the QR token — authority stays on
           desktop) and the host returns focus to the control that opened the
@@ -103,7 +103,7 @@ export default function ListFromPhoneHandoff({
           onClick={close}
           className="group absolute right-2 top-2 flex h-11 w-11 items-center justify-center focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
         >
-          {/* FairWatchTrade control language (Layout Duck, final): the thin
+          {/* FairWatchTrade control language (final): the thin
               aged-gold frame hugs the × itself (~30px), while the button's
               invisible hit target stays a generous 44×44. Platinum glyph,
               faint gold glow on hover/focus — precise control, not a boxed

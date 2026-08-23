@@ -618,7 +618,7 @@ export default function DetailsStep({
           </Field>
 
           <Field label="Movement frequency (optional)">
-            {/* Digits in, presentation out (Layout order 2026-08-01): the
+            {/* Digits in, presentation out (founder order 2026-08-01): the
                 seller types 28000; at rest the field shows "28,000 vph" —
                 comma, unit, and the exact-only Hz are formatting, never
                 stored. On focus the raw digits return for editing. */}

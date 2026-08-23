@@ -9,7 +9,7 @@ import { RailShell, RailSection, RailItem } from "@/components/rail/railPrimitiv
    The Account family's persistent left navigation (Concept A "Painted
    Line"), replacing AccountDashboard's inline aside per the v3
    implementation order §4/§6 — REPLACEMENT, never layered beside the old
-   rail (Layout's law).
+   rail (the replacement law).
 
    Surfaces:
    · surface="account"  — mounted by AccountDashboard. Module items call

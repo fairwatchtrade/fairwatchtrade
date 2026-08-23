@@ -1601,7 +1601,7 @@ function CurationStep({
           <div className="flex items-center">
             <label className={`${label} mb-0`}>Condition</label>
             {/* Condition-governance help in FairWatchTrade's ONE help
-                language (Layout ruling 2026-08-06): the Search help's gold ?
+                language (design ruling 2026-08-06): the Search help's gold ?
                 with its hover/focus/tap behavior and anchored speech bubble,
                 via the shared HelpBubble — never a second question-mark
                 design, never inline copy that expands the page. */}
@@ -1620,7 +1620,7 @@ function CurationStep({
                  resize it, and the row height is unchanged so the select does
                  not move. */
               triggerClassName="-my-3 -translate-y-[5px]"
-              /* Long-help CARD treatment (Layout correction 2026-08-06):
+              /* Long-help CARD treatment (design correction 2026-08-06):
                  size, position, caret, copy, border, spacing and behavior all
                  preserved — the corner radius ALONE changes, to the moderate
                  rounded-card character of the approved reference. */

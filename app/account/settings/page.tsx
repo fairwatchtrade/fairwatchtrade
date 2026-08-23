@@ -16,7 +16,7 @@ import AccountSettings from "@/components/AccountSettings";
    Account → Settings, never an orphaned standalone form. Settings is the
    rail's active destination; module items link back into the workspace. The
    rail fetches its own badge truth here (the same established reads —
-   order §4). AccountSettings' form internals are untouched (Layout's scope
+   order §4). AccountSettings' form internals are untouched (the flight's scope
    boundary); it keeps its own heading and centered column inside the
    remaining width. The rail hides itself below md — mobile is unchanged.
    ──────────────────────────────────────────────────────────────────────── */

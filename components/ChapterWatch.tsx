@@ -11,7 +11,7 @@
    watch back to ghost and lights only a small document icon — "the story is
    complete."
 
-   The governing invariant (GPT): at a glance the seller thinks "that's
+   The governing invariant: at a glance the seller thinks "that's
    beautiful" and immediately returns to the form. If they stop to admire or
    interact with it, it was overbuilt. So: faint, no glow, no bounce, no motion —
    only a soft 250ms opacity fade. It is a companion, not a decoration.

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 
 /* ════════════════════════════════════════════════════════════════════════
    HELP BUBBLE — FairWatchTrade's one help-affordance language
-   (Layout ruling 2026-08-06)
+   (design ruling 2026-08-06)
 
    FairWatchTrade gets ONE help affordance, not a new question-mark design
    per feature. This component is the Search help's established pattern —

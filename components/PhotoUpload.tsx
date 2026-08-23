@@ -159,7 +159,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
        feedback, not an accusation — the existing photo is never touched. */
     const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
     /* Which item's public-display attempt is currently showing the privacy
-       warning card (Layout correction 2026-08-06). Escape and outside
+       warning card (design correction 2026-08-06). Escape and outside
        pointerdown dismiss WITHOUT enabling — only the explicit confirm
        enables. */
     const [publishWarnFor, setPublishWarnFor] = useState<string | null>(null);
@@ -532,7 +532,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                 {it.category === "Service Evidence" && (
                   <div className="relative text-[10px] leading-snug text-[var(--muted)]">
                     {/* Instructional copy lives in the ONE shared help bubble
-                        (Layout ruling 2026-08-06). The opt-in checkbox and
+                        (design ruling 2026-08-06). The opt-in checkbox and
                         its warning are a CONSENT affordance, not help — they
                         stay inline, visible before the choice is made. */}
                     <div className="flex items-center">
@@ -574,7 +574,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                         privacy warning is NOT permanent inline copy — it
                         appears in the rounded floating card when the seller
                         ATTEMPTS to enable public display, and only its
-                        explicit confirm actually enables (Layout correction
+                        explicit confirm actually enables (design correction
                         2026-08-06; the consent ruling's warn-before-enable is
                         preserved — strengthened: enabling now passes THROUGH
                         the warning). Unchecking never warns. */}

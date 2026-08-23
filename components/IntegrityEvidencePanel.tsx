@@ -14,7 +14,7 @@ import {
 
    The Aubrey Check founder evidence panel, built to the approved Design
    Gate artifact (FairWatchTrade_Aubrey_Check_Admin_Evidence_Panel_Design_
-   Gate_FINAL.html — Layout's file governs; visual structure and behavior
+   Gate_FINAL.html — the approved artifact governs; visual structure and behavior
    are ported, not redesigned). Lives ONLY on /admin/listings/[id], between
    the status controls and the raw record. No parallel moderation room.
 

@@ -9,7 +9,7 @@ import { RailShell, RailSection, RailItem } from "@/components/rail/railPrimitiv
    The Catalogue family's persistent left navigation (Concept A "Painted
    Line"), replacing CatalogueClient's inline nav per the v3
    implementation order §5/§6 — REPLACEMENT, never layered beside the old
-   rail (Layout's law). Mounted on /catalogue and /watch-dna; one shared
+   rail (the replacement law). Mounted on /catalogue and /watch-dna; one shared
    collapse state (fwt-rail-catalogue) so it is the same physical object
    across the family.
 

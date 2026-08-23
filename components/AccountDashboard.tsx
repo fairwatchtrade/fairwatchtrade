@@ -802,7 +802,7 @@ export default function AccountDashboard({
       <div className="flex min-h-screen">
         {/* LEFT CONTROL PANEL — the Painted Line AccountRail (v3.21 order,
             Design Gate Concept A). REPLACES the old inline aside per
-            Layout's law — never layered beside it. Desktop-only inside the
+            the replacement law — never layered beside it. Desktop-only inside the
             rail's own CSS; the mobile single-view law is untouched. Module
             switching stays the WS2 pushState convention via selectModule;
             badges are the dashboard's existing state — no second fetch. */}

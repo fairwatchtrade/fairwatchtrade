@@ -24,7 +24,7 @@ import HelpBubble from "@/components/HelpBubble";
      no independent third-party authentication, payment arranged directly.
      Nothing reassuring-sounding is claimed beyond what is true. The
      explanation speaks FairWatchTrade's ONE help-affordance language —
-     the shared HelpBubble (Layout ruling 2026-08-06): refined gold ?,
+     the shared HelpBubble (design ruling 2026-08-06): refined gold ?,
      hover/focus/tap behavior, anchored speech bubble with its caret,
      Escape / outside / Android Back close, focus returned to the trigger.
      Never a second question-mark design, never a generic tooltip.
