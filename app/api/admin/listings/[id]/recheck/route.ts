@@ -347,20 +347,35 @@ export async function POST(
     requireAuthenticityCoverage: true,
   });
 
-  let finalStatus = listing.status as string;
+  /* ── RECHECK NEVER PUBLISHES (publication-governance ruling) ──────────
+        A recheck is evidence gathering. It may CLEAR the system's objection;
+        it may not conclude the human review.
+
+        This route used to release a cleared hold straight to 'published',
+        which meant a listing could reach Browse because a provider stopped
+        failing — no founder ever approved it. Clearing a hold and approving
+        a listing are different acts, and only the governed approval route
+        performs the second one.
+
+        So a cleared hold now clears the REASON and stays pending_review: the
+        listing leaves the system-hold state and joins the ordinary founder
+        queue (NULL hold = nothing the system objects to), where Approve is a
+        deliberate human decision. Nothing about the evidence, the promotion
+        path, or the retry law changed. ── */
+  /* Unchanged by this route now — an already-published listing being
+     rechecked still reports published (and still refreshes its dossier);
+     a held one stays pending_review. */
+  const finalStatus = listing.status as string;
   if (
     listing.status === "pending_review" &&
     isSystemReleasableHold(listing.integrity_hold_reason ?? null)
   ) {
     if (gate.status === "published") {
-      const { data: released, error: relErr } = await service
+      await service
         .from("listings")
-        .update({ status: "published", integrity_hold_reason: null })
+        .update({ integrity_hold_reason: null })
         .eq("id", id)
-        .eq("status", "pending_review")
-        .select("id")
-        .maybeSingle();
-      if (!relErr && released) finalStatus = "published";
+        .eq("status", "pending_review");
     } else if (gate.holdReason && gate.holdReason !== listing.integrity_hold_reason) {
       await service
         .from("listings")

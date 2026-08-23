@@ -337,6 +337,45 @@ export async function POST(
     public_code: (current.public_code as string | null) ?? null,
   };
 
+  /* ── PUBLICATION IS A DECISION, NOT A STATUS WRITE ───────────────────
+        Reaching 'published' requires BOTH that the listing is currently in
+        review AND that the founder took the explicit approve action.
+
+        review_action is optional on this route by design — clarify, reject
+        and return-to-draft all still work without it, and the generic status
+        control keeps every other transition it had. What it may no longer do
+        is publish: a dropdown set to 'published' from draft, or from
+        rejected, used to reach Browse without any recorded approval, which
+        left publication with two writers and only one of them governed.
+
+        Now there is one door. The private-listing branch below rides the
+        same decision — approval releases a private row to its one authorized
+        buyer instead of Browse — so it is governed by this same gate rather
+        than sneaking past it. ── */
+  if (status === "published") {
+    if (priorStatus !== "pending_review") {
+      return NextResponse.json(
+        {
+          error: "not_in_review",
+          detail:
+            "Only a listing currently in review can be published. This listing is " +
+            `"${priorStatus ?? "unknown"}" — it must enter review first.`,
+        },
+        { status: 409 }
+      );
+    }
+    if (reviewAction !== "approve") {
+      return NextResponse.json(
+        {
+          error: "approval_required",
+          detail:
+            "Publication requires the governed approve action, so the decision is recorded. Use Approve in Founder Review.",
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   // v2.21 · availability gate — 'Not Currently Available' cannot publish.
   if (status === "published") {
     const availability =

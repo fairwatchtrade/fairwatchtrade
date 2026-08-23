@@ -28,14 +28,17 @@ const status = read("lib/listingStatus.ts");
 
 /* ── 1. Submission never publishes ─────────────────────────────────────── */
 {
+  /* The source declares `let` — the retry re-gate reassigns it. The old
+     assertions demanded `const` AND banned `let`, so this suite failed
+     against correct source instead of guarding it. What matters is the
+     INITIAL VALUE, and that 'published' is never it. */
   ok(
     "the seller route pins the initial status to pending_review",
-    /const initialStatus: ListingStatus = "pending_review"/.test(route)
+    /initialStatus: ListingStatus = "pending_review"/.test(route)
   );
   ok(
     "no 'published' initial status survives anywhere in the seller route",
-    !/initialStatus\s*=\s*"published"/.test(route) &&
-      !/let initialStatus/.test(route)
+    !/initialStatus\s*=\s*"published"/.test(route)
   );
   ok(
     "the seller route never writes status: 'published'",
@@ -55,6 +58,44 @@ const status = read("lib/listingStatus.ts");
 
 /* ── 2. Approval is the only publication door ──────────────────────────── */
 {
+  const recheck = read("app/api/admin/listings/[id]/recheck/route.ts");
+
+  /* RECHECK PATH. A recheck gathers evidence; it may clear the system's
+     objection but may never conclude the human review. It used to release a
+     cleared hold straight to 'published' — a listing reaching Browse because
+     a provider stopped failing, with no founder decision anywhere. */
+  ok(
+    "the recheck route never writes status: 'published'",
+    !/status:\s*"published"/.test(recheck)
+  );
+  ok(
+    "a recheck that clears a hold clears only the reason",
+    /update\(\{ integrity_hold_reason: null \}\)/.test(recheck)
+  );
+  ok(
+    "the recheck hold-clear stays scoped to pending_review",
+    /\.eq\("status", "pending_review"\)/.test(recheck)
+  );
+
+  /* THE GUARD. Both conditions are required, so the generic status control
+     can no longer publish outside a recorded approval. */
+  ok(
+    "publication requires the listing to be in review",
+    /priorStatus !== "pending_review"/.test(admin) && /not_in_review/.test(admin)
+  );
+  ok(
+    "publication requires the explicit approve action",
+    /reviewAction !== "approve"/.test(admin) && /approval_required/.test(admin)
+  );
+
+  /* PRIVATE LISTING BRANCH. Approving a private-intended row releases it to
+     its one authorized buyer, never to Browse — through this same gate. */
+  ok(
+    "an approved private listing becomes private_active, not published",
+    /status === "published" && current\.private_buyer_id/.test(admin) &&
+      /"private_active"/.test(admin)
+  );
+
   ok(
     "the founder route maps approve -> published",
     /approve:\s*"published"/.test(admin)
@@ -143,8 +184,10 @@ const status = read("lib/listingStatus.ts");
   }
   const detail = read("app/listings/[id]/page.tsx");
   ok(
-    "public listing detail refuses anything but published/reserved",
-    /status !== "published" && data\.status !== "reserved"/.test(detail)
+    "public listing detail refuses anything but published/reserved/private_active",
+    /data\.status !== "published"/.test(detail) &&
+      /data\.status !== "reserved"/.test(detail) &&
+      /data\.status !== "private_active"/.test(detail)
   );
   const pr = read("app/listings/[id]/purchase-request/page.tsx");
   ok(
