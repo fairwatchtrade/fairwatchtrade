@@ -125,6 +125,9 @@ type ListingDetails = {
 
 type Listing = {
   id: string;
+  /* Trade V1 — the seller's explicit posture. Absent on older rows
+     until the column default fills them, so it is read defensively. */
+  open_to_trades?: boolean | null;
   brand: string;
   model: string | null;
   reference: string;
@@ -318,6 +321,29 @@ export default async function ListingDetailPage({
       .limit(1)
       .maybeSingle()
     : { data: null };
+
+  /* Trade V1 — this collector's own latest proposal on this watch, if any.
+     RLS on trade_offers scopes it to the two parties, so a stranger's
+     proposal is not merely filtered out here, it is unreachable. The
+     doorway uses it to avoid drawing a button the one-pending-per-proposer
+     index would refuse. */
+  const { data: myLatestTradeOffer } = user
+    ? await supabase
+      .from("trade_offers")
+      .select("status")
+      .eq("target_listing_id", listing.id)
+      .eq("proposer_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    : { data: null };
+
+  /* One identity string for the trade summary, so "You receive …" names the
+     same watch the page is showing. */
+  const tradeIdentity = [listing.brand, listing.model]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || "This watch";
 
   /* ── CURATION REVIEW V1 ────────────────────────────────────────────────
      Two facts, deliberately read separately because they have different
@@ -808,6 +834,9 @@ export default async function ListingDetailPage({
               priceText={priceText}
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
+            openToTrades={listing.open_to_trades === true}
+            listingIdentity={tradeIdentity}
+            myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
               listingStatus={listing.status}
               askingPrice={listing.asking_price}
               askingCurrency={listing.asking_currency}
@@ -862,6 +891,9 @@ export default async function ListingDetailPage({
             priceText={priceText}
             isOwner={isOwner}
             requestStatus={myLatestRequest?.status ?? null}
+            openToTrades={listing.open_to_trades === true}
+            listingIdentity={tradeIdentity}
+            myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
             listingStatus={listing.status}
             askingPrice={listing.asking_price}
             askingCurrency={listing.asking_currency}
@@ -899,6 +931,9 @@ export default async function ListingDetailPage({
               priceText={priceText}
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
+            openToTrades={listing.open_to_trades === true}
+            listingIdentity={tradeIdentity}
+            myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
               listingStatus={listing.status}
               /* Above the in-page form's breakpoint this bar opens that form
                  rather than navigating away. No offer context is passed: the

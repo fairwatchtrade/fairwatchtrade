@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AskSellerLink from "@/components/AskSellerLink";
 import InlinePurchaseRequest from "@/components/InlinePurchaseRequest";
+import TradeDoorway from "@/components/TradeDoorway";
 import OpenPurchaseRequestButton from "@/components/OpenPurchaseRequestButton";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -54,6 +55,9 @@ export default function ListingActionRail({
   priceText,
   isOwner,
   requestStatus,
+  openToTrades = false,
+  listingIdentity = "",
+  myTradeOfferStatus = null,
   listingStatus,
   askingPrice,
   askingCurrency,
@@ -75,6 +79,13 @@ export default function ListingActionRail({
   priceText: string;
   isOwner: boolean;
   requestStatus?: string | null;
+  /* Trade V1 — the seller's explicit posture, this listing's identity for
+     the proposal summary, and this collector's own live proposal if they
+     already made one. All decided on the server; nothing about trade
+     eligibility is worked out in the browser. */
+  openToTrades?: boolean | null;
+  listingIdentity?: string;
+  myTradeOfferStatus?: string | null;
   /* v2.27 — the listing's own lifecycle status. 'reserved' means an offer was
      accepted: the watch is off the competitive market and no new requests are
      taken. Settlement is NOT represented — reserved never implies payment or
@@ -252,6 +263,21 @@ export default function ListingActionRail({
         >
           Start Purchase Request
         </Link>
+      )}
+
+      {/* ── Trade V1 — an ADDITIONAL governed way to acquire this watch ──
+             Rendered only when the seller explicitly opted in, and
+             deliberately quieter than the cash action above: trade is
+             another option, never a replacement, and its presence must not
+             imply the seller prefers it over a purchase. */}
+      {!isOwner && openToTrades && (
+        <TradeDoorway
+          listingId={listingId}
+          listingIdentity={listingIdentity}
+          myOfferStatus={myTradeOfferStatus}
+          signedIn={canRequestInline}
+          variant={variant}
+        />
       )}
     </div>
   );

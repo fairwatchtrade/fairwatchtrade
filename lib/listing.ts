@@ -99,6 +99,10 @@ export type ListingDraft = {
   // Step 2 — photos
   photos: ListingPhoto[];
   hasBracelet: boolean;
+  /* Trade V1 — one binary seller declaration, deliberately not a preference
+     taxonomy (no accepted brands, minimum value, categories or radius).
+     Governed listing state, never description text. */
+  openToTrades: boolean;
   /* Hero framing chosen on the Review step. Presentation only — the uploaded
      photographs in `photos` are never modified by it. Optional so drafts
      written before this existed resume without migration. */
@@ -136,6 +140,7 @@ export function emptyDraft(): ListingDraft {
     curationReasoning: "",
     photos: [],
     hasBracelet: false,
+    openToTrades: false,
     photoPresentation: defaultPresentation(),
     details: { documentation: "Watch Only" },
     description: "",

@@ -80,6 +80,7 @@ export default function ReviewStep({
   draft,
   onPresentationChange,
   onAdmissionChange,
+  onOpenToTradesChange,
   captureSessionId,
   publishRequestId,
   privateThreadId,
@@ -97,6 +98,8 @@ export default function ReviewStep({
   // Brand admission (profile brands): lifts Review-step affirmations back
   // into the draft. Optional for the same read-only reason.
   onAdmissionChange?: (a: AdmissionState) => void;
+  /** Trade V1 — the seller's one binary posture. */
+  onOpenToTradesChange?: (open: boolean) => void;
   // v2.24 · The Aubrey Check desktop correlation — supplied by SellFlow.
   // Optional so the component still renders (and publishes, pre-correlation
   // style) if mounted without them.
@@ -189,6 +192,7 @@ export default function ReviewStep({
           // inside them, so the evidence array keeps exactly its old shape.
           photoPresentation: sanitizePhotoPresentation(draft.photoPresentation),
           hasBracelet: draft.hasBracelet,
+          openToTrades: draft.openToTrades === true,
           details: draft.details,
           description: draft.description,
           descriptionPassedAI: draft.descriptionPassedAI,
@@ -563,6 +567,32 @@ export default function ReviewStep({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Trade posture — one binary declaration, no taxonomy ──────────
+             Deliberately NOT a preference profile: no accepted brands, no
+             minimum value, no categories, no radius. Those may come later
+             if real use asks for them. Off unless the seller says yes —
+             an unset posture is not consent. */}
+      {onOpenToTradesChange && (
+        <div className="mt-6 border border-[var(--border-subtle)] p-4">
+          <label className="flex cursor-pointer items-start gap-2 text-[13px] text-[var(--platinum)]">
+            <input
+              type="checkbox"
+              checked={draft.openToTrades === true}
+              onChange={(e) => onOpenToTradesChange(e.target.checked)}
+              className="mt-1 accent-[#C9A84C]"
+            />
+            <span>
+              Open to trades
+              <span className="mt-1 block text-[12px] leading-[1.6] text-[var(--muted)]">
+                Allow collectors to propose another FairWatchTrade watch, with or without a cash
+                difference. You still see and answer every proposal — nothing is automatic, and
+                your watch stays available for ordinary purchase.
+              </span>
+            </span>
+          </label>
         </div>
       )}
 

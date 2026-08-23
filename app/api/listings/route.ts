@@ -149,6 +149,8 @@ type PublishBody = {
   photos?: unknown[];
   photoPresentation?: unknown;
   hasBracelet?: boolean;
+  /** Trade V1 — the seller's binary trade posture. */
+  openToTrades?: boolean;
   details?: Record<string, unknown>;
   description?: string;
   descriptionPassedAI?: boolean | null;
@@ -1059,6 +1061,8 @@ export async function POST(request: NextRequest) {
     score_state: body.scoreState ?? {},
     photos: body.photos ?? [],
     has_bracelet: body.hasBracelet ?? false,
+    /* Off unless the seller said yes — an unset posture is not consent. */
+    open_to_trades: body.openToTrades === true,
     details: body.details ?? {},
     description: body.description ?? null,
     description_passed_ai: body.descriptionPassedAI ?? null,

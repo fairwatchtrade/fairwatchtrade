@@ -363,9 +363,11 @@ const workspace = read("components/WantedWorkspace.tsx");
     /\{ id: "wanted", label: "Wanted Requests"/.test(accountRail) &&
       /activeModule === "wanted"[\s\S]{0,400}<WantedRequestsModule \/>/.test(dashboard)
   );
+  /* Anchored to the entry itself, not to its position in the list — a later
+     module joining the allowlist must not read as Wanted breaking. */
   ok(
     "and it is reachable as a deep link on mobile too",
-    /"wanted",\n\] as const;/.test(dashboard)
+    /NAVIGABLE_MODULE_IDS = \[[\s\S]{0,400}"wanted",/.test(dashboard)
   );
   /* Source prose wraps; read it the way it is written, not the way it is
      line-broken. */

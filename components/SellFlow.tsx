@@ -951,6 +951,10 @@ export default function SellFlow({
                 privateBuyerName={privateBuyerName}
                 wantedRequestId={wantedRequestId}
                 wantedPrivate={wantedPrivate}
+                /* Trade posture is draft state like any other field, so it
+                   rides the existing server-draft autosave and survives a
+                   refresh or a phone handoff without new plumbing. */
+                onOpenToTradesChange={(openToTrades) => patch({ openToTrades })}
                 /* Presentation is draft state like any other field, so it
                    rides the existing server-draft autosave and survives a
                    refresh or a phone handoff without new plumbing. */

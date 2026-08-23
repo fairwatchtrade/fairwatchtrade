@@ -8,6 +8,7 @@ import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
 import DealerAcceleratorRoom from "@/components/DealerAcceleratorRoom";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import WantedRequestsModule from "@/components/WantedRequestsModule";
+import TradeOffersModule from "@/components/TradeOffersModule";
 import SellerListingsRoom from "@/components/SellerListingsRoom";
 import CommunicationsRoom from "@/components/CommunicationsRoom";
 import type { CommRequest, CommThread } from "@/lib/communications";
@@ -156,6 +157,7 @@ type ModuleId =
   | "requests"
   | "saved"
   | "wanted"
+  | "trades"
   | "analytics";
 // v2.23 — lifecycle tab state moved into SellerListingsRoom, which owns the
 // Listings room's tabs and selection (ids remain the REAL status values).
@@ -205,6 +207,7 @@ const NAVIGABLE_MODULE_IDS = [
   "requests",
   "saved",
   "wanted",
+  "trades",
 ] as const;
 function moduleFromParam(p: string | null): ModuleId {
   return (NAVIGABLE_MODULE_IDS as readonly string[]).includes(p ?? "")
@@ -775,7 +778,9 @@ export default function AccountDashboard({
             ? "Saved Searches"
             : activeModule === "wanted"
               ? "Wanted Requests"
-              : "Listings";
+              : activeModule === "trades"
+                ? "Trades"
+                : "Listings";
 
   /* Mirrors the fallback above and the render branch below: the Listings room
      is what shows when the module is none of the named ones. Derived rather
@@ -789,7 +794,8 @@ export default function AccountDashboard({
     activeModule !== "requests" &&
     activeModule !== "accelerator" &&
     activeModule !== "saved" &&
-    activeModule !== "wanted";
+    activeModule !== "wanted" &&
+    activeModule !== "trades";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -938,6 +944,8 @@ export default function AccountDashboard({
               is reached only via the explicit ?module=saved deep link. */}
           {activeModule === "saved" ? (
             <SavedSearchesModule />
+          ) : activeModule === "trades" ? (
+            <TradeOffersModule />
           ) : activeModule === "wanted" ? (
             /* Rendered ONCE outside the mobile/desktop split, the same
                reasoning as Saved Searches above: mounted in both branches

@@ -36,7 +36,8 @@ type ModuleId =
   | "accelerator"
   | "communications"
   | "saved"
-  | "wanted";
+  | "wanted"
+  | "trades";
 
 const ICONS = {
   overview: (
@@ -103,6 +104,14 @@ const ICONS = {
       <path d="M11 8.5v5M8.5 11h5" />
     </svg>
   ),
+  /* Two watches changing places — a plain exchange mark, deliberately not
+     a carnival swap arrow. */
+  trades: (
+    <svg viewBox="0 0 24 24">
+      <path d="M4 8h13M14 5l3 3-3 3" />
+      <path d="M20 16H7M10 13l-3 3 3 3" />
+    </svg>
+  ),
   analytics: (
     <svg viewBox="0 0 24 24">
       <path d="M4 18l5-6 4 3 7-9" />
@@ -131,6 +140,9 @@ const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICON
      Workspace owns it by founder ruling; Dealer Room may surface the same
      requests contextually later and is deliberately not a second door. */
   { id: "wanted", label: "Wanted Requests", icon: "wanted" },
+  /* Trade proposals share the offer workspace rather than getting a
+     separate Trade dashboard — the packet's ruling. */
+  { id: "trades", label: "Trades", icon: "trades" },
 ];
 
 function moduleHref(id: ModuleId): string {
