@@ -8,6 +8,7 @@ import ListingSpecs from "@/components/ListingSpecs";
 import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
 import ListingStageFaq from "@/components/ListingStageFaq";
+import ListingStructuredData from "@/components/ListingStructuredData";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
@@ -131,6 +132,10 @@ type Listing = {
   brand: string;
   model: string | null;
   reference: string;
+  /* The FairWatchTrade listing code. NOT NULL in the database and already
+     arriving through select("*"); typed nullable only so this row type never
+     asserts more than it verified. */
+  public_code?: string | null;
   year: string;
   condition: string;
   asking_price: number;
@@ -488,6 +493,25 @@ export default async function ListingDetailPage({
       askingCurrency={listing.asking_currency}
     >
     <main className="min-h-screen bg-[var(--ink)] pb-32 text-[var(--platinum)]">
+      {/* v6.44 — the canonical page, made legible to machines. Renders for a
+          PUBLISHED listing only; the component itself refuses every other
+          status, so a reserved or private listing emits no structured data to
+          any agent reading this page. photoUrls already passed the public
+          service-photo predicate above. Nothing about indexing changes. */}
+      <ListingStructuredData
+        status={listing.status}
+        id={listing.id}
+        publicCode={listing.public_code ?? null}
+        brand={listing.brand}
+        model={listing.model ?? null}
+        reference={listing.reference ?? null}
+        condition={listing.condition ?? null}
+        description={listing.description ?? null}
+        price={listing.asking_price ?? null}
+        currency={listing.asking_currency ?? null}
+        photoUrls={photoUrls}
+        sellerName={sellerName}
+      />
       {/* v2.11/v5.82 — RESPONSIVE COMPOSITION.
           Desktop (896px+): the approved two-column composition — up to 974px
           primary + 224–276px staggered rail, --space-6 gap, page-level Collector's Drawer

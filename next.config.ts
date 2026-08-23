@@ -27,6 +27,19 @@ const nextConfig: NextConfig = {
      it cannot see. */
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "sharp"],
 
+  /* v6.44 — agent-native discovery, at the address machines look first.
+     An assistant that has never seen this site before probes a well-known
+     path rather than guessing at API routes, and a well-known path is
+     provider-neutral in a way a vendor manifest is not. Next ignores app
+     directories whose name begins with a dot, so the descriptor lives at
+     /api/discovery and is REWRITTEN here rather than duplicated — one
+     document, two addresses, no second copy to drift. */
+  async rewrites() {
+    return [
+      { source: "/.well-known/fwt-discovery.json", destination: "/api/discovery" },
+    ];
+  },
+
   /* The Chromium binary is opened via fs at runtime, which static tracing
      cannot see — the bin payload must be included explicitly for every
      function that can render a Dossier PDF. Scoped to those routes only:
