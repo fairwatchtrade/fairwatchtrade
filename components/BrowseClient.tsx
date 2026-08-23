@@ -15,6 +15,7 @@ import { cardImageSrc } from "@/lib/media/cardImage";
 import { caseDiameterLabel } from "@/lib/caseDiameter";
 import LoupeIcon from "@/components/LoupeIcon";
 import BrowseCardInspector from "@/components/BrowseCardInspector";
+import BrowseQuickAdd, { type QuickAddCategory } from "@/components/BrowseQuickAdd";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { parseBrowseSort, sortListings, type BrowseSort } from "@/lib/browseSort";
 import { facetKey, foldFacets } from "@/lib/browseFacets";
@@ -1701,6 +1702,30 @@ export default function BrowseClient({
           ))}
         </div>
       </div>
+
+      {/* QUICK ADD — the fast-addition half of the collapsed rail. Fed the
+          IDENTICAL facet arrays, selection Sets and toggle handlers the rail's
+          own FacetGroups receive, so it cannot become a second filter system:
+          one act, one URL, one truth shared with the rail and the Active
+          Criteria chips. Desktop, public Browse only — the Dealer Room owns a
+          different rail composition and mobile keeps its approved sheet. */}
+      {!dealerScope && (
+        <BrowseQuickAdd
+          refineOpen={isFilterOpen}
+          onOpenRefine={() => setIsFilterOpen(true)}
+          categories={
+            [
+              { key: "brand", title: "Brand", facets: brandFacets, selected: selectedBrands, onToggle: toggleBrand },
+              { key: "caseSize", title: "Case Size", facets: caseSizeFacets, selected: selectedCaseSizes, onToggle: toggleCaseSize },
+              { key: "movement", title: "Movement", facets: movementFacets, selected: selectedMovements, onToggle: toggleMovement },
+              { key: "caseMaterial", title: "Case Material", facets: materialFacets, selected: selectedMaterials, onToggle: toggleMaterial },
+              { key: "dialColor", title: "Dial Color", facets: dialFacets, selected: selectedDials, onToggle: toggleDial },
+              { key: "docs", title: "Documentation", facets: docFacets, selected: selectedDocs, onToggle: toggleDoc },
+              { key: "condition", title: "Condition", facets: conditionFacets, selected: selectedConditions, onToggle: toggleCondition },
+            ] as QuickAddCategory[]
+          }
+        />
+      )}
 
       <div className={dealerScope ? "block" : "mt-4 flex gap-6"}>
         {/* Desktop sidebar — collapses to w-0 */}
