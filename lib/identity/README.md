@@ -1,4 +1,20 @@
-# Canonical Watch Identity
+# Watch Identity
+
+Two separate questions live in this folder, and conflating them is how
+provenance gets destroyed.
+
+| Question | Column | Round |
+|---|---|---|
+| **What kind of watch is this?** | `listings.vault_reference_id` | 06A |
+| **Which physical object is this listing about?** | `listings.physical_watch_id` | 06B |
+
+Neither is derived from the other, and neither ever may be. Two listings can
+share a `vault_reference_id` (same model) while being two entirely different
+objects — that is the normal case, not an edge case.
+
+---
+
+# Part 1 — Canonical Watch Identity (06A)
 
 **Manufacturer reference text is not canonical listing identity.**
 
@@ -162,3 +178,135 @@ select l.id, l.brand, l.reference, count(r.id) as candidates
 
 Founder correction lives at `/admin/listings/[id]`, in the **Canonical
 identity** panel directly beneath the review header.
+
+---
+
+# Part 2 — Physical Object Identity (06B)
+
+**A listing row is not the physical watch.**
+
+A listing is one chapter: a moment when someone offered an object for sale.
+The object outlives the chapter. `listings.physical_watch_id` points at the
+object; the listing is a thing said *about* it.
+
+`public.physical_watches` holds exactly two columns — `id` and `created_at`.
+No reference, brand, serial, case number, movement number, owner, status,
+matching metadata, merge fields, or Passport fields. It is an opaque bead to
+hang history on, not a description of a watch. Every attribute is a later
+round's decision, and a column added early becomes a column something starts
+trusting early.
+
+## The law this round is built around
+
+> **False split is repairable later. False merge corrupts provenance.**
+
+So 06B mints **one fresh object identity per listing row** and refuses to
+decide anything else. Every listing that existed at migration time got its
+own. No grouping by reference, seller, brand, images, provenance, text
+similarity, or inference of any kind.
+
+That deliberately creates false splits — the same watch relisted is currently
+two object records. That is the correct error to make. Merging two records
+later is a governed decision with evidence behind it; un-merging two
+histories that were wrongly fused is not really possible.
+
+**06B does not answer "are these two listings the same physical watch?"**
+That question, and any mechanism for sharing an identity between listings,
+belongs to a later round. Nothing here may assign one listing's object
+identity to another.
+
+## Where the mint actually lives — read before editing any route
+
+**The mint is a column DEFAULT, not application code.** Nothing in the
+TypeScript writes `physical_watch_id`, and nothing should start.
+
+```sql
+alter table public.listings
+  alter column physical_watch_id set default public.mint_physical_watch();
+```
+
+This is not cleverness. There are two listing-creation seams:
+
+| Seam | Where the row is actually inserted |
+|---|---|
+| Sell Flow + Private Listing | `app/api/listings/route.ts` |
+| Dealer materialization | inside `dealer_accelerator_materialize_item_draft` — a `security definer` SQL function |
+
+The second one inserts listing, media, item status and lifecycle event in
+**one transaction that application code cannot join.** A TypeScript mint
+there would be a second round trip that could succeed while the listing
+failed, or fail while the listing succeeded — exactly the non-atomicity this
+round forbids.
+
+A DEFAULT is evaluated per row inside whatever transaction is doing the
+INSERT. So it is atomic at *both* seams for free, it fires for any future
+creation path nobody has thought of yet, and it cannot be forgotten.
+
+It also makes the negative guarantee **structural rather than a promise**:
+`mint_physical_watch()` takes no arguments and can only INSERT and return a
+brand-new id. There is no expression anywhere in this round capable of
+handing one listing another listing's object identity.
+
+## Same-row lifecycle needs no code
+
+A DEFAULT does not fire on UPDATE. So edit, reject-then-resubmit,
+remove-then-restore, and every status transition preserve the object identity
+with **no guard, no trigger, and no application logic**. The behaviour falls
+out of the mechanism rather than being defended by it.
+
+The idempotent retry branches in the listings route return an *existing*
+listing rather than inserting, so they cannot re-mint either.
+
+## Why ON DELETE RESTRICT, when 06A uses SET NULL
+
+Opposite kinds of fact, opposite answers.
+
+- **Taxonomy** may legitimately be reclassified or removed. A listing that
+  loses its classification is merely unclassified → `SET NULL`.
+- **Object identity** is durable infrastructure. Severing it silently would
+  destroy the continuity every later round depends on → `RESTRICT`.
+
+Ordinary lifecycle must not be able to delete an object identity out from
+under a listing. Retirement, merge and split semantics belong to a governed
+later round that can reason about provenance. Until that exists, the database
+simply refuses.
+
+## What is deliberately NOT built
+
+- **No unique constraint** on `physical_watch_id`. Uniqueness would
+  permanently forbid two listings from ever sharing an object — and a later
+  round exists precisely to allow that when evidence earns it. The absence of
+  this constraint is a decision, not an omission.
+- **No sharing or matching mechanism** of any kind.
+- **No sensitive identifiers** — no serial, case, or movement numbers. That
+  is a separate round with its own governance.
+- **No UI, anywhere.** Not Sell Flow, not Listing Detail, not Founder Review.
+  Opaque ids are not for human interpretation in this round.
+- **No Passport behaviour**, no transfer events, no history accumulation.
+- **No read access for client roles.** `physical_watches` has RLS enabled
+  with no policy, and `anon`/`authenticated` have no grants. Referential
+  integrity checks are exempt from RLS, so the foreign key still validates.
+
+## Verifying current state
+
+```sql
+-- every listing carries its own object identity, and no two share one
+select count(*) as listings,
+       count(physical_watch_id) as populated,
+       count(distinct physical_watch_id) as distinct_objects
+  from public.listings;
+
+-- the mint is attached where it belongs
+select pg_get_expr(d.adbin, d.adrelid)
+  from pg_attrdef d
+  join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+ where d.adrelid = 'public.listings'::regclass and a.attname = 'physical_watch_id';
+
+-- the FK refuses parent deletion ('r' = restrict)
+select conname, confdeltype from pg_constraint
+ where conname = 'listings_physical_watch_id_fkey';
+
+-- nothing but the mint can produce a value for the column
+select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.prosrc ilike '%physical_watch_id%';
+```

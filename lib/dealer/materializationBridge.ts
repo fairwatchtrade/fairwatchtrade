@@ -409,6 +409,14 @@ export async function materializeOneItem(inv: MaterializeInvocation): Promise<Ma
 
   // ── 6. The bridge. One transaction: listing + media + item status +
   //       listing_id + lifecycle event, together or not at all. ──
+  //
+  //       Physical object identity joins that same transaction without
+  //       appearing here: listings.physical_watch_id carries a column
+  //       default that mints one fresh opaque identity per inserted row.
+  //       Minting it from this file instead would put it OUTSIDE the RPC's
+  //       transaction — a second round trip that could leave a created
+  //       listing with no object identity, or an identity with no listing.
+  //       Nothing in TypeScript writes that column; nothing should.
   const result = await rpc<{
     result: string;
     listing_id: string;

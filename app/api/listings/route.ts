@@ -1070,6 +1070,23 @@ export async function POST(request: NextRequest) {
     body.vaultReferenceId
   );
 
+  /* ── PHYSICAL OBJECT IDENTITY — deliberately absent from this row ──────
+        `listings.physical_watch_id` is NOT set here, and must not start
+        being set here. It carries a COLUMN DEFAULT that mints one fresh
+        opaque identity per inserted row, which means the mint happens
+        inside this INSERT's own transaction rather than in a second round
+        trip that could succeed while the insert failed.
+
+        The same default serves the dealer materialization seam, which
+        creates its listing inside a security definer function no
+        application code can join. One mechanism, both seams, atomic at
+        each — and a creation path nobody has written yet inherits it.
+
+        A DEFAULT does not fire on UPDATE, so the idempotent retry branches
+        above (which return an EXISTING listing) cannot re-mint, and neither
+        can any later status transition. Same row, same object, forever.
+
+        A listing is a chapter about an object. This column is the object. */
   const row: Record<string, unknown> = {
     seller_id: user.id,
     status: initialStatus,
