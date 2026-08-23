@@ -712,10 +712,24 @@ export default function AccountDashboard({
     }
   }
 
+  /* Badge truth on mount. Both refreshers already await before they set
+     state, but CALLING them straight from the effect body reads as a
+     synchronous setState and trips react-hooks/set-state-in-effect. Awaiting
+     them inside the effect's own async scope says what actually happens: the
+     work starts here, the state lands after the fetch.
+
+     The exhaustive-deps suppression that used to sit here is gone: it was
+     stale, reporting as an unused directive, and a suppression nobody needs
+     is a suppression that hides the next real warning. This is a
+     once-on-mount read by design. */
   useEffect(() => {
-    refreshThreads();
-    refreshRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* No cancellation flag on purpose: both refreshers own their own state
+       writes, so a flag checked out here would guard nothing — it would only
+       look like it did. They already swallow their own failures, which is why
+       a badge can be absent but never crashes the workspace. */
+    void (async () => {
+      await Promise.all([refreshThreads(), refreshRequests()]);
+    })();
   }, []);
 
   const unreadThreadCount = threads.filter(
