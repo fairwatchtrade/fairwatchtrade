@@ -1934,6 +1934,7 @@ export default function BrowseClient({
                             <img
                               src={cardImageSrc(shownPhoto, { mode: "fit", width: 720 })}
                               alt=""
+                              loading="lazy"
                               className="h-full w-full object-contain p-1.5 md:p-0"
                             />
                           ) : galleryFrameStyle ? (
@@ -1949,6 +1950,7 @@ export default function BrowseClient({
                               <img
                                 src={cardImageSrc(hero, { mode: "fit", width: 720 })}
                                 alt=""
+                                loading="lazy"
                                 style={galleryFrameStyle}
                                 className="h-full w-full md:hidden"
                               />
@@ -1956,6 +1958,7 @@ export default function BrowseClient({
                               <img
                                 src={cardImageSrc(hero, { mode: "fit", width: 720 })}
                                 alt=""
+                                loading="lazy"
                                 className="hidden h-full w-full object-contain md:block"
                               />
                             </>
@@ -1972,9 +1975,11 @@ export default function BrowseClient({
                                derivative's width, so both breakpoints now
                                want the same file and the <picture> that once
                                split them has nothing left to split. */
+                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                               src={presentationThumbSrc(hero)}
                               alt=""
+                              loading="lazy"
                               className="h-full w-full object-contain p-1.5 md:p-0"
                             />
                           )
@@ -2179,6 +2184,7 @@ export default function BrowseClient({
                         <img
                           src={cardImageSrc(hero, { mode: "fit" })}
                           alt=""
+                          loading="lazy"
                           style={heroStyle}
                           className="h-full w-full"
                         />
