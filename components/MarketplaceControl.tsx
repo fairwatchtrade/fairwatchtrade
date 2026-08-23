@@ -1235,6 +1235,239 @@ export default function MarketplaceControl({
     }
   }
 
+  /* ── Detailed lateral navigation ──────────────────────────────────────
+     A slim proxy scroller synchronized with the table's own horizontal
+     scroll. It renders only when the table actually overflows, carries no
+     content (aria-hidden — the real scroller stays keyboard-reachable),
+     and costs the table nothing: no wrapper height cap, no nested vertical
+     scroll region, no change to how the page scrolls. Measurement watches
+     the container AND the table, because adding or resizing a column
+     changes scrollWidth without changing the container. */
+  const detailScrollRef = useRef<HTMLDivElement | null>(null);
+  const detailProxyRef = useRef<HTMLDivElement | null>(null);
+  const [detailScrollWidth, setDetailScrollWidth] = useState(0);
+  const [detailOverflow, setDetailOverflow] = useState(false);
+
+  useEffect(() => {
+    const el = detailScrollRef.current;
+    if (!el) return;
+    /* ResizeObserver fires on observe, so the first measurement lands from
+       the callback rather than from this effect body. */
+    const ro = new ResizeObserver(() => {
+      setDetailScrollWidth(el.scrollWidth);
+      setDetailOverflow(el.scrollWidth - el.clientWidth > 1);
+    });
+    ro.observe(el);
+    const table = el.firstElementChild;
+    if (table) ro.observe(table);
+    return () => ro.disconnect();
+  }, [view.mode, visibleColumns.length, payload.rows.length]);
+
+  /* One-directional assignment guarded by a tolerance: setting scrollLeft
+     fires the other element's scroll event, and without the guard the two
+     would chase each other. */
+  function syncProxyFromTable() {
+    const a = detailScrollRef.current;
+    const b = detailProxyRef.current;
+    if (!a || !b) return;
+    if (Math.abs(b.scrollLeft - a.scrollLeft) > 1) b.scrollLeft = a.scrollLeft;
+  }
+  function syncTableFromProxy() {
+    const a = detailProxyRef.current;
+    const b = detailScrollRef.current;
+    if (!a || !b) return;
+    if (Math.abs(b.scrollLeft - a.scrollLeft) > 1) b.scrollLeft = a.scrollLeft;
+  }
+
+  /* ── The selected-listing inspector, ONE implementation ───────────────
+     Extracted verbatim so BOTH the operational ledger and the detailed
+     audit table render the same pane with the same governed actions. It
+     was previously inline in the operational branch only, which left
+     Detailed view with no inspector at all: selecting a row there appeared
+     to do nothing and OPEN → navigation became the only way to inspect a
+     listing. The flow law is unchanged — opaque overlay pinned upper-right,
+     rows pass beneath it, never a reserved column. */
+  function inspectorPane() {
+    if (!selected) return null;
+    return (
+<aside
+                  ref={asideRef}
+                  data-mc-keep
+                  className="border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg"
+                >
+                  <div className="p-4">
+                    {/* The round trip's return half: Back to list rides the
+                        stacked inspector home to the exact selected row
+                        (selection intact); × ends the selection entirely —
+                        the completely unselected state, one tap away. */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
+                        Selected listing
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={backToList}
+                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] @min-[1050px]:hidden"
+                        >
+                          ‹ Back to list
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          aria-label="Clear selection"
+                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--platinum)]"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    {/* Operations pane, not a photo panel (SEE-it finding 2):
+                        the photograph joins the identity header at thumbnail
+                        scale so lifecycle state, reasons, and actions own the
+                        pane's vertical priority. The watch still anchors —
+                        photo + serif identity lead — it just stops being a
+                        gallery. */}
+                    <div className="mt-2 flex items-start gap-3">
+                      <Thumb row={selected} size={88} />
+                      <div className="min-w-0">
+                        <div className="font-display text-[17px] font-light leading-tight text-[var(--platinum)]">
+                          {selected.brand}
+                          <br />
+                          {selected.model ?? "—"}
+                        </div>
+                        <div
+                          className="mt-1 text-[13px] uppercase tracking-[2px] text-[var(--mineral)]"
+                          style={ID_FACE}
+                        >
+                          {selected.public_code ?? "—"}
+                        </div>
+                        <div className="mt-1 text-[11px] tracking-[0.02em] text-[var(--muted)]">
+                          Ref. {selected.reference}
+                        </div>
+                      </div>
+                    </div>
+
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 border-y border-[var(--border-faint)] py-3">
+                      {(
+                        [
+                          ["Status", <StatusPill key="s" status={selected.status} />],
+                          [
+                            "Asking Price",
+                            formatMoney(Number(selected.asking_price), selected.asking_currency),
+                          ],
+                          ["Seller", selected.seller_name],
+                          ["Created", absoluteDate(selected.created_at)],
+                          ["Condition", selected.condition ?? "—"],
+                          ["Year", selected.year ?? "—"],
+                          ["In Hand", selected.in_hand_verified ? "Verified" : "—"],
+                          [
+                            "Dealer Import",
+                            selected.dealer_attested_at
+                              ? absoluteDate(selected.dealer_attested_at)
+                              : "—",
+                          ],
+                        ] as Array<[string, ReactNode]>
+                      ).map(([k, v]) => (
+                        <div key={k}>
+                          <dt className="text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]">
+                            {k}
+                          </dt>
+                          <dd className="mt-0.5 text-[12px] text-[var(--platinum-dim)]">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    {selected.status === "removed" && (
+                      <div className="mt-3 text-[11px] text-[var(--muted)]">
+                        Off market since {absoluteDate(selected.removed_at)}
+                        {selected.removal_reason_code
+                          ? ` · ${selected.removal_reason_code.replace(/_/g, " ")}`
+                          : ""}
+                      </div>
+                    )}
+                    {selected.status === "rejected" && (
+                      <div className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
+                        {selected.rejection_reason
+                          ? `Rejection message: ${selected.rejection_reason}`
+                          : "No rejection message was recorded."}
+                      </div>
+                    )}
+
+                    {attentionFor(selected.id).length > 0 && (
+                      <div className="mt-3 border-l-2 border-[var(--danger)] bg-[var(--danger)]/[0.05] px-3 py-2">
+                        <div className="text-[9px] uppercase tracking-[2px] text-[var(--danger)]">
+                          Needs attention
+                        </div>
+                        <ul className="mt-1 space-y-1 text-[11px] leading-snug text-[var(--platinum-dim)]">
+                          {attentionFor(selected.id).map((r) => (
+                            <li key={r}>{r}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="mt-4 grid gap-2">
+                      <Link
+                        href={`/admin/listings/${selected.id}`}
+                        className="border border-[var(--border-gold)] px-3 py-2 text-center text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
+                      >
+                        Open Adjudication →
+                      </Link>
+                      {selected.status === "published" && (
+                        <Link
+                          href={`/listings/${selected.id}`}
+                          className="border border-[var(--border-mid)] px-3 py-2 text-center text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
+                        >
+                          View Listing →
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        disabled={recheckState.busy}
+                        onClick={rerunCheck}
+                        className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] disabled:opacity-40"
+                      >
+                        {recheckState.busy && recheckState.listingId === selected.id
+                          ? "Re-running…"
+                          : "Re-run Check"}
+                      </button>
+                      {recheckState.note && recheckState.listingId === selected.id && (
+                        <div
+                          role="status"
+                          className={`px-0.5 text-[11px] leading-snug ${
+                            recheckState.note.kind === "ok"
+                              ? "text-[var(--success)]"
+                              : "text-[var(--danger)]"
+                          }`}
+                        >
+                          {recheckState.note.text}
+                        </div>
+                      )}
+                      {["published", "reserved", "pending_review"].includes(selected.status) && (
+                        <button
+                          type="button"
+                          disabled={bulkLoading}
+                          onClick={() => openSingleAction("remove", selected.id)}
+                          className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] disabled:opacity-40"
+                        >
+                          Take Off Market…
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={bulkLoading}
+                        onClick={() => openSingleAction("delete", selected.id)}
+                        className="border border-[var(--danger)]/50 px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--danger)] hover:bg-[var(--danger)]/[0.06] disabled:opacity-40"
+                      >
+                        Delete Eligible Listing…
+                      </button>
+                    </div>
+                  </div>
+                </aside>
+    );
+  }
+
   /* ── Renderers ───────────────────────────────────────────────────────── */
 
   function identityCell(row: McRow, thumbSize: number) {
@@ -2096,187 +2329,28 @@ export default function MarketplaceControl({
                   pane is absolutely positioned, so rows already run the full
                   workspace width beneath it (the flow law) — what leaves is
                   a floating empty box, not a column. */}
-              {selected && (
-                <aside
-                  ref={asideRef}
-                  data-mc-keep
-                  className="border-t border-[var(--border-faint)] bg-[var(--surface)] @min-[1050px]:absolute @min-[1050px]:top-0 @min-[1050px]:right-0 @min-[1050px]:z-10 @min-[1050px]:w-[330px] @min-[1600px]:w-[360px] @min-[1050px]:border @min-[1050px]:border-[var(--border-mid)] @min-[1050px]:shadow-lg"
-                >
-                  <div className="p-4">
-                    {/* The round trip's return half: Back to list rides the
-                        stacked inspector home to the exact selected row
-                        (selection intact); × ends the selection entirely —
-                        the completely unselected state, one tap away. */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-[9px] uppercase tracking-[2.2px] text-[var(--gold-dim)]">
-                        Selected listing
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={backToList}
-                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] @min-[1050px]:hidden"
-                        >
-                          ‹ Back to list
-                        </button>
-                        <button
-                          type="button"
-                          onClick={clearSelection}
-                          aria-label="Clear selection"
-                          className="border border-[var(--border-mid)] px-2.5 py-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--platinum)]"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    {/* Operations pane, not a photo panel (SEE-it finding 2):
-                        the photograph joins the identity header at thumbnail
-                        scale so lifecycle state, reasons, and actions own the
-                        pane's vertical priority. The watch still anchors —
-                        photo + serif identity lead — it just stops being a
-                        gallery. */}
-                    <div className="mt-2 flex items-start gap-3">
-                      <Thumb row={selected} size={88} />
-                      <div className="min-w-0">
-                        <div className="font-display text-[17px] font-light leading-tight text-[var(--platinum)]">
-                          {selected.brand}
-                          <br />
-                          {selected.model ?? "—"}
-                        </div>
-                        <div
-                          className="mt-1 text-[13px] uppercase tracking-[2px] text-[var(--mineral)]"
-                          style={ID_FACE}
-                        >
-                          {selected.public_code ?? "—"}
-                        </div>
-                        <div className="mt-1 text-[11px] tracking-[0.02em] text-[var(--muted)]">
-                          Ref. {selected.reference}
-                        </div>
-                      </div>
-                    </div>
-
-                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 border-y border-[var(--border-faint)] py-3">
-                      {(
-                        [
-                          ["Status", <StatusPill key="s" status={selected.status} />],
-                          [
-                            "Asking Price",
-                            formatMoney(Number(selected.asking_price), selected.asking_currency),
-                          ],
-                          ["Seller", selected.seller_name],
-                          ["Created", absoluteDate(selected.created_at)],
-                          ["Condition", selected.condition ?? "—"],
-                          ["Year", selected.year ?? "—"],
-                          ["In Hand", selected.in_hand_verified ? "Verified" : "—"],
-                          [
-                            "Dealer Import",
-                            selected.dealer_attested_at
-                              ? absoluteDate(selected.dealer_attested_at)
-                              : "—",
-                          ],
-                        ] as Array<[string, ReactNode]>
-                      ).map(([k, v]) => (
-                        <div key={k}>
-                          <dt className="text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]">
-                            {k}
-                          </dt>
-                          <dd className="mt-0.5 text-[12px] text-[var(--platinum-dim)]">{v}</dd>
-                        </div>
-                      ))}
-                    </dl>
-
-                    {selected.status === "removed" && (
-                      <div className="mt-3 text-[11px] text-[var(--muted)]">
-                        Off market since {absoluteDate(selected.removed_at)}
-                        {selected.removal_reason_code
-                          ? ` · ${selected.removal_reason_code.replace(/_/g, " ")}`
-                          : ""}
-                      </div>
-                    )}
-                    {selected.status === "rejected" && (
-                      <div className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
-                        {selected.rejection_reason
-                          ? `Rejection message: ${selected.rejection_reason}`
-                          : "No rejection message was recorded."}
-                      </div>
-                    )}
-
-                    {attentionFor(selected.id).length > 0 && (
-                      <div className="mt-3 border-l-2 border-[var(--danger)] bg-[var(--danger)]/[0.05] px-3 py-2">
-                        <div className="text-[9px] uppercase tracking-[2px] text-[var(--danger)]">
-                          Needs attention
-                        </div>
-                        <ul className="mt-1 space-y-1 text-[11px] leading-snug text-[var(--platinum-dim)]">
-                          {attentionFor(selected.id).map((r) => (
-                            <li key={r}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="mt-4 grid gap-2">
-                      <Link
-                        href={`/admin/listings/${selected.id}`}
-                        className="border border-[var(--border-gold)] px-3 py-2 text-center text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)]"
-                      >
-                        Open Adjudication →
-                      </Link>
-                      {selected.status === "published" && (
-                        <Link
-                          href={`/listings/${selected.id}`}
-                          className="border border-[var(--border-mid)] px-3 py-2 text-center text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
-                        >
-                          View Listing →
-                        </Link>
-                      )}
-                      <button
-                        type="button"
-                        disabled={recheckState.busy}
-                        onClick={rerunCheck}
-                        className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] disabled:opacity-40"
-                      >
-                        {recheckState.busy && recheckState.listingId === selected.id
-                          ? "Re-running…"
-                          : "Re-run Check"}
-                      </button>
-                      {recheckState.note && recheckState.listingId === selected.id && (
-                        <div
-                          role="status"
-                          className={`px-0.5 text-[11px] leading-snug ${
-                            recheckState.note.kind === "ok"
-                              ? "text-[var(--success)]"
-                              : "text-[var(--danger)]"
-                          }`}
-                        >
-                          {recheckState.note.text}
-                        </div>
-                      )}
-                      {["published", "reserved", "pending_review"].includes(selected.status) && (
-                        <button
-                          type="button"
-                          disabled={bulkLoading}
-                          onClick={() => openSingleAction("remove", selected.id)}
-                          className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)] disabled:opacity-40"
-                        >
-                          Take Off Market…
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={bulkLoading}
-                        onClick={() => openSingleAction("delete", selected.id)}
-                        className="border border-[var(--danger)]/50 px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--danger)] hover:bg-[var(--danger)]/[0.06] disabled:opacity-40"
-                      >
-                        Delete Eligible Listing…
-                      </button>
-                    </div>
-                  </div>
-                </aside>
-              )}
+              {inspectorPane()}
             </div>
           ) : (
-            /* ── DETAILED: operator-configurable audit table ─────────────── */
-            <div className={`overflow-x-auto ${loading ? "opacity-60" : ""}`}>
+            /* ── DETAILED: operator-configurable audit table ───────────────
+                Same positioning context and same inspector as the ledger:
+                the founder inspects and acts on a selected listing without
+                leaving the room, in the view they actually work in.
+
+                LATERAL MOVEMENT: the table's own horizontal scrollbar sits
+                at the physical bottom of the whole result set, so reaching
+                the right-hand columns from row 3 of 24 meant travelling to
+                the bottom of the table, moving sideways, and climbing back.
+                A sticky proxy scroller rides the bottom of the viewport
+                while the table is in view and is synchronized with it, so
+                sideways is always one reach away. Density, columns,
+                sorting, filters, pagination and row behavior are untouched. */
+            <div className="relative @min-[1050px]:min-h-[660px]">
+              <div
+                ref={detailScrollRef}
+                onScroll={syncProxyFromTable}
+                className={`overflow-x-auto ${loading ? "opacity-60" : ""}`}
+              >
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[var(--border-subtle)] text-[9px] uppercase tracking-[1.8px] text-[var(--muted)]">
@@ -2383,6 +2457,18 @@ export default function MarketplaceControl({
                   )}
                 </tbody>
               </table>
+              </div>
+              {detailOverflow && (
+                <div
+                  ref={detailProxyRef}
+                  onScroll={syncTableFromProxy}
+                  aria-hidden="true"
+                  className="sticky bottom-0 z-20 overflow-x-auto border-t border-[var(--border-faint)] bg-[var(--surface)]"
+                >
+                  <div style={{ width: detailScrollWidth, height: 1 }} />
+                </div>
+              )}
+              {inspectorPane()}
             </div>
           )}
 
