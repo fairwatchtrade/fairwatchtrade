@@ -156,18 +156,35 @@ const manifest = {
   const rows33 = normalizeLayer2Rows(tt33, corpusRows);
   const rows36 = normalizeLayer2Rows(tt36, corpusRows);
 
+  /* Ingestion must terminate in one of three honest states and never in a
+     generic bucket. 'other' collapsed "known but different" into "unknown",
+     and that erasure is what the production repair had to undo. */
   const pricedSold = wantedLayer2Result(rows33[0], tt33);
-  ok("an officially-priced sold row carries price + currency + basis",
-    pricedSold.price_realized === 600 && pricedSold.currency === "EUR" && pricedSold.price_basis === "other");
+  ok("an official-result-sheet row carries the EXACT governed basis",
+    pricedSold.price_realized === 600 && pricedSold.currency === "EUR" &&
+    pricedSold.price_basis === "result_including_premium_and_vat");
   ok("and its result sources from the official result sheet",
     pricedSold.source_key === "official_results_pdf");
 
   const q = wantedLayer2Result(rows36[0], tt36);
-  ok("a quarantined sold row ingests its OUTCOME with the price withheld",
-    q.sale_outcome === "sold" && q.price_realized === null && q.currency === null && q.price_basis === null);
-  ok("and the website premium value appears nowhere in the wanted result",
-    !JSON.stringify(q).includes("1000"));
+  ok("a sold row with only a website figure keeps the number under UNRESOLVED basis",
+    q.sale_outcome === "sold" && q.price_realized === 1000 && q.currency === "EUR" &&
+    q.price_basis === "reported_result_basis_unverified");
+  ok("and that value is stored exactly as displayed — no 1.04, no VAT arithmetic",
+    q.price_realized === 1000 && q.price_realized !== Math.round(1000 / 1.04));
+  ok("a website-sourced figure never claims the official sheet as its source",
+    q.source_key === "landing");
+  ok("no ingestion path emits the generic 'other' bucket any more",
+    ![pricedSold, q].some((x) => x.price_basis === "other"));
 
+
+  /* State 3: a sold row with no trustworthy figure of either kind keeps the
+     outcome and stores no price fact at all. */
+  const noFigure = wantedLayer2Result(
+    { ...rows36[0], official_premium_vat_eur: null, website_result_premium_eur: null }, tt36);
+  ok("a sold row with no trustworthy figure stores NULL / NULL / NULL",
+    noFigure.sale_outcome === "sold" && noFigure.price_realized === null &&
+    noFigure.currency === null && noFigure.price_basis === null);
   const unsold = wantedLayer2Result(rows33[2], tt33);
   ok("a non-sold row carries no price facts", unsold.price_realized === null && unsold.currency === null);
   ok("'unsold' survives as its own outcome, never collapsed into 'passed'",
@@ -257,8 +274,12 @@ function fakeDb() {
   ok("planning wrote NOTHING — no rows, no RPC calls",
     db.tables.auction_evidence_lot.length === 0 && db.rpcCalls === 0 &&
     db.tables.auction_evidence_house.length === 0);
-  ok("the summary counts the withheld quarantined prices",
-    p1.summary.et36_sold_prices_withheld === 1);
+  /* The two counts are separate facts. A trustworthy figure with unknown
+     composition is RECORDED under unresolved basis, not withheld — only a
+     sold row with no figure at all is withheld. */
+  ok("a source-reported figure is recorded under unresolved basis, not withheld",
+    p1.summary.et36_sold_prices_withheld === 0 &&
+    p1.summary.sold_prices_unresolved_basis === 1);
   throws("a corpus that is not the registered corpus is refused before validation", () => {
     // buildLayer2Plan is async — assert on the awaited rejection below instead
     throw new Error("corpus hash mismatch (see async assertion)");
@@ -281,8 +302,12 @@ function fakeDb() {
   ok("resume finishes from the exact cursor", slice2.done === true);
   ok("all five lots exist, one result each",
     db.tables.auction_evidence_lot.length === 5 && db.tables.auction_evidence_result.length === 5);
-  ok("the quarantined ET36-pattern sold row landed price-NULL",
-    db.tables.auction_evidence_result.some((r) => r.sale_outcome === "sold" && r.price_realized === null));
+  ok("the ET36-pattern sold row landed WITH its figure under unresolved basis",
+    db.tables.auction_evidence_result.some((r) =>
+      r.sale_outcome === "sold" && r.price_realized === 1000 &&
+      r.price_basis === "reported_result_basis_unverified"));
+  ok("and no applied result carries the retired generic bucket",
+    !db.tables.auction_evidence_result.some((r) => r.price_basis === "other"));
 
   const replay = await applyMonacoPlanSlice(plan, db, { maxRows: 100 });
   ok("full replay converges idempotently — nothing duplicated",
