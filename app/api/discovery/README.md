@@ -62,6 +62,15 @@ intersected *again* with `SPEC_VOCABULARY` in `lib/discovery/publicDiscovery.ts`
 to `details` next year publishes externally only when somebody adds it to both lists on
 purpose.
 
+**Sensitive identifiers are a category this surface must never gain.** Serial, case,
+movement and certificate numbers — and the keyed equality tokens derived from them — live in
+`physical_watch_identifier_observations`, a table with RLS on, zero policies, and no grant to
+`anon` or `authenticated`. Nothing joins it here, and nothing may. The prohibition covers the
+token as firmly as the value: a token is sensitive infrastructure, not public metadata, and
+publishing one would hand an outside party an oracle for testing guessed serials. Not in
+`specs`, not in `description`, not in JSON-LD, not in a feed, not in a future export. See
+`lib/identity/README.md` Part 3.
+
 **Scores are absent by construction.** `significance_score`, `score_state`, `combined_score`
 and `completeness_score` are not filtered out of the view — they were never selected.
 

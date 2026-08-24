@@ -7,6 +7,7 @@ provenance gets destroyed.
 |---|---|---|
 | **What kind of watch is this?** | `listings.vault_reference_id` | 06A |
 | **Which physical object is this listing about?** | `listings.physical_watch_id` | 06B |
+| **What markings has that object been observed to carry?** | `physical_watch_identifier_observations` | 06C |
 
 Neither is derived from the other, and neither ever may be. Two listings can
 share a `vault_reference_id` (same model) while being two entirely different
@@ -310,3 +311,233 @@ select conname, confdeltype from pg_constraint
 select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.prosrc ilike '%physical_watch_id%';
 ```
+
+---
+
+# Part 3 — Sensitive Identifier Contract (06C)
+
+**A serial number is evidence ABOUT a physical watch. It is not the watch's
+identity, and it is not a column on a listing.**
+
+So there is no serial column on `listings` and none on `physical_watches`.
+There is an *observation*: someone, at some time, from some source, said this
+object carried this marking. Everything below follows from that framing.
+
+## What this round refuses to conclude
+
+Nothing. 06C establishes how identifier evidence may be represented,
+protected, sourced, retained and accessed. It contains **no same-watch
+conclusion anywhere** — no matching, no dedupe, no merge, no link. Two
+contradictory observations about one watch may coexist indefinitely and both
+stand. Deciding what equal tokens *mean* is a later governed round with its
+own evidence and its own resolution states.
+
+## Token-only, and what that costs
+
+The equality token is a **keyed one-way construction** (HMAC-SHA256 over a
+domain-separated message), computed in the application, never in the
+database.
+
+It is deliberately **not** `SHA256(serial)`. A watch serial is a low-entropy
+secret — six to ten alphanumeric characters. An unkeyed digest of that space
+is enumerable in minutes, so it would store the identifiers in all but name
+while looking like protection.
+
+The message is:
+
+```
+fwt.identifier | k<keyVersion> | n<normalizationVersion> | <identifierType> | <normalized>
+```
+
+Identifier type is **inside the domain**, so the same characters seen as a
+serial and as a case number are different evidence and can never collide into
+one match. Both versions are inside it too, so tokens from different
+generations are never silently compared.
+
+### The key-evolution law — read before rotating anything
+
+V1 stores no recoverable raw value. That safety property has a permanent
+cost:
+
+> **A rotated key cannot re-tokenize history. There is nothing to
+> re-tokenize from.**
+
+Therefore every observation persists `token_key_version`, and **old key
+material must be retained, not destroyed**. Destroying an old key does not
+"retire" it — it permanently blinds the platform to every observation written
+under it. A future rotation must either keep old generations available for
+comparison, or explicitly accept that those observations become
+non-comparable. This is a contract requirement, not a key-management
+subsystem.
+
+Keys live in versioned environment variables (`IDENTIFIER_TOKEN_KEY_V<n>`), so
+a rotation **adds** a variable rather than overwriting the one history depends
+on. A missing key **refuses the write** — there is no unkeyed fallback,
+because a weak token is indistinguishable from a real one once it is in the
+table and cannot be recomputed afterwards.
+
+## Normalization, and what is deliberately not folded
+
+Versioned (`normalization_version`), centralized in
+`identifierNormalization.ts`, and frozen per version — to change the rules you
+**add** a version, never edit one.
+
+v1 folds **whitespace, case, and Unicode compatibility forms**, because all
+three are transcription noise: an engraver's spacing, someone's shift key, a
+different keyboard.
+
+v1 does **not** fold:
+
+- **punctuation** — a hyphen or dot may be part of the manufacturer's scheme,
+  and dropping it could fuse two real identifiers into one token;
+- **visually confusable characters** — O/0, I/1, S/5, B/8 stay distinct. It is
+  tempting to fold them, because transcription errors are real. But a fold
+  that fixes a typo also merges two genuine identifiers in the same stroke —
+  undetectably, since no raw value is retained to audit against. Transcription
+  error is a matching problem with evidence behind it, and it belongs to a
+  later round.
+
+All four identifier types share one rule in v1. That is a decision, not an
+oversight: they are all human transcriptions of markings on an object. A class
+that later proves to need different handling earns its own version.
+
+## Append-only supersession, and what `current` means
+
+A correction never overwrites. It inserts a new row pointing at what it
+supersedes, keeps the chain root, and flips the prior row's currentness. The
+prior row's token, provenance and timestamps are never rewritten.
+
+> **`is_current` means "not superseded within THIS chain."** It does **not**
+> mean FairWatchTrade has declared this the one true identifier for the watch.
+
+Several unsuperseded, contradictory observations of the same identifier type
+may coexist. One current head per *chain* is enforced; the number of chains
+per watch is deliberately unlimited.
+
+## Equality tokens are evidence, never a merge constraint
+
+**There is no UNIQUE index on `equality_token`, on purpose.** It is the single
+most important constraint decision in the schema. Uniqueness would turn the
+database into a matching engine — it would either refuse the second
+observation of a genuine duplicate, or imply that two watches sharing a token
+must be one watch. Both are conclusions, and conclusions belong to a later
+round. Lookup uses a **non-unique** index scoped by identifier type +
+normalization version + key version + token.
+
+## Two timestamps, deliberately
+
+- `observed_at` — when somebody actually looked at the watch. Nullable.
+- `recorded_at` — when this platform learned of it.
+
+Historical evidence is recorded long after it was observed. Collapsing these
+would silently backdate the record or forward-date the observation.
+
+## Retention: evidence belongs to the object
+
+- **Listing deletion** does not touch observations — they are keyed to
+  `physical_watch_id`, and nothing links them to a listing.
+- **Account deletion** detaches the submitter (`source_actor_id` and
+  `recorded_by` are `ON DELETE SET NULL`) without destroying the evidence.
+- **The physical watch cannot be deleted** while evidence references it
+  (`ON DELETE RESTRICT`).
+
+Legal retention duration is deliberately not invented here.
+
+## Access: structurally denied, not filtered
+
+| Audience | May see |
+|---|---|
+| Public / buyer / external AI | **nothing** — no raw, no token, no masked value, not even an existence bit |
+| Seller | existence-only state, if a later round adds it. No token, no raw. |
+| Verifier / dealer | no standing raw access; any future access must be case-scoped and governed |
+| Founder / service | metadata and provenance. **No recoverable raw exists in V1.** |
+
+RLS is enabled with **zero policies** and `anon`/`authenticated` hold no
+privilege at all, so this is structural rather than a query that remembers to
+filter. The write RPC is executable only by `service_role`.
+
+If protected raw storage is ever enabled, founder access must use an
+**audited reveal**, never blanket table read. The nullable `protected_value`
+column exists so that future is not blocked — and a CHECK constraint keeps it
+NULL in V1, so enabling it is a deliberate, visible migration rather than
+drift.
+
+## The write path
+
+One door: `POST /api/admin/identifiers`, founder-gated.
+
+- The raw value is **ephemeral processing material**. It lives in the route's
+  memory long enough to normalize and tokenize, and is then gone. It is never
+  written to a row, echoed in a response, attached to an error, or logged —
+  validation failures name the rule that failed, never the submitted value.
+- **The browser cannot mint a token.** There is no request field through which
+  a caller can supply one, and the route never reads one. A caller who sends a
+  precomputed token is simply ignored.
+- The response is **metadata only**. The caller learns *that* evidence was
+  recorded, and nothing about what it says.
+
+## What is deliberately NOT built
+
+- **No raw storage.** No route accepts and stores a recoverable value, no UI
+  reveals one, no founder bypass reads one, no provider path writes one.
+- **No buyer-facing masked reveal.** Ruled out for V1.
+- **No matching, dedupe, merge, split, Trade, transfer, or Passport
+  behaviour.**
+- **No OCR and no provider redesign.** Google Vision remains `WEB_DETECTION`
+  only.
+- **No Monaco ingestion.** Its `case_number` / `movement_number` values remain
+  source-file-only.
+
+## Provider matched-page titles are untrusted third-party metadata
+
+The one narrow path by which outside text about a watch reaches the platform
+is a matched page's title, from `WEB_DETECTION`. Those titles are **not
+stripped** — they remain founder-facing evidence — but they are classified in
+`lib/imageAuthenticity.ts` as untrusted metadata that must **never be
+auto-promoted into a structured identifier observation**. A stranger's page
+title is not an observation by someone with a stated source class, and
+treating it as one would let an outside party write identity evidence into
+FairWatchTrade. If provider-derived identifiers are ever wanted, they enter
+through the governed write path under `provider_extracted`, with a human
+deciding.
+
+## Photo-borne exposure — a known, unsolved fact
+
+Caseback, warranty and service-evidence photographs **may visibly contain
+serial, case, and movement numbers**, and some are already public.
+
+06C's structured-data contract does **not** solve that. Protecting the column
+does nothing about a number legible in a JPEG. Nothing here crops, redacts,
+blurs, gates, or redesigns photo handling, and this round deliberately did not
+expand into image processing.
+
+A separate media/privacy round owns redaction and review policy. Recorded here
+so it is a known gap rather than a discovered surprise.
+
+## Verifying current state
+
+```sql
+-- V1 stores no raw, and that is enforced rather than promised
+select count(*) filter (where protected_value is not null) as raw_values_stored,
+       count(*) as observations
+  from public.physical_watch_identifier_observations;
+
+-- no client role can reach the table at all
+select count(*) from information_schema.role_table_grants
+ where table_name = 'physical_watch_identifier_observations'
+   and grantee in ('anon', 'authenticated');
+
+-- correction chains: one current head each
+select chain_root_id,
+       count(*) as rows_in_chain,
+       count(*) filter (where is_current) as current_heads
+  from public.physical_watch_identifier_observations
+ group by chain_root_id;
+```
+
+Contract assertions:
+
+- `scripts/identifier-contract.test.sql` — schema and access, read-only, safe against production
+- `node --experimental-strip-types scripts/identifier-contract.test.mjs` — normalization and token security
+
+**06D is the first round permitted to reason about same-watch identity.**

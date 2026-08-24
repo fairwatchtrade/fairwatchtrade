@@ -284,6 +284,24 @@ export function classifyAubrey(input: ClassifyInput): ProviderResultCore {
 
   const full = toMatches(detection.fullMatchingImages);
   const partial = toMatches(detection.partialMatchingImages);
+  /* ── UNTRUSTED THIRD-PARTY METADATA ────────────────────────────────────
+        A matched page's title is written by whoever runs that website. It
+        is founder-facing evidence only, and it is the one narrow path by
+        which outside text about a watch reaches this platform.
+
+        It may therefore contain something that LOOKS like a serial, case,
+        or movement number. It must never be promoted into a structured
+        identifier observation on that basis — not automatically, and not
+        by a later helper that finds this convenient. An identifier
+        observation records that someone with a stated source class
+        observed a marking on an object; a stranger's page title is not
+        that, and treating it as such would let an outside party write
+        identity evidence into FairWatchTrade.
+
+        Nothing reads these titles into the identifier machinery today, and
+        nothing should start. If provider-derived identifiers are ever
+        wanted, they enter through the governed write path under the
+        'provider_extracted' source class, with a human deciding. ── */
   const pages: WebPage[] = (detection.pagesWithMatchingImages ?? [])
     .map((p) => ({ url: bound(p.url), title: bound(p.pageTitle) }))
     .filter((p): p is WebPage => p.url !== null)
