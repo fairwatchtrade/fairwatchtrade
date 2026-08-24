@@ -380,3 +380,13 @@ Catalogue and the seller's Requests view both request the column. The migration
 must therefore be applied **before** the code that reads it deploys, or both
 queries fail. This lane has burned migration-ordering both directions before;
 it is not symmetric and it is not forgiving.
+
+## Removal is now durably evented — and not from here
+
+A removal writes a `REMOVED` row into `listing_lifecycle_events`, carrying the
+governed reason code, in the same transaction as the status change. **This
+route does not write it and must not start.** The producer is a trigger on
+`listings.status`, so every removal writer — this route, Marketplace Control
+bulk, and anything added later — records the history without asking.
+
+`supabase/migrations/README-listing-lifecycle-events.md` is the whole story.

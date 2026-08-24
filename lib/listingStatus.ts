@@ -16,6 +16,15 @@
    write-time guard for the founder path, but it is no longer the only thing
    between a typo and the column.
 
+   ⚠ MOVEMENT BETWEEN THESE STATES IS NOW DURABLE HISTORY. Entering
+   'published', 'private_active' or 'removed' appends a row to
+   listing_lifecycle_events. No application code writes it — a trigger on
+   listings.status does, so a new writer inherits the history and cannot
+   forget it. Read supabase/migrations/README-listing-lifecycle-events.md
+   before adding a status or a write seam; the event vocabulary is CHECKed
+   against the state it claims, so a new tracked state needs the producer
+   updated in the same flight.
+
    'reserved' is written only by the offer-accept RPC and shows to sellers as
    "Sale Pending". 'removed' is written only by remove_listing() — the seller
    took the watch off the market, and the listing stays theirs with all its
