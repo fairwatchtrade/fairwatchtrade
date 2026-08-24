@@ -9,6 +9,7 @@ provenance gets destroyed.
 | **Which physical object is this listing about?** | `listings.physical_watch_id` | 06B |
 | **What markings has that object been observed to carry?** | `physical_watch_identifier_observations` | 06C |
 | **Do two records describe the same physical watch?** | `physical_watch_resolution_decisions` | 06D |
+| **Did this watch actually change hands?** | `physical_watch_transfer_events` | 06E |
 
 Neither is derived from the other, and neither ever may be. Two listings can
 share a `vault_reference_id` (same model) while being two entirely different
@@ -803,3 +804,178 @@ select (select generation from public.resolved_watch_membership_state) as cached
 Founder room: `/admin/watch-resolution`.
 
 **06E is a separate round and is not chambered by this one.**
+
+---
+
+# Part 5 — Transfer Event Producer (06E)
+
+**A transfer event records what happened to the object. It is not what the
+Trade hoped would happen.**
+
+> **THE EVENT IS TRUTH. STATUS IS CACHE.**
+
+An offer is not a transfer. Acceptance is not a transfer. A binding deal is
+not a transfer. A shipping label, a carrier scan, a payment intent, a message
+saying "posted it this morning" — none of them is a transfer, and nothing in
+this machinery infers one from any of them.
+
+## The two ways history may be created, and why only two
+
+| Provenance class | Meaning |
+|---|---|
+| `party_confirmed_recipient` | The **recipient** personally asserted they received it. |
+| `founder_asserted` | The founder recorded that the transfer occurred, on the evidence available. |
+
+**Sender-alone assertion is absent, deliberately and permanently.** "I sent
+it" is a claim about an intention and a parcel; it is not knowledge that the
+object arrived. A marketplace that lets the sending party close its own
+transfer history has built a fraud surface, not a record.
+
+### Provenance strength is not authority
+
+`founder_asserted` carries higher **governance** authority and, absent
+separate evidence, **weaker first-person evidence** than the recipient's own
+confirmation — the recipient is the party positioned to witness the far side.
+
+Neither class means FairWatchTrade verified anything. Not that the founder
+witnessed the handoff, not that the platform authenticated the watch, not that
+a carrier proved the correct object was inside the box. There is no
+`verified`, `platform_verified` or `carrier_verified` class, because each
+would claim an inspection nobody performed.
+
+## Why `leg_status` is not the record
+
+A status column is a summary, summaries get patched, and a patched summary is
+indistinguishable from a real event. So the event is primary and
+`trade_deal_legs.leg_status` is **recomputed** from it.
+
+A trigger refuses any write that moves a leg to `transferred` outside the
+governed seam. The one thing worse than a missing record is a status claiming
+a record exists.
+
+`in_transit`, `delivered` and `verified` remain in the leg vocabulary and
+remain **unwritten**. Unused vocabulary is not permission to invent a
+lifecycle.
+
+## The one governed seam
+
+```
+record_physical_watch_transfer_event(
+  p_trade_deal_leg_id, p_event_type, p_actor_user_id,
+  p_provenance_class, p_occurred_at, p_supersedes_event_id, p_idempotency_key
+) → jsonb
+```
+
+One transaction, locks in a fixed order — **parent deal → leg → listing** —
+owning: idempotency check, authorization, bead read from the locked listing,
+06D generation stamp, event insert, leg recompute, parent recompute. No
+partial truth escapes.
+
+The HTTP door is `POST /api/trade/transfer`. It is thin on purpose: the actor
+comes from the **session**, never the body, and the caller cannot name a
+provenance class. Letting a request name its own provenance would make the
+strongest label on the platform a free-text field.
+
+## Why no `resolved_watch_id` and no conflict flag on the event
+
+Both would be a second copy of something 06D already knows and can recompute.
+Identity understanding legitimately changes after a transfer: a stored
+resolved id would freeze an answer that later became wrong, and a stored
+conflict boolean would freeze a question.
+
+The event stamps `decision_generation`. `resolve_physical_watch_as_of(bead,
+generation)` reconstructs what identity looked like at that moment, whenever
+it is asked.
+
+**A real transfer is never invalidated by uncertain exact-watch resolution.**
+If the bead is conflicted at transfer time the transfer is still recorded —
+identity uncertainty must not erase real-world history.
+
+The 06D current-state functions are now thin wrappers over the as-of ones, so
+there is exactly **one** closure implementation rather than a current one and
+a historical one that can drift apart.
+
+## Append-only, and what retraction means
+
+`TRANSFER_RETRACTED` means **the earlier assertion was mistaken — the transfer
+did not happen.** It does **not** mean the watch later went back. A real
+reverse transfer is another `TRANSFERRED` with the direction reversed, and the
+original event survives untouched.
+
+- no UPDATE, no DELETE, enforced by trigger against every role;
+- a retraction must name the live `TRANSFERRED` it withdraws, and bead, deal,
+  leg and direction are all re-checked against it;
+- pre-transfer cancellation creates no event at all.
+
+**There is no `UNIQUE(trade_deal_leg_id)`.** That would make a corrected later
+transfer structurally impossible, and correction is the entire point of an
+append-only log. Exactly-once comes from the unique `idempotency_key` plus the
+leg lock plus a live-transfer check inside the transaction.
+
+## Parent status
+
+| Live transfers on the deal's legs | Parent |
+|---|---|
+| both | `completed` (with `completed_at`) |
+| exactly one — sibling pending, cancelled or dead | `settling` |
+| none (e.g. after retraction) | back to `pending` |
+
+A cancelled deal is left alone: recording that a watch really moved must not
+silently resurrect a deal somebody cancelled. The event stands on its own
+regardless — that is what it means for the event to be truth.
+
+**Partial-transfer law:** if leg A transfers and leg B never does, leg A's
+`TRANSFERRED` remains permanently true and the parent stays `settling`
+forever. A real object transfer is never erased to make a parent status
+prettier, and no `partially_transferred` or `broken_trade` status was invented
+to paper over it.
+
+## Retention and privacy
+
+Event → leg and event → deal are **`ON DELETE RESTRICT`**. `trade_deal_legs`
+cascades from `trade_deals`, and inheriting that path would let deleting a
+deal erase evidence of a transfer that really happened. Deletion **fails
+closed** instead. `trade_deal_id` is also stored directly on the event.
+
+RLS is on with zero policies and no grant to `anon` or `authenticated`; the
+governed function is `service_role`-only. `from_user_id`, `to_user_id` and the
+asserting actor are protected internal facts and appear in no public
+projection.
+
+**Future Passport may expose** transfer occurrence, date, and provenance
+class. It must **never** expose legal owner name, email, address, FWT account
+id, a stable owner pseudonym, a hashed owner token, or any cross-watch
+private-person linking token.
+
+> **Physical-watch continuity does not require owner-identity continuity.**
+
+## Downstream contract
+
+Durable history is authored against the **original bead**. A downstream record
+needing identity context should additionally stamp the `resolved_watch_id`
+current at write time (if valid) and the decision generation at write time.
+Historical downstream records are never rewritten when identity beliefs later
+change.
+
+**Passport is a later consumer. 06E is only the producer.**
+
+## Verifying current state
+
+```sql
+-- contract shape (read-only, safe against production)
+--   scripts/transfer-events.test.sql
+
+-- what actually happened, and what is still live
+select * from public.physical_watch_transfer_events order by recorded_at;
+select * from public.physical_watch_live_transfers;
+
+-- identity as it stood when an event was recorded
+select public.resolve_physical_watch_as_of(physical_watch_id, decision_generation)
+  from public.physical_watch_transfer_events;
+
+-- leg cache must never disagree with live event truth
+select l.id, l.leg_status,
+       exists (select 1 from public.physical_watch_live_transfers t
+                where t.trade_deal_leg_id = l.id) as has_live_transfer
+  from public.trade_deal_legs l;
+```
