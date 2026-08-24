@@ -9,6 +9,7 @@ import WatchBlueprint from "@/components/WatchBlueprint";
 import ListingCorrespondence from "@/components/ListingCorrespondence";
 import ListingStageFaq from "@/components/ListingStageFaq";
 import ListingStructuredData from "@/components/ListingStructuredData";
+import FwtListingId from "@/components/FwtListingId";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
@@ -748,6 +749,26 @@ export default async function ListingDetailPage({
               />
             </div>
           )}
+
+          {/* FWT Listing ID — the platform's own name for this listing, and
+              the string a collector actually quotes back to us.
+
+              DELIBERATELY OUTSIDE the reference signature's gate above. That
+              block renders only when a manufacturer reference or a
+              fingerprint fact exists; hanging the listing code inside it
+              would mean a listing with no reference is represented with no
+              identifier of any kind. Two different facts, two conditions.
+
+              It sits BELOW the gold rule rather than beside the reference
+              because the two are not peers: the reference is the maker's
+              name for the watch and belongs to the object, and this is ours
+              and belongs to the listing. Under the rule is where the
+              platform speaks. */}
+          <FwtListingId
+            code={listing.public_code ?? null}
+            variant="detail"
+            className="mt-[18px] max-w-[760px] sm:mt-5"
+          />
           {collectorDossier.state === "ready" && (
             <Link
               href={`/api/listings/${listing.id}/collector-dossier`}

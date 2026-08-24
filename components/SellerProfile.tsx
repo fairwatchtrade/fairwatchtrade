@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import FwtListingId from "@/components/FwtListingId";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -34,6 +35,9 @@ export type SellerCardListing = {
   brand: string;
   model: string | null;
   reference: string;
+  /* The quotable FairWatchTrade code. Nullable because the column is, not
+     because a listing is allowed to reach a buyer without one. */
+  public_code: string | null;
   year: string;
   condition: string;
   asking_price: number | null;
@@ -269,6 +273,7 @@ export default function SellerProfile({
 
                     <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
                       {row.brand}
+                      <FwtListingId code={row.public_code} />
                     </div>
                     <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
                       {row.model ?? row.brand}

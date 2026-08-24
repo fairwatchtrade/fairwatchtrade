@@ -15,6 +15,7 @@ import { formatMoney } from "@/lib/formatMoney";
 import { cardImageSrc } from "@/lib/media/cardImage";
 import { caseDiameterLabel } from "@/lib/caseDiameter";
 import LoupeIcon from "@/components/LoupeIcon";
+import FwtListingId from "@/components/FwtListingId";
 import BrowseCardInspector from "@/components/BrowseCardInspector";
 import BrowseQuickAdd, { type QuickAddCategory } from "@/components/BrowseQuickAdd";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
@@ -2133,9 +2134,16 @@ export default function BrowseClient({
                         </div>
                       )}
 
-                      {/* Brand */}
+                      {/* Brand, and the platform's own name for this
+                          listing. The code rides the maker line rather than
+                          taking a line of its own: a collector scanning a
+                          grid is reading for the watch, and the identifier
+                          only has to be there when they decide to quote it.
+                          Tone carries the distinction — maker gold, code
+                          platinum. */}
                       <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                         {row.brand}
+                        <FwtListingId code={row.public_code} />
                       </div>
 
                       {/* Model */}
@@ -2257,6 +2265,7 @@ export default function BrowseClient({
                         <Link href={listingHref(row.id)} className="block">
                           <div className="mb-[3px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                             {row.brand}
+                            <FwtListingId code={row.public_code} />
                           </div>
                           <div className="mb-[2px] flex items-center gap-2">
                             <span className="min-w-0 truncate font-display text-[14px] font-light leading-[1.25] text-[var(--platinum)]">

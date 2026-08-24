@@ -109,7 +109,7 @@ export default async function SellerProfilePage({
   const { data: listingRows } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, year, condition, asking_price, asking_currency, photos, details, combined_score"
+      "id, brand, model, reference, public_code, year, condition, asking_price, asking_currency, photos, details, combined_score"
     )
     .eq("seller_id", id)
     .eq("status", "published");
@@ -122,6 +122,7 @@ export default async function SellerProfilePage({
     brand: row.brand,
     model: row.model ?? null,
     reference: row.reference,
+    public_code: row.public_code ?? null,
     year: row.year,
     condition: row.condition,
     asking_price: row.asking_price,
