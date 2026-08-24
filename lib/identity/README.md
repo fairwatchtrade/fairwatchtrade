@@ -475,6 +475,15 @@ One door: `POST /api/admin/identifiers`, founder-gated.
   precomputed token is simply ignored.
 - The response is **metadata only**. The caller learns *that* evidence was
   recorded, and nothing about what it says.
+- The route accepts **no free-text field at all**. `sourceReference` is
+  **rejected with a 400**, not quietly dropped — a silent drop is the worse
+  failure, because the founder writes a provenance note, gets a success, and
+  believes something was recorded that never was. A database CHECK keeps the
+  column NULL as well, so this is enforced in two places rather than promised
+  in one. The column survives for a future named source integration carrying a
+  *non-user-supplied* opaque reference under its own contract.
+- Write failures return a **bounded reason code**, never the raw database
+  error message.
 
 ## What is deliberately NOT built
 

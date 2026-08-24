@@ -148,3 +148,15 @@ select
          or column_name ilike '%confirmed_same%'
          or column_name ilike '%probable_link%')
   ) as passed;
+
+select
+  'caller-supplied free text cannot persist — enforced, not promised' as assertion,
+  exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.physical_watch_identifier_observations'::regclass
+       and conname = 'identifier_observation_source_reference_unused_in_v1'
+  )
+  and not exists (
+    select 1 from public.physical_watch_identifier_observations
+     where source_reference is not null
+  ) as passed;

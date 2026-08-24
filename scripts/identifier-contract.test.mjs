@@ -21,6 +21,7 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   IDENTIFIER_TYPES,
   MAX_IDENTIFIER_INPUT,
@@ -231,6 +232,85 @@ check("the tokenize result carries no trace of the raw value", () => {
     "normalizationVersion",
     "tokenKeyVersion",
   ]);
+});
+
+/* ── Route source-contract guards ────────────────────────────────────────
+   Static assertions over the one write path. These exist because the
+   original 06C route accepted a caller-supplied `sourceReference` free-text
+   field and persisted it in plaintext — the equality tokens were correct
+   and completely bypassed by the column beside them. The repair is removal
+   plus a database CHECK; these guards keep the removal from quietly
+   regressing when somebody later wants "just a note field". */
+
+const ROUTE = readFileSync(
+  new URL("../app/api/admin/identifiers/route.ts", import.meta.url),
+  "utf8"
+);
+
+console.log("\nwrite path — no free-text storage channel");
+
+check("a caller-supplied sourceReference is REJECTED, not silently dropped", () => {
+  /* The route may INSPECT the field in order to refuse it. What it must
+     never do is bind it to a variable that travels onward. A silent drop
+     would leave the founder believing provenance was recorded. */
+  assert.ok(/body\.sourceReference\s*!==\s*undefined/.test(ROUTE));
+  assert.ok(/unsupported_field/.test(ROUTE));
+  assert.ok(!/const\s+sourceReference\s*=/.test(ROUTE));
+});
+
+check("the RPC is always handed NULL for source_reference", () => {
+  const call = ROUTE.match(/p_source_reference:\s*([^,\n]+)/);
+  assert.ok(call, "expected the RPC call to name p_source_reference");
+  assert.equal(call[1].trim(), "null");
+});
+
+check("source_reference is not surfaced in returned metadata", () => {
+  const cols = ROUTE.match(/const METADATA_COLUMNS\s*=\s*\n?\s*"([^"]+)"/);
+  assert.ok(cols, "expected METADATA_COLUMNS to be a literal column list");
+  const listed = cols[1].split(",").map((c) => c.trim());
+  assert.ok(!listed.includes("source_reference"));
+  // And the two things that must never be selectable at all.
+  assert.ok(!listed.includes("equality_token"));
+  assert.ok(!listed.includes("protected_value"));
+});
+
+check("no caller-supplied free-text field is read on this path at all", () => {
+  /* Every body.* the route reads must be an identifier, an enum, a uuid, or
+     a timestamp — never prose. If a new one appears it has to be added here
+     deliberately, which is the point of the guard.
+
+     Comments are stripped first: the route deliberately NAMES the fields it
+     refuses to read, and a guard that cannot tell prose from code would
+     flag the very sentence documenting the refusal. */
+  const code = ROUTE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const read = [...code.matchAll(/body\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
+  const allowed = new Set([
+    "physicalWatchId",
+    "identifierType",
+    "sourceClass",
+    "sourceActorId",
+    "supersedesId",
+    "observedAt",
+    "value",
+  ]);
+  /* Read in order to be REFUSED, never in order to be stored. */
+  const refused = new Set(["sourceReference"]);
+  for (const field of read) {
+    assert.ok(
+      allowed.has(field) || refused.has(field),
+      `unexpected caller-supplied field: body.${field}`
+    );
+  }
+});
+
+check("the raw database error message is never forwarded to the caller", () => {
+  assert.ok(!/detail:\s*error\.message/.test(ROUTE));
+  // Failures map onto a bounded set of governed codes instead.
+  assert.ok(/write_rejected/.test(ROUTE));
+});
+
+check("no request body is ever logged", () => {
+  assert.ok(!/console\.(log|info|warn|error)\s*\([^)]*body/.test(ROUTE));
 });
 
 console.log(`\n${passed} assertions passed\n`);
