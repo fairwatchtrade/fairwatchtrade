@@ -10,6 +10,7 @@ provenance gets destroyed.
 | **What markings has that object been observed to carry?** | `physical_watch_identifier_observations` | 06C |
 | **Do two records describe the same physical watch?** | `physical_watch_resolution_decisions` | 06D |
 | **Did this watch actually change hands?** | `physical_watch_transfer_events` | 06E |
+| **What is this watch's whole recorded story?** | derived only — no table | 06F |
 
 Neither is derived from the other, and neither ever may be. Two listings can
 share a `vault_reference_id` (same model) while being two entirely different
@@ -979,3 +980,162 @@ select l.id, l.leg_status,
                 where t.trade_deal_leg_id = l.id) as has_live_transfer
   from public.trade_deal_legs l;
 ```
+
+---
+
+# Part 6 — Watch Passport (06F, founder-only V1)
+
+**A listing is one chapter. The Passport belongs to the physical watch.**
+
+And the line that governs every decision in it:
+
+> **Passport is a biography of evidence FairWatchTrade actually has — not a
+> mythology assembled to make the watch look complete.**
+
+## Pure projection. Zero writes.
+
+There is **no Passport table**, no snapshot, no correction layer, no cached
+copy of history. Every render derives from the governed sources, so
+correcting a source corrects the Passport on the next read with no
+Passport-side write at all.
+
+That is deliberate. A Passport-only correction layer could contradict the
+history it claims to describe, and then there would be two truths and no way
+to tell which one lied. If a chapter is wrong, fix it in the source's own
+lawful correction mechanism; if that mechanism doesn't exist, the Passport
+surfaces it as a **source-governance gap** rather than papering over it.
+
+## The subject is the bead, never the resolved identity
+
+`resolved_watch_id` is a render-time lens. It can be minted, retired, split
+and reminted; the bead cannot. Keying a biography to something that
+legitimately disappears would make the biography disappear with it.
+
+## The header is not a chapter
+
+> **Known to FairWatchTrade since [date]** — from `physical_watches.created_at`.
+
+That is FWT's **knowledge boundary** and nothing more. Not an origin, not a
+manufacture date, not a first sale, not evidence the watch's real history
+began there. It lives in the header and **never** enters the timeline, because
+a bead-mint date sitting among real events would read as one.
+
+## Historical identity — the load-bearing rule
+
+Every item whose meaning depends on physical-watch identity is interpreted
+through the identity state that applied **to that event**:
+
+```
+resolve_physical_watch_as_of(bead, event.decision_generation)
+```
+
+**Never** through the bead's current resolved identity.
+
+A later merge, split, retraction, conflict or remint must not silently change
+what FairWatchTrade believed when the event was recorded. If it did, a
+withdrawn identity conclusion would look as though it had always been true —
+the exact failure this entire chain exists to prevent.
+
+Listing chapters carry **no** decision generation and none is invented for
+them; they are interpreted through current identity only.
+
+An item reached through a belief since revised is labelled
+`historical_prior_resolution` and accompanied by an internal identity note. It
+is shown under the belief that produced it — not moved, not rewritten, not
+quietly re-read through today's understanding.
+
+## Current aggregation, and what stops it
+
+When current resolution is valid, current co-members contribute qualified
+history. When identity is **conflicted**, current aggregation stops: the
+platform does not currently know these are one watch, so it must not present
+them as one. The Passport still renders, the header says continuity is under
+review, and prior co-member history remains founder-reachable rather than
+silently vanishing.
+
+Two bead URLs may render the same aggregate while currently resolved as one
+watch. Acceptable for founder-only V1; canonical-URL behaviour is a later
+public question.
+
+## Listing chapter admission
+
+**Founder-admitted internal chapter** requires durable governed evidence — a
+`listing_decision_events` row that *resulted in* publication — or a genuine
+private-only episode.
+
+Excluded: draft, pending review, rejected, and anything removed with
+`removal_reason_code = 'listing_mistake'` (which never becomes provenance even
+if it briefly reached publication). The reason code is used **only to
+exclude**; asserting history from today's row would be inference.
+
+**Collector/public provenance-eligible chapter** is a frozen *law only* here —
+it permanently excludes private-only episodes — and no public projection was
+built to demonstrate it.
+
+### A real source-governance gap
+
+`listing_decision_events` records **no `private_active` transition at all** —
+every durable event is among draft, pending_review, published and rejected. So
+private→public and public→private transitions **cannot be durably proven**,
+and the Passport omits any such claim and reports the gap instead of inferring
+one from timestamps or today's status.
+
+## Privacy
+
+Private listing episodes are **founder-visible only** and carry existence plus
+governed chapter metadata — never counterparty identity, correspondence,
+offers, negotiation, terms or price. Proven structurally: the composition
+never even *requests* those columns.
+
+Identifier evidence is summarized as **presence, type and source class only**.
+Never a raw value, token, fragment, equality relationship or masked reveal —
+in the payload as well as the UI. And the presence of identifier evidence is
+**not proof of authenticity**, which the render says out loud.
+
+## Determinism
+
+- **Chronology:** effective time — `occurred_at` when supplied, otherwise
+  `recorded_at`, *labelled as such* — then a stable tie-break on the immutable
+  source id. Identical order on every render.
+- **Dedupe:** by immutable source row id. Never by display text, because two
+  genuinely different events can read identically.
+
+## What the Passport must never claim
+
+Complete ownership history · complete chain of custody · anything before FWT
+first knew the object · manufacturer provenance or authentication ·
+authenticity · service history without durable object-level evidence · auction
+history without object-level linkage · original sale or owner · current owner
+identity as public provenance · verified serial continuity.
+
+> **FWT records begin here. Empty history is not evidence of no history.**
+
+Transfer records state who asserted a transfer and on what footing. They never
+say package verified, authenticity verified, or ownership independently
+verified by FairWatchTrade.
+
+## Access
+
+**Founder-only, enforced at the route and server seam** — not by hiding
+navigation. Seller, buyer, current owner, prior owner, listing participant and
+plain authenticated status confer **nothing**. Anonymous and
+authenticated-non-founder receive an identical 404 so the response cannot
+become an oracle for whether a bead exists.
+
+There is **no public Passport route, no collector route, no SEO or canonical
+Passport page, and no public Passport link.** Public exposure is a later
+product round.
+
+## Verifying current state
+
+```sql
+-- there is no Passport persistence, and there must never be
+select count(*) from information_schema.tables
+ where table_schema='public' and table_name ilike '%passport%';   -- expect 0
+select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname='public' and p.proname ilike '%passport%';        -- expect 0
+```
+
+Mandatory-case proofs: `node --experimental-strip-types scripts/watch-passport.test.mjs`
+
+Founder room: `/admin/passport/<physical_watch_id>`.
