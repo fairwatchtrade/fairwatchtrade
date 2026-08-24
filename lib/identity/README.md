@@ -8,6 +8,7 @@ provenance gets destroyed.
 | **What kind of watch is this?** | `listings.vault_reference_id` | 06A |
 | **Which physical object is this listing about?** | `listings.physical_watch_id` | 06B |
 | **What markings has that object been observed to carry?** | `physical_watch_identifier_observations` | 06C |
+| **Do two records describe the same physical watch?** | `physical_watch_resolution_decisions` | 06D |
 
 Neither is derived from the other, and neither ever may be. Two listings can
 share a `vault_reference_id` (same model) while being two entirely different
@@ -550,3 +551,255 @@ Contract assertions:
 - `node --experimental-strip-types scripts/identifier-contract.test.mjs` — normalization and token security
 
 **06D is the first round permitted to reason about same-watch identity.**
+
+---
+
+# Part 4 — Exact-Watch Resolution (06D)
+
+**The decision log is truth about what FWT concluded. A resolved identity is
+only a durable address for that conclusion. Neither may rewrite the original
+physical-watch beads.**
+
+06A said what kind of watch a listing is. 06B gave each listing an immutable
+object bead. 06C recorded protected evidence about those beads. This is the
+first round permitted to answer the question all of that was building toward:
+
+> **Do these records describe the same physical watch?**
+
+It must also be able to say *no*, and to take either answer back.
+
+## Beads versus resolved identities
+
+| | |
+|---|---|
+| **Bead** (`physical_watches`) | Permanent historical anchor. One per listing at creation. Never deleted, never reparented, never merged. |
+| **Decision** (`physical_watch_resolution_decisions`) | An append-only pairwise statement between two beads. **This is identity truth.** |
+| **Resolved identity** (`resolved_watches`) | A durable *address* for one non-conflicted resolution generation. Not a surviving bead. Never replaces `physical_watch_id`. |
+
+Confirming two beads are the same watch **moves nothing**. No row is deleted,
+no listing is reparented, no 06C observation changes hands. The conclusion is
+an edge in a log; the beads stay exactly where they were. If some future code
+appears to need a merge, something upstream has been misunderstood.
+
+There is deliberately **no authoritative `resolved_watch_id` column** on
+`listings` or `physical_watches`. A pointer there would become a second source
+of identity truth that could drift from the log. Current identity is obtained
+only through the governed resolver.
+
+## The three outcomes — and why RETRACTED is not non-match
+
+```
+CONFIRMED_SAME_WATCH   these beads are one object
+EXPLICIT_NON_MATCH     these beads are NOT one object
+RETRACTED              we withdraw what we said; we now assert NEITHER
+```
+
+`UNRESOLVED` is not an outcome. It is the **absence** of an effective
+substantive decision.
+
+`PROBABLE_LINK` is absent from the vocabulary entirely. A stored maybe is how
+a suggestion quietly becomes a fact.
+
+**Retraction is not disagreement.** It withdraws a prior conclusion and
+asserts nothing in its place, returning the pair to unresolved eligibility. It
+requires a stated reason, and it may only target the *current* effective
+decision for that pair.
+
+## Chain head ≠ effective identity edge
+
+The most misreadable thing in this schema, so it is stated plainly:
+
+- the **chain head** is the latest *event* for a pair — the row nothing
+  supersedes;
+- the **effective edge** is what is currently *believed*.
+
+A `RETRACTED` row is durable and sits as the chain head while the pair is
+effectively unresolved. `physical_watch_decision_heads` gives you the former;
+`physical_watch_effective_decisions` gives you the latter, with retractions
+absent by construction.
+
+**There is no `is_current` column.** A flag on a historical row drifts from
+the log it summarizes, and flipping it would be an edit to history. Currentness
+is derived.
+
+## Canonical pair, one linear chain
+
+Every unordered pair has exactly one history. `A/B` and `B/A` are one pair —
+enforced by a database CHECK (`left < right`), not by caller discipline, and
+the writer canonicalizes before anything else so a caller passing either order
+operates on the same chain.
+
+- one root history per canonical pair (partial unique index);
+- a row may be superseded **at most once** — no forks, so "the chain head" is
+  always answerable rather than a set;
+- a superseder must belong to the same canonical pair and the same chain
+  (trigger-enforced, so a future writer cannot fork by omission);
+- the log rejects `UPDATE` and `DELETE` from everyone, including the service
+  role. A correction is a new row, always.
+
+## Transitive closure, and derived conflict
+
+Sameness is an equivalence relation, so positive edges form connected
+components. Component labels are the smallest reachable bead id, which makes
+the answer independent of traversal order.
+
+**`CONFLICTED` is derived, never stored.** A component is conflicted when both
+endpoints of an effective non-match land inside it:
+
+```
+1. derive the effective decision for every canonical pair
+2. build components from effective CONFIRMED_SAME_WATCH edges only
+3. inspect every effective EXPLICIT_NON_MATCH
+4. conflicted iff both endpoints fall in the same component
+```
+
+Evaluated over the **full closure** after every change — not on the pair just
+written. The contradiction is frequently somewhere else: confirm `B=C` and a
+long-standing `A≠D` two hops away becomes a contradiction that instant.
+
+A non-match whose endpoints sit in *different* components conflicts nothing.
+It is simply a true statement.
+
+While conflicted: every row is preserved, no edge is dropped, **no current
+identity is served**, and only a founder retracting a specific decision can
+clear it. Nothing chooses an edge to discard automatically.
+
+## Resolved-id lifecycle
+
+Minted when two or more beads first form a non-conflicted confirmed component.
+A solitary bead needs no resolved id to exist.
+
+A resolved id stays current only while its **generation signature** — the
+member set *and* the effective positive edge set inside the component — is
+unchanged. Any relevant change retires it:
+
+| Event | Behaviour |
+|---|---|
+| Merge | retire every affected id, mint one for the new component |
+| Split | retire the old id, mint fresh ids per surviving multi-bead component — **no fragment inherits** |
+| Redundant edge added inside a connected component | membership unchanged, topology changed → **retire and remint** |
+| Conflict onset | retire, mint **no** replacement while conflict remains |
+| Conflict clearance | recompute, mint **fresh** ids — the pre-conflict id is never reactivated, even if the identical bead set returns |
+| Unrelated component changes | no churn |
+
+Retired ids are never deleted, reused, or reactivated. **A resolution can
+remain true as an event while ceasing to be valid as current identity
+authority.**
+
+## The watermark, and why a timestamp will not do
+
+Generations come from a sequence, assigned inside the adjudication
+transaction, which takes an advisory lock so adjudications serialize. That is
+what makes generation *N* mean "replay every decision through *N* and you have
+the graph that produced *N*".
+
+A wall-clock timestamp, a UUID sort order, `max(created_at)` or a row count
+would not: none of them tells you which decisions were committed together, and
+none survives clock skew or a concurrent writer.
+
+Decision append, resolved-id retirement and mint, and membership refresh all
+happen in **one** generation. A reader can never observe a decision whose
+consequences have not been applied.
+
+## Stale cache fails closed
+
+`resolved_watch_members` is a cache and nothing more. It records the watermark
+it represents; if that disagrees with the decision log, **the log wins** and
+the resolver returns `STALE_CACHE` rather than serving what it happens to
+hold. A cache row is not evidence that the cache is current.
+
+**Rebuild procedure:** `rebuild_resolved_watch_membership()` truncates the
+cache and re-expands it from `resolved_watches.member_beads` for every
+non-retired resolved id, then re-stamps the watermark. It mints nothing and
+retires nothing — proving the cache is disposable is the whole reason it is
+allowed to exist.
+
+## Candidate safety
+
+Candidates are advisory, recomputed on demand, and never stored. They are
+generated only from 06C evidence that is genuinely comparable: same
+identifier type, same normalization version, same key version, same token,
+current observations only.
+
+Suppressed:
+
+- a bead **internally contradictory within one comparability domain** — two
+  current chains, same type/normalization/key version, different tokens. We do
+  not know which is right, and cherry-picking one would be a guess wearing
+  evidence's clothes. Note the scoping: different normalization or key
+  versions are **non-comparable**, so differing tokens across them are not a
+  contradiction at all;
+- a pair already governed by an effective non-match — already answered;
+- a pair already inside one confirmed component — nothing to decide;
+- a pair whose confirmation would immediately pull an existing effective
+  non-match inside the merged closure. Not a new outcome — fail-closed
+  candidate behaviour, so contradictory truth is shown to the founder
+  deliberately rather than hidden behind an ordinary "possible match".
+
+Source class and provenance travel into review. No class is excluded by name.
+
+## Automated inference may never autonomously confirm identity
+
+Permanent law. Not computer vision, not AI inference, not similarity scoring,
+not combinations of serial/dial/scratch/seller-history clues, not
+probabilistic matching. Machines compute candidates; only a founder confirms.
+
+**Narrow future exception:** a cryptographically verifiable assertion from an
+explicitly governed authoritative identity source may support autonomous
+confirmation *only when that assertion itself securely binds the exact
+physical watch to the claimed identity*. A signature proving *who* made an
+assertion is not enough. Each such source needs its own approved integration
+and verification contract. **None is built here.**
+
+## Conflicted components are internal-only
+
+The prior resolved id remains immutable historical evidence, is not usable as
+current collector-facing identity, and ordinary product flows must stop
+treating it as current continuity. Founder review may inspect it. No
+buyer-facing "old identity" treatment exists, and a neutral public state such
+as "identity continuity under review" is a separate product round.
+
+## Downstream compatibility contract — documentation only
+
+For whatever consumes this later (transfer events, Passport):
+
+> **Durable history is authored against the original bead.**
+
+A downstream record that needs identity context should *additionally* stamp
+the `resolved_watch_id` current at write time (if one is valid) and the
+decision-log generation current at write time. Historical downstream records
+are **never rewritten** when identity beliefs later change. If the component
+was conflicted and no current identity was servable, what to do about that
+belongs to the consuming round.
+
+Nothing downstream is implemented here — no event writers, no consumer tables,
+no UI.
+
+## Verifying current state
+
+```sql
+-- contract shape (read-only, safe against production)
+--   scripts/watch-resolution.test.sql
+
+-- what is currently believed about every pair
+select * from public.physical_watch_effective_decisions;
+
+-- the latest event per pair, retractions included
+select * from public.physical_watch_decision_heads;
+
+-- current groups, and which are contradictory
+select * from public.physical_watch_components();
+select * from public.physical_watch_conflicted_components();
+
+-- current identity for one bead (fails closed on a stale cache)
+select public.resolve_physical_watch('<bead-uuid>');
+
+-- the cache watermark must equal the committed decision generation
+select (select generation from public.resolved_watch_membership_state) as cached,
+       (select coalesce(max(decision_generation),0)
+          from public.physical_watch_resolution_decisions) as committed;
+```
+
+Founder room: `/admin/watch-resolution`.
+
+**06E is a separate round and is not chambered by this one.**
