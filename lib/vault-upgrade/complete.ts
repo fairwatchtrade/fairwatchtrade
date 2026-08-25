@@ -26,6 +26,12 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 import type { UpgradeEngine } from "./analyze.ts";
+import {
+  buildAcceptedFact,
+  partitionByAcceptedFacts,
+  type AcceptedFact,
+  type FactContractVersions,
+} from "./acceptedFacts.ts";
 import { serializeCandidate, stableStringify } from "./canonicalize.ts";
 import { sha256HexOfText, utf8Bytes } from "./hash.ts";
 import {
@@ -96,6 +102,21 @@ export type ResearchTransport = (payload: {
   requests: ResearchRequest[];
 }) => Promise<ResearchTransportResult>;
 
+/**
+ * Durable accepted-research storage. Injected exactly like `transport`, and
+ * for the same reason: the loop must be provable without IndexedDB, and the
+ * only implementation that touches a real database stays in the room.
+ *
+ * OPTIONAL ON PURPOSE. Omitting it is not an error — the run simply
+ * researches everything, which is precisely the behaviour that existed
+ * before this seam. Reuse is an improvement layered over a path that still
+ * works without it, never a dependency the run fails for want of.
+ */
+export type AcceptedFactStore = {
+  get: (keys: string[]) => Promise<Map<string, AcceptedFact>>;
+  put: (facts: AcceptedFact[]) => Promise<void>;
+};
+
 export type CompleteOptions = {
   engine: UpgradeEngine;
   schema: Record<string, unknown>;
@@ -103,6 +124,8 @@ export type CompleteOptions = {
   filename: string;
   bytes: ArrayBuffer | Uint8Array;
   transport: ResearchTransport;
+  /** Absent → every fact is researched, exactly as before. */
+  factStore?: AcceptedFactStore;
   onPhase?: (phase: CompletionPhase, detail?: string) => void;
   signal?: { aborted: boolean };
 };
@@ -502,7 +525,8 @@ function decisionFromIssue(
 export async function completeUpgrade(
   options: CompleteOptions
 ): Promise<CompletionRecord> {
-  const { engine, schema, contract, filename, bytes, transport, signal } = options;
+  const { engine, schema, contract, filename, bytes, transport, factStore, signal } =
+    options;
   const phase = (p: CompletionPhase, detail?: string) =>
     options.onPhase?.(p, detail);
 
@@ -519,6 +543,21 @@ export async function completeUpgrade(
      a run that spent tokens and then errored still spent them, and an
      accounting that quietly drops those is worse than none. */
   let usage: ProviderUsage = { ...EMPTY_USAGE };
+
+  /* The version axis an accepted fact is evidence UNDER. All four travel in
+     the fact key, so a spec bump or an engine change does not silently
+     inherit answers established under different rules - the key simply does
+     not match and the fact is researched again, honestly. */
+  const factVersions: FactContractVersions = {
+    specificationSha256,
+    upgradeRuleVersion: analysis.upgradeRuleVersion,
+    normalizationVersion: analysis.normalizationVersion,
+    engineVersion: analysis.engineVersion,
+  };
+  /* Observability for the run: how many facts this file did not have to
+     buy, and how many lost their evidence because their inputs moved. */
+  let reusedFacts = 0;
+  let reopenedFacts = 0;
 
   const counts: CompletionCounts = {
     completedStructurally: 0,
@@ -597,13 +636,62 @@ export async function completeUpgrade(
     for (let i = 0; i < requests.length; i += MAX_REQUESTS_PER_CALL) {
       checkCancelled(signal);
       const batch = requests.slice(i, i + MAX_REQUESTS_PER_CALL);
+
+      /* ── REUSE BEFORE SPEND ──────────────────────────────────────────
+         Split the batch against durable accepted facts before anything
+         reaches the provider. A fact whose relevant inputs are unchanged
+         is applied from storage; only what genuinely moved is researched.
+
+         Reused facts go through applyResults - the SAME function that
+         applies researched ones - so the ledger, the provenance and the
+         counts cannot drift between a fact that was looked up and a fact
+         that was paid for. The only difference is the evidence line, which
+         says plainly that it was reused and names the bytes it was first
+         established against. */
+      let toResearch: ResearchRequest[] = [...batch];
+      if (factStore) {
+        const split = await partitionByAcceptedFacts(
+          analysis.brandName,
+          batch,
+          factVersions,
+          factStore.get
+        );
+        toResearch = split.toResearch;
+        reusedFacts += split.reused.length;
+        reopenedFacts += split.reopened.length;
+
+        if (split.reused.length > 0) {
+          const fromStore: ResearchResult[] = split.reused.map(({ request, fact }) => ({
+            path: request.path,
+            outcome: "VERIFIED",
+            value: fact.value,
+            sources: Array.isArray(fact.evidence)
+              ? (fact.evidence as ResearchResult["sources"])
+              : [],
+            evidence: `Reused accepted fact, established ${fact.acceptedAtIso} against source ${fact.sourceSha256.slice(0, 12)} under the same specification, rule, normalization and engine versions. Relevant inputs unchanged.`,
+            confidence: "high",
+          }));
+          const carried = applyResults(doc, batch, fromStore, [], pass);
+          ledger.push(...carried.ledger);
+          provenance.push(...carried.provenance);
+          fieldDecisions.push(...carried.decisions);
+          counts.completedByResearch += carried.applied;
+          counts.referencesAdded += carried.referencesAdded;
+          counts.emptyReferencesRetained += carried.emptyReferencesRetained;
+        }
+      }
+
+      /* Every fact in this batch was already known. The provider call is
+         not made at all - this is where the saving actually lands. */
+      if (toResearch.length === 0) continue;
+
       const response = await transport({
         contractId,
         specificationSha256,
         sourceSha256: analysis.sourceSha256,
         brandName: analysis.brandName,
         pass,
-        requests: batch,
+        requests: toResearch,
       });
       /* Counted before the outcome is inspected, so a failure cannot slip
          its spend past the accounting. */
@@ -625,7 +713,7 @@ export async function completeUpgrade(
       }
       const applied = applyResults(
         doc,
-        batch,
+        toResearch,
         response.results,
         response.unanswered,
         pass
@@ -636,6 +724,43 @@ export async function completeUpgrade(
       counts.completedByResearch += applied.applied;
       counts.referencesAdded += applied.referencesAdded;
       counts.emptyReferencesRetained += applied.emptyReferencesRetained;
+
+      /* Durably record what was just established, so the next run over
+         these same facts costs nothing. Only VERIFIED results are kept: an
+         UNRESOLVED answer is the absence of a fact, and storing it would
+         mean caching a question rather than an answer.
+
+         Storage failure is deliberately non-fatal. A run that established
+         real facts must not be failed because a browser database refused a
+         write - the worst outcome of a miss here is that the next run pays
+         again, which is exactly the behaviour that existed before. */
+      if (factStore) {
+        const byPath = new Map(toResearch.map((r) => [r.path, r]));
+        const established: AcceptedFact[] = [];
+        for (const result of response.results) {
+          if (result.outcome !== "VERIFIED") continue;
+          const request = byPath.get(result.path);
+          if (!request) continue;
+          established.push(
+            await buildAcceptedFact({
+              brandName: analysis.brandName,
+              request,
+              value: result.value,
+              evidence: result.sources ?? null,
+              sourceSha256: analysis.sourceSha256,
+              versions: factVersions,
+              nowIso: new Date().toISOString(),
+            })
+          );
+        }
+        if (established.length > 0) {
+          try {
+            await factStore.put(established);
+          } catch {
+            /* Non-fatal by design - see above. */
+          }
+        }
+      }
     }
     return { ok: true };
   }
@@ -731,6 +856,16 @@ export async function completeUpgrade(
      its own field under its own PROVISIONAL filename so that nothing which
      reads `candidate` can mistake it for a finished one. */
   if (issues.length > 0) {
+    /* What this run did not have to buy. Reported through the existing
+       phase channel rather than a new record field: it is run commentary,
+       not part of the durable completion contract, and the ledger already
+       carries every fact that was actually applied. */
+    if (reusedFacts > 0 || reopenedFacts > 0) {
+      phase(
+        "FREEZING",
+        `${reusedFacts} fact(s) reused from accepted research, ${reopenedFacts} reopened on changed inputs`
+      );
+    }
     phase("FREEZING");
     const provisionalText = serializeCandidate(doc);
     const provisionalSha = await sha256HexOfText(provisionalText);

@@ -501,6 +501,10 @@ export default function VaultSpecificationUpgrade({
           filename: item.sourceFilename,
           bytes: item.sourceBytes,
           transport: transportRef.current,
+          /* Durable accepted research. The room owns the database; the
+             completion loop only ever sees these two functions, which is
+             what keeps it provable without IndexedDB. */
+          factStore: { get: db.getFacts, put: db.putFacts },
           signal,
           onPhase: (phase, detail) => {
             setCompleting((prev) =>

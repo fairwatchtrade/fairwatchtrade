@@ -15,6 +15,7 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 import { sha256HexOfBytes } from "./hash.ts";
+import type { AcceptedFact } from "./acceptedFacts.ts";
 import type {
   AnalysisRecord,
   CompletionRecord,
@@ -23,8 +24,14 @@ import type {
 } from "./types.ts";
 
 const DB_NAME = "fwt-vault-upgrade";
-const DB_VERSION = 1;
+/* v2 adds the accepted-fact store. The workItems store and its
+   sourceSha256 keyPath are untouched — byte identity keeps its job. */
+const DB_VERSION = 2;
 const STORE = "workItems";
+/* Accepted research, durable at the FACT. Keyed by factKey (index-free,
+   version-scoped) rather than by source bytes, so editing one field cannot
+   throw away the answers to every other field in the file. */
+const FACTS_STORE = "acceptedFacts";
 
 function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -38,6 +45,13 @@ export type VaultUpgradeDb = {
   get: (sourceSha256: string) => Promise<WorkItem | undefined>;
   put: (item: WorkItem) => Promise<void>;
   remove: (sourceSha256: string) => Promise<void>;
+  /** Accepted facts by key. Missing keys are simply absent from the map. */
+  getFacts: (keys: string[]) => Promise<Map<string, AcceptedFact>>;
+  /** Insert or supersede accepted facts. A reopened fact is overwritten by
+      its replacement rather than accumulating a second row. */
+  putFacts: (facts: AcceptedFact[]) => Promise<void>;
+  /** Every accepted fact — proof and inspection only. */
+  allFacts: () => Promise<AcceptedFact[]>;
   close: () => void;
 };
 
@@ -55,6 +69,12 @@ export async function openVaultUpgradeDb(
       if (!database.objectStoreNames.contains(STORE)) {
         database.createObjectStore(STORE, { keyPath: "sourceSha256" });
       }
+      /* Additive upgrade: an existing v1 database keeps every work item it
+         holds and simply gains the second store. No migration, no data
+         movement, nothing to lose on the way. */
+      if (!database.objectStoreNames.contains(FACTS_STORE)) {
+        database.createObjectStore(FACTS_STORE, { keyPath: "factKey" });
+      }
     };
     open.onsuccess = () => resolve(open.result);
     open.onerror = () => reject(open.error);
@@ -62,6 +82,10 @@ export async function openVaultUpgradeDb(
 
   function store(mode: IDBTransactionMode): IDBObjectStore {
     return db.transaction(STORE, mode).objectStore(STORE);
+  }
+
+  function facts(mode: IDBTransactionMode): IDBObjectStore {
+    return db.transaction(FACTS_STORE, mode).objectStore(FACTS_STORE);
   }
 
   return {
@@ -77,6 +101,34 @@ export async function openVaultUpgradeDb(
     remove: async (sourceSha256: string) => {
       await requestToPromise(store("readwrite").delete(sourceSha256));
     },
+
+    /* One transaction for the whole batch. A miss is an absent entry, never
+       an error — "this fact has never been accepted" is the ordinary case
+       on a first run and must not read as a failure. */
+    getFacts: async (keys: string[]) => {
+      const out = new Map<string, AcceptedFact>();
+      if (keys.length === 0) return out;
+      const tx = db.transaction(FACTS_STORE, "readonly");
+      const objectStore = tx.objectStore(FACTS_STORE);
+      const rows = await Promise.all(
+        keys.map((key) =>
+          requestToPromise(objectStore.get(key)) as Promise<AcceptedFact | undefined>
+        )
+      );
+      for (const row of rows) if (row) out.set(row.factKey, row);
+      return out;
+    },
+
+    putFacts: async (list: AcceptedFact[]) => {
+      if (list.length === 0) return;
+      const tx = db.transaction(FACTS_STORE, "readwrite");
+      const objectStore = tx.objectStore(FACTS_STORE);
+      await Promise.all(list.map((fact) => requestToPromise(objectStore.put(fact))));
+    },
+
+    allFacts: () =>
+      requestToPromise(facts("readonly").getAll()) as Promise<AcceptedFact[]>,
+
     close: () => db.close(),
   };
 }
