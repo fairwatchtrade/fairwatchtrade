@@ -824,11 +824,29 @@ export default function VaultGalaxy({
 
     const bmap: Record<string, number> = {};
     let best: PositionedBrand | null = null;
-    let bestScore = -1;
+    /* ── WHY THIS STARTS AT THE FLOOR AND NOT AT -1 ───────────────────────
+       relevance() never returns zero: a brand that matches nothing still
+       scores MATCH_FLOOR, and an EMPTY query scores every brand 1. With the
+       old `bestScore = -1` seed and a strict `>`, the very first brand in the
+       array cleared the bar in both cases and the Galaxy flew there - so
+       pressing Explore on an empty field, or typing something the Vault has
+       never heard of, carried the collector off to A. Lange & Sohne with
+       nothing on screen explaining why. A search that finds nothing must not
+       answer with somewhere.
+
+       Seeding at the floor makes the comparison ask the real question: did
+       any brand score ABOVE the score every brand gets for free? A one-of-two
+       term hit scores 0.5, a full hit 1, a miss exactly the floor - so the
+       test separates genuine matches from the floor cleanly, without
+       relevance() itself changing. That matters: the same scores still feed
+       brightnessRef, so how the field DIMS under a query is untouched. Only
+       the decision to travel changed. */
+    const MATCH_FLOOR = 0.18;
+    let bestScore = MATCH_FLOOR;
     positioned.forEach((b) => {
       const r = relevance(b, terms);
       bmap[b.id] = r;
-      if (r > bestScore) {
+      if (terms.length > 0 && r > bestScore) {
         bestScore = r;
         best = b;
       }
