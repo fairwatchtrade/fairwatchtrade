@@ -22,6 +22,7 @@ import {
   factInputFingerprint,
   factKey,
   factLocator,
+  causalInputsOf,
   partitionByAcceptedFacts,
 } from "../lib/vault-upgrade/acceptedFacts.ts";
 
@@ -224,3 +225,100 @@ const store = () => {
 }
 
 console.log(`vault-accepted-facts: ${n} assertions PASS`);
+
+/* ══ CAUSAL-INPUT INVALIDATION ════════════════════════════════════════════
+   Acceptance law: a fact may be reused only when every input capable of
+   changing the truthful answer remains semantically equivalent.
+
+   The research instructions say "Never contradict a fact the file already
+   asserts. Preserved values are given to you as context - treat them as
+   true." So preserved values that are UPSTREAM of a field are causal, and
+   an earlier build that omitted all of knownFields was wrong. These prove
+   both directions, and prove the omissions that remain are correct. */
+{
+  const brandWith = (field, known, allowedValues) => ({
+    path: `/${field}`,
+    field,
+    kind: "brand-fact",
+    allowedValues: allowedValues ?? (field === "region" ? REGION_ENUM : undefined),
+    context: {
+      brand: BRAND,
+      collectionNames: ["Antarctic"],
+      searchAliases: ["Nivada"],
+      knownFields: known,
+    },
+  });
+
+  const fp = (r) => factInputFingerprint(r);
+
+  // ── DIRECTION 2 · a genuinely causal input moves → the fact reopens ────
+  {
+    const jp = brandWith("region", { country_of_origin: "Japan" });
+    const ch = brandWith("region", { country_of_origin: "Switzerland" });
+    ok("locator, field, kind, allowedValues and wordRange are all unchanged",
+      (await factKey(BRAND, jp, V)) === (await factKey(BRAND, ch, V)) &&
+      JSON.stringify(jp.allowedValues) === JSON.stringify(ch.allowedValues));
+    ok("changing country_of_origin REOPENS region", (await fp(jp)) !== (await fp(ch)));
+
+    const c1 = brandWith("cluster", { country_of_origin: "Japan" });
+    const c2 = brandWith("cluster", { country_of_origin: "Germany" });
+    ok("changing country_of_origin REOPENS cluster", (await fp(c1)) !== (await fp(c2)));
+
+    const r1 = brandWith("cluster_rationale", { cluster: "Japanese" });
+    const r2 = brandWith("cluster_rationale", { cluster: "German" });
+    ok("changing cluster REOPENS cluster_rationale", (await fp(r1)) !== (await fp(r2)));
+
+    const v1 = brandWith("revival_type", { revival_status: "revived" });
+    const v2 = brandWith("revival_type", { revival_status: "active" });
+    ok("changing revival_status REOPENS revival_type", (await fp(v1)) !== (await fp(v2)));
+
+    const d1 = brandWith("description", { country_of_origin: "Switzerland", independent_status: "independent" });
+    const d2 = brandWith("description", { country_of_origin: "Switzerland", independent_status: "group-owned" });
+    ok("changing independent_status REOPENS the brand description",
+      (await fp(d1)) !== (await fp(d2)));
+  }
+
+  // ── DIRECTION 1 · irrelevant state moves → the fact stays reusable ─────
+  {
+    const a = brandWith("region", { country_of_origin: "Japan", cluster: "Japanese", description: "old" });
+    const b = brandWith("region", { country_of_origin: "Japan", cluster: "German", description: "rewritten this very run" });
+    ok("a DOWNSTREAM sibling moving does not reopen region", (await fp(a)) === (await fp(b)));
+
+    const c = brandWith("region", { country_of_origin: "Japan" });
+    const d = { ...brandWith("region", { country_of_origin: "Japan" }),
+      context: { brand: BRAND, collectionNames: ["Antarctic", "Chronomaster", "Depthmaster"],
+                 searchAliases: ["Nivada", "Nivada Grenchen SA"],
+                 knownFields: { country_of_origin: "Japan" } } };
+    ok("collectionNames and searchAliases moving do not reopen region",
+      (await fp(c)) === (await fp(d)));
+
+    /* Self-invalidation guard: filling the field itself must not reopen it. */
+    const e = brandWith("cluster", { country_of_origin: "Japan" });
+    const f = brandWith("cluster", { country_of_origin: "Japan", cluster: "Japanese" });
+    ok("a field appearing in knownFields does not reopen itself",
+      (await fp(e)) === (await fp(f)));
+
+    /* Semantic equivalence, not byte equality. */
+    const g = brandWith("region", { country_of_origin: "Switzerland" });
+    const h = brandWith("region", { country_of_origin: "  switzerland  " });
+    ok("case and whitespace edits are semantically equivalent - no reopen",
+      (await fp(g)) === (await fp(h)));
+
+    /* Variant facts have no causal parents - sibling/output state only. */
+    const v = variantReq(0, 0, 0, { collection: "Antarctic", family: "Diver", variant: "Blue" });
+    const w = structuredClone(v);
+    w.context.existingReferences = ["NG-1"];
+    w.context.existingNotes = "38mm, hand-wound.";
+    w.context.existingAliases = ["Antarctic Diver"];
+    ok("variant sibling/output state still does not reopen a variant fact",
+      (await fp(v)) === (await fp(w)));
+
+    /* A field with no parents cannot be reopened by preserved values. */
+    const p1 = brandWith("country_of_origin", { region: "Asia" });
+    const p2 = brandWith("country_of_origin", { region: "Europe" });
+    ok("a parentless field is unaffected by other preserved values",
+      (await fp(p1)) === (await fp(p2)));
+  }
+}
+
+console.log(`vault-accepted-facts (causal): ${n} assertions PASS`);

@@ -42,14 +42,21 @@
    whose word range moves, has a genuinely different question behind it, and
    the previous answer is no longer evidence for the new one.
 
-   ⚠ WHAT THE FINGERPRINT DELIBERATELY OMITS is the larger half of this
-   correction. `variantContext` also carries `existingReferences`,
-   `existingNotes` and `existingAliases`; `brandContext` carries
-   `knownFields`. Those are SIBLING STATE, and they change as the very same
-   run fills the file in. Folding them into the fingerprint would mean
-   accepting a variant's notes invalidated its own description a moment
-   later — a cache that empties itself as it is used. Only the inputs
-   relevant to THIS fact are fingerprinted.
+   It also carries the CAUSAL PARENTS of the field — the preserved values
+   the research instructions forbid the answer from contradicting. See
+   CAUSAL_PARENTS below; that is where the reasoning lives.
+
+   ⚠ WHAT THE FINGERPRINT DELIBERATELY OMITS is the other half, and the
+   distinction is the whole design. `variantContext` carries
+   `existingReferences`, `existingNotes` and `existingAliases`;
+   `brandContext` carries `collectionNames` and `searchAliases`, plus the
+   NON-parent half of `knownFields`. Those are sibling or output state, and
+   they change as the very same run fills the file in. Folding them in would
+   mean accepting a variant's notes invalidated its own description a moment
+   later — a cache that empties itself as it is used.
+
+   The test is not "is this in the context" but "can changing this make the
+   accepted answer FALSE".
 
    ── THE VERSION AXIS ─────────────────────────────────────────────────
 
@@ -179,8 +186,86 @@ export async function factInputFingerprint(
       locator: factLocator(request),
       allowedValues: request.allowedValues ? [...request.allowedValues].sort() : null,
       wordRange: request.wordRange ?? null,
+      /* The preserved values this answer was required not to contradict. */
+      causalInputs: causalInputsOf(request),
     })
   );
+}
+
+/* ── CAUSAL PARENTS ───────────────────────────────────────────────────────
+   Which preserved values can make an accepted answer FALSE.
+
+   The research instructions are explicit: "Never contradict a fact the file
+   already asserts. Preserved values are given to you as context - treat them
+   as true." That makes `brandContext.knownFields` a binding constraint on
+   the answer, not background. An earlier build omitted all of it, which was
+   wrong: change country_of_origin from Japan to Switzerland and an accepted
+   `region` of "Asia" is not stale, it is false.
+
+   ⚠ THE FIX IS NOT TO FINGERPRINT ALL OF knownFields. That map carries every
+   researchable brand field including the ones the current run is filling, so
+   hashing it whole would mean accepting `description` invalidated `region`
+   moments later - self-invalidation, the original defect wearing a new hat.
+
+   So each field names only the values that are UPSTREAM of it. A field is
+   never its own parent, which is what keeps a run from invalidating its own
+   work while it proceeds.
+
+     region            <- country_of_origin   (region is derived from country)
+     cluster           <- country_of_origin   (the vocabulary is country-linked:
+                                               Japanese, German, British,
+                                               American, Heritage Swiss)
+     cluster_rationale <- cluster             (the contract defines it as "why
+                                               the CHOSEN cluster is defensible")
+     revival_type      <- revival_status      (meaningful only when revived)
+     description       <- country_of_origin,  (a company overview asserting
+                          independent_status   Swiss independence becomes false
+                                               when either changes)
+
+   Deliberately absent: `searchAliases` and `collectionNames` are naming and
+   inventory, not claims the answer asserts; `country_of_origin`,
+   `independent_status` and `revival_status` have no parents inside the
+   researchable set.
+
+   VARIANT FACTS HAVE NO CAUSAL PARENTS. `existingReferences`,
+   `existingNotes` and `existingAliases` are sibling or output state: a
+   description of a watch does not become false because a reference was added
+   beside it, and the contract already forbids the description repeating the
+   variant name, which the locator carries. They stay omitted, on purpose. */
+const CAUSAL_PARENTS: Readonly<Record<string, readonly string[]>> = {
+  region: ["country_of_origin"],
+  cluster: ["country_of_origin"],
+  cluster_rationale: ["cluster"],
+  revival_type: ["revival_status"],
+  description: ["country_of_origin", "independent_status"],
+};
+
+/**
+ * The causal inputs for one request, read from the preserved values the
+ * request actually carries.
+ *
+ * SEMANTIC, not byte-exact: values are whitespace-collapsed and case-folded,
+ * so re-indenting a file or changing "switzerland" to "Switzerland" does not
+ * reopen anything. The acceptance law asks for semantic equivalence, and a
+ * cosmetic edit is equivalence.
+ *
+ * Brand-level only. `description` appears in the map, and a VARIANT
+ * description must not pick it up - variant requests carry no `knownFields`,
+ * so the lookup finds nothing and contributes nothing.
+ */
+export function causalInputsOf(request: ResearchRequest): Record<string, string> {
+  if (request.kind !== "brand-fact") return {};
+  const parents = CAUSAL_PARENTS[request.field];
+  if (!parents || parents.length === 0) return {};
+  const ctx = (request.context ?? {}) as Record<string, unknown>;
+  const known = (ctx.knownFields ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const parent of [...parents].sort()) {
+    /* Absent and empty are the same state - "the file does not assert this"
+       - and must not be two different fingerprints. */
+    out[parent] = normalizeName(known[parent]);
+  }
+  return out;
 }
 
 export type ReuseDecision =
