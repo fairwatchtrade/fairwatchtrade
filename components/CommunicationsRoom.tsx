@@ -135,21 +135,28 @@ const FOLDER_EMPTY: Record<CommFolder, string> = {
   archived: "No archived correspondence.",
 };
 
-/* ── Informational eyebrow (Cool Accent Design Gate 2026-08-21) ──
+/* ── Informational eyebrow (Purchase Request Stress-Test Rebalance 2026-08-25) ──
    The small caps labels that name a FACT rather than assert identity or
    value: Requester, Offer, Asking, Status, and the note-with-offer line.
-   They carry the mineral accent so gold is left holding the things that
-   are genuinely about identity — the Purchase Request kicker and You,
-   both of which deliberately keep their gold and are NOT written with
-   this class.
 
-   One constant rather than the same string repeated at each label, so the
-   sanctioned set is countable in one place: an eyebrow is mineral because
-   it was added here, never because someone matched a nearby class. Note
-   that the Archive control shares these exact type metrics while staying
-   neutral — buttons are protected scope — which is precisely the reason
-   this is a named constant and not a search-and-replace target. */
-const INFO_EYEBROW = "text-[11px] uppercase tracking-[1.2px] text-[var(--mineral)]";
+   THESE WERE MINERAL AND ARE NOW NEUTRAL, and the reason is worth keeping.
+   One label in mineral reads as an accent. Five of them stacked in the
+   dense purchase-request state — requester, offer, asking, status, note
+   context, all at once — stopped reading as accent and started reading as
+   a blue THEME, and the request content lost priority to its own labels.
+   The correction is not a new palette: mineral keeps every structural job
+   it had (folder wash and underline, selected wash and edge, the reader
+   top rule) and gives up the typographic ones.
+
+   Gold is unmoved. The Purchase Request kicker and You keep their gold
+   because they assert identity rather than name a fact, and neither was
+   ever written with this class.
+
+   ⚠ STILL A NAMED CONSTANT, AND STILL NOT A SEARCH-AND-REPLACE TARGET. The
+   Archive control shares these exact type metrics while being a button in
+   protected scope. This constant is what made the rebalance one edit
+   instead of five — do not inline it back. */
+const INFO_EYEBROW = "text-[11px] uppercase tracking-[1.2px] text-[var(--comms-semantic)]";
 
 export default function CommunicationsRoom({
   module,
@@ -584,7 +591,46 @@ export default function CommunicationsRoom({
 
   /* ═══ RENDER — three panes, mounted once, CSS-responsive ═══════════ */
   return (
-    <div className="flex min-h-0 flex-1 flex-col md:h-[calc(100vh-150px)] md:min-h-[520px]">
+    <div className="comms-slate-ii flex min-h-0 flex-1 flex-col md:h-[calc(100vh-150px)] md:min-h-[520px]">
+      {/* ── LOCALHOST TEST — Balanced Architecture / Light Slate Stone II ──
+          SCOPED, NOT GLOBAL, and the scoping is the whole point. Every value
+          below is declared on `.comms-slate-ii`, so it reaches this room and
+          stops at its edge. The global --mineral in app/globals.css is NOT
+          touched, which is what keeps this experiment out of Listing Detail,
+          Browse, and every other surface running its own separate test.
+
+          The correction this treatment encodes: the reading pane was reading
+          as baby blue. It is now lighter overall but LESS blue — a neutral
+          stone-gray body with a slightly denser slate-gray head, so the
+          structure comes from weight rather than from hue.
+
+          THE VALUES ARE PINNED, NOT THEME-CONDITIONAL, and that is the
+          correction. They were wrapped in light-dark() for one build, which
+          meant the approved treatment only existed in Light, and a viewer in
+          Dark saw the old room and reasonably concluded it had never been
+          applied. An approved study must not depend on which theme the
+          reviewer happens to be in. Light Slate Stone II is a LIGHT room -
+          view it in Light.
+
+          Mineral stays structural/state language: selection, the active
+          filter, the rule above the reader. Never text, never a theme, and
+          nothing else in this room receives it. Gold stays gold. */}
+      <style>{`
+        .comms-slate-ii{
+          --mineral:             #3E6379;
+          --comms-reader-body:   #f2f1ee;
+          --comms-reader-head:   #ececea;
+          --comms-selected-wash: rgba(62,99,121,.045);
+          --comms-folder-wash:   rgba(62,99,121,.055);
+          --comms-reader-rule:   rgba(62,99,121,.32);
+
+          /* ── REBALANCE 2026-08-25 ── the semantic voice, deliberately NOT
+             mineral. Mineral above is architecture; these are readout. */
+          --comms-semantic:      #656058;
+          --comms-semantic-soft: #817a70;
+          --comms-note-line:     #c9beaa;
+        }
+      `}</style>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-x-0 border-b border-t border-[var(--border-faint)] bg-[var(--surface)] md:flex-row md:border-x">
         {/* ── FOLDERS ─────────────────────────────────────────────────── */}
         <nav
@@ -636,7 +682,7 @@ export default function CommunicationsRoom({
                      tab bar, which is exactly what an underline is for. */
                   className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-[7px] text-[12px] transition md:w-full ${
                     active
-                      ? "border-[var(--mineral)] bg-[var(--hover-wash)] text-[var(--platinum)]"
+                      ? "border-[var(--mineral)] bg-[var(--comms-folder-wash)] text-[var(--platinum)]"
                       : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
                   }`}
                 >
@@ -707,7 +753,7 @@ export default function CommunicationsRoom({
                       aria-current={isActive ? "true" : undefined}
                       className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
                         isActive
-                          ? "bg-[var(--hover-wash)] shadow-[inset_3px_0_0_0_var(--mineral)]"
+                          ? "bg-[var(--comms-selected-wash)] shadow-[inset_2px_0_0_0_var(--mineral)]"
                           : "hover:bg-[var(--hover-wash)]"
                       }`}
                     >
@@ -768,7 +814,7 @@ export default function CommunicationsRoom({
                     aria-current={isActive ? "true" : undefined}
                     className={`grid w-full grid-cols-[8px_1fr_auto] gap-2 border-b border-[var(--border-faint)] px-3 py-[10px] text-left transition ${
                       isActive
-                        ? "bg-[var(--hover-wash)] shadow-[inset_3px_0_0_0_var(--mineral)]"
+                        ? "bg-[var(--comms-selected-wash)] shadow-[inset_2px_0_0_0_var(--mineral)]"
                         : "hover:bg-[var(--hover-wash)]"
                     }`}
                   >
@@ -812,7 +858,7 @@ export default function CommunicationsRoom({
 
         {/* ── READING / ACTION PANE ───────────────────────────────────── */}
         <section
-          className={`min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface)] ${
+          className={`min-h-0 min-w-0 flex-1 flex-col bg-[var(--comms-reader-body)] ${
             mobileOpen ? "flex" : "hidden md:flex"
           }`}
         >
@@ -834,7 +880,11 @@ export default function CommunicationsRoom({
           ) : (
             <>
               {/* Header */}
-              <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[var(--border-faint)] bg-[var(--surface-2)] px-4 py-3">
+              {/* The header carries slightly more slate-gray weight than the
+                  body, and a softer mineral rule above it. The KEEPER line,
+                  not the current one: at full strength the rule read as a
+                  coloured band rather than as structure. */}
+              <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[var(--border-faint)] border-t border-t-[var(--comms-reader-rule)] bg-[var(--comms-reader-head)] px-4 py-3">
                 <div className="flex min-w-0 basis-[220px] grow items-start gap-3">
                   {/* The eye gets an object, not more chrome: the watch
                       itself, small and quiet, anchoring the correspondence.
@@ -1037,18 +1087,24 @@ export default function CommunicationsRoom({
                   filler collapses to nothing. */}
               <div className="min-h-0 shrink overflow-y-auto px-4 py-4 max-md:min-h-[200px]">
                 {selected.kind === "request" && selected.request.notes && (
-                  <div className="mb-4 max-w-[720px] border border-[var(--border-faint)] bg-[var(--surface-2)] px-3 py-2.5">
+                  /* The note line is warm and neutral by ruling — a quoted
+                     note is the buyer's voice, not a piece of structure, and
+                     a cool rule here would put mineral back into exactly the
+                     dense region the rebalance cleared. */
+                  <div className="mb-4 max-w-[720px] border border-[var(--border-faint)] border-l-2 border-l-[var(--comms-note-line)] bg-[var(--surface-2)] px-3 py-2.5">
                     <div className="mb-1 flex items-baseline justify-between gap-4">
-                      {/* Note with offer — the fifth sanctioned mineral
-                          eyebrow. Kept at its own 1.5px tracking rather than
-                          folded into INFO_EYEBROW: this label sits over a
-                          quoted note, not in the summary strip, and its
-                          metrics are shared with the message-sender line
-                          beside it. Only the colour is the accent's business.
-                          The requester's name rides inside the same label, so
-                          it takes the same colour — one eyebrow, one voice,
-                          rather than a two-tone label the gate never drew. */}
-                      <span className="text-[11px] uppercase tracking-[1.5px] text-[var(--mineral)]">
+                      {/* Note context — the fifth of the five eyebrows the
+                          rebalance neutralised. Kept at its own 1.5px
+                          tracking rather than folded into INFO_EYEBROW: this
+                          label sits over a quoted note, not in the summary
+                          strip, and its metrics are shared with the
+                          message-sender line beside it. Only the colour was
+                          ever the accent's business, and the accent has now
+                          given it up. The requester's name rides inside the
+                          same label, so it takes the same colour — one
+                          eyebrow, one voice, rather than a two-tone label no
+                          gate ever drew. */}
+                      <span className="text-[11px] uppercase tracking-[1.5px] text-[var(--comms-semantic)]">
                         {requesterName(selected.request)} · Note with offer
                       </span>
                       <span className="text-[11px] text-[var(--muted)]">
