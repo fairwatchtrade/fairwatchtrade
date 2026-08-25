@@ -316,9 +316,27 @@ export default function CollectorsDrawer({
             ? "Close Collector's Drawer."
             : `Open Collector's Drawer. Contains ${browseLabel}, Search Similar Watches, and Add to My Catalogue.`
         }
+        /* HORIZONTAL ORIGIN IS THE GALLERY GUTTER, NOT THE PHOTOGRAPH.
+
+           left:-65px measured from the RENDERED HERO, so the spine rode
+           sideways whenever the photograph changed shape - a portrait frame
+           is narrower, is centred in the stage, and dragged the spine inward
+           with it. The spine is page furniture; it must not move because
+           someone clicked a different thumbnail.
+
+           50% resolves against the hero wrapper (the positioned containing
+           block). 50cqw resolves against the governed stage, which is
+           container-type:size and w-full inside the gallery column, so it is
+           half the COLUMN. Hero and stage share a centre, so 50% - 50cqw is
+           exactly the column's left edge whatever the photograph is doing,
+           and -65px is the gutter offset from there.
+
+           VERTICAL IS UNTOUCHED: inset-y-0 still resolves against the hero
+           wrapper, which is what keeps spine top and bottom locked to the
+           photograph's own. Two axes, two origins, deliberately. */
+        style={{ left: "calc(50% - 50cqw - 65px)" }}
         className={[
-          // In the gutter: −65px from the listing content edge (see header).
-          "group absolute inset-y-0 left-[-65px] z-[10] w-[48px] cursor-pointer",
+          "group absolute inset-y-0 z-[10] w-[48px] cursor-pointer",
           "border border-[var(--border-mid)] border-l-[var(--border-faint)]",
           "backdrop-blur-[16px]",
           "[background:linear-gradient(180deg,light-dark(rgba(255,253,248,0.9),rgba(229,225,215,0.035)),transparent_24%),light-dark(rgba(236,231,221,0.92),rgba(20,22,28,0.42))]",
@@ -412,6 +430,11 @@ export default function CollectorsDrawer({
         id="collectors-drawer-overlay"
         data-immersive-dark=""
         aria-hidden={!expanded}
+        /* The panel moves WITH the spine, to the same column edge. Both
+           horizontal origins had to change together: leaving this at the
+           hero's edge while the spine moved to the column edge would make
+           the drawer jump sideways at the moment it opens. */
+        style={{ left: "calc(50% - 50cqw)" }}
         className={[
           // v2.26a — Design Gate Option B: 390px at lg so an open drawer
           // stops dominating the narrower lg gallery (measured: 64% covered /
@@ -419,7 +442,7 @@ export default function CollectorsDrawer({
           // approved 450px form returns at xl, where the gallery is wide
           // enough to keep its presence. Every anchor (spine, content-edge,
           // 82/28 insets, tool zone, scroll region) is untouched.
-          "absolute inset-y-0 left-0 z-[8] w-[390px] xl:w-[450px]",
+          "absolute inset-y-0 z-[8] w-[390px] xl:w-[450px]",
           "border-r border-[var(--border-gold)]",
           "bg-[color:light-dark(rgba(20,22,28,0.82),rgba(20,22,28,0.35))] backdrop-blur-[16px]",
           "shadow-[18px_0_42px_rgba(0,0,0,0.26)]",
