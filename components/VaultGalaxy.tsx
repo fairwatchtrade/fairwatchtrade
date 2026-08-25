@@ -2473,7 +2473,20 @@ export default function VaultGalaxy({
             pointerEvents: searchCollapsed ? "auto" : "none",
             transition: "opacity 260ms ease-out",
           }}
-          className={`fixed bottom-[34px] left-1/2 z-[9] flex h-[38px] w-[94px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] text-[var(--gold-subtle)] backdrop-blur-lg hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold-dim)] sm:bottom-[42px] ${
+          /* NARROW: 58px, not the panel's 34px. The disclosure line beneath
+             the Galaxy wraps to two lines on a phone and rises to y=769,
+             while a handle anchored at 34px runs to y=778 - a 9px overlap
+             that put the catalogue sentence behind a translucent tab.
+
+             The handle moves rather than the sentence: the copy is Galaxy
+             furniture and the handle is the newcomer, so the newcomer yields.
+             58px clears the two-line footer with roughly 15px of daylight at
+             375x812.
+
+             Desktop keeps 42px, where the line is one row and there was never
+             a collision. The two anchors differ on purpose - this one is not
+             tracking the panel's edge, it is staying off the text. */
+          className={`fixed bottom-[58px] left-1/2 z-[9] flex h-[38px] w-[94px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] text-[var(--gold-subtle)] backdrop-blur-lg hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold-dim)] sm:bottom-[42px] ${
             view !== "brands" ? "max-sm:hidden" : ""
           }`}
         >
