@@ -2396,7 +2396,23 @@ export default function VaultGalaxy({
                 if (e.key === "Enter") runSearch(query);
               }}
               placeholder="Try: manual wind or Moser"
-              className="min-w-0 flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[17px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:text-[21px]"
+              /* NARROW: the field takes the whole first row and the two
+                 controls wrap beneath it. Below sm the row was splitting
+                 three ways and the input lost - squeezed to 97px, which is
+                 not a search field, it is a strip. Explore and Reset have
+                 fixed intrinsic widths and cannot yield, so the only thing
+                 left to compress was the one element that actually needed
+                 the room.
+
+                 The container already carries flex-wrap, so a full-width
+                 basis here is the whole mechanism: nothing is repositioned,
+                 the controls simply fall to the next line.
+
+                 sm AND UP IS UNCHANGED. w-auto and flex-1 restore exactly
+                 the shipped desktop behaviour - width:auto was the default
+                 before, flex-1 was already there - so this is additive at
+                 narrow widths and identical everywhere else. */
+              className="w-full min-w-0 flex-none border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[17px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:w-auto sm:flex-1 sm:text-[21px]"
             />
             <button onClick={() => runSearch(query)} className="fw-btn-primary">
               Explore
