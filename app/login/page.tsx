@@ -3,16 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import WatchBlueprint from "@/components/WatchBlueprint";
 
-// v2.5 — same admin-email pattern used across the app (app/layout.tsx,
-// admin gates). No new auth mechanism invented.
-const ADMIN_EMAIL = "jmynatt74@gmail.com";
+const INVALID_CREDENTIALS = "Invalid email/username or password.";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   // v2.26b — MOBILE AUTOFILL FIX (confirmed launch blocker, reproduced):
   // phone autofill/password managers write values into the DOM without
@@ -22,25 +18,39 @@ export default function LoginPage() {
   // The inputs are now UNCONTROLLED (refs); submit reads the DOM, which is
   // the only truth autofill actually writes to. The button disables only
   // while busy; emptiness is validated at submit with honest copy.
-  const emailRef = useRef<HTMLInputElement | null>(null);
+  const identifierRef = useRef<HTMLInputElement | null>(null);
   const passwordRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSignIn() {
-    const email = emailRef.current?.value.trim() ?? "";
+    const identifier = identifierRef.current?.value.trim() ?? "";
     const password = passwordRef.current?.value ?? "";
-    if (!email || !password) {
-      setError("Enter your email and password.");
+    if (!identifier || !password) {
+      setError("Enter your email or username and password.");
       return;
     }
     setBusy(true);
     setError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    }).catch(() => null);
+    const result = response
+      ? ((await response.json().catch(() => null)) as {
+          ok?: boolean;
+          isAdmin?: boolean;
+        } | null)
+      : null;
 
-    if (error) {
-      setError(error.message);
+    if (!response?.ok || !result?.ok) {
+      setError(
+        response
+          ? INVALID_CREDENTIALS
+          : "Unable to sign in right now. Please try again.",
+      );
       setBusy(false);
       return;
     }
@@ -57,7 +67,7 @@ export default function LoginPage() {
     // NEVER default to /sell for anyone, and /sell is never intercepted —
     // it stays freely reachable at all times, admin included.
     const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
-    const isAdmin = data.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isAdmin = result.isAdmin === true;
     const destination = callbackUrl || (isAdmin ? "/admin" : "/catalogue");
 
     router.push(destination);
@@ -195,14 +205,14 @@ export default function LoginPage() {
             >
             <div className="mb-5">
               <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-                Email
+                Email or username
               </div>
               <input
-                ref={emailRef}
-                type="email"
-                name="email"
-                autoComplete="email"
-                placeholder="you@example.com"
+                ref={identifierRef}
+                type="text"
+                name="username"
+                autoComplete="username"
+                placeholder="you@example.com or username"
                 onChange={() => {
                   if (error) setError(null);
                 }}
