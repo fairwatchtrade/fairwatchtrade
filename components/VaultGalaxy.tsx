@@ -1913,10 +1913,33 @@ export default function VaultGalaxy({
     }
     function onPointerUp(e: PointerEvent) {
       const d = dragRef.current;
+      /* THE GESTURE MUST HAVE STARTED ON THE CANVAS.
+
+         pointerdown is bound to the canvas, but pointerup is bound to the
+         WINDOW - it has to be, so that a drag released off the edge still
+         ends cleanly. The cost was that every pointerup anywhere on the page
+         reached this handler, and it only asked whether the pointer had
+         MOVED. dragRef initialises to { moved: false }, so a tap that never
+         touched the canvas at all satisfied that test and selected a star
+         underneath wherever the finger happened to be.
+
+         The Vault entrance is where this bit hardest. /vault mounts the real
+         galaxy from first paint with the Atlantis curtain above it, so a
+         first-time visitor tapping ENTER - the only thing on screen, dead
+         centre - had their pointerup select whichever brand sat under that
+         point. Same brand every time, for everyone, with no prior state and
+         nothing they did wrong. Reported for months as "it goes straight to
+         Cartier."
+
+         `active` is the missing question: it is set only by a pointerdown on
+         the canvas. Checking it before clearing it makes a tap on ANY overlay
+         - the entrance, the search panel, the card, the nav - stop selecting
+         stars behind it. */
+      const startedOnCanvas = d.active;
       d.active = false;
       // Only a true click (no meaningful drag) selects — a pan must not also
       // fire a star select.
-      if (!d.moved) doSelect(e.clientX, e.clientY);
+      if (startedOnCanvas && !d.moved) doSelect(e.clientX, e.clientY);
     }
 
     cv.addEventListener("pointerdown", onPointerDown);
