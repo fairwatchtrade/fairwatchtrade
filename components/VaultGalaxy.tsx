@@ -530,6 +530,17 @@ export default function VaultGalaxy({
   const [hasEntered, setHasEntered] = useState(false);
   const [query, setQuery] = useState("");
 
+  /* THE APERTURE CONTROL. The search panel is a fixed slab across the bottom
+     of the Galaxy, and on a narrow viewport it eats runway the cosmology
+     needs. This tucks it away and brings it back.
+
+     Held in component state, not in a URL param or storage, so it survives a
+     rotation or a resize within the session - the panel does not spring back
+     open merely because the viewport changed - while a fresh visit to the
+     Vault opens with search present, which is where a collector expects to
+     find it. */
+  const [searchCollapsed, setSearchCollapsed] = useState(false);
+
   // ── Engine refs (mutable, outside React render) ──
   const openScale = isMobileViewport() ? 1.15 : 2.2;
   const camRef = useRef({ x: 0, y: 0, scale: openScale });
@@ -2345,8 +2356,32 @@ export default function VaultGalaxy({
         {/* v2.4w — inside a selected system on mobile, the search panel
             yields the floor to planets and moons; broad-galaxy browsing and
             desktop keep it exactly as before. */}
+        {/* THE PANEL IS TUCKED, NEVER SHRUNK. Nothing below is resized,
+            re-typed, re-flowed or hidden field-by-field to make a small
+            aperture fit: the typography, the input, the examples and the
+            controls are the same surface they always were. Collapsing slides
+            that surface out of the viewport whole and slides it back whole,
+            which is why restoring reads as the same panel returning rather
+            than a second, smaller search product appearing.
+
+            The query itself lives in state above and is never unmounted, so
+            a half-typed search survives a tuck. */}
         <div
-          className={`fixed bottom-[34px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] -translate-x-1/2 border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-3 backdrop-blur-lg sm:bottom-[42px] sm:p-[14px] ${
+          id="galaxy-search-panel"
+          aria-hidden={searchCollapsed}
+          inert={searchCollapsed}
+          /* The tuck is an inline style, not utility classes. The panel is
+             already centred by a translate, so the collapse has to compose
+             BOTH axes in one declaration - expressing that as two utilities
+             means depending on how the framework merges them, and the value
+             here is a calc that has to survive that merge intact. One
+             declaration, no merge, no generated-class dependency. */
+          style={{
+            translate: searchCollapsed ? "-50% calc(100% + 56px)" : "-50% 0",
+            opacity: searchCollapsed ? 0 : 1,
+            transition: "translate 260ms ease-out, opacity 260ms ease-out",
+          }}
+          className={`fixed bottom-[34px] left-1/2 z-[8] w-[min(710px,calc(100%-32px))] border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] p-3 backdrop-blur-lg sm:bottom-[42px] sm:p-[14px] ${
             view !== "brands" ? "max-sm:hidden" : ""
           }`}
         >
@@ -2381,7 +2416,55 @@ export default function VaultGalaxy({
               the Vault.
             </p>
           )}
+
+          {/* Tuck control. The chevron is small on purpose; the BUTTON is the
+              full width of the panel and 34px tall, so the target is generous
+              even though the mark is restrained. It points down because that
+              is where the panel goes. */}
+          <button
+            type="button"
+            onClick={() => setSearchCollapsed(true)}
+            aria-expanded={true}
+            aria-controls="galaxy-search-panel"
+            aria-label="Hide the search panel"
+            title="Hide the search panel"
+            className="mt-[10px] flex h-[34px] w-full items-center justify-center border-t border-[var(--border-faint)] text-[var(--gold-subtle)] transition hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold-dim)]"
+          >
+            <svg width="17" height="10" viewBox="0 0 17 10" fill="none" aria-hidden="true">
+              <path d="M1.5 1.5l7 7 7-7" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+          </button>
         </div>
+
+        {/* THE WAY BACK. Search is tucked, never removed and never
+            undiscoverable: a small handle keeps its place at the panel's own
+            anchor, so the panel appears to return from exactly where it went.
+
+            It carries the SAME max-sm:hidden rule as the panel — inside a
+            selected system on a phone the search surface deliberately yields
+            the floor, and a restore handle for a panel that is intentionally
+            absent would be a door to nowhere. */}
+        <button
+          type="button"
+          onClick={() => setSearchCollapsed(false)}
+          aria-expanded={false}
+          aria-controls="galaxy-search-panel"
+          aria-label="Show the search panel"
+          title="Show the search panel"
+          style={{
+            translate: "-50% 0",
+            opacity: searchCollapsed ? 1 : 0,
+            pointerEvents: searchCollapsed ? "auto" : "none",
+            transition: "opacity 260ms ease-out",
+          }}
+          className={`fixed bottom-[34px] left-1/2 z-[9] flex h-[38px] w-[94px] items-center justify-center border border-[var(--border-gold)] bg-[rgba(7,8,12,0.72)] text-[var(--gold-subtle)] backdrop-blur-lg hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold-dim)] sm:bottom-[42px] ${
+            view !== "brands" ? "max-sm:hidden" : ""
+          }`}
+        >
+          <svg width="17" height="10" viewBox="0 0 17 10" fill="none" aria-hidden="true">
+            <path d="M1.5 8.5l7-7 7 7" stroke="currentColor" strokeWidth="1.6" />
+          </svg>
+        </button>
 
         {/* Quiet disclosure line */}
         <div className="pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[11px] italic text-[var(--muted)]">
