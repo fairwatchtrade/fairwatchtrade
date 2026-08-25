@@ -40,7 +40,14 @@ const ok = (name) => console.log(`  PASS ${++n}  ${name}`);
 
 /* ── 1 · Defaults ───────────────────────────────────────────────────── */
 assert.deepEqual(defaultFrame(), { focalX: 0.5, focalY: 0.5, zoom: 1, rotationDeg: 0 });
-assert.deepEqual(defaultPresentation(), { heroPathname: null, frames: {} });
+assert.deepEqual(defaultPresentation(), {
+  heroPathname: null,
+  /* Story Photo joined the contract. Asserted here rather than loosened
+     to a subset check: this line exists to catch the shape CHANGING
+     silently, so a new field should fail it once and be acknowledged. */
+  storyPathname: null,
+  frames: {},
+});
 assert.equal(isDefaultPresentation(defaultPresentation()), true);
 ok("defaults are centred, unzoomed, role-chosen hero, no frames");
 
@@ -206,7 +213,15 @@ assert.equal(automaticHeroIndex([], () => "Dial"), 0);
 ok("unrecognised or missing roles sort last but are never dropped");
 
 /* ── 16 · The contract carries presentation only ────────────────────── */
-assert.deepEqual(Object.keys(defaultPresentation()).sort(), ["frames", "heroPathname"]);
+/* storyPathname joins heroPathname as a seller CHOICE about which
+   photograph appears where. That is the same class of fact this
+   contract already carried; what the guard still forbids is a key
+   that ALTERS a photograph - crop, delete, blur, order. */
+assert.deepEqual(Object.keys(defaultPresentation()).sort(), [
+  "frames",
+  "heroPathname",
+  "storyPathname",
+]);
 assert.deepEqual(Object.keys(defaultFrame()).sort(), ["focalX", "focalY", "rotationDeg", "zoom"]);
 assert.equal(isDefaultFrame(defaultFrame()), true);
 ok("no crop, delete, blur, or order key exists in the contract");

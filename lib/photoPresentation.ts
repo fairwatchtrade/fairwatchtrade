@@ -61,6 +61,29 @@ export type PhotoFrame = {
 
 export type PhotoPresentation = {
   heroPathname: string | null;
+  /* STORY PHOTO - the photograph the seller chose to accompany Story /
+     Provenance on the listing. Optional: null means "no choice made", and
+     the reader falls back automatically.
+
+     It lives HERE, beside the hero, rather than in a new listings column
+     because this record already is the governed seller-photo-choice
+     contract: same owner, same stable pathname identity, same sanitizer,
+     same persistence path, same backward-compatibility rules. A second
+     column would have been a second authority over the same kind of fact.
+
+     Pathname, never URL or index. A URL can be reissued and an index moves
+     the moment the gallery is reordered; a pathname is the stored object's
+     stable identity, which is exactly why the hero uses it.
+
+     Cross-listing assignment is structurally impossible rather than
+     validated: the resolver only ever matches this value against the
+     pathnames of THIS listing's own photographs, so a pathname belonging to
+     another listing simply never matches and the reader falls back.
+
+     REQUIRED, not optional, in the type on purpose - it makes the compiler
+     find every place that rebuilds this record without carrying the field
+     across. Two such places existed. */
+  storyPathname: string | null;
   frames: Record<string, PhotoFrame>;
 };
 
@@ -91,7 +114,7 @@ export function defaultFrame(): PhotoFrame {
 
 /** Automatic presentation: role-governed hero, nothing framed. */
 export function defaultPresentation(): PhotoPresentation {
-  return { heroPathname: null, frames: {} };
+  return { heroPathname: null, storyPathname: null, frames: {} };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -149,6 +172,9 @@ export function sanitizePhotoPresentation(input: unknown): PhotoPresentation {
   const raw = input as Record<string, unknown>;
 
   out.heroPathname = boundPath(raw.heroPathname);
+  /* Read before the v2 branch below returns, so a row carrying frames does
+     not lose its story selection on the way through. */
+  out.storyPathname = boundPath(raw.storyPathname);
 
   // ── v2 ── frames map
   if (raw.frames && typeof raw.frames === "object" && !Array.isArray(raw.frames)) {
@@ -179,7 +205,11 @@ export function sanitizePhotoPresentation(input: unknown): PhotoPresentation {
 
 /** True when the seller has chosen nothing at all. */
 export function isDefaultPresentation(p: PhotoPresentation): boolean {
-  return p.heroPathname === null && Object.keys(p.frames).length === 0;
+  return (
+    p.heroPathname === null &&
+    p.storyPathname === null &&
+    Object.keys(p.frames).length === 0
+  );
 }
 
 /** The framing for one photograph — automatic unless the seller set it. */
@@ -211,6 +241,23 @@ export function withHero(
   pathname: string | null
 ): PhotoPresentation {
   return { ...presentation, heroPathname: pathname };
+}
+
+/** Explicit Story Photo selection.
+
+    INDEPENDENT OF THE HERO, in both directions and deliberately: a seller
+    may want the same photograph in both places, or two entirely different
+    ones, and neither choice may quietly rewrite the other. Passing null
+    clears the selection and returns the listing to automatic fallback.
+
+    Framing is untouched here for the same reason it is untouched in
+    withHero - choosing which photograph tells the story is not a decision
+    about how any photograph is cropped. */
+export function withStoryPhoto(
+  presentation: PhotoPresentation,
+  pathname: string | null
+): PhotoPresentation {
+  return { ...presentation, storyPathname: pathname };
 }
 
 /* -- ROTATION GEOMETRY -- the swapped box -------------------------------
@@ -315,6 +362,48 @@ export function resolveHeroIndex(
     if (i >= 0) return i;
   }
   return automaticIndex >= 0 && automaticIndex < pathnames.length ? automaticIndex : 0;
+}
+
+/* ── STORY PHOTO SELECTION ─────────────────────────────────────────────
+   The product law in one function: the Story Photo is seller-selected when
+   provided, and automatic fallback exists ONLY when it is not.
+
+   Three tiers, in order:
+     1. the seller's explicit choice, IF that photograph is still present;
+     2. otherwise the first photograph that is not the hero - the automatic
+        behaviour, unchanged, so a listing that never chose reads exactly as
+        it did before this existed;
+     3. otherwise the hero, which is the honest answer for a listing with a
+        single photograph.
+
+   Tier 1 collapses three separate requirements into one comparison. A
+   selection whose photograph was DELETED does not match and falls through;
+   a pathname belonging to ANOTHER listing does not match and falls through;
+   and a gallery REORDER changes nothing, because the match is on identity
+   rather than position. There is no dangling reference to clean up because
+   nothing here dereferences - it compares.
+
+   THE AUTOMATIC CHOICE IS THE CALLER'S, passed in - exactly as
+   resolveHeroIndex takes automaticIndex. This function owns one rule and
+   one only: an explicit, still-valid selection beats the automatic answer.
+   It deliberately does not re-implement what "the best non-hero photograph"
+   means, so the existing fallback keeps its existing behaviour and there is
+   no second definition of it to drift.
+
+   Returns an index into `pathnames`, or -1 when there is nothing to show. */
+export function resolveStoryIndex(
+  pathnames: readonly (string | null | undefined)[],
+  presentation: PhotoPresentation,
+  automaticIndex: number
+): number {
+  if (pathnames.length === 0) return -1;
+
+  if (presentation.storyPathname) {
+    const i = pathnames.findIndex((p) => p === presentation.storyPathname);
+    if (i >= 0) return i;
+  }
+
+  return automaticIndex >= 0 && automaticIndex < pathnames.length ? automaticIndex : -1;
 }
 
 /* ── POINTER GEOMETRY UNDER ROTATION ───────────────────────────────────

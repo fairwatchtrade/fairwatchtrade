@@ -22,6 +22,7 @@ import {
   screenToImageDelta,
   withFrame,
   withHero,
+  withStoryPhoto,
 } from "@/lib/photoPresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -162,6 +163,15 @@ export default function PhotoPresentationEditor({
   const frame = frameFor(staged, activePath);
   const heroPath = staged.heroPathname ?? automaticHeroPathname;
   const isActiveHero = activePath !== null && activePath === heroPath;
+
+  /* NO `?? automatic...` HERE, unlike the hero above, and that asymmetry is
+     the product law rather than an oversight. The hero always resolves to
+     some photograph, so the editor can honestly badge one. A Story Photo is
+     OPTIONAL: until the seller chooses, there is no selection to show, only
+     a fallback the listing computes at read time. Badging the fallback would
+     tell the seller they had decided something they had not. */
+  const storyPath = staged.storyPathname;
+  const isActiveStory = activePath !== null && activePath === storyPath;
 
   const axes = movableAxes(
     activePath ? (aspects[activePath] ?? null) : null,
@@ -335,13 +345,16 @@ export default function PhotoPresentationEditor({
                 {ordered.map((p, i) => {
                   const isActive = i === activeIndex;
                   const isHero = p.photo.pathname === heroPath;
+                  const isStory = p.photo.pathname === storyPath;
                   const framed = staged.frames[p.photo.pathname] !== undefined;
                   return (
                     <button
                       key={`${p.photo.pathname}-${i}`}
                       type="button"
                       aria-pressed={isActive}
-                      aria-label={`Adjust ${p.category} photo${isHero ? " (hero)" : ""}`}
+                      aria-label={`Adjust ${p.category} photo${isHero ? " (hero)" : ""}${
+                        isStory ? " (story photo)" : ""
+                      }`}
                       onClick={() => setActiveIndex(i)}
                       className={`relative h-[42px] w-[52px] shrink-0 overflow-hidden border transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e] ${
                         isActive
@@ -354,6 +367,16 @@ export default function PhotoPresentationEditor({
                       {isHero && (
                         <span className="absolute left-0 top-0 bg-[var(--gold-fill)] px-[3px] text-[7px] font-semibold leading-[1.4] text-[var(--on-gold)]">
                           HERO
+                        </span>
+                      )}
+                      {/* Bottom-left, so a photograph that is BOTH hero and
+                          story shows both marks instead of one hiding the
+                          other. Quieter than HERO on purpose: the hero leads
+                          the listing, the story photo accompanies a chapter
+                          inside it, and the badges should say so. */}
+                      {isStory && (
+                        <span className="absolute bottom-0 left-0 bg-[rgba(24,26,32,0.86)] px-[3px] text-[7px] font-semibold leading-[1.4] text-[#cfb866]">
+                          STORY
                         </span>
                       )}
                       {framed && !isHero && (
@@ -564,6 +587,7 @@ export default function PhotoPresentationEditor({
 
             {/* ── Bottom-anchored action stack — approved order ──
                   SET AS HERO
+                  SET AS STORY PHOTO
                   RESET THIS PHOTO | EDIT NEXT PHOTO →
                   CANCEL           | SAVE PRESENTATION            */}
             <button
@@ -578,6 +602,46 @@ export default function PhotoPresentationEditor({
             >
               {isActiveHero ? "✦ This is the hero photo" : "Set as hero"}
             </button>
+
+            {/* SET AS STORY PHOTO — a sibling of Set as hero, in the same
+                editor, deliberately not a step of its own and not a separate
+                wizard. The seller is already looking at the photograph; the
+                decision costs one click from here.
+
+                UNLIKE THE HERO BUTTON THIS ONE IS NOT DISABLED WHEN ACTIVE.
+                The hero cannot be unset — a listing always leads with
+                something — but the Story Photo is optional, so pressing it
+                again clears the choice and hands the chapter back to
+                automatic fallback. That is the only way back, so it must not
+                be a dead control.
+
+                Quieter than the hero button by one step. Both are real
+                choices; only one of them decides what the marketplace sees
+                first. */}
+            <button
+              type="button"
+              disabled={!activePath}
+              title={
+                isActiveStory
+                  ? "Clear the Story Photo selection"
+                  : "Shown with Story / Provenance on the listing"
+              }
+              aria-pressed={isActiveStory}
+              onClick={() =>
+                activePath &&
+                setStaged((s) => withStoryPhoto(s, isActiveStory ? null : activePath))
+              }
+              className={`${btn} mt-1.5 h-[34px] w-full px-2 ${
+                isActiveStory
+                  ? "border-[#4a4636] bg-[#15140f] text-[#cfb866]"
+                  : "border-[#363940] bg-[#101217] text-[#c8c4b9] hover:border-[#5d5233] hover:text-[#cfb866]"
+              }`}
+            >
+              {isActiveStory ? "✦ Story Photo" : "Set as Story Photo"}
+            </button>
+            <p className="mt-1 text-[10px] leading-[1.45] text-[#8b8578]">
+              Shown with Story / Provenance on the listing.
+            </p>
 
             <div className="mt-1.5 grid h-[34px] grid-cols-2 gap-1.5">
               {/* RESET left (local action, near the photo's own controls);
@@ -652,9 +716,15 @@ export default function PhotoPresentationEditor({
                     frames[newPath] = moved;
                     delete frames[activePath];
                   }
+                  /* Spread, then remap - see the same construction in
+                     SellFlow. The redacted photograph keeps both of its
+                     roles; only its pathname changed. */
                   return {
+                    ...s,
                     heroPathname:
                       s.heroPathname === activePath ? newPath : s.heroPathname,
+                    storyPathname:
+                      s.storyPathname === activePath ? newPath : s.storyPathname,
                     frames,
                   };
                 });

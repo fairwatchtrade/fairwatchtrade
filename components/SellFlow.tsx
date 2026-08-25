@@ -552,8 +552,15 @@ export default function SellFlow({
           frames[to] = moved;
           delete frames[from];
         }
+        /* Spread, then remap. A redaction mints a NEW pathname for the
+           same photograph, so every stored choice that pointed at the old
+           one must follow it across - the hero, and the Story Photo. This
+           object used to be built field-by-field, which meant a field added
+           later was silently dropped here on every redaction. */
         return {
+          ...base,
           heroPathname: base.heroPathname === from ? to : base.heroPathname,
+          storyPathname: base.storyPathname === from ? to : base.storyPathname,
           frames,
         };
       };
