@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
 import type { CatalogueMatchRow, CatalogueSearch } from "@/lib/catalogueMatches";
+import { getSignedInDisplayIdentity } from "@/lib/signedInDisplayIdentity";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER CATALOGUE — /catalogue
@@ -38,14 +39,7 @@ export default async function CataloguePage() {
     redirect("/login?callbackUrl=/catalogue");
   }
 
-  // Greeting name.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .single();
-
-  const displayName = profile?.display_name ?? null;
+  const displayName = await getSignedInDisplayIdentity(supabase, user);
 
   // The collector's saved searches — names for attribution, paused and
   // include_adjacent so presentation can honor both at read time.

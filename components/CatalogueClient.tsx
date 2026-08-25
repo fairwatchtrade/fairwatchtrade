@@ -110,7 +110,7 @@ export type ListingRow = {
 };
 
 type CatalogueProps = {
-  displayName: string | null;
+  displayName: string;
   searches: CatalogueSearch[];
   matchRows: CatalogueMatchRow<ListingRow>[];
 };
@@ -1214,7 +1214,7 @@ export default function CatalogueClient({
       <div className="min-w-0 flex-1 py-8">
         {/* Greeting */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          {greeting()}, {displayName ?? "Collector"}.
+          {greeting()}, {displayName}.
         </h1>
 
         {/* Catalogue Match hero — four honest states (Permissioned
