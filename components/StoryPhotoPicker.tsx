@@ -43,11 +43,17 @@ export type StoryPhotoOption = {
 export default function StoryPhotoPicker({
   listingId,
   photos,
+  withheldCount = 0,
   storyPathname,
   onSaved,
 }: {
   listingId: string;
+  /** Only photographs a public surface may actually show. */
   photos: StoryPhotoOption[];
+  /** How many of the listing's photographs were withheld from that list, so
+      the grid can say why it is shorter than the gallery instead of leaving
+      a seller to wonder where their service document went. */
+  withheldCount?: number;
   storyPathname: string | null;
   onSaved?: (pathname: string | null) => void;
 }) {
@@ -72,7 +78,9 @@ export default function StoryPhotoPicker({
           Story Photo
         </div>
         <p className="text-[11px] leading-[1.6] text-[var(--muted)]">
-          This listing has no photographs, so there is nothing to choose from yet.
+          {withheldCount > 0
+            ? "The only photographs on this listing are private service documents, which never appear publicly. There is nothing to choose from here."
+            : "This listing has no photographs, so there is nothing to choose from yet."}
         </p>
       </div>
     );
@@ -173,6 +181,14 @@ export default function StoryPhotoPicker({
           "No choice made — FairWatchTrade picks one automatically."
         )}
       </div>
+
+      {withheldCount > 0 && (
+        <div className="mt-1.5 text-[11px] leading-[1.6] text-[var(--muted)]">
+          {withheldCount === 1
+            ? "One photograph isn't shown here — service documents stay private unless you opt in."
+            : `${withheldCount} photographs aren't shown here — service documents stay private unless you opt in.`}
+        </div>
+      )}
 
       {error && (
         <div

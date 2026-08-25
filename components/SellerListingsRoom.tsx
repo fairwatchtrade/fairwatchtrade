@@ -9,6 +9,7 @@ import RemoveListingDialog, { type RemoveResult } from "@/components/RemoveListi
 import DeleteListingDialog from "@/components/DeleteListingDialog";
 import StoryPhotoPicker, { type StoryPhotoOption } from "@/components/StoryPhotoPicker";
 import { sanitizePhotoPresentation } from "@/lib/photoPresentation";
+import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { canAskAboutDeletion } from "@/lib/listingDeleteEligibility";
 import type { AccountListing, AccountDecisionEvent } from "@/components/AccountDashboard";
 
@@ -79,7 +80,14 @@ import { cardImageSrc } from "@/lib/media/cardImage";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-type ListingPhoto = { photo: { url: string; pathname?: string }; category: string };
+type ListingPhoto = {
+  photo: { url: string; pathname?: string };
+  category: string;
+  /* Service Evidence is private unless the seller deliberately opted in.
+     Carried here because the Story Photo choice must not offer a photograph
+     the collector will never be shown. */
+  servicePublicOptIn?: boolean;
+};
 
 export type ListingThreadStat = {
   listingId: string | null;
@@ -571,13 +579,29 @@ export default function SellerListingsRoom({
   const selected = visible.find((l) => l.id === selectedId) ?? null;
 
   /* Story Photo — the seller's own photographs, reduced to what the picker
-     needs. Only entries carrying a pathname qualify: the choice is stored BY
-     pathname, so a photograph without one cannot be named and must not be
-     offered as though it could be. */
-  const storyOptions: StoryPhotoOption[] = (selected?.photos ?? [])
+     may honestly offer.
+
+     TWO FILTERS, AND THE SECOND ONE MATTERS MORE THAN IT LOOKS.
+
+     · a pathname is required, because the choice is STORED by pathname and a
+       photograph without one cannot be named;
+     · the photograph must be one a public surface may actually show. An
+       un-opted-in Service Evidence document is filtered out of the listing
+       page before the Story Photo is resolved, so offering it here would let
+       a seller pick a photograph that silently never appears — the choice
+       would save, the collector would keep seeing the fallback, and nothing
+       would say why. The privacy predicate is imported rather than restated:
+       one rule, one definition. */
+  const storyOptions: StoryPhotoOption[] = publiclyDisplayablePhotos(selected?.photos ?? [])
     .filter((p): p is ListingPhoto & { photo: { url: string; pathname: string } } =>
       Boolean(p?.photo?.url && p?.photo?.pathname))
     .map((p) => ({ url: p.photo.url, pathname: p.photo.pathname, category: p.category }));
+
+  /* Withheld rather than missing. A seller who uploaded a service document
+     and cannot find it in the grid deserves the reason, not a silent gap. */
+  const storyWithheld =
+    (selected?.photos ?? []).filter((p) => Boolean(p?.photo?.pathname)).length -
+    storyOptions.length;
 
   const storyPathname = selected
     ? sanitizePhotoPresentation(selected.photo_presentation).storyPathname
@@ -1301,6 +1325,7 @@ export default function SellerListingsRoom({
               key={selected.id}
               listingId={selected.id}
               photos={storyOptions}
+              withheldCount={storyWithheld}
               storyPathname={storyPathname}
               onSaved={() => {
                 /* Same convention as Remove: the room does not patch its own
