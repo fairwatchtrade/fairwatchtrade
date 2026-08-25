@@ -16,7 +16,11 @@ import ListingActionRail from "@/components/ListingActionRail";
 import type { CurationSummary } from "@/lib/curationReview";
 import ListingPurchaseRequestProvider from "@/components/ListingPurchaseRequestProvider";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
-import { resolveHeroIndex, sanitizePhotoPresentation } from "@/lib/photoPresentation";
+import {
+  resolveHeroIndex,
+  resolveStoryIndex,
+  sanitizePhotoPresentation,
+} from "@/lib/photoPresentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { formatMoney } from "@/lib/formatMoney";
 import { getCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
@@ -429,6 +433,35 @@ export default async function ListingDetailPage({
   // it just never reached its consumer.
   const dialPhoto = sorted.find((p) => p?.category === "Dial");
   const dialPhotoUrl = dialPhoto?.photo.url ?? null;
+
+  /* ── STORY PHOTO ── the collector-facing half of the seller's choice.
+
+     The automatic answer first, because it is what every listing that never
+     chose one must keep reading as: a photograph that is deliberately NOT
+     the hero, so the collector is re-anchored to the object with a different
+     view of it rather than shown the same frame twice. Dial first, then any
+     other frame, and the hero only as the last resort on a single-photograph
+     listing.
+
+     resolveStoryIndex then lets an explicit selection beat that answer -- but
+     only while the chosen photograph is still present. A deleted Story Photo
+     and a pathname belonging to some other listing both simply fail to match
+     and degrade quietly to the automatic choice; nothing here dereferences a
+     stored id, it compares one.
+
+     No link, no lightbox, no thumbnail row: this is one restrained echo of
+     the object beside the seller's words, not a second gallery. */
+  const automaticStoryUrl =
+    (dialPhotoUrl && dialPhotoUrl !== heroUrl ? dialPhotoUrl : null) ??
+    photoUrls.find((u) => u && u !== heroUrl) ??
+    heroUrl;
+
+  const storyIndex = resolveStoryIndex(
+    sorted.map((p) => p?.photo?.pathname ?? null),
+    presentation,
+    photoUrls.findIndex((u) => u === automaticStoryUrl)
+  );
+  const storyPhotoUrl = storyIndex >= 0 ? (photoUrls[storyIndex] ?? null) : null;
 
   /* §2 IDENTITY — maker eyebrow, model heading, reference signature.
      `brand` and `model` are separate columns; the model value is normally the
@@ -923,15 +956,42 @@ export default async function ListingDetailPage({
           condition={listing.condition}
         />
 
-        {/* SECTION 5 — From the Seller */}
-        {listing.description && (
-          <section className="mt-8">
+        {/* SECTION 5 — From the Seller
+
+            The narrative keeps every word and every value it had. What is new
+            is that the seller's chosen Story Photo now actually arrives here,
+            beneath the words -- the reader half of a choice that until now was
+            saved and then seen by nobody.
+
+            The section opens on a photograph alone when a seller chose one but
+            wrote nothing, because dropping the choice in that case would be
+            the same silent loss this closes. */}
+        {(listing.description || storyPhotoUrl) && (
+          <section className="mt-8 mb-8">
             <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               From the Seller
             </div>
-            <p className="mt-3 mb-8 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
-              {listing.description}
-            </p>
+            {listing.description && (
+              <p className="mt-3 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+                {listing.description}
+              </p>
+            )}
+            {storyPhotoUrl && (
+              /* Decorative on purpose: the photograph repeats evidence the
+                 gallery already presents accessibly, and giving it nothing to
+                 announce is the same promise as giving it nothing to click. */
+              <div
+                aria-hidden="true"
+                className="relative mt-6 h-[160px] overflow-hidden border-t border-[var(--border-faint)] min-[56rem]:h-[220px]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={storyPhotoUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </div>
+            )}
           </section>
         )}
 
