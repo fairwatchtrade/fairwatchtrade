@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import RemoveListingDialog, { type RemoveResult } from "@/components/RemoveListingDialog";
 import DeleteListingDialog from "@/components/DeleteListingDialog";
+import StoryPhotoPicker, { type StoryPhotoOption } from "@/components/StoryPhotoPicker";
+import { sanitizePhotoPresentation } from "@/lib/photoPresentation";
 import { canAskAboutDeletion } from "@/lib/listingDeleteEligibility";
 import type { AccountListing, AccountDecisionEvent } from "@/components/AccountDashboard";
 
@@ -76,7 +79,7 @@ import { cardImageSrc } from "@/lib/media/cardImage";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-type ListingPhoto = { photo: { url: string }; category: string };
+type ListingPhoto = { photo: { url: string; pathname?: string }; category: string };
 
 export type ListingThreadStat = {
   listingId: string | null;
@@ -261,6 +264,10 @@ export default function SellerListingsRoom({
      rather than the URL: a sort is how you are working, not where you are,
      and it should not own a back-button step or be inherited by a shared
      link. It restores on remount and expires with the tab. ── */
+  /* The room's one handle on server truth: a save that the server owns is
+     followed by a refresh rather than by patching a prop in place. */
+  const router = useRouter();
+
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
     key: "listed",
@@ -562,6 +569,19 @@ export default function SellerListingsRoom({
   }, [visible, selectedId]);
 
   const selected = visible.find((l) => l.id === selectedId) ?? null;
+
+  /* Story Photo — the seller's own photographs, reduced to what the picker
+     needs. Only entries carrying a pathname qualify: the choice is stored BY
+     pathname, so a photograph without one cannot be named and must not be
+     offered as though it could be. */
+  const storyOptions: StoryPhotoOption[] = (selected?.photos ?? [])
+    .filter((p): p is ListingPhoto & { photo: { url: string; pathname: string } } =>
+      Boolean(p?.photo?.url && p?.photo?.pathname))
+    .map((p) => ({ url: p.photo.url, pathname: p.photo.pathname, category: p.category }));
+
+  const storyPathname = selected
+    ? sanitizePhotoPresentation(selected.photo_presentation).storyPathname
+    : null;
 
   const selectedThreadCount = selected
     ? threadStats.filter((t) => t.listingId === selected.id).length
@@ -1263,6 +1283,32 @@ export default function SellerListingsRoom({
 
               </div>
             </div>
+
+            {/* STORY PHOTO — the only surface in the product that can change
+                this on a listing that already exists. The Sell Flow control
+                writes it once at creation and is unreachable afterwards, so
+                without this card a published watch could never have its Story
+                Photo chosen or changed at all.
+
+                It sits below the listing card rather than inside it because it
+                is an act, not a fact: the card above states what is true of the
+                watch, and every control in this rail lives outside it. */}
+            <StoryPhotoPicker
+              /* A different watch is a different component: the picker holds
+                 the seller's optimistic choice, and remounting is what makes
+                 that state start correct instead of being corrected by an
+                 effect the moment the rail selection changes. */
+              key={selected.id}
+              listingId={selected.id}
+              photos={storyOptions}
+              storyPathname={storyPathname}
+              onSaved={() => {
+                /* Same convention as Remove: the room does not patch its own
+                   copy of a server-owned field. The picker already moved its
+                   own mark, so this only brings the prop back into agreement. */
+                router.refresh();
+              }}
+            />
 
             {/* MARKET PULSE — locked honest unavailable state, verbatim copy. */}
             <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-4 py-3.5">

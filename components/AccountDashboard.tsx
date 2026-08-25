@@ -96,7 +96,11 @@ import { formatMoney } from "@/lib/formatMoney";
    ──────────────────────────────────────────────────────────────────────── */
 
 type ListingPhoto = {
-  photo: { url: string };
+  /* pathname is the STABLE identity of the stored object — a URL can be
+     reissued — and it is what photo_presentation keys every seller choice
+     by. Optional because rows written before pathnames were persisted must
+     keep rendering. */
+  photo: { url: string; pathname?: string };
   category: string;
 };
 
@@ -136,6 +140,11 @@ export type AccountListing = {
   /** Private Listing V1 — the ONE authorized buyer, set only on private
       rows. Optional so every pre-private surface keeps rendering. */
   private_buyer_id?: string | null;
+  /** The governed seller photo-presentation record — read here only so the
+      Listings rail can show the Story Photo the seller chose. Unknown rather
+      than typed: it crosses from jsonb and must go through
+      sanitizePhotoPresentation before anything reads a field off it. */
+  photo_presentation?: unknown;
 };
 
 /** One recorded adjudication decision, seller-visible fields only. The

@@ -54,7 +54,11 @@ export default async function AccountPage({
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, brand, model, reference, public_code, condition, asking_price, asking_currency, status, created_at, photos, integrity_hold_reason, seller_clarification_note, rejection_reason, removed_at, removal_reason_code, removal_reason_note, private_buyer_id"
+      // photo_presentation joins the row so the Listings rail can show which
+      // photograph the seller already chose. Read-only here — the ONLY writer
+      // after insert is public.set_listing_story_photo (no UPDATE grant exists
+      // on this column for a seller session).
+      "id, brand, model, reference, public_code, condition, asking_price, asking_currency, status, created_at, photos, photo_presentation, integrity_hold_reason, seller_clarification_note, rejection_reason, removed_at, removal_reason_code, removal_reason_note, private_buyer_id"
     )
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
