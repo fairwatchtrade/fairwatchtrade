@@ -2395,7 +2395,7 @@ export default function VaultGalaxy({
               onKeyDown={(e) => {
                 if (e.key === "Enter") runSearch(query);
               }}
-              placeholder="Try: architectural manual wind, Japanese independent, heritage chronograph…"
+              placeholder="Try: manual wind or Moser"
               className="min-w-0 flex-1 border-0 border-b border-[var(--border-mid)] bg-transparent px-[2px] py-2 font-display text-[17px] text-[var(--platinum)] outline-none placeholder:italic placeholder:text-[var(--void)] sm:text-[21px]"
             />
             <button onClick={() => runSearch(query)} className="fw-btn-primary">
