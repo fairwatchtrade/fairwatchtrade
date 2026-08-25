@@ -867,13 +867,46 @@ export default function VaultGalaxy({
       };
     }
 
+    /* ── Background starfield ─────────────────────────────────────────
+       THE BUG THIS FUNCTION IS NAMED FOR: the original placement was
+       `(i * 137.508) % window.innerWidth`, which is not random and never
+       was. An arithmetic progression taken modulo the viewport is a
+       LATTICE, and whether it reads as scattered sky or as visible chains
+       depends entirely on the ratio between the step and the viewport.
+
+       At 412x915 - an ordinary phone - that ratio was 412/137.508 = 2.996
+       and 915/83.17 = 11.002. Both within 0.2% of a whole number, so the
+       sequence very nearly closed on itself: 120 stars collapsed onto 21
+       columns instead of spreading, and the 0.004-of-a-step residue walked
+       them into slow diagonal chains. Wider viewports hid it by landing on
+       a less resonant ratio; nothing about the code changed when it became
+       visible, only how much empty sky was on screen to show it.
+
+       The fix is to stop deriving position from the index at all. Each star
+       takes a fixed pseudo-random UNIT position from a hash of its index,
+       scaled to the viewport - so the field is irregular at every viewport
+       and cannot resonate with any of them.
+
+       DELIBERATELY UNCHANGED: 120 stars, the two drift amplitudes, the
+       twinkle, the 1.2/0.7 radius rule, and the colour. This is a placement
+       repair, not a new starfield - do not treat it as licence to redesign
+       the sky. The layered-parallax TODO above remains unbuilt. */
     function starfield() {
       const t = tRef.current;
+      const W = window.innerWidth;
+      const H = window.innerHeight;
       for (let i = 0; i < 120; i++) {
-        const x =
-          (i * 137.508 + Math.sin(t * 0.00008 + i) * 18) % window.innerWidth;
-        const y =
-          (i * 83.17 + Math.cos(t * 0.0001 + i) * 12) % window.innerHeight;
+        /* Fractional parts of an irrational-scaled hash: stable per index,
+           so the sky is identical on every frame and every reload, and it
+           never lines up because nothing steps by a constant. */
+        const h = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+        const h2 = Math.sin(i * 39.3468 + 11.135) * 24634.6345;
+        const ux = h - Math.floor(h);
+        const uy = h2 - Math.floor(h2);
+        /* Drift and wrap exactly as before, so a star still crosses an edge
+           and reappears rather than piling up against it. */
+        const x = (ux * W + Math.sin(t * 0.00008 + i) * 18 + W) % W;
+        const y = (uy * H + Math.cos(t * 0.0001 + i) * 12 + H) % H;
         const a = 0.12 + 0.25 * Math.abs(Math.sin(t * 0.0005 + i));
         ctx.fillStyle = `rgba(232,228,220,${a})`;
         ctx.beginPath();
