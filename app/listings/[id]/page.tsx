@@ -867,9 +867,22 @@ export default async function ListingDetailPage({
           {/* end CONTENT CELL */}
 
           {/* ── RIGHT RAIL — 224–276px, col 2 spanning both rows. The 112px
-                 stagger and the -14px pull are the approved composition's,
-                 unchanged. ── */}
-          <aside data-purchase-rail="" className="hidden min-[56rem]:col-start-2 min-[56rem]:row-start-1 min-[56rem]:row-span-2 min-[56rem]:mt-[112px] min-[56rem]:grid min-[56rem]:-translate-x-[14px] min-[56rem]:gap-[14px] min-[56rem]:self-start">
+                 stagger is the approved composition's, unchanged.
+
+                 LOCALHOST TEST — the horizontal pull is now -54px, forty in
+                 from the approved -14px. Human SEE-it found the rail read as
+                 three cards floating in unused beige, and the cause was not
+                 its height: it sat too far HORIZONTALLY from the hero. The
+                 fix is a pure translate, so the rail's vertical anchor, the
+                 hero, the grid tracks and the 14px card gaps are all
+                 untouched by construction - nothing reflows, one composition
+                 simply closes up.
+
+                 The measured target is a hero-to-rail gap of roughly 190px
+                 at the desktop test width. That is the OBSERVED relationship,
+                 not a viewport law: the correction is "40px inward", and the
+                 gap is how it was recognised. ── */}
+          <aside data-purchase-rail="" className="hidden min-[56rem]:col-start-2 min-[56rem]:row-start-1 min-[56rem]:row-span-2 min-[56rem]:mt-[112px] min-[56rem]:grid min-[56rem]:-translate-x-[54px] min-[56rem]:gap-[14px] min-[56rem]:self-start">
             <ListingActionRail
               variant="rail"
               listingId={listing.id}
