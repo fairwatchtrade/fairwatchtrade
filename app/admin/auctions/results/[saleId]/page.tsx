@@ -8,9 +8,24 @@
    file path, or hidden route.
 
    WHAT THIS PAGE REFUSES TO DO: claim source bytes are held when retention
-   says metadata_only; offer identity adjudication controls (no founder
-   review workflow for identity exists, and this page must not invent one);
-   become a forensic workstation. Inspection only.
+   says metadata_only; become a forensic workstation.
+
+   ⚠ THE "NO IDENTITY ADJUDICATION" REFUSAL THAT STOOD HERE IS RETIRED, and
+   deliberately rather than quietly. It was written when no founder review
+   workflow for identity existed and this page was right not to invent one.
+   One does exist: identity_resolution_review_case is the governed writer,
+   the domain already admits subject_type 'auction_lot', and the read model
+   below has always surfaced the resulting decision. The page was refusing
+   to offer a door to machinery that had since been built.
+
+   So this page is read-first with exactly ONE decision seam on it, mounted
+   below the lots table. It still invents no identity architecture: the
+   panel calls the existing resolver for candidates and the existing RPC to
+   record, and writes nothing itself.
+
+   ⚠ IDENTITY IS NOT PUBLICATION. An exact decision here does not grant
+   rights or move a lot into public Market Evidence. Monaco's rights and
+   publication state are governed separately and are untouched.
 
    Auth: founder-UID gate, trusted client only past it — the strongest
    existing admin server pattern.
@@ -24,6 +39,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchSaleDetail } from "@/lib/auction-operations/readModel";
 import { formatMoney } from "@/lib/formatMoney";
+import AuctionLotIdentity from "@/components/AuctionLotIdentity";
 
 const ADMIN_USER_ID = "77a6893a-54fe-4373-9bf7-3327d0ba69cf";
 
@@ -244,6 +260,23 @@ export default async function AuctionSaleDetailPage({
             </div>
           )}
         </section>
+
+        {/* THE ONE DECISION SEAM ON A READ-FIRST PAGE. Mounted below the
+            table rather than inside it: the table is the sale's truth and
+            stays server-rendered and static, while adjudication is a
+            deliberate, one-lot-at-a-time act that a founder opts into.
+            Passing only the four identity-bearing fields keeps the client
+            island from receiving result prices it has no business holding. */}
+        <AuctionLotIdentity
+          lots={lots.map((l) => ({
+            id: l.id,
+            lot_number: l.lot_number,
+            brand_text: l.brand_text,
+            model_text: l.model_text,
+            reference_text: l.reference_text,
+            hasIdentity: !!l.identity,
+          }))}
+        />
       </div>
     </main>
   );
