@@ -779,6 +779,18 @@ export default function VaultGalaxy({
     setCrumb("The gates are open");
     setHeroHidden(false);
     brightnessRef.current = {};
+    /* THE FIELD IS PART OF THE STATE RESET REVERSES, and leaving it behind is
+       what made the Vault look like it had a favourite brand. Reset restored
+       the camera, the view, the selection and the brightness map, then left
+       the last query sitting in the box - so the next Explore or Enter flew
+       the collector straight back to the brand they had just reset away from,
+       with nothing on screen explaining why. Reported as "it goes straight to
+       Cartier"; it was going straight back to the last thing searched.
+
+       brightnessRef is cleared just above, which is the same act on the
+       canvas side: these two are the search's whole footprint and they must
+       be cleared together or not at all. */
+    setQuery("");
     flyTo(0, 0, isMobileViewport() ? 1.15 : 2.2);
   }
 
@@ -2232,15 +2244,44 @@ export default function VaultGalaxy({
                     {variantFamily.name}
                   </div>
                 )}
+                {/* THE PROSE IS THE CARD AT THIS LEVEL, and on a narrow screen
+                    it used to be the first thing thrown away. Both of these
+                    carried `max-sm:hidden`, which was survivable while the
+                    References list below was assumed to be carrying the card -
+                    and it usually is not. 388 of the Vault's 710 variants have
+                    no references mapped yet, and 387 of those 388 have exactly
+                    this prose and nothing else. Hiding it left the collector a
+                    title and a way out.
+
+                    Removed rather than moved behind a smaller breakpoint: there
+                    is no width at which the description is the least valuable
+                    thing on this card. */}
                 {selectedVariant.description && (
-                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
                     {selectedVariant.description}
                   </p>
                 )}
                 {selectedVariant.notes && (
-                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)] max-sm:hidden">
+                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
                     {selectedVariant.notes}
                   </p>
+                )}
+                {/* ZERO REFERENCES - said out loud, in the Vault's own voice.
+                    Every other level of the hierarchy already admits what it
+                    does not know ("This constellation is still being mapped");
+                    the reference card was the one place that answered silence
+                    with silence, and a card that simply stops is read as broken
+                    rather than as honest.
+
+                    It must never imply a reference is known, coming on a date,
+                    or derivable from the variant above it. Missing data is
+                    acceptable in the Vault. Invented data is not. */}
+                {(selectedVariant.vault_references?.length ?? 0) === 0 && (
+                  <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
+                    <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                      Reference details for this variant are still being mapped.
+                    </p>
+                  </div>
                 )}
                 {selectedVariant.vault_references?.length > 0 && (
                   <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
