@@ -56,6 +56,17 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
       <line x1="7" y1="3" x2="7" y2="10" />
     </>
   ),
+  /* Wanted — the same crosshair the Catalogue and Account rails carry, scaled
+     to this map's 14x14 box. Naming a watch and waiting for it is a different
+     act from examining one in your hand, which is why it is not a loupe. */
+  Wanted: (
+    <>
+      <circle cx="7" cy="7" r="5.25" />
+      <circle cx="7" cy="7" r="2.6" />
+      <circle cx="7" cy="7" r="0.9" />
+      <path d="M7 1.75v1.75M7 10.5v1.75M1.75 7h1.75M10.5 7h1.75" />
+    </>
+  ),
   "Saved Watches": <path d="M4 2h6a1 1 0 011 1v9l-4-2.5L3 12V3a1 1 0 011-1z" />,
   "Sell a Watch": (
     <>
@@ -198,8 +209,7 @@ const PRIMARY_LINKS: NavLink[] = [
   { label: "Sell", href: "/sell" },
   { label: "Catalogue", href: "/catalogue" },
   /* Wanted sits with Catalogue in the collector grouping — the same family
-     it joins on desktop. Deliberately NOT a new top-level mobile icon: the
-     drawer gains a destination, not a navigation primitive. */
+     it joins on desktop. */
   { label: "Wanted", href: "/wanted" },
   { label: "Vault", href: "/vault" },
 ];
