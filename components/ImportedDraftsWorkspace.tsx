@@ -748,10 +748,15 @@ export default function ImportedDraftsWorkspace() {
        The fix is composition, not size. The pair is now a bounded, centred
        object with real air on both sides and a true gutter between the two
        panels. The queue is DELIBERATELY unchanged at 300px — widening it
-       would have balanced the row by making the wrong half bigger. ── */
-    <div className="mx-auto flex min-h-0 w-full max-w-[1120px] gap-5 px-5 py-5">
+       would have balanced the row by making the wrong half bigger.
+
+       Below md the pair stacks. The 300px rail is correct at desktop and fatal
+       at 390px: it leaves ~30px for the workbench, which is what collapsed the
+       rejection reason to one word per line. Desktop composition above is
+       unchanged. ── */
+    <div className="mx-auto flex min-h-0 w-full max-w-[1120px] flex-col gap-5 px-5 py-5 md:flex-row">
       {/* ── LEFT: draft list ── */}
-      <aside className="w-[300px] shrink-0 self-start border border-[var(--border-faint)] bg-[var(--surface)]">
+      <aside className="w-full shrink-0 self-stretch border border-[var(--border-faint)] bg-[var(--surface)] md:w-[300px] md:self-start">
         <div className="border-b border-[var(--border-faint)] px-5 py-3">
           <input
             type="search"
@@ -776,7 +781,7 @@ export default function ImportedDraftsWorkspace() {
             </span>
           </div>
         </div>
-        <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+        <div className="max-h-[45vh] overflow-y-auto md:max-h-[calc(100vh-220px)]">
           {filtered.map((l) => {
             const m = STATUS_META[roomStatus(l)];
             const isSel = l.id === selectedId;
@@ -1327,7 +1332,7 @@ export default function ImportedDraftsWorkspace() {
           </div>
 
           {/* Action bar */}
-          <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[var(--border-faint)] bg-[var(--surface)] px-6 py-4">
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-faint)] bg-[var(--surface)] px-4 py-4 md:flex-nowrap md:gap-4 md:px-6">
             {/* v2.22 — the LEFT line keeps errors and unsaved-state words; the
                 saved acknowledgement now lives beside the button that earned it. */}
             {/* `truncate` is load-bearing at constrained desktop widths: the
