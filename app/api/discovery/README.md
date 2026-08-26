@@ -108,6 +108,75 @@ market or watch entirely.
 manufacturer reference — two examples of the same watch. All of them are exact. None of them
 is *related*.
 
+## Unknowns are preserved, not admitted
+
+> **A constraint query returns only watches that affirmatively satisfy it.**
+
+Shipped v6.77 (`f6f9fbb`). Before it, a query for `documentation=Papers Only` silently dropped
+every watch whose documentation FairWatchTrade had not recorded — at the database, in the
+`ilike`, where NULL never survives a comparison. A watch that may well have papers, whose
+seller simply left a field blank, was invisible to the exact collector who wanted it, and
+nobody was ever told it happened.
+
+Three states, and the middle one is the whole point:
+
+| state | where it goes |
+|---|---|
+| **satisfied** — the row has the field and it meets the constraint | `results[]` |
+| **unknown** — the row's field is NULL; FairWatchTrade does not know | `unconfirmed`, **never counted** |
+| **not_satisfied** — the row has the field and it is not what was asked | **excluded entirely** |
+
+**This is not partial-match admission, and the distinction is architectural.** No unconfirmed
+row enters `results[]`, inflates `result_count`, or is presented as satisfying the constraint.
+Uncertainty is never substituted for a match — and never silently discarded either. Both are
+failures; only one of them was visible before v6.77.
+
+**Explicitly-no is not unknown.** A watch recorded as `No Box or Papers` fails a `Papers Only`
+query on its merits. There is nothing for the collector to adjudicate, so it appears in neither
+collection. Without this line `unconfirmed` becomes a junk drawer for everything that failed to
+match, and the vocabulary collapses.
+
+**Three constraints can never be unconfirmed, by schema rather than by convention.**
+`brand`, `in_hand_verified` and `open_to_trades` are `NOT NULL` on `listings`. There is no null
+to admit and no hole to fix — do not wrap them in `.or()`, and do not write a migration to
+"correct" a gap that does not exist.
+
+### How it works
+
+`unknownConstraintsFor()` decides, per row, **which** constraints are unconfirmed — an array,
+not a boolean. A query can supply four constraints and a row can be unknown on two of them.
+
+Retrieval runs **two bounded fetches**, not one:
+
+- the **strict** fetch is unchanged from before v6.77 and produces `results[]`;
+- the **admitting** fetch substitutes `.or("<field>.ilike.%X%,<field>.is.null")` per
+  unknown-capable constraint, and its rows *minus* the strict rows become `unconfirmed`.
+
+Successive `.or()` calls AND together, so each constraint independently admits
+*(matches OR unknown)* while a row must still clear every supplied constraint.
+
+**A `not_satisfied` row fails both branches and never returns.** The exclusion rule falls out
+of retrieval rather than needing separate enforcement — which is why this lives in the query
+and not in a post-pass.
+
+**Two fetches rather than one shared ceiling**, because `DISCOVERY_FETCH_CEILING` would
+otherwise hold both classes. On a sparsely-populated field — the ordinary case for
+`documentation` — unconfirmed rows can crowd the collector's actual matches out of the sweep,
+and `truncated: true` would then be honest about the fetch and **wrong about the results**.
+Each collection reports its own truncation for the same reason: one shared boolean cannot say
+which ceiling was hit.
+
+**The second fetch is skipped** when a query supplies only structurally-excluded constraints.
+The admitting query would be byte-identical to the strict one and buy nothing.
+
+**`dial` partitions in memory, in one direction only.** It resolves through
+`specs.dialColorType`, not a column. A row with no `dialColorType` key is unconfirmed; a row
+that has one which does not match is `not_satisfied` and appears in neither collection. Without
+that second half, `dial` alone would quietly make `unconfirmed` the junk drawer.
+
+`unconfirmed_note` warns an agent not to present these as satisfying the constraint, and
+discloses the collection's own cap.
+
 ---
 
 ## What is deliberately NOT built
@@ -129,6 +198,10 @@ is *related*.
   reaches this surface, and adding it is a separate decision, not an extension of this one.
 - **No SEO pass.** No meta tags, titles, descriptions or canonical link elements were touched.
   `ListingStructuredData` adds one script element carrying facts the page already displays.
+- **No partial-match admission.** The `unconfirmed` collection is not a near-match tier. No
+  score, no percentage, no compliance badge, no ranking against the primary set — a flat
+  factual category the collector may choose to look at. If a future round wants partial
+  matching, that is a product decision made deliberately, not an extension of this one.
 
 ---
 
