@@ -67,13 +67,15 @@ const ICONS = {
       <path d="M9 12h6M12 9v6" />
     </svg>
   ),
-  /* Wanted — a loupe over an absence: the collector is looking FOR
-     something rather than at something they own. */
+  /* Wanted — a crosshair. The collector has named a specific watch and is
+     waiting for it to appear, which is a different act from browsing. Not a
+     loupe: a loupe is for examining what is in front of you. */
   wanted: (
     <svg viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="6" />
-      <path d="M15.5 15.5L20 20" />
-      <path d="M11 8.5v5M8.5 11h5" />
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1.6" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
     </svg>
   ),
   myCatalogue: (
