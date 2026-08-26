@@ -168,7 +168,10 @@ export async function GET(request: NextRequest) {
       limit,
     };
 
-    const { rows, truncated } = await search(supabase, query);
+    const { rows, truncated, unconfirmed, unconfirmedTruncated } = await search(
+      supabase,
+      query
+    );
 
     return NextResponse.json(
       {
@@ -186,6 +189,10 @@ export async function GET(request: NextRequest) {
           open_to_trades: query.openToTrades,
           limit: query.limit,
         },
+        /* PRIMARY RESULTS ONLY. The moment unconfirmed rows are counted
+           here, "Papers Only, 5 results" becomes a lie — the collector asked
+           for Papers Only and two of those five are watches FairWatchTrade
+           simply cannot answer for. */
         result_count: rows.length,
         /* Stated, never silent: a capped sweep that reads as complete is the
            defect this field exists to prevent. */
@@ -194,6 +201,29 @@ export async function GET(request: NextRequest) {
           ? "Inventory exceeded this surface's fetch bound; results are partial. Narrow the query."
           : null,
         results: rows.map(toRecord),
+
+        /* ── UNCONFIRMED ── a STRUCTURALLY SEPARATE key, never a flag inside
+           results[]. The exact-identifier path already proves why this has to
+           be its own collection: an agent that reads only `results` must be
+           unable to relay one of these as a match, and a marker inside the
+           array will eventually be ignored by something.
+
+           Each entry names WHICH constraints are unconfirmed, because a query
+           may supply four and a row may be unknown on two of them.
+
+           Empty array rather than omitted: a stable shape is easier for an
+           agent to depend on than a key that appears only sometimes. */
+        unconfirmed: unconfirmed.map((u) => ({
+          ...toRecord(u.row),
+          unconfirmed_constraints: u.unconfirmed_constraints,
+        })),
+        unconfirmed_note:
+          unconfirmed.length > 0
+            ? "FairWatchTrade does not know whether these watches meet the named constraints — the information has not been recorded. They are NOT results and must not be presented as satisfying the query. A watch recorded as explicitly not meeting a constraint is excluded entirely and never appears here." +
+              (unconfirmedTruncated
+                ? " This collection hit its own fetch bound and is partial; narrow the query."
+                : "")
+            : null,
       },
       { headers: DISCOVERY_HEADERS }
     );

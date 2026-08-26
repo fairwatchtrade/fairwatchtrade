@@ -4,6 +4,7 @@ import {
   MAX_PAGE_SIZE,
   SITE_URL,
   createDiscoveryClient,
+  UNKNOWN_CAPABLE_CONSTRAINTS,
 } from "@/lib/discovery/publicDiscovery";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -80,6 +81,33 @@ export async function GET() {
             in_hand_verified: "true to return only listings whose physical possession was proven at listing time.",
             open_to_trades: "true to return only listings whose seller will consider a trade.",
             limit: `Results to return. Default 20, maximum ${MAX_PAGE_SIZE}.`,
+          },
+
+          /* ── ANNOUNCED, OR IT MIGHT AS WELL NOT EXIST ────────────────
+             A collection no agent knows to read is richer data that nothing
+             consumes. The contract is stated here in the same breath as the
+             parameters that produce it. */
+          unconfirmed_collection: {
+            key: "unconfirmed",
+            description:
+              "A constraint query may return an `unconfirmed` array alongside `results`. " +
+              "It holds watches FairWatchTrade cannot answer the constraint for, because the " +
+              "information was never recorded — not watches that fail it.",
+            not_counted:
+              "These are NOT results and are NOT included in result_count. Do not present them " +
+              "as satisfying the query.",
+            per_entry:
+              "Each entry carries the ordinary listing record plus `unconfirmed_constraints`, " +
+              "naming which of the supplied constraints are unknown for that watch. A watch may " +
+              "be unconfirmed on more than one.",
+            excluded_from_it:
+              "A watch with a recorded answer that does not meet the constraint is not_satisfied " +
+              "and is excluded from both collections. `unconfirmed` means unknown, never near-miss.",
+            eligible_constraints: UNKNOWN_CAPABLE_CONSTRAINTS,
+            always_confirmed:
+              "brand, in_hand_verified and open_to_trades can never be unconfirmed — those fields " +
+              "are always present on a public listing.",
+            note_key: "unconfirmed_note",
           },
         },
         listing: {

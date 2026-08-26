@@ -326,7 +326,54 @@ export type SearchOutcome = {
   rows: DiscoveryRow[];
   /** True when the bounded fetch hit its ceiling and results may be partial. */
   truncated: boolean;
+  /* ── UNCONFIRMED ── rows FairWatchTrade cannot answer the constraint for.
+     Never folded into `rows`: a `Papers Only` query must return Papers Only,
+     and an agent reading only `results` must be structurally unable to relay
+     one of these as a match. */
+  unconfirmed: UnconfirmedRow[];
+  /** Independent of `truncated` — the two fetches have their own ceilings and
+      one shared boolean could not say which was hit. */
+  unconfirmedTruncated: boolean;
 };
+
+export type UnconfirmedRow = {
+  row: DiscoveryRow;
+  /* WHICH constraints are unconfirmed, not merely THAT one is. A query may
+     supply four and a row may be unknown on two of them; one-row-one-reason
+     would discard the difference. */
+  unconfirmed_constraints: string[];
+};
+
+/* The constraints whose source can genuinely be absent. brand,
+   in_hand_verified and open_to_trades are NOT NULL in `listings` — verified
+   against production — so they have no null to admit and keep their strict
+   filters. `text` is excluded by ruling: a free-text match cannot be honestly
+   decomposed into a reason. */
+const UNKNOWN_CAPABLE = [
+  "documentation",
+  "condition",
+  "model",
+  "currency",
+  "max_price",
+  "min_price",
+  "dial",
+] as const;
+
+/** Which supplied constraints this row cannot be answered for. */
+function unknownConstraintsFor(row: DiscoveryRow, q: DiscoveryQuery): string[] {
+  const out: string[] = [];
+  if (q.documentation && row.documentation === null) out.push("documentation");
+  if (q.condition && row.condition === null) out.push("condition");
+  if (q.model && row.model === null) out.push("model");
+  if (q.currency && row.asking_currency === null) out.push("currency");
+  /* One price column answers two constraints, so each is named separately —
+     a collector who supplied only min_price should not be told max_price is
+     unconfirmed. */
+  if (q.maxPrice !== null && row.asking_price === null) out.push("max_price");
+  if (q.minPrice !== null && row.asking_price === null) out.push("min_price");
+  if (q.dial && typeof row.specs?.dialColorType !== "string") out.push("dial");
+  return out;
+}
 
 /**
  * Search public inventory by collector constraints.
@@ -340,48 +387,155 @@ export async function search(
   supabase: SupabaseClient,
   q: DiscoveryQuery
 ): Promise<SearchOutcome> {
-  let builder = supabase
-    .from(READ_MODEL)
-    .select(READ_MODEL_COLUMNS)
-    .order("asking_price", { ascending: true, nullsFirst: false })
-    .limit(DISCOVERY_FETCH_CEILING + 1);
+  /* ── TWO BOUNDED FETCHES, DELIBERATELY ────────────────────────────────
+     The strict fetch is byte-for-byte what this surface has always run, and
+     its rows are `results[]`. The admitting fetch repeats it with each
+     unknown-capable constraint widened to *(matches OR is null)*; its rows
+     minus the strict ones are `unconfirmed`.
 
-  if (q.brand) builder = builder.ilike("brand", `%${q.brand}%`);
-  if (q.model) builder = builder.ilike("model", `%${q.model}%`);
-  if (q.condition) builder = builder.ilike("condition", `%${q.condition}%`);
-  if (q.documentation) builder = builder.ilike("documentation", `%${q.documentation}%`);
-  if (q.currency) builder = builder.eq("asking_currency", q.currency.toUpperCase());
-  if (q.maxPrice !== null) builder = builder.lte("asking_price", q.maxPrice);
-  if (q.minPrice !== null) builder = builder.gte("asking_price", q.minPrice);
-  if (q.inHandVerified === true) builder = builder.eq("in_hand_verified", true);
-  if (q.openToTrades === true) builder = builder.eq("open_to_trades", true);
+     WHY NOT ONE SHARED FETCH. The ceiling is 200. A single admitting query
+     would spend that ceiling on both classes at once, and on a sparsely
+     populated field — the ordinary case for documentation — unconfirmed rows
+     can crowd the collector's actual matches out of the fetch entirely.
+     `truncated: true` would then be honest about the fetch and WRONG about
+     the results. This surface has never done that and this round will not be
+     where it starts. The cost is one extra round trip per constraint query,
+     accepted knowingly.
 
-  const { data, error } = await builder;
-  if (error) throw new Error(error.message);
+     WHY RETRIEVAL AND NOT A POST-PASS. `ilike`, `eq`, `lte` and `gte` all
+     drop NULL rows at the database, so a row that could carry `unknown` is
+     already gone before any labelling code could run. That is why the
+     previous attempt at this capability could not have worked whatever it
+     did to the response shape. */
+  const base = () =>
+    supabase
+      .from(READ_MODEL)
+      .select(READ_MODEL_COLUMNS)
+      .order("asking_price", { ascending: true, nullsFirst: false })
+      .limit(DISCOVERY_FETCH_CEILING + 1);
 
-  const fetched = (data ?? []) as unknown as DiscoveryRow[];
-  const truncated = fetched.length > DISCOVERY_FETCH_CEILING;
-  let rows = truncated ? fetched.slice(0, DISCOVERY_FETCH_CEILING) : fetched;
+  /* NOT NULL in `listings`, so there is no null to admit and no widened form
+     of these. They stay strict in both fetches. */
+  const applyStructural = <T extends { ilike: unknown }>(b: T): T => {
+    let out = b as unknown as ReturnType<typeof base>;
+    if (q.brand) out = out.ilike("brand", `%${q.brand}%`);
+    if (q.inHandVerified === true) out = out.eq("in_hand_verified", true);
+    if (q.openToTrades === true) out = out.eq("open_to_trades", true);
+    return out as unknown as T;
+  };
 
-  if (q.dial) {
-    const needle = q.dial.toLowerCase();
-    rows = rows.filter((r) => {
-      const dial = r.specs?.dialColorType;
-      return typeof dial === "string" && dial.toLowerCase().includes(needle);
-    });
-  }
+  let strict = applyStructural(base());
+  if (q.model) strict = strict.ilike("model", `%${q.model}%`);
+  if (q.condition) strict = strict.ilike("condition", `%${q.condition}%`);
+  if (q.documentation) strict = strict.ilike("documentation", `%${q.documentation}%`);
+  if (q.currency) strict = strict.eq("asking_currency", q.currency.toUpperCase());
+  if (q.maxPrice !== null) strict = strict.lte("asking_price", q.maxPrice);
+  if (q.minPrice !== null) strict = strict.gte("asking_price", q.minPrice);
 
-  if (q.text) {
-    const needle = q.text.toLowerCase();
-    rows = rows.filter((r) =>
-      [r.brand, r.model, r.reference, r.public_code, r.description]
-        .filter((v): v is string => typeof v === "string")
-        .some((v) => v.toLowerCase().includes(needle))
+  /* Successive .or() calls AND together, which is exactly the semantics
+     needed: each constraint independently admits *(matches OR unknown)*, and
+     a row must clear every supplied constraint to be fetched at all.
+
+     A row with a real answer that is not the requested one — `No Box or
+     Papers` against `Papers Only` — fails the match branch AND the null
+     branch, so it never returns. The exclusion of not_satisfied falls out of
+     retrieval and needs no enforcement code, which is the reason this belongs
+     here rather than in a filter afterwards. */
+  let admitting = applyStructural(base());
+  if (q.model) admitting = admitting.or(`model.ilike.%${q.model}%,model.is.null`);
+  if (q.condition) admitting = admitting.or(`condition.ilike.%${q.condition}%,condition.is.null`);
+  if (q.documentation) {
+    admitting = admitting.or(
+      `documentation.ilike.%${q.documentation}%,documentation.is.null`
     );
   }
+  if (q.currency) {
+    admitting = admitting.or(
+      `asking_currency.eq.${q.currency.toUpperCase()},asking_currency.is.null`
+    );
+  }
+  if (q.maxPrice !== null) {
+    admitting = admitting.or(`asking_price.lte.${q.maxPrice},asking_price.is.null`);
+  }
+  if (q.minPrice !== null) {
+    admitting = admitting.or(`asking_price.gte.${q.minPrice},asking_price.is.null`);
+  }
 
-  return { rows: rows.slice(0, q.limit), truncated };
+  const anyUnknownCapable =
+    Boolean(q.model || q.condition || q.documentation || q.currency || q.dial) ||
+    q.maxPrice !== null ||
+    q.minPrice !== null;
+
+  const [strictRes, admitRes] = await Promise.all([
+    strict,
+    /* Skipped entirely when no supplied constraint can be unknown — the
+       second query would be identical to the first and would buy nothing. */
+    anyUnknownCapable ? admitting : Promise.resolve(null),
+  ]);
+
+  if (strictRes.error) throw new Error(strictRes.error.message);
+  if (admitRes && admitRes.error) throw new Error(admitRes.error.message);
+
+  /* In-memory refinements. `dial` and `text` look across several fields at
+     once, so both still run over the bounded fetch. */
+  const dialMatches = (r: DiscoveryRow): boolean => {
+    if (!q.dial) return true;
+    const dial = r.specs?.dialColorType;
+    return typeof dial === "string" && dial.toLowerCase().includes(q.dial.toLowerCase());
+  };
+  const textMatches = (r: DiscoveryRow): boolean => {
+    if (!q.text) return true;
+    const needle = q.text.toLowerCase();
+    return [r.brand, r.model, r.reference, r.public_code, r.description]
+      .filter((v): v is string => typeof v === "string")
+      .some((v) => v.toLowerCase().includes(needle));
+  };
+
+  const strictFetched = (strictRes.data ?? []) as unknown as DiscoveryRow[];
+  const truncated = strictFetched.length > DISCOVERY_FETCH_CEILING;
+  const strictRows = (truncated
+    ? strictFetched.slice(0, DISCOVERY_FETCH_CEILING)
+    : strictFetched
+  ).filter((r) => dialMatches(r) && textMatches(r));
+
+  const rows = strictRows.slice(0, q.limit);
+
+  if (!admitRes) {
+    return { rows, truncated, unconfirmed: [], unconfirmedTruncated: false };
+  }
+
+  const admitFetched = (admitRes.data ?? []) as unknown as DiscoveryRow[];
+  const unconfirmedTruncated = admitFetched.length > DISCOVERY_FETCH_CEILING;
+  const admitRows = unconfirmedTruncated
+    ? admitFetched.slice(0, DISCOVERY_FETCH_CEILING)
+    : admitFetched;
+
+  /* Identity by id, not by position: the two fetches order alike but a row
+     present in both is a satisfied row and must appear only once, in
+     results[]. */
+  const strictIds = new Set(strictRows.map((r) => r.id));
+
+  const unconfirmed: UnconfirmedRow[] = [];
+  for (const r of admitRows) {
+    if (strictIds.has(r.id)) continue;
+    /* text still applies — an unconfirmed row must still be one the collector
+       asked about. dial does NOT filter here; a missing dialColorType is
+       precisely an unconfirmed answer rather than a reason to drop the row. */
+    if (!textMatches(r)) continue;
+    const reasons = unknownConstraintsFor(r, q);
+    /* A row can reach the admitting fetch, fail nothing, and still not be in
+       the strict set — for instance a dial mismatch on a row that HAS a dial.
+       That is not_satisfied, not unknown, and it is excluded. */
+    if (reasons.length === 0) continue;
+    unconfirmed.push({ row: r, unconfirmed_constraints: reasons });
+    if (unconfirmed.length >= q.limit) break;
+  }
+
+  return { rows, truncated, unconfirmed, unconfirmedTruncated };
 }
+
+/** The constraints this surface can report as unconfirmed, for the descriptor. */
+export const UNKNOWN_CAPABLE_CONSTRAINTS: readonly string[] = UNKNOWN_CAPABLE;
 
 /**
  * Nearby alternatives for an exact identifier that was not found, or that was.
