@@ -2267,7 +2267,23 @@ export default function VaultGalaxy({
              taller only in detail where references earn it). No bottom pin,
              no max-h, no scroll region — so no invisible shell, no pointer
              trap. Desktop classes (sm:) byte-identical: sacred this pass. */
-          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:right-3 max-sm:top-[64px] max-sm:w-[210px] max-sm:p-3 sm:right-7 sm:top-[90px] sm:w-[330px]">
+          /* v6.76 — THE PLAQUE NOW HAS A CEILING, and it needs one for the
+             first time. The note above is still true about intent: no bottom
+             pin, no full-height shell, height driven by content. What changed
+             is that the content is no longer artificially short. The brand and
+             variant cards used to drop their prose at this width, which is
+             what kept the plaque at 60-110px; now that the prose stays, a long
+             description (George Daniels runs 557 characters, ~30 lines in a
+             210px column) would extend past the bottom of a short phone with
+             no bottom pin to stop it and no scroll region to reach it. The
+             content would be present in the DOM and unreadable in the room.
+
+             The cap is expressed against the viewport rather than as a fixed
+             number so it holds on any phone height, and it engages ONLY when
+             content genuinely exceeds it - a short card still sizes to its
+             content and creates no invisible shell to trap a tap meant for the
+             canvas, which was the whole reason the original had no max-h. */
+          <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:right-3 max-sm:top-[64px] max-sm:max-h-[calc(100dvh-150px)] max-sm:w-[210px] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:p-3 sm:right-7 sm:top-[90px] sm:w-[330px]">
             {loading ? (
               <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
                 Illuminating the constellation…
@@ -2424,16 +2440,24 @@ export default function VaultGalaxy({
                 <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedBrand.name}
                 </h2>
-                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
+                {/* An unmapped brand is still a BRAND CARD, and it collapsed
+                    at narrow width exactly as the mapped one did - name only,
+                    with the sentence explaining the emptiness hidden. That is
+                    the worst possible version: the card looks broken when the
+                    room has an honest answer ready. */}
+                <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
                   This constellation is still being mapped.
                 </p>
-                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)] max-sm:hidden">
+                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
                   Every house in the Vault is charted by hand —{" "}
                   {selectedBrand.name}
                   &apos;s collections are still to come.
                 </p>
-                <div className="mt-[18px] max-sm:hidden">
-                  <button onClick={resetGalaxy} className="fw-btn-primary">
+                <div className="mt-[18px]">
+                  <button
+                    onClick={resetGalaxy}
+                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                  >
                     Return to Galaxy
                   </button>
                 </div>
@@ -2446,12 +2470,22 @@ export default function VaultGalaxy({
                 <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
                   {selectedBrand.name}
                 </h2>
+                {/* THE BRAND CARD USED TO KEEP ONLY ITS NAME on a phone. The
+                    description, the collection count and the one line telling
+                    the collector what to do next were all hidden, so selecting
+                    Cartier at 374px produced a card reading "Cartier" and
+                    nothing else - no sense of the house, no idea how much was
+                    inside it, no instruction for going deeper.
+
+                    Same correction as the variant card, one level up: the
+                    content IS the card, and there is no width at which the
+                    only thing worth keeping is the title. */}
                 {selectedBrand.description && (
-                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)] max-sm:hidden">
+                  <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
                     {selectedBrand.description}
                   </p>
                 )}
-                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[11px] uppercase tracking-[1px] text-[var(--muted)] max-sm:hidden">
+                <div className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[11px] uppercase tracking-[1px] text-[var(--muted)]">
                   <div className="flex justify-between py-1">
                     <span>Collections</span>
                     <span className="text-[var(--platinum-dim)]">
