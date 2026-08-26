@@ -109,6 +109,23 @@ trusting this section**:
 - `search`/`fetch` tool naming is *not* required for developer mode; custom names work.
 - `readOnlyHint` is respected; tools without it are treated as write actions.
 
+### The door as actually walked — the guide mislabels it
+
+Registration was completed on 2026-08-26 in a real account, and the working path does not
+match the guide above. This subsection exists because someone hit the wall; the guide's
+wording sends the next walker down two wrong branches:
+
+- **Desktop app only.** Not chatgpt.com in a browser — despite the guide's "on the web" —
+  and not the mobile app, where the feature is simply **absent**. Absence on mobile reads as
+  a Business/Enterprise plan gate; it is not one. Hunt from a phone and you will wrongly
+  conclude the account is ineligible.
+- The registration control is **Add ⌄**, which offers three options: *Create plugin* ·
+  *Add a marketplace* · **Add MCP server**. The correct choice is **Add MCP server**. The
+  guide's phrase "create a developer-mode app" reads as *Create plugin* — that is the wrong
+  branch.
+- What it asks for, for this server: URL `https://www.fairwatchtrade.com/api/mcp`,
+  authentication **No Authentication**.
+
 ## What is deliberately NOT built
 
 - **No `get_discovery_capabilities` tool** — cut from V1 by ruling.
