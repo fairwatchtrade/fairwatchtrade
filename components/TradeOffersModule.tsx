@@ -60,6 +60,11 @@ type DealRow = {
   id: string;
   trade_offer_id: string;
   status: DealStatus;
+  /* Recorded, never settled. transactions has zero rows and no payment
+     rail exists; these three describe an agreed adjustment, nothing more. */
+  cash_direction: "none" | "proposer_pays" | "recipient_pays";
+  cash_amount: number | null;
+  cash_currency: string | null;
   legs: {
     id: string;
     listing_id: string;
@@ -109,7 +114,7 @@ export default function TradeOffersModule() {
       const { data } = await supabase
         .from("trade_deals")
         .select(
-          "id, trade_offer_id, status, trade_deal_legs ( id, listing_id, from_user_id, to_user_id, leg_status, listing_brand, listing_model, listing_reference, listing_public_code )"
+          "id, trade_offer_id, status, cash_direction, cash_amount, cash_currency, trade_deal_legs ( id, listing_id, from_user_id, to_user_id, leg_status, listing_brand, listing_model, listing_reference, listing_public_code )"
         );
       const out: Record<string, DealRow> = {};
       for (const d of (data ?? []) as unknown as (DealRow & {
@@ -143,6 +148,79 @@ export default function TradeOffersModule() {
       cancelled = true;
     };
   }, [fetchOffers, fetchDeals]);
+
+  /* ── THE ACTS ────────────────────────────────────────────────────────
+     Both reload from the server rather than patching local state. leg_status
+     is a CACHE the database derives — confirming one leg can also complete
+     the parent deal — so the only honest thing to show afterwards is what
+     the server now says, not what this component guessed. */
+  async function markSent(legId: string, sent: boolean) {
+    setBusy(legId);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/trades/legs/${legId}/sent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sent }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNote(data?.detail ?? "That did not go through.");
+        return;
+      }
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmReceipt(legId: string) {
+    setBusy(legId);
+    setNote(null);
+    try {
+      /* The key is per LEG, not per click. One leg confirmed by its
+         recipient is one fact however many times the button is pressed, and
+         the producer collapses the repeat into the original event. */
+      const res = await fetch("/api/trade/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tradeDealLegId: legId,
+          action: "confirm",
+          idempotencyKey: `trade_leg_receipt:${legId}`,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNote(
+          data?.reason === "only_the_recipient_may_confirm_receipt"
+            ? "Only the collector receiving this watch can confirm it arrived."
+            : (data?.detail ?? "That did not go through.")
+        );
+        return;
+      }
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancelDeal(dealId: string) {
+    setBusy(dealId);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/trades/${dealId}/cancel`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNote(data?.detail ?? "That did not go through.");
+        return;
+      }
+      setNote("Trade cancelled. Both watches are back on the market.");
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function act(offerId: string, action: "accept" | "decline" | "withdraw") {
     setBusy(offerId);
@@ -299,29 +377,115 @@ export default function TradeOffersModule() {
                     <p className="mt-1 text-[12px] leading-relaxed text-[var(--muted)]">
                       {dealNextStep(deal.status)}
                     </p>
-                    <div className="mt-2 space-y-1">
-                      {deal.legs.map((leg) => (
-                        <div
-                          key={leg.id}
-                          className="flex flex-wrap items-baseline justify-between gap-2 text-[12px]"
-                        >
-                          <span className="text-[var(--platinum-dim)]">
-                            {watchIdentity({
-                              brand: leg.listing_brand,
-                              model: leg.listing_model,
-                              reference: leg.listing_reference,
-                              publicCode: leg.listing_public_code,
-                            })}
-                            <span className="ml-2 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
-                              {leg.to_user_id === viewerId ? "to you" : "to them"}
-                            </span>
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                            {LEG_STATUS_LABELS[leg.leg_status]}
-                          </span>
-                        </div>
-                      ))}
+                    {/* CASH IS DESCRIBED, NEVER MOVED, and it is said in the
+                        same breath as the amount so nobody can read it as a
+                        payment this platform is handling. */}
+                    {deal.cash_direction !== "none" && deal.cash_amount != null && (
+                      <p className="mt-2 text-[12px] text-[var(--platinum-dim)]">
+                        Cash adjustment {formatMoney(deal.cash_amount, deal.cash_currency)}{" "}
+                        <span className="text-[var(--muted)]">
+                          &mdash;{" "}
+                          {deal.cash_direction === "proposer_pays"
+                            ? "from the proposer"
+                            : "from the recipient"}
+                          . Recorded here, settled between you. FairWatchTrade does not move it.
+                        </span>
+                      </p>
+                    )}
+
+                    <div className="mt-2 space-y-2">
+                      {deal.legs.map((leg) => {
+                        const iSend = leg.from_user_id === viewerId;
+                        const iReceive = leg.to_user_id === viewerId;
+                        const live = deal.status !== "cancelled" && deal.status !== "completed";
+                        /* Sent belongs to whoever posts the watch, receipt to
+                           whoever gets it. Never both, never neither. */
+                        const canMarkSent = live && iSend && leg.leg_status === "bound";
+                        const canUndoSent = live && iSend && leg.leg_status === "in_transit";
+                        /* Offered from bound OR in_transit: Sent is advisory,
+                           so a recipient holding the watch must never be
+                           blocked by a sender who forgot to mark it. */
+                        const canConfirm =
+                          live &&
+                          iReceive &&
+                          (leg.leg_status === "bound" || leg.leg_status === "in_transit");
+                        return (
+                          <div
+                            key={leg.id}
+                            className="border-t border-[var(--border-faint)] pt-2 first:border-t-0 first:pt-0"
+                          >
+                            <div className="flex flex-wrap items-baseline justify-between gap-2 text-[12px]">
+                              <span className="text-[var(--platinum-dim)]">
+                                {watchIdentity({
+                                  brand: leg.listing_brand,
+                                  model: leg.listing_model,
+                                  reference: leg.listing_reference,
+                                  publicCode: leg.listing_public_code,
+                                })}
+                                <span className="ml-2 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
+                                  {iReceive ? "to you" : "to them"}
+                                </span>
+                              </span>
+                              <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                                {LEG_STATUS_LABELS[leg.leg_status]}
+                              </span>
+                            </div>
+                            {(canMarkSent || canUndoSent || canConfirm) && (
+                              <div className="mt-1.5 flex flex-wrap gap-2">
+                                {canMarkSent && (
+                                  <button
+                                    type="button"
+                                    disabled={busy === leg.id}
+                                    onClick={() => markSent(leg.id, true)}
+                                    className={quietBtn}
+                                  >
+                                    Mark as sent
+                                  </button>
+                                )}
+                                {canUndoSent && (
+                                  <button
+                                    type="button"
+                                    disabled={busy === leg.id}
+                                    onClick={() => markSent(leg.id, false)}
+                                    className={quietBtn}
+                                  >
+                                    Undo sent
+                                  </button>
+                                )}
+                                {canConfirm && (
+                                  <button
+                                    type="button"
+                                    disabled={busy === leg.id}
+                                    onClick={() => confirmReceipt(leg.id)}
+                                    className={quietBtn}
+                                  >
+                                    Confirm receipt
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+
+                    {/* Cancellation dies the moment a watch genuinely moves.
+                        The control disappears rather than failing, so nobody
+                        presses it expecting the trade to come undone. */}
+                    {deal.status !== "cancelled" &&
+                      deal.status !== "completed" &&
+                      deal.legs.every(
+                        (l) => l.leg_status === "bound" || l.leg_status === "in_transit"
+                      ) && (
+                        <button
+                          type="button"
+                          disabled={busy === deal.id}
+                          onClick={() => cancelDeal(deal.id)}
+                          className={quietBtn + " mt-3"}
+                        >
+                          Cancel trade
+                        </button>
+                      )}
                   </div>
                 )}
               </div>

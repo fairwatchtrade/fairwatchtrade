@@ -57,6 +57,9 @@ const KNOWN_REASONS = new Set([
   "retraction_target_inconsistent",
   "not_authorized_to_retract",
   "idempotency_key_required",
+  "not_authenticated",
+  "not_found",
+  "deal_cancelled",
 ]);
 
 export async function POST(request: NextRequest) {
@@ -103,22 +106,57 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* Derived from WHO is calling, never from what they sent. The database
-     re-checks standing regardless — this only picks which claim is being
-     attempted. */
-  const provenanceClass =
-    user.id === ADMIN_USER_ID ? "founder_asserted" : "party_confirmed_recipient";
-
   const db = createServiceClient();
-  const { data, error } = await db.rpc("record_physical_watch_transfer_event", {
-    p_trade_deal_leg_id: legId,
-    p_event_type: action === "retract" ? "TRANSFER_RETRACTED" : "TRANSFERRED",
-    p_actor_user_id: user.id,
-    p_provenance_class: provenanceClass,
-    p_occurred_at: occurredAt,
-    p_supersedes_event_id: supersedesEventId,
-    p_idempotency_key: idempotencyKey,
-  });
+
+  /* ── PROVENANCE IS CHOSEN BY ROLE, NOT BY IDENTITY ──────────────────
+     This previously read `user.id === ADMIN_USER_ID ? founder_asserted :
+     party_confirmed_recipient`, which is wrong the moment the founder is
+     also an ordinary party — and in the first real deal on the platform he
+     is, as the recipient of one leg. Confirming his own receipt would have
+     been stamped `founder_asserted`: the strongest provenance label on the
+     platform, applied to a perfectly ordinary act, permanently, in an
+     append-only ledger.
+
+     The question is not "who is this person" but "what standing are they
+     acting under, on THIS leg". A recipient confirming their own receipt is
+     a party confirmation whoever they happen to be. `founder_asserted` is
+     the exception path — a founder asserting on evidence for a leg they do
+     not own — and it must stay rare enough to mean something. */
+  const { data: legRow } = await db
+    .from("trade_deal_legs")
+    .select("to_user_id")
+    .eq("id", legId)
+    .maybeSingle();
+
+  const callerIsRecipient = legRow?.to_user_id === user.id;
+  const provenanceClass = callerIsRecipient
+    ? "party_confirmed_recipient"
+    : user.id === ADMIN_USER_ID
+      ? "founder_asserted"
+      : "party_confirmed_recipient"; // refused downstream; never assumed here
+
+  /* THE ORDINARY PATH GOES THROUGH THE WRAPPER, and it must run on the
+     SESSION client rather than the service client: confirm_trade_leg_receipt
+     reads auth.uid(), which the service role does not carry. The wrapper
+     adds the one thing the producer deliberately does not own — the offer
+     log's word for a completed deal — and derives its own idempotency key so
+     a double tap collapses into one event.
+
+     Retraction and founder assertion keep the direct producer call: neither
+     completes a deal, and both are exception paths. */
+  const useWrapper = action === "confirm" && callerIsRecipient;
+
+  const { data, error } = useWrapper
+    ? await supabase.rpc("confirm_trade_leg_receipt", { p_leg_id: legId })
+    : await db.rpc("record_physical_watch_transfer_event", {
+        p_trade_deal_leg_id: legId,
+        p_event_type: action === "retract" ? "TRANSFER_RETRACTED" : "TRANSFERRED",
+        p_actor_user_id: user.id,
+        p_provenance_class: provenanceClass,
+        p_occurred_at: occurredAt,
+        p_supersedes_event_id: supersedesEventId,
+        p_idempotency_key: idempotencyKey,
+      });
 
   if (error) {
     const reason = [...KNOWN_REASONS].find((k) => error.message.includes(k)) ?? "rejected";
