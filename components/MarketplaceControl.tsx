@@ -2343,19 +2343,18 @@ export default function MarketplaceControl({
                 the founder inspects and acts on a selected listing without
                 leaving the room, in the view they actually work in.
 
-                LATERAL MOVEMENT: the table's own horizontal scrollbar sits
-                at the physical bottom of the whole result set, so reaching
-                the right-hand columns from row 3 of 24 meant travelling to
-                the bottom of the table, moving sideways, and climbing back.
-                A sticky proxy scroller rides the bottom of the viewport
-                while the table is in view and is synchronized with it, so
-                sideways is always one reach away. Density, columns,
-                sorting, filters, pagination and row behavior are untouched. */
+                LATERAL MOVEMENT: the table remains the real horizontal
+                scroller for touch, trackpad and keyboard access, but its
+                scrollbar chrome is withheld. The synchronized sticky proxy
+                is the one visible horizontal mechanism; otherwise, at the
+                physical bottom of the result set, the real bar and proxy
+                stack into a duplicate pair. Density, columns, sorting,
+                filters, pagination and row behavior are untouched. */
             <div className="relative @min-[1050px]:min-h-[660px]">
               <div
                 ref={detailScrollRef}
                 onScroll={syncProxyFromTable}
-                className={`overflow-x-auto ${loading ? "opacity-60" : ""}`}
+                className={`fw-scroll-none overflow-x-auto ${loading ? "opacity-60" : ""}`}
               >
               <table className="w-full border-collapse text-left">
                 <thead>
