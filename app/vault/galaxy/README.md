@@ -172,3 +172,29 @@ A field living only in the file is not lost data, it is an unextended
 projection. Promote a field to a column when a surface actually reads it, in
 the same flight as the feature that reads it — not before, or you inherit a
 column nobody maintains.
+
+## The alias corpus stays server-side (v6.86)
+
+`search_aliases` is curated collector-language IP — the shorthand and
+no-umlaut spellings that make `lange` find A. Lange & Söhne. The view still
+carries it, but **the public pages no longer select it**:
+`app/vault/page.tsx` and `app/vault/galaxy/page.tsx` select everything
+*except* `search_aliases`, so an anonymous fetch of either route no longer
+receives the 191-brand alias dictionary in its payload.
+
+Matching moved server-side. `app/api/vault/galaxy-search` (public, no auth —
+the Galaxy is public) reads the alias data and answers one query at a time,
+returning only per-brand **scores** and the best-match id. `VaultGalaxy`'s
+`runSearch` calls it; the scoring lives in `lib/vaultGalaxySearch` and is
+shared with the client's offline fallback (which matches name/description/
+cluster only), so the server result and the fallback can never rank
+differently.
+
+**Do not re-add `search_aliases` to either page's select.** That is the exact
+line that reopens the exposure. Verify it stays closed:
+
+```bash
+# both must print 0
+curl -s https://www.fairwatchtrade.com/vault | grep -c search_aliases
+curl -s https://www.fairwatchtrade.com/vault/galaxy | grep -c search_aliases
+```

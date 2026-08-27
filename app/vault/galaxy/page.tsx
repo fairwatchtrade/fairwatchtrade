@@ -22,7 +22,10 @@ export default async function VaultGalaxyPage() {
     // brand-listing surfaces from drifting apart.
     .from("vault_galaxy_brands")
     .select(
-      "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
+      // search_aliases is intentionally NOT selected — the curated alias
+      // corpus stays server-side (matching runs in app/api/vault/galaxy-search).
+      // The browser receives only per-query scores, never the dictionary.
+      "id, slug, name, description, galaxy_x, galaxy_y, galaxy_z, cluster"
     )
     .order("name");
 

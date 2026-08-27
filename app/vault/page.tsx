@@ -31,7 +31,11 @@ export default async function VaultPage() {
     // and that closure lives in the view so no caller can forget it.
     .from("vault_galaxy_brands")
     .select(
-      "id, slug, name, description, search_aliases, galaxy_x, galaxy_y, galaxy_z, cluster"
+      // search_aliases is intentionally NOT selected — the curated alias
+      // corpus stays server-side (matching runs in app/api/vault/galaxy-search).
+      // The entrance and /vault/galaxy render the same component; both withhold
+      // the dictionary so neither public route can be the one that leaks it.
+      "id, slug, name, description, galaxy_x, galaxy_y, galaxy_z, cluster"
     )
     .order("name");
 
