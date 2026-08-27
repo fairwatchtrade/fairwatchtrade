@@ -38,8 +38,11 @@ import { formatMoney } from "@/lib/formatMoney";
 
 type OfferRow = {
   id: string;
-  target_listing_id: string;
-  offered_listing_id: string;
+  /* NULL only on terminal history whose listing was permanently deleted
+     (v6.93) — the card renders from the durable snapshots; the View watch
+     link renders only for pending offers, which are never detached. */
+  target_listing_id: string | null;
+  offered_listing_id: string | null;
   proposer_id: string;
   recipient_id: string;
   status: TradeStatus;

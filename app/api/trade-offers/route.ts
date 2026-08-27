@@ -191,6 +191,11 @@ export async function POST(request: NextRequest) {
       offered_brand: offered.brand,
       offered_model: offered.model,
       offered_reference: offered.reference,
+      /* Durable identity, captured at write time exactly as trade_deal_legs
+         captures listing_public_code — so a terminal offer stays legible
+         after its listing references detach (v6.93). */
+      target_public_code: target.public_code,
+      offered_public_code: offered.public_code,
     })
     .select("*")
     .maybeSingle();

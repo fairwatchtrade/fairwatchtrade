@@ -266,6 +266,14 @@ export async function POST(request: NextRequest) {
             return `Active transaction (${b.count ?? 1}${b.states ? `: ${b.states}` : ""})`;
           if (b.code === "active_wizard_session")
             return `Active mobile capture session (${b.count ?? 1})`;
+          if (b.code === "accepted_trade_offer")
+            return `Accepted trade offer (${b.count ?? 1}) — a live agreement between two collectors`;
+          if (b.code === "pending_trade_offer")
+            return `Pending trade proposal (${b.count ?? 1}) — still awaiting an answer`;
+          if (b.code === "active_trade_deal")
+            return `Trade deal in settlement (${b.count ?? 1})`;
+          if (b.code === "trade_deal_history")
+            return `Completed trade deal record (${b.count ?? 1}) — settlement history is kept`;
           return b.code ?? "Blocked";
         });
         blocked.push({ ...c, blockers: labels.length ? labels : ["Blocked"] });

@@ -73,6 +73,20 @@ export function blockerSentence(b: DeleteBlocker): string {
     case "active_wizard_session":
       return "A guided photo session for this listing is still in progress.";
 
+    case "accepted_trade_offer":
+      return "An accepted trade involving this watch is still active.";
+
+    case "pending_trade_offer":
+      return b.count && b.count > 1
+        ? `${b.count} trade proposals are still waiting for an answer.`
+        : "A trade proposal is still waiting for an answer.";
+
+    case "active_trade_deal":
+      return "A trade involving this watch is still being settled.";
+
+    case "trade_deal_history":
+      return "This watch took part in a completed trade, and that record is kept.";
+
     /* A code this build does not know about is still a real refusal. Say so
        honestly rather than dropping it — a blocker rendered as nothing would
        read as an all-clear, which is the one wrong answer this surface can
