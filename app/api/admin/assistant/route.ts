@@ -2,47 +2,61 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { executeListingStatusTransition } from "@/lib/listingStatusTransition";
 import {
-  executeListingStatusTransition,
-} from "@/lib/listingStatusTransition";
+  removeConsequenceLines,
+  removeRefusalSentence,
+  type RemovePreview,
+} from "@/lib/listingRemovePreview";
 
 /* ════════════════════════════════════════════════════════════════════════
-   FOUNDER ASSISTANT — app/api/admin/assistant/route.ts   (v6.84)
+   FOUNDER ASSISTANT — app/api/admin/assistant/route.ts   (v6.89)
 
-   The server side of the Persistent Admin Assistant V1. The founder asks in
-   words inside Founder Review; the Assistant proposes an exact plan; the
-   founder confirms; the Assistant executes through the SAME governed
-   machinery a click would have used — lib/listingStatusTransition — with
-   executedVia 'assistant' HARDCODED at the one call site below.
+   The server side of the Persistent Admin Assistant. The founder asks in
+   words inside a room; the Assistant proposes an exact plan; the founder
+   confirms; the Assistant executes through the SAME governed machinery a
+   click would have used, with the execution signal hardcoded at the call
+   site. V2 adds a second room without forking the spine: one gate, one
+   session table, one propose → preview → confirm → execute → report loop.
+
+   TWO ROOMS, TWO OPERATIONS, AND NOTHING ELSE:
+
+     founder_review      → approve_listings  (V1, unchanged)
+     marketplace_control → remove_listing    (V2, single listing only)
+
+   Sessions are scoped to a room, so resuming in one never surfaces the
+   other's conversation. The receipt table's CHECK refuses any operation
+   outside that pair, and a separate CHECK refuses a remove_listing receipt
+   carrying more than one id — no batch remove is a database property here,
+   not a habit.
 
    PRINCIPAL: the Assistant is not its own principal. It holds no credential
-   and gains no privilege. Every request here carries the founder's live
-   session, gated by the same defense-in-depth literal the status route uses.
+   and gains no privilege. Every request carries the founder's live session,
+   gated by the same defense-in-depth literal the governed routes use.
 
-   THE ALLOWLIST (Bucket B) contains exactly ONE operation:
-   approve_listings. Everything else the founder might ask for is out of
-   scope in this release and the Assistant says so. The receipt table's
-   CHECK refuses to record anything else, so widening the allowlist is a
-   migration, never a drive-by.
+   THE EXECUTION SIGNAL IS NEVER A REQUEST FIELD:
+     · approve → lib/listingStatusTransition with executedVia 'assistant'
+       hardcoded at the one call site;
+     · remove  → public.remove_listing_assistant(), whose EXECUTE is granted
+       to service_role ALONE. A browser holding the founder's own session
+       authenticates as `authenticated` and cannot reach that function at
+       all, whatever it puts in its body. The direct product path calls
+       public.remove_listing(), which can only ever record 'direct'.
 
-   ONE GOVERNED CALL PER LISTING. N listings are N independent calls, each
-   validated and recorded on its own — no batching inside the machinery, no
-   multi-id transition. That is what makes a partial result real rather
-   than asserted: three approvals and one refusal are three receipts of
-   success and one truthful failure, not a rolled-back batch.
+   ONE GOVERNED CALL PER LISTING. No batching inside the machinery, no
+   multi-id mutation. That is what makes a partial result real rather than
+   asserted.
 
    ROOM MEMORY IS NOT PERSISTED. assistant_work_sessions carries the
-   conversation and at most one pending plan — never listing statuses,
-   queue contents, or counts. Every turn re-reads the working set from
-   production; resume revalidates any pending plan against production and
-   reports what changed. A remembered room is a room that no longer exists.
+   conversation and at most one pending plan — never listing statuses, queue
+   contents, counts, or a stored preview. Every turn re-reads the working set
+   from production; resume RECOMPUTES any pending plan's consequences against
+   production rather than replaying what was shown when it was proposed. A
+   remembered room is a room that no longer exists.
 
-   THE WORKING SET (founder ruling §11.1): the currently open Founder
-   Review record plus the pending-review queue. No filtered grid, no list
-   surface, no invented UI state. The Assistant may only name listings from
-   that set, and only propose ones that are genuinely pending_review; a
-   proposal is resolved server-side against the set — a code or id the
-   model produces on its own is never obeyed.
+   THE ASSISTANT NEVER COMPOSES THE OUTCOME. What executed is reported from
+   what actually returned, assembled in this file — the model is never asked
+   to narrate a result, so it cannot narrate one that did not happen.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -55,14 +69,33 @@ const MODEL = "claude-sonnet-4-6"; // match /api/validate-reference
 
 export const runtime = "nodejs";
 /* Confirm executes N independent governed calls, each of which may run the
-   post-publication Dossier worker — the 60s the status route needs for one
-   listing is not enough headroom for several. */
+   post-publication Dossier worker — the 60s a single transition needs is not
+   enough headroom for several. */
 export const maxDuration = 300;
 
 const MESSAGE_MAX = 2000; // founder input bound per turn
 const STORED_TURNS_MAX = 60; // conversation kept in the session
 const MODEL_TURNS_MAX = 20; // conversation shown to the model per turn
 const QUEUE_LIMIT = 50; // pending-review queue slice per re-read
+const LEDGER_LIMIT = 40; // marketplace slice per re-read
+
+const ROOMS = ["founder_review", "marketplace_control"] as const;
+type Room = (typeof ROOMS)[number];
+
+const OPERATION_FOR_ROOM: Record<Room, "approve_listings" | "remove_listing"> = {
+  founder_review: "approve_listings",
+  marketplace_control: "remove_listing",
+};
+
+/* The governed exit-reason vocabulary. Mirrored here for VALIDATION only —
+   remove_listing_core() re-validates it and remains the authority. */
+const REASON_CODES = [
+  "sold_in_store",
+  "sold_elsewhere",
+  "no_longer_for_sale",
+  "listing_mistake",
+  "other",
+] as const;
 
 type AssistantTurn = { role: "founder" | "assistant"; text: string; at: string };
 type PlanItem = {
@@ -72,7 +105,15 @@ type PlanItem = {
   model: string | null;
   reference: string | null;
 };
-type PendingPlan = { id: string; items: PlanItem[]; created_at: string };
+type PendingPlan = {
+  id: string;
+  operation: "approve_listings" | "remove_listing";
+  items: PlanItem[];
+  /** remove_listing only — the governed reason the founder gave. */
+  reason_code?: string | null;
+  reason_note?: string | null;
+  created_at: string;
+};
 type SessionContext = {
   messages?: AssistantTurn[];
   pending_plan?: PendingPlan | null;
@@ -86,6 +127,12 @@ type WorkingEntry = {
   status: string;
   open: boolean;
 };
+
+function roomOf(raw: unknown): Room {
+  return typeof raw === "string" && (ROOMS as readonly string[]).includes(raw)
+    ? (raw as Room)
+    : "founder_review";
+}
 
 /* ── the founder gate, shared by every verb in this file ─────────────── */
 async function gateFounder(): Promise<
@@ -116,9 +163,21 @@ async function gateFounder(): Promise<
   return { ok: true, uid: user.id };
 }
 
-/* ── the working set: the open record + the pending-review queue, read
-      from production NOW. This is the only listing truth any turn sees. ── */
-async function readWorkingSet(
+function entryFrom(row: Record<string, unknown>, open: boolean): WorkingEntry {
+  return {
+    id: row.id as string,
+    code: (row.public_code as string | null) ?? "",
+    brand: (row.brand as string | null) ?? null,
+    model: (row.model as string | null) ?? null,
+    reference: (row.reference as string | null) ?? null,
+    status: (row.status as string) ?? "",
+    open,
+  };
+}
+
+/* ── FOUNDER REVIEW working set: the open record + the pending-review
+      queue, read from production NOW (§11.1 — no invented UI state). ── */
+async function readReviewSet(
   service: ReturnType<typeof createServiceClient>,
   openListingId: string | null
 ): Promise<WorkingEntry[]> {
@@ -130,17 +189,7 @@ async function readWorkingSet(
     .eq("status", "pending_review")
     .order("created_at", { ascending: true })
     .limit(QUEUE_LIMIT);
-  for (const row of queue ?? []) {
-    entries.set(row.id as string, {
-      id: row.id as string,
-      code: (row.public_code as string | null) ?? "",
-      brand: (row.brand as string | null) ?? null,
-      model: (row.model as string | null) ?? null,
-      reference: (row.reference as string | null) ?? null,
-      status: (row.status as string) ?? "",
-      open: false,
-    });
-  }
+  for (const row of queue ?? []) entries.set(row.id as string, entryFrom(row, false));
 
   if (openListingId) {
     const { data: open } = await service
@@ -148,25 +197,51 @@ async function readWorkingSet(
       .select("id, public_code, brand, model, reference, status")
       .eq("id", openListingId)
       .maybeSingle();
-    if (open) {
-      entries.set(open.id as string, {
-        id: open.id as string,
-        code: (open.public_code as string | null) ?? "",
-        brand: (open.brand as string | null) ?? null,
-        model: (open.model as string | null) ?? null,
-        reference: (open.reference as string | null) ?? null,
-        status: (open.status as string) ?? "",
-        open: true,
-      });
-    }
+    if (open) entries.set(open.id as string, entryFrom(open, true));
   }
 
   return [...entries.values()];
 }
 
-function describeEntry(e: WorkingEntry): string {
-  const name = [e.brand, e.model, e.reference].filter(Boolean).join(" ");
-  return `${e.code || e.id}${name ? ` — ${name}` : ""}`;
+/* ── MARKETPLACE CONTROL working set: the SELECTED listing plus a live
+      slice of the room's inventory. The selection is what the Assistant may
+      act on; the slice is only so it can answer questions about the room
+      without inventing anything. Both are read from production this turn. ── */
+async function readMarketplaceSet(
+  service: ReturnType<typeof createServiceClient>,
+  selectedListingId: string | null
+): Promise<WorkingEntry[]> {
+  const entries = new Map<string, WorkingEntry>();
+
+  const { data: ledger } = await service
+    .from("listings")
+    .select("id, public_code, brand, model, reference, status, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(LEDGER_LIMIT);
+  for (const row of ledger ?? []) entries.set(row.id as string, entryFrom(row, false));
+
+  if (selectedListingId) {
+    const { data: sel } = await service
+      .from("listings")
+      .select("id, public_code, brand, model, reference, status")
+      .eq("id", selectedListingId)
+      .maybeSingle();
+    if (sel) entries.set(sel.id as string, entryFrom(sel, true));
+  }
+
+  return [...entries.values()];
+}
+
+/* ── the governed remove preview, read through the trusted client ─────── */
+async function readRemovePreview(
+  service: ReturnType<typeof createServiceClient>,
+  listingId: string
+): Promise<RemovePreview | null> {
+  const { data, error } = await service.rpc("listing_remove_preview", {
+    p_listing_id: listingId,
+  });
+  if (error || !data) return null;
+  return data as RemovePreview;
 }
 
 /* ── conversation storage ─────────────────────────────────────────────── */
@@ -179,8 +254,8 @@ function turnsOf(ctx: SessionContext): AssistantTurn[] {
   return Array.isArray(ctx.messages) ? ctx.messages : [];
 }
 
-/* ── the model call: one narrow capability, JSON in, JSON out ─────────── */
-const SYSTEM_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Founder Review room. You work only on the founder's explicit instructions, inside the founder's own session.
+/* ── the model call: one narrow capability per room, JSON in, JSON out ── */
+const REVIEW_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Founder Review room. You work only on the founder's explicit instructions, inside the founder's own session.
 
 You have exactly ONE capability in this release: proposing an approval plan for listings the founder identifies. Anything else — rejections, clarifications, edits, notes, searches, settings, opinions on watches, or work outside Founder Review — is out of scope: say so briefly and plainly, and do not improvise a workaround.
 
@@ -193,21 +268,49 @@ Respond with ONLY a JSON object — no prose outside it, no markdown fences:
 - reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed.
 - propose_approve: FairWatchTrade public codes, taken verbatim from the working set, for the approval plan — or [] when there is nothing to propose.`;
 
+const MARKETPLACE_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Marketplace Control room. You work only on the founder's explicit instructions, inside the founder's own session.
+
+You can do two things. You can ANSWER questions about the listings in the working set — their status, why one needs attention, whether it can be taken off the market. And you have exactly ONE mutation capability: proposing that the SELECTED listing be taken off the market (removed).
+
+Removing is not deleting. Removal takes a watch off the market and is reversible through the product's governed Restore path, which returns it to review for the founder's approval. You cannot delete anything, cannot restore anything, cannot approve anything, cannot act on more than one listing, and cannot act on any listing other than the one currently selected. If the founder asks for any of that, say plainly that it is outside what you can do here.
+
+THE WORKING SET in each message is the complete set of listings you may name, read from production this turn. Exactly one may be marked SELECTED. Never invent a listing and never recall one from an earlier turn — only the latest working set is current truth.
+
+Propose a removal ONLY when the founder has clearly asked for this listing to come off the market. If they are ambiguous, or if they name a listing that is not the selected one, ask instead of guessing. When you propose, carry the founder's reason if they gave one, using exactly one of these codes: sold_in_store, sold_elsewhere, no_longer_for_sale, listing_mistake, other. Use null when they gave no reason — never invent one.
+
+You propose; you never execute. Execution happens only after the founder confirms the exact plan shown to them, and the product — not you — states the consequences.
+
+Respond with ONLY a JSON object — no prose outside it, no markdown fences:
+{"reply": string, "propose_remove": {"code": string, "reason_code": string|null, "reason_note": string|null} | null}
+- reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed, and never state consequence numbers yourself.
+- propose_remove: the SELECTED listing's FairWatchTrade public code taken verbatim from the working set, or null when there is nothing to propose.`;
+
+type ModelOut = {
+  reply: string;
+  proposeApprove: string[];
+  proposeRemove: { code: string; reason_code: string | null; reason_note: string | null } | null;
+};
+
 async function callModel(
+  room: Room,
   turns: AssistantTurn[],
   workingSet: WorkingEntry[],
   founderText: string
-): Promise<{ reply: string; propose: string[] } | null> {
+): Promise<ModelOut | null> {
   const setLines = workingSet.length
     ? workingSet
         .map(
           (e) =>
-            `- ${e.code || e.id} · status ${e.status}${e.open ? " · OPEN RECORD" : ""} · ${
+            `- ${e.code || e.id} · status ${e.status}${
+              e.open ? (room === "marketplace_control" ? " · SELECTED" : " · OPEN RECORD") : ""
+            } · ${
               [e.brand, e.model, e.reference].filter(Boolean).join(" ") || "(no name recorded)"
             }`
         )
         .join("\n")
-    : "(empty — nothing is open and the pending-review queue has no records)";
+    : room === "marketplace_control"
+      ? "(empty — nothing is selected and the ledger returned no records)"
+      : "(empty — nothing is open and the pending-review queue has no records)";
 
   const messages = [
     ...turns.slice(-MODEL_TURNS_MAX).map((t) => ({
@@ -231,7 +334,7 @@ async function callModel(
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 900,
-        system: SYSTEM_PROMPT,
+        system: room === "marketplace_control" ? MARKETPLACE_PROMPT : REVIEW_PROMPT,
         messages,
       }),
     });
@@ -243,15 +346,50 @@ async function callModel(
       .join("")
       .trim();
     const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean) as { reply?: unknown; propose_approve?: unknown };
+    const parsed = JSON.parse(clean) as {
+      reply?: unknown;
+      propose_approve?: unknown;
+      propose_remove?: unknown;
+    };
 
     const reply =
       typeof parsed.reply === "string" ? parsed.reply.trim().slice(0, MESSAGE_MAX) : "";
-    const propose = Array.isArray(parsed.propose_approve)
+    if (!reply) return null;
+
+    const proposeApprove = Array.isArray(parsed.propose_approve)
       ? parsed.propose_approve.filter((c): c is string => typeof c === "string")
       : [];
-    if (!reply) return null;
-    return { reply, propose };
+
+    let proposeRemove: ModelOut["proposeRemove"] = null;
+    if (
+      parsed.propose_remove &&
+      typeof parsed.propose_remove === "object" &&
+      !Array.isArray(parsed.propose_remove)
+    ) {
+      const pr = parsed.propose_remove as {
+        code?: unknown;
+        reason_code?: unknown;
+        reason_note?: unknown;
+      };
+      if (typeof pr.code === "string" && pr.code.trim()) {
+        proposeRemove = {
+          code: pr.code.trim(),
+          /* An off-vocabulary reason becomes no reason. The Assistant may
+             carry the founder's words; it may not mint a governed code. */
+          reason_code:
+            typeof pr.reason_code === "string" &&
+            (REASON_CODES as readonly string[]).includes(pr.reason_code)
+              ? pr.reason_code
+              : null,
+          reason_note:
+            typeof pr.reason_note === "string" && pr.reason_note.trim()
+              ? pr.reason_note.trim().slice(0, 320)
+              : null,
+        };
+      }
+    }
+
+    return { reply, proposeApprove, proposeRemove };
   } catch {
     // A failed or off-script model turn stores nothing and executes nothing.
     return null;
@@ -276,13 +414,15 @@ async function saveContext(
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   GET — resume. Returns the latest open session, with any pending plan
-   revalidated against production. The report states current truth — it is
-   built from the re-read, never from anything the session remembered.
+   GET — resume. Returns the room's latest open session, with any pending
+   plan REVALIDATED against production. The report is built from that
+   re-read, never from anything the session remembered.
    ════════════════════════════════════════════════════════════════════════ */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const gate = await gateFounder();
   if (!gate.ok) return gate.res;
+
+  const room = roomOf(request.nextUrl.searchParams.get("room"));
 
   let service;
   try {
@@ -299,18 +439,21 @@ export async function GET() {
     .from("assistant_work_sessions")
     .select("id, context, updated_at")
     .eq("owner_uid", gate.uid)
+    .eq("room", room)
     .eq("status", "open")
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!session) return NextResponse.json({ session: null });
+  if (!session) return NextResponse.json({ session: null, room });
 
   const ctx = contextOf(session.context);
   const plan = ctx.pending_plan ?? null;
 
   let resumeReport =
     "Session resumed. The room is re-read from production on every turn — nothing here is remembered state.";
+  let planPreview: RemovePreview | null = null;
+  let planConsequences: string[] = [];
 
   if (plan && plan.items.length > 0) {
     const { data: rows } = await service
@@ -321,20 +464,39 @@ export async function GET() {
         plan.items.map((i) => i.listing_id)
       );
     const byId = new Map((rows ?? []).map((r) => [r.id as string, r.status as string]));
-    const lines = plan.items.map((i) => {
-      const now = byId.get(i.listing_id);
-      if (now === "pending_review") return `· ${i.code} — still awaiting review.`;
-      if (!now) return `· ${i.code} — no longer exists.`;
-      return `· ${i.code} — the room changed underneath the plan: status is now "${now}".`;
-    });
-    resumeReport += `\nA plan is pending confirmation:\n${lines.join("\n")}`;
+
+    if (plan.operation === "remove_listing") {
+      const item = plan.items[0];
+      const now = byId.get(item.listing_id);
+      /* Recomputed, not replayed: the consequence lines a resumed session
+         shows are produced by a fresh call to the governed preview. */
+      planPreview = await readRemovePreview(service, item.listing_id);
+      if (planPreview) planConsequences = removeConsequenceLines(planPreview);
+      const line = !now
+        ? `· ${item.code} — no longer exists.`
+        : planPreview && !planPreview.removable
+          ? `· ${item.code} — the room changed underneath the plan: ${removeRefusalSentence(planPreview)}`
+          : `· ${item.code} — still on the market (${now}), ready to take off.`;
+      resumeReport += `\nA removal is pending confirmation:\n${line}`;
+    } else {
+      const lines = plan.items.map((i) => {
+        const now = byId.get(i.listing_id);
+        if (now === "pending_review") return `· ${i.code} — still awaiting review.`;
+        if (!now) return `· ${i.code} — no longer exists.`;
+        return `· ${i.code} — the room changed underneath the plan: status is now "${now}".`;
+      });
+      resumeReport += `\nA plan is pending confirmation:\n${lines.join("\n")}`;
+    }
   }
 
   return NextResponse.json({
+    room,
     session: {
       id: session.id,
       messages: turnsOf(ctx).slice(-STORED_TURNS_MAX),
       pending_plan: plan,
+      plan_preview: planPreview,
+      plan_consequences: planConsequences,
     },
     resume_report: resumeReport,
   });
@@ -349,6 +511,7 @@ export async function POST(request: NextRequest) {
 
   let body: {
     action?: unknown;
+    room?: unknown;
     session_id?: unknown;
     listing_id?: unknown;
     text?: unknown;
@@ -364,6 +527,7 @@ export async function POST(request: NextRequest) {
   }
 
   const action = typeof body.action === "string" ? body.action : "";
+  const room = roomOf(body.room);
   const sessionId = typeof body.session_id === "string" ? body.session_id : null;
 
   let service: ReturnType<typeof createServiceClient>;
@@ -377,13 +541,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* ── load (or create, for 'message') the founder's open session ──────── */
+  /* ── load the founder's open session, scoped to this room ───────────── */
   async function loadSession(id: string) {
     const { data } = await service
       .from("assistant_work_sessions")
-      .select("id, context, status")
+      .select("id, context, status, room")
       .eq("id", id)
       .eq("owner_uid", gate.ok ? gate.uid : "")
+      .eq("room", room)
       .eq("status", "open")
       .maybeSingle();
     return data ?? null;
@@ -406,8 +571,8 @@ export async function POST(request: NextRequest) {
     if (!session) {
       const { data: created, error: createErr } = await service
         .from("assistant_work_sessions")
-        .insert({ owner_uid: gate.uid })
-        .select("id, context, status")
+        .insert({ owner_uid: gate.uid, room })
+        .select("id, context, status, room")
         .single();
       if (createErr || !created) {
         return NextResponse.json(
@@ -422,54 +587,106 @@ export async function POST(request: NextRequest) {
     const turns = turnsOf(ctx);
 
     /* Production truth for this turn — never remembered state. */
-    const workingSet = await readWorkingSet(service, openListingId);
+    const workingSet =
+      room === "marketplace_control"
+        ? await readMarketplaceSet(service, openListingId)
+        : await readReviewSet(service, openListingId);
 
-    const modelOut = await callModel(turns, workingSet, text);
+    const modelOut = await callModel(room, turns, workingSet, text);
     if (!modelOut) {
       // Nothing is stored and nothing executes on a failed turn.
       return NextResponse.json(
         {
           error: "assistant_unavailable",
-          detail: "The Assistant could not process that. Nothing was recorded or executed — try again.",
+          detail:
+            "The Assistant could not process that. Nothing was recorded or executed — try again.",
         },
         { status: 502 }
       );
     }
 
-    /* Resolve proposals SERVER-SIDE against the working set. A code the
-       model produced that is not a pending_review member of the set is
-       dropped — the model is never obeyed, only interpreted. */
     const byCode = new Map(
       workingSet.filter((e) => e.code).map((e) => [e.code.toUpperCase(), e])
     );
-    const resolved: PlanItem[] = [];
-    const dropped: string[] = [];
-    for (const rawCode of modelOut.propose) {
-      const entry = byCode.get(rawCode.trim().toUpperCase());
-      if (entry && entry.status === "pending_review") {
-        if (!resolved.some((i) => i.listing_id === entry.id)) {
-          resolved.push({
-            listing_id: entry.id,
-            code: entry.code,
-            brand: entry.brand,
-            model: entry.model,
-            reference: entry.reference,
-          });
-        }
-      } else {
-        dropped.push(rawCode.trim());
-      }
-    }
 
     let reply = modelOut.reply;
-    if (dropped.length > 0) {
-      reply += `\n(Not currently approvable from the working set, so not in any plan: ${dropped.join(", ")}.)`;
-    }
+    let pendingPlan: PendingPlan | null = ctx.pending_plan ?? null;
+    let preview: RemovePreview | null = null;
+    let consequences: string[] = [];
 
-    const pendingPlan: PendingPlan | null =
-      resolved.length > 0
-        ? { id: randomUUID(), items: resolved, created_at: new Date().toISOString() }
-        : (ctx.pending_plan ?? null);
+    if (room === "marketplace_control") {
+      /* ── SINGLE SELECTED LISTING, RESOLVED SERVER-SIDE ────────────────
+         The model's code is interpreted, never obeyed: it must resolve to
+         the listing the founder actually has selected, and the governed
+         preview must agree that it is removable. A proposal naming anything
+         else is dropped with the reason said out loud. */
+      const proposal = modelOut.proposeRemove;
+      if (proposal) {
+        const entry = byCode.get(proposal.code.toUpperCase());
+        if (!entry) {
+          reply += `\n(I could not match "${proposal.code}" to a listing in this room, so nothing is proposed.)`;
+        } else if (!openListingId || entry.id !== openListingId) {
+          reply += `\n(${entry.code} is not the listing you have selected. Select it first — I can only act on the selected listing.)`;
+        } else {
+          const p = await readRemovePreview(service, entry.id);
+          if (!p) {
+            reply += `\n(I could not read the removal consequences for ${entry.code}, so nothing is proposed.)`;
+          } else if (!p.removable) {
+            reply += `\n(${removeRefusalSentence(p)})`;
+          } else {
+            preview = p;
+            consequences = removeConsequenceLines(p);
+            pendingPlan = {
+              id: randomUUID(),
+              operation: "remove_listing",
+              items: [
+                {
+                  listing_id: entry.id,
+                  code: entry.code,
+                  brand: entry.brand,
+                  model: entry.model,
+                  reference: entry.reference,
+                },
+              ],
+              reason_code: proposal.reason_code,
+              reason_note: proposal.reason_note,
+              created_at: new Date().toISOString(),
+            };
+          }
+        }
+      }
+    } else {
+      /* ── FOUNDER REVIEW: N approvals, each resolved against the set ──── */
+      const resolved: PlanItem[] = [];
+      const dropped: string[] = [];
+      for (const rawCode of modelOut.proposeApprove) {
+        const entry = byCode.get(rawCode.trim().toUpperCase());
+        if (entry && entry.status === "pending_review") {
+          if (!resolved.some((i) => i.listing_id === entry.id)) {
+            resolved.push({
+              listing_id: entry.id,
+              code: entry.code,
+              brand: entry.brand,
+              model: entry.model,
+              reference: entry.reference,
+            });
+          }
+        } else {
+          dropped.push(rawCode.trim());
+        }
+      }
+      if (dropped.length > 0) {
+        reply += `\n(Not currently approvable from the working set, so not in any plan: ${dropped.join(", ")}.)`;
+      }
+      if (resolved.length > 0) {
+        pendingPlan = {
+          id: randomUUID(),
+          operation: "approve_listings",
+          items: resolved,
+          created_at: new Date().toISOString(),
+        };
+      }
+    }
 
     const now = new Date().toISOString();
     const nextCtx: SessionContext = {
@@ -483,15 +700,21 @@ export async function POST(request: NextRequest) {
     const saved = await saveContext(service, session.id as string, nextCtx);
     if (!saved) {
       return NextResponse.json(
-        { error: "session_failed", detail: "The turn could not be recorded. Nothing was executed." },
+        {
+          error: "session_failed",
+          detail: "The turn could not be recorded. Nothing was executed.",
+        },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       session_id: session.id,
+      room,
       reply,
-      plan: resolved.length > 0 ? pendingPlan : null,
+      plan: pendingPlan,
+      preview,
+      consequences,
     });
   }
 
@@ -522,63 +745,123 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
-    /* Re-read production BEFORE executing: the plan was proposed against a
-       room that may have changed. Listings that moved are refused
-       truthfully, not silently skipped and not forced through. */
-    const { data: rows } = await service
-      .from("listings")
-      .select("id, status")
-      .in(
-        "id",
-        plan.items.map((i) => i.listing_id)
+    if (OPERATION_FOR_ROOM[room] !== plan.operation) {
+      return NextResponse.json(
+        {
+          error: "wrong_room",
+          detail: `A ${plan.operation} plan cannot be confirmed from ${room}.`,
+        },
+        { status: 409 }
       );
-    const statusById = new Map((rows ?? []).map((r) => [r.id as string, r.status as string]));
+    }
 
     const succeeded: { listing_id: string; code: string; status: string }[] = [];
     const failed: { listing_id: string; code: string; error: string; detail: string }[] = [];
 
-    for (const item of plan.items) {
-      const now = statusById.get(item.listing_id);
-      if (!now) {
+    if (plan.operation === "remove_listing") {
+      /* ── ONE listing, one governed call, through the service-role-only
+            entry point. The browser cannot reach this function; that grant
+            is what makes executed_via='assistant' unforgeable. ── */
+      const item = plan.items[0];
+      const fresh = await readRemovePreview(service, item.listing_id);
+      if (!fresh) {
         failed.push({
           listing_id: item.listing_id,
           code: item.code,
           error: "not_found",
-          detail: "The listing no longer exists.",
+          detail: "The listing could not be read — nothing was changed.",
         });
-        continue;
-      }
-      if (now !== "pending_review") {
+      } else if (!fresh.removable) {
         failed.push({
           listing_id: item.listing_id,
           code: item.code,
-          error: "not_in_review",
-          detail: `The room changed: status is now "${now}".`,
-        });
-        continue;
-      }
-      /* ONE governed call per listing — the same machinery a click uses,
-         with the execution signal hardcoded HERE and nowhere else. */
-      const outcome = await executeListingStatusTransition({
-        listingId: item.listing_id,
-        actorUid: gate.uid,
-        executedVia: "assistant",
-        input: { status: "published", review_action: "approve" },
-      });
-      if (outcome.httpStatus === 200) {
-        succeeded.push({
-          listing_id: item.listing_id,
-          code: item.code,
-          status: String(outcome.body.status ?? "published"),
+          error: fresh.refusal ?? "not_removable",
+          detail: removeRefusalSentence(fresh),
         });
       } else {
-        failed.push({
-          listing_id: item.listing_id,
-          code: item.code,
-          error: String(outcome.body.error ?? "failed"),
-          detail: String(outcome.body.detail ?? `Refused (${outcome.httpStatus}).`),
+        const { data, error } = await service.rpc("remove_listing_assistant", {
+          p_listing_id: item.listing_id,
+          p_reason_code: plan.reason_code ?? null,
+          p_reason_note: plan.reason_note ?? null,
+          p_authorized_by: gate.uid,
         });
+        if (error) {
+          failed.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            error: "remove_failed",
+            detail: error.message,
+          });
+        } else {
+          const committed = (data as { status?: string } | null) ?? {};
+          succeeded.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            status: String(committed.status ?? "removed"),
+          });
+          /* Bells derive from committed events and are never allowed to
+             turn a completed removal into a failure — the same posture the
+             direct remove route takes. */
+          try {
+            await service.rpc("emit_listing_removal_notifications", {
+              p_listing_id: item.listing_id,
+            });
+          } catch (e) {
+            console.error("[assistant] removal bells deferred:", item.listing_id, e);
+          }
+        }
+      }
+    } else {
+      /* ── FOUNDER REVIEW approvals, unchanged from V1 ─────────────────── */
+      const { data: rows } = await service
+        .from("listings")
+        .select("id, status")
+        .in(
+          "id",
+          plan.items.map((i) => i.listing_id)
+        );
+      const statusById = new Map((rows ?? []).map((r) => [r.id as string, r.status as string]));
+
+      for (const item of plan.items) {
+        const now = statusById.get(item.listing_id);
+        if (!now) {
+          failed.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            error: "not_found",
+            detail: "The listing no longer exists.",
+          });
+          continue;
+        }
+        if (now !== "pending_review") {
+          failed.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            error: "not_in_review",
+            detail: `The room changed: status is now "${now}".`,
+          });
+          continue;
+        }
+        const outcome = await executeListingStatusTransition({
+          listingId: item.listing_id,
+          actorUid: gate.uid,
+          executedVia: "assistant",
+          input: { status: "published", review_action: "approve" },
+        });
+        if (outcome.httpStatus === 200) {
+          succeeded.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            status: String(outcome.body.status ?? "published"),
+          });
+        } else {
+          failed.push({
+            listing_id: item.listing_id,
+            code: item.code,
+            error: String(outcome.body.error ?? "failed"),
+            detail: String(outcome.body.detail ?? `Refused (${outcome.httpStatus}).`),
+          });
+        }
       }
     }
 
@@ -587,7 +870,7 @@ export async function POST(request: NextRequest) {
       .from("assistant_operation_receipts")
       .insert({
         session_id: session.id,
-        operation: "approve_listings",
+        operation: plan.operation,
         authorized_by: gate.uid,
         requested_listing_ids: plan.items.map((i) => i.listing_id),
         succeeded_listing_ids: succeeded.map((s) => s.listing_id),
@@ -602,22 +885,30 @@ export async function POST(request: NextRequest) {
     /* The account is composed HERE from what actually happened — never by
        the model, so it cannot narrate an execution that did not occur. */
     const lines: string[] = [];
-    for (const s of succeeded) {
-      lines.push(
-        s.status === "private_active"
-          ? `✓ ${s.code} — approved and released privately to its authorized buyer.`
-          : `✓ ${s.code} — approved and published.`
-      );
-    }
-    for (const f of failed) {
-      lines.push(`✗ ${f.code} — ${f.detail}`);
+    if (plan.operation === "remove_listing") {
+      for (const s of succeeded) {
+        lines.push(
+          `✓ ${s.code} — taken off the market. It is reversible: Restore returns it to review for your approval.`
+        );
+      }
+      for (const f of failed) lines.push(`✗ ${f.code} — ${f.detail}`);
+    } else {
+      for (const s of succeeded) {
+        lines.push(
+          s.status === "private_active"
+            ? `✓ ${s.code} — approved and released privately to its authorized buyer.`
+            : `✓ ${s.code} — approved and published.`
+        );
+      }
+      for (const f of failed) lines.push(`✗ ${f.code} — ${f.detail}`);
     }
     lines.push(
       receipt?.id
         ? `Receipt ${receipt.id}.`
         : "The receipt could not be written — the results above still happened exactly as stated."
     );
-    const account = `Executed approve_listings on ${plan.items.length} listing(s): ${succeeded.length} succeeded, ${failed.length} did not.\n${lines.join("\n")}`;
+    const verb = plan.operation === "remove_listing" ? "remove_listing" : "approve_listings";
+    const account = `Executed ${verb} on ${plan.items.length} listing(s): ${succeeded.length} succeeded, ${failed.length} did not.\n${lines.join("\n")}`;
 
     const now = new Date().toISOString();
     const nextCtx: SessionContext = {
@@ -630,6 +921,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       session_id: session.id,
+      room,
       reply: account,
       results: { succeeded, failed },
       receipt_id: receipt?.id ?? null,

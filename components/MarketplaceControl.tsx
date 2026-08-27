@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import HelpBubble from "@/components/HelpBubble";
+import FounderAssistant from "@/components/FounderAssistant";
 import { formatMoney } from "@/lib/formatMoney";
 import { adminLabel, statusTokenKey } from "@/lib/listingStatus";
 import {
@@ -797,6 +798,18 @@ export default function MarketplaceControl({
      selected row, the ledger fully unobstructed. Selection is an explicit
      act and is reversible without resetting any room state. */
   const [selected, setSelected] = useState<McRow | null>(null);
+  /* The Assistant opens on invocation from the inspector and holds the
+     listing it was invoked for, so it keeps its subject even if the ledger
+     re-renders underneath it. Closing it does not disturb the selection. */
+  const [assistantFor, setAssistantFor] = useState<string | null>(null);
+  /* Restore is the governed inverse of Take Off Market. Its result is bound
+     to the listing id it belongs to and renders only while that listing is
+     the selection — moving on retires it, with no reset-via-effect. */
+  const [restoreState, setRestoreState] = useState<{
+    listingId: string | null;
+    busy: boolean;
+    note: { kind: "ok" | "err"; text: string } | null;
+  }>({ listingId: null, busy: false, note: null });
   const [columnsOpen, setColumnsOpen] = useState(false);
   /* Provenance of the current arrangement, NOT a mode. It names the preset
      the working view was last restored from; whether that name still holds
@@ -1235,6 +1248,62 @@ export default function MarketplaceControl({
     }
   }
 
+  /* ── Restore (v6.89) ──────────────────────────────────────────────────
+     The inverse that makes Take Off Market honestly reversible. An
+     ENTRANCE, not machinery: it posts to the governed restore route, which
+     wraps public.restore_listing(). It returns the listing to
+     pending_review — the market pipeline, never straight to Browse — and it
+     does NOT reopen purchase requests the removal cancelled, which the
+     confirmation says out loud rather than leaving the founder to discover. */
+  async function restoreListing() {
+    if (!selected || restoreState.busy) return;
+    if (
+      !window.confirm(
+        "Restore this listing? It returns to pending review for your approval — it does not go back on the market until you approve it. Purchase requests cancelled by the removal stay cancelled."
+      )
+    )
+      return;
+    const listingId = selected.id;
+    setRestoreState({ listingId, busy: true, note: null });
+    try {
+      const res = await fetch(`/api/listings/${listingId}/restore`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        requests_left_cancelled?: number;
+        error?: string;
+        detail?: string;
+      };
+      if (!res.ok) {
+        setRestoreState({
+          listingId,
+          busy: false,
+          note: { kind: "err", text: data?.detail || data?.error || `Restore failed (${res.status}).` },
+        });
+      } else {
+        const left = data.requests_left_cancelled ?? 0;
+        setRestoreState({
+          listingId,
+          busy: false,
+          note: {
+            kind: "ok",
+            text:
+              `Restored to pending review — approve it to put it back on the market.` +
+              (left > 0
+                ? ` ${left} previously cancelled request${left === 1 ? "" : "s"} stayed cancelled.`
+                : ""),
+          },
+        });
+        void refresh();
+      }
+    } catch {
+      setRestoreState({
+        listingId,
+        busy: false,
+        note: { kind: "err", text: "Network error — nothing was restored." },
+      });
+    }
+  }
+
   /* ── Detailed lateral navigation ──────────────────────────────────────
      A slim proxy scroller synchronized with the table's own horizontal
      scroll. It renders only when the table actually overflows, carries no
@@ -1454,6 +1523,42 @@ export default function MarketplaceControl({
                           Take Off Market…
                         </button>
                       )}
+                      {selected.status === "removed" && (
+                        <button
+                          type="button"
+                          disabled={restoreState.busy}
+                          onClick={restoreListing}
+                          className="border border-[var(--border-gold)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold)] hover:bg-[var(--gold-whisper)] disabled:opacity-40"
+                        >
+                          {restoreState.busy && restoreState.listingId === selected.id
+                            ? "Restoring…"
+                            : "Restore to Review…"}
+                        </button>
+                      )}
+                      {restoreState.note && restoreState.listingId === selected.id && (
+                        <div
+                          role="status"
+                          className={`px-0.5 text-[11px] leading-snug ${
+                            restoreState.note.kind === "ok"
+                              ? "text-[var(--success)]"
+                              : "text-[var(--danger)]"
+                          }`}
+                        >
+                          {restoreState.note.text}
+                        </div>
+                      )}
+                      {/* The Assistant affordance lives WITH the selected
+                          listing, where the founder is already deciding
+                          about one watch. It occupies no space when idle. */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAssistantFor((cur) => (cur === selected.id ? null : selected.id))
+                        }
+                        className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
+                      >
+                        {assistantFor === selected.id ? "Hide Assistant" : "Ask the Assistant…"}
+                      </button>
                       <button
                         type="button"
                         disabled={bulkLoading}
@@ -2605,6 +2710,19 @@ export default function MarketplaceControl({
           )}
         </section>
       </div>
+
+      {/* Opens on invocation, closes when done — no rail, no orb, no parallel
+          workspace. data-mc-keep so a click inside the conversation is aimed
+          work and never doubles as putting the selection down. */}
+      {assistantFor && (
+        <div data-mc-keep className="mt-4 border border-[var(--border-mid)]">
+          <FounderAssistant
+            room="marketplace_control"
+            listingId={assistantFor}
+            onClose={() => setAssistantFor(null)}
+          />
+        </div>
+      )}
 
       {bulk && (
         <BulkDialog

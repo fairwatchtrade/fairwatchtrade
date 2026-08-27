@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { del } from "@vercel/blob";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  removeConsequenceLines,
+  removeRefusalSentence,
+  type RemovePreview,
+} from "@/lib/listingRemovePreview";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/marketplace/bulk — dealer/account-scale operations
@@ -57,10 +62,6 @@ const REASON_CODES = [
   "listing_mistake",
   "other",
 ] as const;
-
-/* remove_listing()'s own legal set — mirrored for the PREVIEW split only;
-   the RPC remains the authority at execute time. */
-const REMOVABLE_STATUSES = ["published", "reserved", "pending_review"];
 
 const BLOCK_LABEL: Record<string, string> = {
   draft: "Draft — was never public, nothing to take off the market",
@@ -199,13 +200,41 @@ export async function POST(request: NextRequest) {
   /* ── PREVIEW: eligible vs blocked, categories from runtime truth ─────── */
   if (mode === "preview") {
     if (op === "remove") {
-      const eligible = candidates.filter((c) => REMOVABLE_STATUSES.includes(c.status));
-      const blocked = candidates
-        .filter((c) => !REMOVABLE_STATUSES.includes(c.status))
-        .map((c) => ({
-          ...c,
-          blockers: [BLOCK_LABEL[c.status] ?? `Status '${c.status}' cannot be taken off the market`],
-        }));
+      /* v6.89 — the GOVERNED preview answers, per listing. This branch used
+         to split on status alone, which could say WHETHER a listing was
+         removable but never what removing it would cost: the founder
+         confirmed a removal without being told how many buyers were about to
+         lose a pending request. public.listing_remove_preview() is the one
+         source of that truth and the Assistant reads the same function, so
+         the room and the Assistant cannot describe one removal two ways. */
+      const eligible: Array<
+        CandidateRow & { preview: RemovePreview; consequences: string[] }
+      > = [];
+      const blocked: Array<CandidateRow & { blockers: string[] }> = [];
+      for (const c of candidates) {
+        const { data, error } = await supabase.rpc("listing_remove_preview", {
+          p_listing_id: c.id,
+        });
+        if (error) {
+          blocked.push({ ...c, blockers: [`Preview failed: ${error.message}`] });
+          continue;
+        }
+        const preview = data as RemovePreview | null;
+        if (!preview) {
+          blocked.push({ ...c, blockers: ["Preview returned nothing."] });
+          continue;
+        }
+        if (preview.removable) {
+          eligible.push({ ...c, preview, consequences: removeConsequenceLines(preview) });
+        } else {
+          /* The room's own wording for a status it already explains well,
+             falling back to the shared refusal sentence for anything else. */
+          blocked.push({
+            ...c,
+            blockers: [BLOCK_LABEL[c.status] ?? removeRefusalSentence(preview)],
+          });
+        }
+      }
       return NextResponse.json(
         { op, candidates: candidates.length, eligible, blocked },
         { status: 200 }
