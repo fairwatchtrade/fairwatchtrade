@@ -13,6 +13,7 @@ import {
 } from "react";
 import HelpBubble from "@/components/HelpBubble";
 import FounderAssistant from "@/components/FounderAssistant";
+import type { RemovePreview } from "@/lib/listingRemovePreview";
 import { formatMoney } from "@/lib/formatMoney";
 import { adminLabel, statusTokenKey } from "@/lib/listingStatus";
 import {
@@ -502,7 +503,16 @@ type BulkOp = "remove" | "delete";
 type BulkPreview = {
   op: BulkOp;
   candidates: number;
-  eligible: Array<{ id: string; public_code: string | null; brand: string; model: string | null; status: string }>;
+  eligible: Array<{
+    id: string;
+    public_code: string | null;
+    brand: string;
+    model: string | null;
+    status: string;
+    /* v6.89 — present for op=remove: the governed consequence truth. */
+    preview?: RemovePreview;
+    consequences?: string[];
+  }>;
   blocked: Array<{ id: string; public_code: string | null; brand: string; model: string | null; status: string; blockers: string[] }>;
 };
 
@@ -519,6 +529,34 @@ const REASON_OPTIONS: Array<{ code: string; label: string }> = [
   { code: "listing_mistake", label: "Listing mistake / duplicate" },
   { code: "other", label: "Other" },
 ];
+
+/* The consequence block the founder reads BEFORE confirming a removal.
+   Every line comes from public.listing_remove_preview() by way of the bulk
+   route — this function chooses which lines to show, never what is true.
+   One listing shows its own sentences; a seller-scale batch shows the
+   totals, because twenty copies of the same four lines is not information. */
+function removeSummaryLines(
+  eligible: Array<{ consequences?: string[]; preview?: RemovePreview }>
+): string[] {
+  if (eligible.length === 0) return [];
+  if (eligible.length === 1) return eligible[0].consequences ?? [];
+  let cancels = 0;
+  let buyers = 0;
+  for (const e of eligible) {
+    cancels += e.preview?.requests_to_cancel ?? 0;
+    buyers += e.preview?.buyers_notified ?? 0;
+  }
+  return [
+    cancels === 0
+      ? "No purchase requests are pending across these listings, so none will be cancelled."
+      : cancels + " pending purchase request(s) will be cancelled across these listings.",
+    buyers === 0
+      ? "No buyer will be notified — nobody is waiting on these."
+      : buyers + " buyer notification(s) will be sent.",
+    "This is reversible: Restore puts each listing back into pending review for your approval. None returns to Browse without one.",
+    "Restoring later will NOT reopen the cancelled requests — those buyers would have to ask again.",
+  ];
+}
 
 const EXECUTE_CHUNK = 25;
 
@@ -678,6 +716,19 @@ function BulkDialog({
                         {b.blockers.join(" · ")}
                       </span>
                     </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {op === "remove" && preview.eligible.length > 0 && (
+              <div className="mt-4 border-l-2 border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+                  What this will do
+                </div>
+                <ul className="mt-1.5 space-y-1 text-[12px] leading-relaxed text-[var(--platinum-dim)]">
+                  {removeSummaryLines(preview.eligible).map((l, i) => (
+                    <li key={i}>{l}</li>
                   ))}
                 </ul>
               </div>
