@@ -126,6 +126,13 @@ type WorkingEntry = {
   reference: string | null;
   status: string;
   open: boolean;
+  /* Marketplace Control, selected listing only: the PRODUCT's own answer to
+     "can this be taken off the market", never the model's inference from a
+     status word. The governed rule admits published, reserved AND
+     pending_review; a model guessing from the status name got that wrong in
+     production and declined work the product allows. */
+  removable?: boolean;
+  refusal?: string | null;
 };
 
 function roomOf(raw: unknown): Room {
@@ -226,7 +233,17 @@ async function readMarketplaceSet(
       .select("id, public_code, brand, model, reference, status")
       .eq("id", selectedListingId)
       .maybeSingle();
-    if (sel) entries.set(sel.id as string, entryFrom(sel, true));
+    if (sel) {
+      const entry = entryFrom(sel, true);
+      /* The eligibility the founder would see, from the same function the
+         confirmation reads. The Assistant reports it; it never derives it. */
+      const p = await readRemovePreview(service, entry.id);
+      if (p) {
+        entry.removable = p.removable;
+        entry.refusal = p.refusal;
+      }
+      entries.set(entry.id, entry);
+    }
   }
 
   return [...entries.values()];
@@ -276,6 +293,8 @@ Removing is not deleting. Removal takes a watch off the market and is reversible
 
 THE WORKING SET in each message is the complete set of listings you may name, read from production this turn. Exactly one may be marked SELECTED. Never invent a listing and never recall one from an earlier turn — only the latest working set is current truth.
 
+The SELECTED listing carries REMOVABLE, which is the product's own governed verdict. Trust it exactly and never re-derive eligibility from the status word: a listing awaiting review can still be taken off the market, and only REMOVABLE decides. When REMOVABLE is yes, propose the removal the founder asked for. When it is no, say the reason it carries and propose nothing.
+
 Propose a removal ONLY when the founder has clearly asked for this listing to come off the market. If they are ambiguous, or if they name a listing that is not the selected one, ask instead of guessing. When you propose, carry the founder's reason if they gave one, using exactly one of these codes: sold_in_store, sold_elsewhere, no_longer_for_sale, listing_mistake, other. Use null when they gave no reason — never invent one.
 
 You propose; you never execute. Execution happens only after the founder confirms the exact plan shown to them, and the product — not you — states the consequences.
@@ -303,6 +322,12 @@ async function callModel(
           (e) =>
             `- ${e.code || e.id} · status ${e.status}${
               e.open ? (room === "marketplace_control" ? " · SELECTED" : " · OPEN RECORD") : ""
+            }${
+              e.removable === undefined
+                ? ""
+                : e.removable
+                  ? " · REMOVABLE: yes"
+                  : ` · REMOVABLE: no (${e.refusal ?? "not removable"})`
             } · ${
               [e.brand, e.model, e.reference].filter(Boolean).join(" ") || "(no name recorded)"
             }`
