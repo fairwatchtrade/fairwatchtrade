@@ -1371,16 +1371,22 @@ export default function MarketplaceControl({
   useEffect(() => {
     const el = detailScrollRef.current;
     if (!el) return;
-    /* ResizeObserver fires on observe, so the first measurement lands from
-       the callback rather than from this effect body. */
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       setDetailScrollWidth(el.scrollWidth);
       setDetailOverflow(el.scrollWidth - el.clientWidth > 1);
-    });
+    };
+    /* ResizeObserver remains the durable measurement path. One post-layout
+       pass closes the narrow window where the initial observer callback can
+       land before the table's final geometry. */
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     const table = el.firstElementChild;
     if (table) ro.observe(table);
-    return () => ro.disconnect();
+    const frame = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    };
   }, [view.mode, visibleColumns.length, payload.rows.length]);
 
   /* One-directional assignment guarded by a tolerance: setting scrollLeft
@@ -2510,7 +2516,7 @@ export default function MarketplaceControl({
               <div
                 ref={detailScrollRef}
                 onScroll={syncProxyFromTable}
-                className={`fw-scroll-none overflow-x-auto ${loading ? "opacity-60" : ""}`}
+                className={`${detailOverflow ? "fw-scroll-none " : ""}overflow-x-auto ${loading ? "opacity-60" : ""}`}
               >
               <table className="w-full border-collapse text-left">
                 <thead>
