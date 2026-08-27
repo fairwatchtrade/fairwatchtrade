@@ -60,6 +60,19 @@ export default function ListingStatusControls({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [lastAuthoritativeStatus, setLastAuthoritativeStatus] = useState(currentStatus);
+
+  /* router.refresh() merges the new Server Component payload without
+     discarding this component's local state. When another governed surface
+     (including the Founder Assistant) changes the listing, follow the new
+     authoritative prop so the manual control cannot keep displaying the
+     status from its first render. A founder's in-progress selection is left
+     alone unless production truth itself changes. */
+  if (lastAuthoritativeStatus !== currentStatus) {
+    setLastAuthoritativeStatus(currentStatus);
+    setStatus(currentStatus);
+    setSelected(isStatusOption(currentStatus) ? currentStatus : "published");
+  }
 
   async function apply(next: StatusOption, confirmText: string) {
     if (busy) return;

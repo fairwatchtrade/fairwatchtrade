@@ -374,6 +374,15 @@ const status = read("lib/listingStatus.ts");
     /const ADVERSE_STATUSES: string\[\] = \["rejected", "draft"\]/.test(controls) &&
       /seller_message: rejectionReason\.trim\(\)/.test(controls)
   );
+  ok(
+    "the manual status control follows authoritative status after a room refresh",
+    /const \[lastAuthoritativeStatus, setLastAuthoritativeStatus\] = useState\(currentStatus\)/.test(
+      controls
+    ) &&
+      /if \(lastAuthoritativeStatus !== currentStatus\) \{\s*setLastAuthoritativeStatus\(currentStatus\);\s*setStatus\(currentStatus\);\s*setSelected\(isStatusOption\(currentStatus\) \? currentStatus : "published"\);\s*\}/.test(
+        controls
+      )
+  );
 
   // History is append-only and enforced by the database.
   ok(
