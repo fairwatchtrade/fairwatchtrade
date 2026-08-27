@@ -294,9 +294,12 @@ function getStarImagePath(slug: string): string {
 }
 
 /* ── MOON TEXTURES ──────────────────────────────────────────────────────
-   Eight approved photographs. They are the production pool and they are not
-   to be regenerated, recoloured, cropped, filtered or otherwise altered —
-   the bytes in public/moons are the bytes that were approved.
+   Eight approved photographs. They are the production pool and their PIXELS
+   are not to be regenerated, recoloured, cropped, filtered or otherwise
+   altered — the IHDR and IDAT of public/moons stay frozen byte-for-byte.
+   Copyright-management metadata (author, copyright notice, rights terms) was
+   intentionally added to each file as ancillary PNG chunks: that changes the
+   file bytes but not one pixel — IHDR and IDAT are preserved byte-for-byte.
 
    Assignment is deterministic on the VARIANT ID, which is the moon's stable
    identity everywhere else in this file (the selected-moon indicator already
