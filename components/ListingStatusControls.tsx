@@ -72,6 +72,11 @@ export default function ListingStatusControls({
     setLastAuthoritativeStatus(currentStatus);
     setStatus(currentStatus);
     setSelected(isStatusOption(currentStatus) ? currentStatus : "published");
+    setFeedback((existing) =>
+      existing?.kind === "ok" && existing.text === `Status changed to "${currentStatus}".`
+        ? existing
+        : null
+    );
   }
 
   async function apply(next: StatusOption, confirmText: string) {

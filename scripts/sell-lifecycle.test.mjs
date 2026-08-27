@@ -379,7 +379,10 @@ const status = read("lib/listingStatus.ts");
     /const \[lastAuthoritativeStatus, setLastAuthoritativeStatus\] = useState\(currentStatus\)/.test(
       controls
     ) &&
-      /if \(lastAuthoritativeStatus !== currentStatus\) \{\s*setLastAuthoritativeStatus\(currentStatus\);\s*setStatus\(currentStatus\);\s*setSelected\(isStatusOption\(currentStatus\) \? currentStatus : "published"\);\s*\}/.test(
+      /if \(lastAuthoritativeStatus !== currentStatus\) \{\s*setLastAuthoritativeStatus\(currentStatus\);\s*setStatus\(currentStatus\);\s*setSelected\(isStatusOption\(currentStatus\) \? currentStatus : "published"\);/.test(
+        controls
+      ) &&
+      /setFeedback\(\(existing\) =>[\s\S]*existing\.text === `Status changed to "\$\{currentStatus\}"\.`[\s\S]*\? existing[\s\S]*: null/.test(
         controls
       )
   );
