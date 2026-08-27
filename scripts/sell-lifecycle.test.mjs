@@ -21,7 +21,13 @@ const ok = (label, cond) => {
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 const route = read("app/api/listings/route.ts");
-const admin = read("app/api/admin/listings/[id]/status/route.ts");
+/* v6.84 — the transition machinery moved VERBATIM to lib when the Founder
+   Assistant became the second authorized caller (the same move the
+   publication gate made at v6.34). The machinery assertions follow the
+   machinery; the HTTP route keeps only its gate, its parse, and the
+   hardcoded 'direct' execution signal — asserted separately below. */
+const admin = read("lib/listingStatusTransition.ts");
+const adminRoute = read("app/api/admin/listings/[id]/status/route.ts");
 const review = read("components/ReviewStep.tsx");
 const wizard = read("components/MobileWizard.tsx");
 const status = read("lib/listingStatus.ts");
@@ -119,6 +125,34 @@ const status = read("lib/listingStatus.ts");
       !/priorStatus !== "pending_review"/.test(stripComments(triageSeam))
   );
 
+  /* THE EXECUTION SIGNAL (v6.84). executed_via is a hardcoded argument at
+     each of the two call sites — never a request parameter. A body field
+     could be forged by anything holding the founder's session, which is
+     exactly the principal the column exists to distinguish. These fail the
+     moment someone "simplifies" the signal into the request. */
+  const assistantRoute = read("app/api/admin/assistant/route.ts");
+  ok(
+    "the HTTP route executes as 'direct', hardcoded",
+    /executedVia: "direct"/.test(adminRoute)
+  );
+  ok(
+    "the Assistant executes as 'assistant', hardcoded at its one call site",
+    /executedVia: "assistant"/.test(assistantRoute)
+  );
+  const routeCode = stripComments(adminRoute);
+  const assistantCode = stripComments(assistantRoute);
+  ok(
+    "neither caller ever reads the execution signal from a request",
+    !/executed_via/.test(routeCode) &&
+      !/body\.executed_via/.test(assistantCode) &&
+      // every executedVia in each caller IS its hardcoded literal — nothing
+      // computed, nothing passed through from anywhere else
+      (routeCode.match(/executedVia/g) || []).length ===
+        (routeCode.match(/executedVia: "direct"/g) || []).length &&
+      (assistantCode.match(/executedVia/g) || []).length ===
+        (assistantCode.match(/executedVia: "assistant"/g) || []).length
+  );
+
   /* PRIVATE LISTING BRANCH. Approving a private-intended row releases it to
      its one authorized buyer, never to Browse — through this same gate. */
   ok(
@@ -133,7 +167,7 @@ const status = read("lib/listingStatus.ts");
   );
   ok(
     "the founder route authorizes against a hardcoded admin id",
-    /const ADMIN_USER_ID = "/.test(admin) && /user\.id !== ADMIN_USER_ID/.test(admin)
+    /const ADMIN_USER_ID = "/.test(adminRoute) && /user\.id !== ADMIN_USER_ID/.test(adminRoute)
   );
   ok(
     "the founder route validates the requested status against a fixed set",

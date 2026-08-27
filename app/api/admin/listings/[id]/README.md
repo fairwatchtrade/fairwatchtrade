@@ -116,6 +116,82 @@ swept.
   execution, so requiring coverage of them would hold every imported listing
   forever. The seam applies the same exclusion the recheck route does.
 
+## The Founder Assistant and the attribution columns (v6.84)
+
+The status route's body now lives in `lib/listingStatusTransition.ts` —
+extracted verbatim, the same move the publication gate made at v6.34, and for
+the same reason: a second authorized caller arrived. The route kept its own
+gate and its JSON parsing; the validation, the gates, the writes, the emails,
+and the Dossier worker are the shared function. There are exactly two callers:
+
+| Caller | executedVia | machinery |
+| --- | --- | --- |
+| `status/route.ts` (HTTP) | `'direct'`, hardcoded | `status_route` |
+| `app/api/admin/assistant/route.ts` | `'assistant'`, hardcoded | `assistant_approve_listings` |
+
+### The one thing a later reader will get wrong
+
+**`executed_via` is a function argument, not a request parameter — and it must
+stay one.** A body field, header, query parameter, or cookie can be produced by
+*anything holding the founder's session*, which is precisely the principal the
+column exists to distinguish. Making it a parameter looks like a simplification
+and is a forgery hole: any script with the founder's cookies could then write
+history claiming — or denying — assistant execution. The browser can only reach
+the shared function through the HTTP route, and the route always passes
+`'direct'`. A request that asserts `executed_via` anywhere in its body is
+recorded as `'direct'` because nothing ever reads it.
+
+### The three columns, on both adjudication tables
+
+- `authorized_by` — who **decided**. Populated by both live callers going
+  forward. **NULL on history, never backfilled**: an old row predates the
+  separation of authority from execution, and that is true. Backfilling would
+  assert an authorization record that was never made.
+- `executed_via` — `'direct' | 'assistant'`, text + CHECK on the `actor_kind`
+  pattern, `DEFAULT 'direct'` (the one of the three history can honestly
+  answer). Paired: `executed_via <> 'assistant' OR authorized_by IS NOT NULL`
+  on both tables — an assistant execution without a recorded authorizer is not
+  representable.
+- `machinery` — the exact code seam that performed the write. Vocabulary lives
+  in `lib/listingStatusTransition.ts` (derived from `executedVia`, never a
+  caller-supplied string). NULL on history and on the untouched triage seam.
+
+### Attribution follows the write (the conditional review row)
+
+`listing_integrity_reviews` is written **only when a `review_action`
+accompanies the transition** — that conditional predates this round and is
+unchanged. When the row *is* written by an assistant-executed approve, it
+carries the same three columns. When no review row is written, nothing is
+populated there and `listing_decision_events` alone carries the attribution —
+no placeholder row is ever manufactured to hold it.
+
+### One governed call per listing
+
+The Assistant executes N listings as **N independent calls** to the shared
+function — no batch form, no multi-id endpoint anywhere. Each call is
+independently validated, gated, and recorded, which is what makes a partial
+result *real*: three approvals and one refusal are three durable successes and
+one truthful failure, not a rolled-back batch and not an asserted summary.
+`assistant_operation_receipts` (append-only, trigger-enforced) stores the
+requested / succeeded / failed **IDs** — counts are always derived from the
+IDs, never stored, because a stored count can drift from the IDs beside it.
+
+### Room Memory is not persisted
+
+`assistant_work_sessions.context` carries the conversation and at most one
+pending plan — never listing statuses, queue contents, or counts. Every turn
+re-reads the working set (the open record + the pending-review queue) from
+production; resume revalidates any pending plan against production and reports
+what changed; confirm re-checks every listing immediately before executing.
+A remembered room is a room that no longer exists.
+
+### The allowlist is one operation
+
+Bucket B contains exactly `approve_listings`. Everything else is refused in
+conversation, and the receipt table's CHECK refuses to record any other
+operation — widening the allowlist is a migration plus a ruling, never a
+drive-by.
+
 ## Verify current state
 
 ```sql
@@ -132,6 +208,17 @@ select actor_kind, count(*), count(actor_uid) as with_actor
 
 -- listings still waiting on a person
 select count(*) from listings where status = 'pending_review';
+
+-- authority vs execution: assistant rows always carry an authorizer,
+-- history stays honestly NULL
+select executed_via, count(*) as rows, count(authorized_by) as with_authorizer
+  from listing_decision_events group by executed_via;
+
+-- assistant receipts: IDs stored, counts derived at read time
+select id, operation, cardinality(requested_listing_ids) as requested,
+       cardinality(succeeded_listing_ids) as succeeded,
+       jsonb_array_length(failed_listings) as failed, created_at
+  from assistant_operation_receipts order by created_at desc limit 10;
 ```
 
 ## Proofs

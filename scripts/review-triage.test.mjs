@@ -180,7 +180,11 @@ const clean = {
 
 const seam = read("lib/reviewTriageService.ts");
 const gate = read("lib/listingPublicationGate.ts");
-const admin = read("app/api/admin/listings/[id]/status/route.ts");
+/* v6.84 — the transition machinery lives in lib/listingStatusTransition
+   (moved verbatim when the Founder Assistant became the second authorized
+   caller). Machinery assertions read the lib; the gate stays in the route. */
+const admin = read("lib/listingStatusTransition.ts");
+const adminRoute = read("app/api/admin/listings/[id]/status/route.ts");
 const triageRoute = read("app/api/admin/listings/[id]/triage/route.ts");
 const mcData = read("lib/marketplaceControlData.ts");
 const migration = read("supabase/migrations/20260823120000_listing_review_triage_v1.sql");
@@ -244,7 +248,7 @@ const migration = read("supabase/migrations/20260823120000_listing_review_triage
   );
   ok(
     "the founder route remains founder-gated behind its hardcoded literal",
-    /const ADMIN_USER_ID = "/.test(admin) && /user\.id !== ADMIN_USER_ID/.test(admin)
+    /const ADMIN_USER_ID = "/.test(adminRoute) && /user\.id !== ADMIN_USER_ID/.test(adminRoute)
   );
 }
 

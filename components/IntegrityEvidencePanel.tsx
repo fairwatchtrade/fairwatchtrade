@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import FounderAssistant from "@/components/FounderAssistant";
 import {
   composeProviderCoverage,
   coverageLine,
@@ -30,6 +31,12 @@ import {
    listing_integrity_reviews); Re-run check POSTs to the founder recheck
    route (inert while AUBREY_ENFORCEMENT is off). Nothing here decides —
    provider output is evidence, never guilt, never an auto-rejection.
+
+   v6.84 · The Founder Assistant affordance lives in this same adjudication
+   row and opens a conversational card beneath it (FounderAssistant.tsx).
+   It executes only founder-confirmed plans, through the same ONE status
+   machinery, recorded as assistant-executed. No rail, no new destination,
+   no idle footprint.
 
    The scoped <style> below is the artifact's stylesheet (panel subset,
    including the 900px/660px breakpoints) — the admin page itself is
@@ -187,6 +194,7 @@ export default function IntegrityEvidencePanel({
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [techOpen, setTechOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const ordered = [...photos].sort(
     (a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state]
@@ -632,7 +640,13 @@ export default function IntegrityEvidencePanel({
         <button type="button" className="admin-action rerun" disabled={busy} onClick={rerun}>
           Re-run check
         </button>
+        <button type="button" className="admin-action" onClick={() => setAssistantOpen((v) => !v)}>
+          Assistant
+        </button>
       </footer>
+      {assistantOpen && (
+        <FounderAssistant listingId={listingId} onClose={() => setAssistantOpen(false)} />
+      )}
     </section>
   );
 }
