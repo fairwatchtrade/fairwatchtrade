@@ -29,6 +29,11 @@
    supabase/migrations/20260828120000_sfx006b_family_variant_meanings.sql */
 export const SEARCH_MEANING_VERSION = 2;
 
+/* The governed corpus is never imported here — only its shape and its
+   resolution law. See lib/search/taxonomy.ts. */
+
+import { resolveGovernedPhrases, type GovernedIndex } from "./taxonomy.ts";
+
 export type MeaningKind =
   | "brand"
   | "collection"
@@ -431,7 +436,7 @@ function pushUnique(list: Meaning[], meaning: Meaning) {
  */
 export function parseSearch(
   raw: string,
-  opts?: { knownReferences?: Iterable<string> }
+  opts?: { knownReferences?: Iterable<string>; taxonomy?: GovernedIndex | null }
 ): SearchState {
   const text = raw ?? "";
   const trimmed = text.trim();
@@ -522,7 +527,7 @@ export function parseSearch(
     }
   }
 
-  const leftover: string[] = [];
+  let leftover: string[] = [];
   for (const token of working.split(/\s+/)) {
     const word = token.trim();
     if (!word) continue;
@@ -566,6 +571,20 @@ export function parseSearch(
     }
     leftover.push(word);
   }
+
+  /* 3b — GOVERNED TAXONOMY (SFX-006B). Runs AFTER the allowlisted rules and
+     BEFORE the honest-text fallback, which is exactly step 4 of the resolution
+     order: exact listing code, exact known reference, identifier-shaped exact
+     request, THEN governed meaning, THEN residue. Steps 1-2b all return early
+     above and are untouched — taxonomy can never weaken exact-identifier
+     precedence because it never runs when one applies.
+
+     The corpus is handed in rather than imported, so this file stays free of
+     it and the browser bundle never receives the curated alias dictionary.
+     Omit the option and behaviour is byte-identical to before this round. */
+  const governed = resolveGovernedPhrases(leftover, opts?.taxonomy);
+  for (const g of governed.meanings) pushUnique(meanings, g);
+  leftover = governed.leftover;
 
   // 4 — ordinary fallback. Unrecognized words stay text, shown plainly.
   // Bare connectors left behind by a consumed phrase ("manual wind WITH more

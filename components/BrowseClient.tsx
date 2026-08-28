@@ -40,6 +40,7 @@ import {
   matchesDialColorFamily,
   removeMeaningFromQuery,
   type Meaning,
+  type SearchState,
 } from "@/lib/search/parse";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -846,10 +847,44 @@ export default function BrowseClient({
     [listings]
   );
 
-  const activeSearch = useMemo(
-    () => parseSearch(queryText, { knownReferences }),
-    [queryText, knownReferences]
-  );
+  /* GOVERNED RESOLUTION (SFX-006B) happens on the server, because the governed
+     taxonomy carries the curated alias corpus and that corpus does not ship in
+     the client bundle (v6.86 protected-alias posture). The route returns
+     resolved meanings only, never the dictionary.
+
+     The local parse below still runs FIRST and unchanged, so the page is never
+     waiting on a round trip to show criteria: it is the immediate answer, and
+     the governed answer replaces it when it arrives for the SAME query. A
+     phrase the local parser cannot name — "tonda pf" — therefore appears
+     briefly as Text before resolving to Family. */
+  const [governed, setGoverned] = useState<{ q: string; state: SearchState } | null>(null);
+
+  useEffect(() => {
+    const q = queryText.trim();
+    if (!q) {
+      setGoverned(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/search/resolve?q=${encodeURIComponent(q)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((state: SearchState | null) => {
+        if (!cancelled && state) setGoverned({ q, state });
+      })
+      .catch(() => {
+        /* Resolution is an ENRICHMENT. If the route is unreachable the local
+           parse still stands and Browse keeps working exactly as it did before
+           this round — degraded to unresolved Text, never broken. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [queryText]);
+
+  const activeSearch = useMemo(() => {
+    if (governed && governed.q === queryText.trim()) return governed.state;
+    return parseSearch(queryText, { knownReferences });
+  }, [queryText, knownReferences, governed]);
 
   const searchActive = Boolean(
     activeSearch.code || activeSearch.reference || activeSearch.meanings.length
