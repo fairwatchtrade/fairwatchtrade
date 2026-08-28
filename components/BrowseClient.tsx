@@ -2369,7 +2369,28 @@ export default function BrowseClient({
                         {/* Add to Catalogue — v2.5c: WIRED to the real
                             saved_watches table. Shows a confirmed state
                             once saved this session; re-click is a no-op
-                            (handleAddToCatalogue short-circuits on savedIds). */}
+                            (handleAddToCatalogue short-circuits on savedIds).
+
+                            The plus is sized and nudged, not restyled: at the
+                            inherited 11px/300 it read as a faint tick rather
+                            than an invitation. 13.5px is that raised ~23%,
+                            weight 400 is one step off the button's own 300 —
+                            enough to be immediately legible, not enough to
+                            make a quiet outlined control loud.
+
+                            leading-none is load-bearing: without it the
+                            larger glyph's line box would exceed the label's
+                            16.5px and grow the button. Capped at 13.5px the
+                            span's box stays 13.5px, so the label still sets
+                            the height and the button's geometry is untouched.
+
+                            The 0.5px lift is measured, not eyeballed: this
+                            glyph's ink centre sits 0.4px below its box centre
+                            while a cap-height label sits 0.1px above, so
+                            centring the BOXES leaves the plus optically low.
+                            Transform, so it moves the ink without moving the
+                            layout — and it applies because a flex item is
+                            blockified (it would be inert on a bare inline). */}
                         <button
                           type="button"
                           onClick={() => handleAddToCatalogue(row.id)}
@@ -2386,7 +2407,7 @@ export default function BrowseClient({
                             </>
                           ) : (
                             <>
-                              <span className="text-[var(--gold-subtle)]">＋</span> Add to Catalogue
+                              <span className="-translate-y-[0.5px] text-[13.5px] font-normal leading-none text-[var(--gold-subtle)]">＋</span> Add to Catalogue
                             </>
                           )}
                         </button>
