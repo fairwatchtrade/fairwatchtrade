@@ -17,21 +17,27 @@ import {
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
-   TRADES — the offers workspace — components/TradeOffersModule.tsx
+   TRADES — the editorial exchange record — components/TradeOffersModule.tsx
 
-   Trade proposals live in the same offer workspace architecture as cash
-   requests, not in a separate Trade dashboard. The row's job is to make the
-   type and BOTH watches obvious without opening anything:
+   A trade reads as ONE composed exchange between two watches, not a stack of
+   database rows: a lifecycle header, the exchange itself as the primary object
+   (You receive ⇄ You give), the cash adjustment as its own beat, and — once a
+   trade is accepted — an aligned transfer ledger.
 
-     TRADE · Pending
-     You give   Explorer 114270 + $1,500
-     You receive Kalpa Hebdomadaire · X38205
+   PRESENTATION ONLY. Every visible fact still comes from the live production
+   data model; the four acts (accept / decline / withdraw, mark sent / undo /
+   confirm receipt, cancel) call the same endpoints they always did. The
+   viewer-relative direction and cash sentence come from lib/trade.tradeSummary
+   unchanged — a stored direction is a fact about the deal and second person is
+   the only way a human reads it without doing arithmetic. This file re-skins
+   that truth; it does not re-derive it.
 
-   Every row is written from the reader's own side of the table. The same
-   database row renders "You add $1,500" to one collector and "They add
-   $1,500" to the other — because a stored direction is a fact about the
-   deal, and second person is the only way a human reads it without doing
-   arithmetic.
+   The page title lives ONCE in the shared workspace header (AccountDashboard
+   renders the "Trades" h2). This module owns the locked subtitle and the
+   records — never a second title.
+
+   Colour comes from the app's theme-aware tokens, not any static mock's literal
+   paper palette, so the record reads correctly in both light and dark.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -39,7 +45,7 @@ import { formatMoney } from "@/lib/formatMoney";
 type OfferRow = {
   id: string;
   /* NULL only on terminal history whose listing was permanently deleted
-     (v6.93) — the card renders from the durable snapshots; the View watch
+     (v6.93) — the record renders from the durable snapshots; the View watch
      link renders only for pending offers, which are never detached. */
   target_listing_id: string | null;
   offered_listing_id: string | null;
@@ -53,9 +59,14 @@ type OfferRow = {
   target_brand: string | null;
   target_model: string | null;
   target_reference: string | null;
+  /* Durable public-code snapshots (v6.93). Present in the API payload;
+     rendered as the FWT listing code in the exchange meta line, and the one
+     identity that survives when a terminal offer's listing is deleted. */
+  target_public_code: string | null;
   offered_brand: string | null;
   offered_model: string | null;
   offered_reference: string | null;
+  offered_public_code: string | null;
   created_at: string;
 };
 
@@ -83,6 +94,24 @@ type DealRow = {
 
 const quietBtn =
   "border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
+
+/* The two watch faces of one exchange, from the reader's own side of the
+   table. Same viewer rule as lib/trade.tradeSummary (the proposer receives
+   the TARGET and gives the OFFERED watch); reused here only to split name
+   from meta for the composition — never to re-derive cash direction. */
+function exchangeSides(o: OfferRow, viewer: "proposer" | "recipient") {
+  const target = {
+    name: [o.target_brand, o.target_model].filter(Boolean).join(" ").trim() || "Watch",
+    meta: [o.target_reference, o.target_public_code].filter(Boolean).join(" · "),
+  };
+  const offered = {
+    name: [o.offered_brand, o.offered_model].filter(Boolean).join(" ").trim() || "Watch",
+    meta: [o.offered_reference, o.offered_public_code].filter(Boolean).join(" · "),
+  };
+  return viewer === "proposer"
+    ? { receive: target, give: offered }
+    : { receive: offered, give: target };
+}
 
 export default function TradeOffersModule() {
   const [offers, setOffers] = useState<OfferRow[] | null>(null);
@@ -256,251 +285,321 @@ export default function TradeOffersModule() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="font-display text-[22px] font-light text-[var(--platinum)]">Trades</h2>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">
-          Proposals where the consideration is another watch, with or without a cash difference.
-        </p>
-      </div>
+      {/* Locked founder subtitle (§3) — the single page title lives in the
+          shared workspace header, never repeated here. */}
+      <p className="max-w-[650px] text-[12px] leading-[1.55] text-[var(--muted)]">
+        Looking to trade for another watch—cash can be added to balance the deal.
+      </p>
 
-      {note && <p className="mb-4 text-[12px] italic text-[var(--gold-subtle)]">{note}</p>}
+      {note && (
+        <p className="mt-4 text-[12px] italic text-[var(--gold-subtle)]">{note}</p>
+      )}
 
       {offers === null ? (
-        <p className="text-[13px] italic text-[var(--muted)]">Loading trades…</p>
+        <p className="mt-10 text-[13px] italic text-[var(--muted)]">Loading trades…</p>
       ) : offers.length === 0 ? (
-        <p className="border border-[var(--border-subtle)] px-4 py-8 text-center text-[13px] italic text-[var(--muted)]">
+        <p className="mt-10 max-w-[840px] border-t border-[var(--border-faint)] px-1 py-10 text-[13px] italic text-[var(--muted)] md:ml-[30px]">
           No trade proposals yet.
         </p>
       ) : (
-        <div className="divide-y divide-[var(--border-faint)] border border-[var(--border-subtle)]">
-          {offers.map((o) => {
-            const viewer = viewerId === o.proposer_id ? "proposer" : "recipient";
-            const summary = tradeSummary(
-              {
-                targetIdentity: watchIdentity({
-                  brand: o.target_brand,
-                  model: o.target_model,
-                  reference: o.target_reference,
-                }),
-                offeredIdentity: watchIdentity({
-                  brand: o.offered_brand,
-                  model: o.offered_model,
-                  reference: o.offered_reference,
-                }),
-                terms: {
-                  cash_direction: o.cash_direction,
-                  cash_amount: o.cash_amount,
-                  cash_currency: o.cash_currency,
-                },
+        offers.map((o) => {
+          const viewer = viewerId === o.proposer_id ? "proposer" : "recipient";
+          const summary = tradeSummary(
+            {
+              targetIdentity: watchIdentity({
+                brand: o.target_brand,
+                model: o.target_model,
+                reference: o.target_reference,
+              }),
+              offeredIdentity: watchIdentity({
+                brand: o.offered_brand,
+                model: o.offered_model,
+                reference: o.offered_reference,
+              }),
+              terms: {
+                cash_direction: o.cash_direction,
+                cash_amount: o.cash_amount,
+                cash_currency: o.cash_currency,
               },
-              viewer,
-              formatMoney
-            );
-            const deal = deals[o.id];
+            },
+            viewer,
+            formatMoney
+          );
+          const deal = deals[o.id];
+          const sides = exchangeSides(o, viewer);
+          const hasCash = o.cash_direction !== "none";
 
-            return (
-              <div key={o.id} className="px-4 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-[2px] text-[var(--gold-dim)]">
-                      Trade · {TRADE_STATUS_LABELS[o.status]}
+          /* Lifecycle hierarchy (§5): one current state, not three competing
+             ones. Once accepted the deal owns the state; before that the offer
+             does. The history line is the already-shipped truthful next-step
+             for a deal, and the plain outcome for a resolved offer — never a
+             manufactured phrase. */
+          const currentState = deal
+            ? DEAL_STATUS_LABELS[deal.status]
+            : TRADE_STATUS_LABELS[o.status];
+          const historyLine = deal
+            ? dealNextStep(deal.status)
+            : o.status === "pending"
+              ? "Awaiting a response"
+              : null;
+          const showExplainer = o.status === "pending" || Boolean(deal);
+
+          return (
+            <section
+              key={o.id}
+              className="mt-10 max-w-[840px] px-1 md:ml-[30px]"
+              aria-label="Trade record"
+            >
+              {/* ── Lifecycle header ── */}
+              <div className="grid grid-cols-[1fr_auto] items-start gap-6 border-b border-[var(--border-gold)] pb-4">
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Trade
+                  </div>
+                  <div className="mt-1.5 font-display text-[26px] font-light leading-tight text-[var(--platinum)]">
+                    {currentState}
+                  </div>
+                  {historyLine && (
+                    <div className="mt-1 text-[11px] text-[var(--muted)]">{historyLine}</div>
+                  )}
+                </div>
+                <div className="pt-1 text-[9px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+                  {currentState}
+                </div>
+              </div>
+
+              {/* ── The exchange — the primary object ── */}
+              <div className="grid grid-cols-1 items-center gap-5 border-b border-[var(--border-faint)] py-7 sm:grid-cols-[1fr_auto_1fr]">
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.17em] text-[var(--muted)]">
+                    You receive
+                  </div>
+                  <div className="mt-2 font-display text-[20px] font-light leading-tight text-[var(--platinum)]">
+                    {sides.receive.name}
+                  </div>
+                  {sides.receive.meta && (
+                    <div className="mt-1 text-[11px] text-[var(--muted)]">
+                      {sides.receive.meta}
                     </div>
-                    <dl className="mt-2 space-y-1">
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <dt className="w-[92px] shrink-0 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                          You receive
-                        </dt>
-                        <dd className="text-[14px] text-[var(--platinum)]">{summary.youReceive}</dd>
-                      </div>
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <dt className="w-[92px] shrink-0 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                          You give
-                        </dt>
-                        <dd className="text-[14px] text-[var(--platinum)]">{summary.youGive}</dd>
-                      </div>
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <dt className="w-[92px] shrink-0 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                          Cash
-                        </dt>
-                        <dd className="text-[13px] text-[var(--gold)]">{summary.cash}</dd>
-                      </div>
-                    </dl>
+                  )}
+                </div>
+                <div
+                  aria-hidden
+                  className="justify-self-center font-display text-[26px] text-[var(--slate)] max-sm:rotate-90"
+                >
+                  ⇄
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.17em] text-[var(--muted)]">
+                    You give
+                  </div>
+                  <div className="mt-2 font-display text-[20px] font-light leading-tight text-[var(--platinum)]">
+                    {sides.give.name}
+                  </div>
+                  {sides.give.meta && (
+                    <div className="mt-1 text-[11px] text-[var(--muted)]">{sides.give.meta}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Cash adjustment — its own beat ── */}
+              {hasCash ? (
+                <div className="grid grid-cols-1 gap-3 border-b border-[var(--border-faint)] py-5 sm:grid-cols-[180px_1fr]">
+                  <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                    Cash adjustment
+                  </div>
+                  <div>
+                    <div className="font-display text-[18px] font-light text-[var(--gold)]">
+                      {summary.cash}
+                    </div>
                     {o.note && (
-                      <p className="mt-2 text-[12px] italic text-[var(--muted)]">“{o.note}”</p>
+                      <p className="mt-1.5 text-[13px] italic text-[var(--muted)]">“{o.note}”</p>
                     )}
                   </div>
                 </div>
+              ) : (
+                o.note && (
+                  <p className="border-b border-[var(--border-faint)] py-5 text-[13px] italic text-[var(--muted)]">
+                    “{o.note}”
+                  </p>
+                )
+              )}
 
-                {/* Actions — decline belongs to the recipient, withdraw to
-                    the proposer, and neither can perform the other's act. */}
-                {o.status === "pending" && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {viewer === "recipient" ? (
-                      <>
-                        <button
-                          type="button"
-                          className="fw-btn-primary disabled:opacity-40"
-                          disabled={busy === o.id}
-                          onClick={() => act(o.id, "accept")}
-                        >
-                          {busy === o.id ? "Working…" : "Accept trade"}
-                        </button>
-                        <button
-                          type="button"
-                          className={quietBtn}
-                          disabled={busy === o.id}
-                          onClick={() => act(o.id, "decline")}
-                        >
-                          Decline
-                        </button>
-                      </>
-                    ) : (
+              {/* ── Pending actions — decline is the recipient's, withdraw
+                   the proposer's; neither can perform the other's act ── */}
+              {o.status === "pending" && (
+                <div className="flex flex-wrap gap-2 py-5">
+                  {viewer === "recipient" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="fw-btn-primary disabled:opacity-40"
+                        disabled={busy === o.id}
+                        onClick={() => act(o.id, "accept")}
+                      >
+                        {busy === o.id ? "Working…" : "Accept trade"}
+                      </button>
                       <button
                         type="button"
                         className={quietBtn}
                         disabled={busy === o.id}
-                        onClick={() => act(o.id, "withdraw")}
+                        onClick={() => act(o.id, "decline")}
                       >
-                        Withdraw proposal
+                        Decline
                       </button>
-                    )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={quietBtn}
+                      disabled={busy === o.id}
+                      onClick={() => act(o.id, "withdraw")}
+                    >
+                      Withdraw proposal
+                    </button>
+                  )}
+                  {o.target_listing_id && (
                     <Link href={`/listings/${o.target_listing_id}`} className={quietBtn}>
                       View watch
                     </Link>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {/* The accepted deal, and each watch's own progress. The deal
-                    is the agreement; the legs are the objects. */}
-                {deal && (
-                  <div className="mt-4 border-t border-[var(--border-faint)] pt-3">
-                    <div className="text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
-                      {DEAL_STATUS_LABELS[deal.status]}
-                    </div>
-                    <p className="mt-1 text-[12px] leading-relaxed text-[var(--muted)]">
-                      {dealNextStep(deal.status)}
+              {/* ── Transfer record — the aligned per-watch ledger ── */}
+              {deal && (
+                <div className="pt-7">
+                  <h3 className="font-display text-[18px] font-light text-[var(--platinum)]">
+                    Transfer record
+                  </h3>
+
+                  {deal.cash_direction !== "none" && deal.cash_amount != null && (
+                    <p className="mt-2 text-[12px] text-[var(--platinum-dim)]">
+                      Cash adjustment {formatMoney(deal.cash_amount, deal.cash_currency)}{" "}
+                      <span className="text-[var(--muted)]">
+                        &mdash;{" "}
+                        {deal.cash_direction === "proposer_pays"
+                          ? "from the proposer"
+                          : "from the recipient"}
+                        . Recorded here, settled between you. FairWatchTrade does not move it.
+                      </span>
                     </p>
-                    {/* CASH IS DESCRIBED, NEVER MOVED, and it is said in the
-                        same breath as the amount so nobody can read it as a
-                        payment this platform is handling. */}
-                    {deal.cash_direction !== "none" && deal.cash_amount != null && (
-                      <p className="mt-2 text-[12px] text-[var(--platinum-dim)]">
-                        Cash adjustment {formatMoney(deal.cash_amount, deal.cash_currency)}{" "}
-                        <span className="text-[var(--muted)]">
-                          &mdash;{" "}
-                          {deal.cash_direction === "proposer_pays"
-                            ? "from the proposer"
-                            : "from the recipient"}
-                          . Recorded here, settled between you. FairWatchTrade does not move it.
-                        </span>
-                      </p>
-                    )}
+                  )}
 
-                    <div className="mt-2 space-y-2">
-                      {deal.legs.map((leg) => {
-                        const iSend = leg.from_user_id === viewerId;
-                        const iReceive = leg.to_user_id === viewerId;
-                        const live = deal.status !== "cancelled" && deal.status !== "completed";
-                        /* Sent belongs to whoever posts the watch, receipt to
-                           whoever gets it. Never both, never neither. */
-                        const canMarkSent = live && iSend && leg.leg_status === "bound";
-                        const canUndoSent = live && iSend && leg.leg_status === "in_transit";
-                        /* Offered from bound OR in_transit: Sent is advisory,
-                           so a recipient holding the watch must never be
-                           blocked by a sender who forgot to mark it. */
-                        const canConfirm =
-                          live &&
-                          iReceive &&
-                          (leg.leg_status === "bound" || leg.leg_status === "in_transit");
-                        return (
-                          <div
-                            key={leg.id}
-                            className="border-t border-[var(--border-faint)] pt-2 first:border-t-0 first:pt-0"
-                          >
-                            <div className="flex flex-wrap items-baseline justify-between gap-2 text-[12px]">
-                              <span className="text-[var(--platinum-dim)]">
-                                {watchIdentity({
-                                  brand: leg.listing_brand,
-                                  model: leg.listing_model,
-                                  reference: leg.listing_reference,
-                                  publicCode: leg.listing_public_code,
-                                })}
-                                <span className="ml-2 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
-                                  {iReceive ? "to you" : "to them"}
-                                </span>
-                              </span>
-                              <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
-                                {LEG_STATUS_LABELS[leg.leg_status]}
-                              </span>
-                            </div>
-                            {(canMarkSent || canUndoSent || canConfirm) && (
-                              <div className="mt-1.5 flex flex-wrap gap-2">
-                                {canMarkSent && (
-                                  <button
-                                    type="button"
-                                    disabled={busy === leg.id}
-                                    onClick={() => markSent(leg.id, true)}
-                                    className={quietBtn}
-                                  >
-                                    Mark as sent
-                                  </button>
-                                )}
-                                {canUndoSent && (
-                                  <button
-                                    type="button"
-                                    disabled={busy === leg.id}
-                                    onClick={() => markSent(leg.id, false)}
-                                    className={quietBtn}
-                                  >
-                                    Undo sent
-                                  </button>
-                                )}
-                                {canConfirm && (
-                                  <button
-                                    type="button"
-                                    disabled={busy === leg.id}
-                                    onClick={() => confirmReceipt(leg.id)}
-                                    className={quietBtn}
-                                  >
-                                    Confirm receipt
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Cancellation dies the moment a watch genuinely moves.
-                        The control disappears rather than failing, so nobody
-                        presses it expecting the trade to come undone. */}
-                    {deal.status !== "cancelled" &&
-                      deal.status !== "completed" &&
-                      deal.legs.every(
-                        (l) => l.leg_status === "bound" || l.leg_status === "in_transit"
-                      ) && (
-                        <button
-                          type="button"
-                          disabled={busy === deal.id}
-                          onClick={() => cancelDeal(deal.id)}
-                          className={quietBtn + " mt-3"}
+                  <div className="mt-3">
+                    {deal.legs.map((leg) => {
+                      const iSend = leg.from_user_id === viewerId;
+                      const iReceive = leg.to_user_id === viewerId;
+                      const live = deal.status !== "cancelled" && deal.status !== "completed";
+                      /* Sent belongs to whoever posts the watch, receipt to
+                         whoever gets it. Never both, never neither. */
+                      const canMarkSent = live && iSend && leg.leg_status === "bound";
+                      const canUndoSent = live && iSend && leg.leg_status === "in_transit";
+                      /* Offered from bound OR in_transit: Sent is advisory, so
+                         a recipient holding the watch is never blocked by a
+                         sender who forgot to mark it. */
+                      const canConfirm =
+                        live &&
+                        iReceive &&
+                        (leg.leg_status === "bound" || leg.leg_status === "in_transit");
+                      return (
+                        <div
+                          key={leg.id}
+                          className="border-t border-[var(--border-faint)] py-3 last:border-b"
                         >
-                          Cancel trade
-                        </button>
-                      )}
+                          <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[110px_minmax(0,1fr)_auto]">
+                            <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                              {iReceive ? "To you" : "To them"}
+                            </div>
+                            <div className="text-[11px] text-[var(--platinum-dim)]">
+                              {watchIdentity({
+                                brand: leg.listing_brand,
+                                model: leg.listing_model,
+                                reference: leg.listing_reference,
+                                publicCode: leg.listing_public_code,
+                              })}
+                            </div>
+                            <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--gold-dim)] sm:text-right">
+                              {LEG_STATUS_LABELS[leg.leg_status]}
+                            </div>
+                          </div>
+                          {(canMarkSent || canUndoSent || canConfirm) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {canMarkSent && (
+                                <button
+                                  type="button"
+                                  disabled={busy === leg.id}
+                                  onClick={() => markSent(leg.id, true)}
+                                  className={quietBtn}
+                                >
+                                  Mark as sent
+                                </button>
+                              )}
+                              {canUndoSent && (
+                                <button
+                                  type="button"
+                                  disabled={busy === leg.id}
+                                  onClick={() => markSent(leg.id, false)}
+                                  className={quietBtn}
+                                >
+                                  Undo sent
+                                </button>
+                              )}
+                              {canConfirm && (
+                                <button
+                                  type="button"
+                                  disabled={busy === leg.id}
+                                  onClick={() => confirmReceipt(leg.id)}
+                                  className={quietBtn}
+                                >
+                                  Confirm receipt
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
-      <p className="mt-8 text-[11px] leading-relaxed text-[var(--muted)]">
-        Accepting a trade reserves both watches at the same moment, so neither can be sold out from
-        under the other. Arranging the exchange itself happens in the listing conversation.
-      </p>
+                  {/* Cancellation dies the moment a watch genuinely moves. The
+                      control disappears rather than failing, so nobody presses
+                      it expecting the trade to come undone. */}
+                  {deal.status !== "cancelled" &&
+                    deal.status !== "completed" &&
+                    deal.legs.every(
+                      (l) => l.leg_status === "bound" || l.leg_status === "in_transit"
+                    ) && (
+                      <button
+                        type="button"
+                        disabled={busy === deal.id}
+                        onClick={() => cancelDeal(deal.id)}
+                        className={quietBtn + " mt-4"}
+                      >
+                        Cancel trade
+                      </button>
+                    )}
+                </div>
+              )}
+
+              {/* ── Acceptance explainer, integrated into the record (§9) ── */}
+              {showExplainer && (
+                <div className="mt-7 grid grid-cols-1 gap-4 border-t border-[var(--border-gold)] pt-5 sm:grid-cols-[180px_1fr]">
+                  <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                    What acceptance means
+                  </div>
+                  <p className="max-w-[630px] text-[11px] leading-[1.62] text-[var(--muted)]">
+                    Accepting a trade reserves both watches at the same moment so neither can be
+                    sold out from under the other. FairWatchTrade records the exchange and transfer
+                    state; the cash difference is settled between the parties in the listing
+                    conversation.
+                  </p>
+                </div>
+              )}
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }
