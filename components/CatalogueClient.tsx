@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CatalogueRail from "@/components/CatalogueRail";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
@@ -308,11 +308,46 @@ const TONE_COLOR: Record<OfferTone, string> = {
   ghost: "var(--muted)",
 };
 
+/* The greeting is local-clock knowledge, and the server does not have the
+   collector's clock.
+
+   Calling this during render was a real defect rather than a cosmetic one:
+   the server evaluated it in UTC while the browser re-evaluated it in the
+   viewer's own zone, so a Florida collector at 11pm was served the words
+   "Good morning" and then watched React replace them — a text hydration
+   mismatch (React #418) on every signed-in load of this page.
+
+   The repair keeps ONE function computing the greeting and simply stops
+   calling it during the server pass — see the useSyncExternalStore read in
+   CatalogueClient. There is no second source of truth for the hour and no
+   suppressed warning; the mismatch is gone because the disagreement is
+   gone.
+
+   Until the clock resolves, the heading uses the same welcome the mobile
+   drawer already gives a returning member. It is true at every hour, and at
+   twelve characters it is the same width as "Good evening", so the resolve
+   reads as a word settling rather than a line reflowing. */
+const GREETING_BEFORE_CLOCK = "Welcome back";
+
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+/* The server's answer, and therefore also the hydration render's answer.
+   Both must be this exact value for the two passes to agree. */
+function getServerGreeting(): string {
+  return GREETING_BEFORE_CLOCK;
+}
+
+/* Module scope so the reference is stable across renders. The greeting does
+   not change while the collector reads the page, so there is nothing to
+   subscribe to — this exists to satisfy the store contract and returns the
+   unsubscribe React expects. */
+function subscribeToClock(): () => void {
+  return () => {};
 }
 
 /* Null asking price renders honestly, never $0/$NaN (Buyer Price Truth, Bug 1).
@@ -1032,6 +1067,24 @@ export default function CatalogueClient({
   const [savedListings, setSavedListings] = useState<ListingRow[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
 
+  /* The hour, read through the one API React provides for a value that is
+     legitimately different on the server than in the browser.
+
+     useSyncExternalStore returns the server snapshot for the SSR pass and
+     for the hydration render — so the two agree and there is nothing to
+     mismatch — then immediately returns the client snapshot, which is the
+     collector's own clock. Not a suppressed warning, and not setState in an
+     effect (which this codebase's lint rightly forbids for the cascading
+     render it causes): the disagreement is resolved rather than silenced.
+
+     Nothing ever calls the subscriber, because the greeting is fixed for the
+     visit rather than a ticking clock. */
+  const clockGreeting = useSyncExternalStore(
+    subscribeToClock,
+    greeting,
+    getServerGreeting
+  );
+
   // v2.7 — My Offers. The buyer's outgoing purchase requests across all
   // listings, fetched client-side (same pattern as Saved Watches below). RLS
   // already scopes SELECT to buyer_id = auth.uid(), so this is a read model
@@ -1220,7 +1273,7 @@ export default function CatalogueClient({
       <div className="min-w-0 flex-1 py-8">
         {/* Greeting */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          {greeting()}, {displayName}.
+          {clockGreeting}, {displayName}.
         </h1>
 
         {/* Catalogue Match hero — four honest states (Permissioned
