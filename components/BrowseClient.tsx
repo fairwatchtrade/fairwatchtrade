@@ -1184,7 +1184,19 @@ export default function BrowseClient({
             deliberately NOT changed: facetList resolves to dealerFacetList
             whenever a dealerScope exists, so the two never render together,
             and a Browse ruling does not reach a dealer's room. */}
-        <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+        {/* LEGIBILITY, measured rather than eyeballed. At 13px/300/--muted this
+            sentence carried a 1.40mm x-height on the founder's 32" 4K at 125%,
+            while the 11px all-caps REFINE label directly above it rendered at
+            1.82mm — the nominally larger line read 23% smaller, because
+            Cormorant carries only ~0.469em of x-height against Inter's ~0.55.
+            Three things were quiet at once: size, weight 300, and the lowest
+            readable colour tier. 16px/400/--slate lifts the x-height to
+            ~1.73mm and the contrast from 5.07:1 to ~6.8:1 while keeping the
+            Cormorant italic editorial voice, which is the part worth keeping.
+            1,400 is a real loaded cut, so this is a true weight, not synthetic
+            emboldening. Three wrapped lines in this column is the accepted
+            cost; the rail is not widened and nothing around it moves. */}
+        <p className="font-display text-[16px] font-normal italic leading-[1.6] text-[var(--slate)]">
           We think in dials and VPH, not dropdowns.
         </p>
       </div>
