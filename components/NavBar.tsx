@@ -219,7 +219,15 @@ export default function NavBar({
               Sign In / Register
             </Link>
           ) : (
-            <div ref={accountRef} className="relative min-w-0">
+            /* `flex` is load-bearing, not cosmetic. As a block this wrapper
+               shrank correctly under the cluster's min-w-0 but did NOT
+               constrain the button inside it — a block parent does not size a
+               child that way — so an extreme name gave a 729px wrapper
+               holding a 1005px button, and the row went past the viewport
+               exactly as it did before v3.23 capped the name. As a flex
+               container the button becomes a flex item that shrinks with it,
+               and the name truncates instead. */
+            <div ref={accountRef} className="relative flex min-w-0">
               <button
                 type="button"
                 onClick={() => setAccountOpen((v) => !v)}
