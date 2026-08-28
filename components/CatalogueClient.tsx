@@ -111,7 +111,6 @@ export type ListingRow = {
 };
 
 type CatalogueProps = {
-  displayName: string;
   searches: CatalogueSearch[];
   matchRows: CatalogueMatchRow<ListingRow>[];
 };
@@ -1049,7 +1048,6 @@ function MyOffersSection({
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function CatalogueClient({
-  displayName,
   searches,
   matchRows,
 }: CatalogueProps) {
@@ -1285,26 +1283,21 @@ export default function CatalogueClient({
           the moment the rail exists again, so the desktop composition is
           untouched. */}
       <div className="min-w-0 flex-1 px-5 py-8 md:px-0">
-        {/* Greeting.
+        {/* Greeting — the hour, and nothing else.
 
-            The greeting is the beat that carries the warmth, so it keeps the
-            full 26px. The collector's own address does not: they already know
-            who they are, and it is identification rather than a salutation.
-            At 18px it stops competing with the greeting and reads as what it
-            is.
+            It used to name the collector, but the only name available was
+            whatever identity resolved first, and for an account that never
+            set a display name that was their raw email address. Greeting
+            someone with their own email is not a greeting; it is an
+            identifier read back at them. It was also the source of a real
+            layout hazard, because an email is a single unbreakable token
+            with no spaces to wrap at — on a 380px screen it had about two
+            characters of headroom before running past the edge of the phone.
 
-            It also stops being a hazard. `displayName` is unbounded user
-            data, and when it is an email it is a single unbreakable token —
-            no spaces to wrap at. At 26px on a 380px screen the address had
-            about two characters of headroom before it ran past the edge of
-            the phone, and the next character had nowhere to go. 18px gives a
-            realistically long address roughly 45px of room; break-words is
-            the guarantee behind that, so even an absurd address wraps
-            instead of overflowing. Same lesson the masthead learned when an
-            unbounded display name pushed that row past the viewport. */}
+            Naming nobody removes both problems at once, and there is nothing
+            left here that unbounded user data can overflow. */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          {clockGreeting},{" "}
-          <span className="break-words text-[18px]">{displayName}.</span>
+          {clockGreeting}.
         </h1>
 
         {/* Collector Navigation, narrow widths only. The rail beside this

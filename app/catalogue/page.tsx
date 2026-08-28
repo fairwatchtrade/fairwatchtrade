@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
 import type { CatalogueMatchRow, CatalogueSearch } from "@/lib/catalogueMatches";
-import { getSignedInDisplayIdentity } from "@/lib/signedInDisplayIdentity";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER CATALOGUE — /catalogue
@@ -39,7 +38,10 @@ export default async function CataloguePage() {
     redirect("/login?callbackUrl=/catalogue");
   }
 
-  const displayName = await getSignedInDisplayIdentity(supabase, user);
+  /* The greeting names the hour, not the collector, so this page no longer
+     resolves a display identity. lib/signedInDisplayIdentity is deliberately
+     left in place: it is the shared resolver, and the account surfaces that
+     will need a real name still want it. It simply has no caller today. */
 
   // The collector's saved searches — names for attribution, paused and
   // include_adjacent so presentation can honor both at read time.
@@ -63,7 +65,6 @@ export default async function CataloguePage() {
 
   return (
     <CatalogueClient
-      displayName={displayName}
       searches={searches}
       matchRows={matches}
     />
