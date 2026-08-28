@@ -1179,8 +1179,13 @@ export default function BrowseClient({
         <div className="mb-[6px] text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
           {dealerScope ? `Refine ${dealerScope.businessName}` : "Refine"}
         </div>
+        {/* Founder-locked Browse wording. The Dealer Room twin of this line
+            lives in dealerFacetList under "Refine This Dealer" and is
+            deliberately NOT changed: facetList resolves to dealerFacetList
+            whenever a dealerScope exists, so the two never render together,
+            and a Browse ruling does not reach a dealer's room. */}
         <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
-          Collectors think in dials, not dropdowns.
+          We think in dials and VPH, not dropdowns.
         </p>
       </div>
 
