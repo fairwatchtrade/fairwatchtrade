@@ -90,7 +90,20 @@ export default function MarketBar() {
 
   return (
     <div className="w-full border-b border-[var(--border-mid)] bg-[var(--surface)]">
-      <div className="mx-auto flex h-11 max-w-screen-2xl items-center gap-2 px-3">
+      {/* RULED: this strip shares the masthead's outer geometry - no width
+          cap, px-6 gutters. It had been capped at max-w-screen-2xl and
+          guttered at px-3, so above 1536px it centred as its own island, and
+          even below that its first character sat 12px inboard of the wordmark
+          standing directly above it. The cap was never load-bearing: this row
+          is a fixed metals block beside a scroller that already absorbs
+          whatever width it is handed.
+
+          px-6 is the masthead's gutter exactly, and matching it is what makes
+          the two bands read as one header rather than two stacked strips. It
+          is also the only thing holding the London label off the viewport
+          edge - the Left Cliff Law lives on this band too, and 12px was thin
+          for it. */}
+      <div className="flex h-11 w-full items-center gap-2 px-6">
         <div className="flex shrink-0 items-center gap-4 pr-3">
           <span className="select-none text-[11px] tracking-wide text-[var(--gold)] [writing-mode:vertical-rl] rotate-180">
             London

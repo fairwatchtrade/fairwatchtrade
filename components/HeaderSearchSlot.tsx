@@ -39,7 +39,16 @@ export default function HeaderSearchSlot() {
 
   return (
     <div className="w-full border-b border-[var(--border-subtle)] bg-[var(--ink)]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      {/* RULED: same outer geometry as the masthead - no width cap. It had
+          been max-w-6xl (1152px), narrower than both bands above it, so on a
+          wide desktop the header stack resolved into three differently
+          centred islands.
+
+          The px-4 sm:px-6 gutter is deliberately KEPT: from sm upward it is
+          already the masthead's px-6, so the bands align at every width this
+          one is verified at, and the mobile step stays exactly where it
+          was. */}
+      <div className="w-full px-4 sm:px-6">
         {/* Desktop — compact field, right-aligned. hidden below lg. */}
         <div className="hidden justify-end py-2 lg:flex">
           <HeaderSearch variant="inline" />
