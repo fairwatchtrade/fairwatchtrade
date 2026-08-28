@@ -116,12 +116,20 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
   ),
 };
 
+/* Icon sizes rose with the labels so the two stay balanced — a 14px mark
+   beside a 14.8px label would have read as a smaller menu, not a larger
+   one. 16 is the ~14% raise on the 14px box; the marks that carry their own
+   larger coordinate space run 17 because identical width renders them
+   visually smaller. */
+const ICON_PX = 16;
+const ICON_PX_WIDE = 17;
+
 function NavIcon({ label, active }: { label: string; active: boolean }) {
   if (label === "Browse") {
     return (
       <svg
-        width="15"
-        height="15"
+        width={ICON_PX_WIDE}
+        height={ICON_PX_WIDE}
         viewBox="-0.5 -0.5 16 16"
         fill="none"
         stroke={active ? "var(--gold)" : "var(--muted)"}
@@ -137,11 +145,35 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
     );
   }
 
+  /* Trades — the exchange mark the account rail already uses, path data
+     unchanged so the same room is marked the same way wherever it appears.
+     It keeps its own 24-unit box, which is why it renders through this
+     branch rather than the shared 14-unit map below. */
+  if (label === "Trades") {
+    return (
+      <svg
+        width={ICON_PX_WIDE}
+        height={ICON_PX_WIDE}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={active ? "var(--gold)" : "var(--muted)"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0"
+        aria-hidden="true"
+      >
+        <path d="M4 8h13M14 5l3 3-3 3" />
+        <path d="M20 16H7M10 13l-3 3 3 3" />
+      </svg>
+    );
+  }
+
   if (label === "Vault") {
     return (
       <svg
-        width="15"
-        height="15"
+        width={ICON_PX_WIDE}
+        height={ICON_PX_WIDE}
         viewBox="0 0 24 24"
         fill="none"
         stroke={active ? "var(--gold)" : "var(--muted)"}
@@ -161,8 +193,8 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
   if (!paths) return null;
   return (
     <svg
-      width="14"
-      height="14"
+      width={ICON_PX}
+      height={ICON_PX}
       viewBox="0 0 14 14"
       fill="none"
       stroke={active ? "var(--gold)" : "var(--muted)"}
@@ -196,28 +228,93 @@ function Badge({
   );
 }
 
-// Global Search DD2 — approved XCover hierarchy. Account is promoted OUT of the
-// old bottom utility tier into the PRIMARY group; Browse/Sell/Catalogue/Vault
-// surround it so the hierarchy stays legible. Correspondence and About sit in a
-// quieter secondary group below. Account itself is rendered auth-aware (a link
-// when signed in; the preserved join panel when signed out — never a /sell
-// bounce), so it is not in this static list.
-type NavLink = { label: string; href: string; badge?: { variant: BadgeVariant; label: string } };
+/* THE DRAWER LEADS WITH THE COLLECTOR.
+   Browse · Catalogue · Wanted · Trades · Vault, then a divider, then the
+   selling and account utilities.
 
-const PRIMARY_LINKS: NavLink[] = [
+   Sell used to sit second, one line under Browse, and Account was promoted
+   into that same top group — so the first thing a phone showed a collector
+   was the workspace for people disposing of watches. That is backwards for
+   a marketplace whose buyer home is /catalogue. Nothing here is removed and
+   no route changes; the utilities simply stop outranking the reasons a
+   collector opened the app.
+
+   This is a prominence order, not role detection. The drawer does not try
+   to guess whether the person holding the phone is buying or selling. */
+type NavLink = {
+  label: string;
+  href: string;
+  badge?: { variant: BadgeVariant; label: string };
+  /* Rooms that live inside /account. A signed-out tap on one of these lands
+     on the login wall, so they are not shown to guests at all. */
+  authedOnly?: boolean;
+};
+
+const COLLECTOR_LINKS: NavLink[] = [
   { label: "Browse", href: "/browse" },
-  { label: "Sell", href: "/sell" },
   { label: "Catalogue", href: "/catalogue" },
   /* Wanted sits with Catalogue in the collector grouping — the same family
      it joins on desktop. */
   { label: "Wanted", href: "/wanted" },
+  { label: "Trades", href: "/account?module=trades", authedOnly: true },
   { label: "Vault", href: "/vault" },
 ];
 
-const SECONDARY_LINKS: NavLink[] = [
-  { label: "Correspondence", href: "/account?module=communications" },
+/* Below the divider. Account is not in this list because it renders
+   auth-aware — a link when signed in, the preserved join panel when signed
+   out (never a /sell bounce) — and it belongs between Sell and
+   Correspondence, so the utility group is rendered in two halves around
+   it. */
+const UTILITY_LINKS_BEFORE_ACCOUNT: NavLink[] = [{ label: "Sell", href: "/sell" }];
+
+const UTILITY_LINKS_AFTER_ACCOUNT: NavLink[] = [
+  { label: "Correspondence", href: "/account?module=communications", authedOnly: true },
   { label: "About", href: "/about" },
 ];
+
+/* One row shape for every destination in the drawer, so the collector half
+   and the utility half can never drift apart in size, padding, or hit
+   target. `tone` is the only difference between them: the utilities sit a
+   shade quieter, which is the whole of the demotion — they are not smaller,
+   not indented, and not hidden. A row the user needs is still a row.
+
+   14.8px is the old 13px raised ~14%. The 13px measured undersized on a
+   real phone in daylight, which is the condition this menu is actually read
+   in. */
+function DrawerLink({
+  item,
+  active,
+  tone,
+  onNavigate,
+}: {
+  item: NavLink;
+  active: boolean;
+  tone: "lead" | "quiet";
+  onNavigate: () => void;
+}) {
+  const resting =
+    tone === "lead"
+      ? "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
+      : "border-transparent text-[var(--muted)] hover:text-[var(--platinum)]";
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[14.8px] transition ${
+        active
+          ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
+          : resting
+      }`}
+    >
+      <span className="flex items-center gap-3">
+        <NavIcon label={item.label} active={active} />
+        <span>{item.label}</span>
+      </span>
+      {item.badge && <Badge variant={item.badge.variant}>{item.badge.label}</Badge>}
+    </Link>
+  );
+}
 
 export default function MobileNav({
   open,
@@ -309,45 +406,51 @@ export default function MobileNav({
 
         {/* Nav sections */}
         <div className="flex-1 overflow-y-auto py-3">
-          {/* ── PRIMARY tier — Browse · Sell · Catalogue · Vault · Account ──
-              Account is promoted here (was bottom utility) and given a slightly
-              elevated tone so it reads as primary, not an afterthought. */}
+          {/* ── The collector's half — Browse · Catalogue · Wanted · Trades ·
+              Vault. Discovery leads the drawer. ── */}
           <div className="px-5 pb-2 pt-2 text-[8.5px] uppercase tracking-[3px] text-[var(--muted)]">
             Primary
           </div>
-          {PRIMARY_LINKS.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={`primary-${item.label}`}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center justify-between border-l-2 px-5 py-[13px] text-[13px] transition ${
-                  isActive
-                    ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
-                    : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <NavIcon label={item.label} active={isActive} />
-                  <span>{item.label}</span>
-                </span>
-                {item.badge && <Badge variant={item.badge.variant}>{item.badge.label}</Badge>}
-              </Link>
-            );
-          })}
+          {COLLECTOR_LINKS.filter((item) => authed || !item.authedOnly).map((item) => (
+            <DrawerLink
+              key={`collector-${item.label}`}
+              item={item}
+              active={pathname === item.href}
+              tone="lead"
+              onNavigate={onClose}
+            />
+          ))}
 
-          {/* Account — primary tier. Signed in: an elevated link to /account.
-              Signed out: the preserved join panel (never a /sell bounce),
-              occupying the primary tier so Account is visible for guests too. */}
+          {/* ── The divider. Everything below it is a utility: selling, the
+              account workspace, correspondence, the way out. ── */}
+          <div className="my-2 border-t border-[var(--border-faint)]" />
+
+          {UTILITY_LINKS_BEFORE_ACCOUNT.map((item) => (
+            <DrawerLink
+              key={`utility-${item.label}`}
+              item={item}
+              active={pathname === item.href}
+              tone="quiet"
+              onNavigate={onClose}
+            />
+          ))}
+
+          {/* Account — signed in: a link to the workspace. Signed out: the
+              preserved join panel, never a /sell bounce. Either way it sits
+              between Sell and Correspondence.
+
+              The signed-in link now carries the same quiet tone as the
+              utilities around it. It used to be lifted to --platinum-dim so
+              it would read as primary, and that elevation is precisely what
+              this pass removes. */}
           {authed ? (
             <Link
               href="/account"
               onClick={onClose}
-              className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[13px] transition ${
+              className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[14.8px] transition ${
                 pathname === "/account"
                   ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
-                  : "border-transparent text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
+                  : "border-transparent text-[var(--muted)] hover:text-[var(--platinum)]"
               }`}
             >
               <NavIcon label="Account" active={pathname === "/account"} />
@@ -356,7 +459,7 @@ export default function MobileNav({
           ) : (
             /* v2.55 — signed-out Account: invite the visitor to join instead of
                one-click-bouncing into /sell. Panel content preserved verbatim;
-               only its position moved up into the primary tier (DD2). */
+               only its position changed. */
             <div className="px-5 py-5">
               <div className="font-display text-[16px] font-light leading-[1.35] text-[var(--platinum)]">
                 Make FairWatchTrade your home for watches and knowledge.
@@ -385,28 +488,15 @@ export default function MobileNav({
             </div>
           )}
 
-          {/* ── Quieter secondary group — Correspondence · About ──
-              Correspondence targets an account surface, so it is shown only when
-              signed in (a guest tap would bounce). About is public, always shown. */}
-          <div className="my-2 border-t border-[var(--border-faint)]" />
-          {SECONDARY_LINKS.filter((item) => authed || item.href !== "/account").map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={`secondary-${item.label}`}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[13px] transition ${
-                  isActive
-                    ? "border-[var(--gold)] text-[var(--platinum)]"
-                    : "border-transparent text-[var(--muted)] hover:text-[var(--platinum)]"
-                }`}
-              >
-                <NavIcon label={item.label} active={isActive} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {UTILITY_LINKS_AFTER_ACCOUNT.filter((item) => authed || !item.authedOnly).map((item) => (
+            <DrawerLink
+              key={`utility-${item.label}`}
+              item={item}
+              active={pathname === item.href}
+              tone="quiet"
+              onNavigate={onClose}
+            />
+          ))}
 
           {/* v2.5 — Sign Out, logged-in users only. The brief's referenced
               --ghost styling doesn't actually apply to interactive nav items
@@ -414,14 +504,18 @@ export default function MobileNav({
               this instead follows the real established pattern for a
               below-divider secondary action — the Account link just above —
               with the hover color swapped to --danger to match the desktop
-              dropdown's Sign Out treatment for consistency across surfaces. */}
+              dropdown's Sign Out treatment for consistency across surfaces.
+
+              The empty span is an icon-width spacer: Sign Out is the one row
+              with no mark, and without it the word would start where every
+              other label's ICON starts. It tracks ICON_PX. */}
           {authed && (
             <button
               type="button"
               onClick={handleSignOut}
-              className="flex w-full items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-left text-[13px] text-[var(--muted)] transition hover:text-[var(--danger)]"
+              className="flex w-full items-center gap-3 border-l-2 border-transparent px-5 py-[13px] text-left text-[14.8px] text-[var(--muted)] transition hover:text-[var(--danger)]"
             >
-              <span className="w-[14px] shrink-0" aria-hidden="true" />
+              <span className="w-[16px] shrink-0" aria-hidden="true" />
               <span>Sign Out</span>
             </button>
           )}

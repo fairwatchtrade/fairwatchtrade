@@ -12,9 +12,15 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
    Desktop (lg:flex, ≥1024px): wordmark left, then the primary words right.
-   Signed out: Browse · Sell · Catalogue · Vault · Account · About.
-   Signed in:  Browse · Sell · Catalogue · Vault · About — the avatar/name
-   cluster is the Account entrance, so the word would be a second door.
+   Both auth states: Browse · Catalogue · Vault · Sell.
+
+   The row is collector-first. Discovery leads; Sell is the single seller
+   destination that earns a place in global navigation and it sits last.
+   Account is not a word in this row in either state — signed in the
+   avatar/name cluster is the Account entrance, signed out the
+   Sign In / Register control is, so a word would only be a second door.
+   About is a footer destination, not a masthead one.
+
    Below 1024 (lg:hidden): wordmark + hamburger; tapping opens <MobileNav />,
    the left-edge "watch roll" drawer (separate component).
 
@@ -26,12 +32,19 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
    collision "at 1216px", but those screenshots were captured at ~1.375
    effective scale (browser zoom on top of display scaling), so the true
    collision width was ~884 CSS — and that was BEFORE Account left the
-   signed-in row and before the name was bounded. Measured from the live
-   DOM, the signed-in row now needs ~850: wordmark 134 + padding 48 +
-   Browse 59 · Sell 34 · Catalogue 83 · Vault 43 · About 47 + bell ~26 +
-   identity cluster ~206 (icon 26 + name ≤150 + chevron) + six 24px gaps.
-   lg (1024) keeps ~145px of margin. NEVER size this from a screenshot:
-   pixels in an image are not CSS pixels unless the zoom is known.
+   signed-in row and before the name was bounded. That measurement read
+   ~850: wordmark 134 + padding 48 + Browse 59 · Sell 34 · Catalogue 83 ·
+   Vault 43 · About 47 + bell ~26 + identity cluster ~206 (icon 26 + name
+   ≤150 + chevron) + six 24px gaps.
+
+   Dropping About removes a word (~47) and a gap (24); raising the labels
+   ~14% adds roughly 31 back across the four that remain, so the row got
+   NARROWER, not wider — ~810 against the same lg (1024) breakpoint. Type
+   size cannot reopen this: the display name is truncate-capped at 150px,
+   so a larger label grows the four words and nothing else.
+
+   NEVER size this from a screenshot: pixels in an image are not CSS pixels
+   unless the zoom is known.
 
    Active link is rendered in gold via usePathname().
 
@@ -40,11 +53,9 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
 
 const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
-  { label: "Sell", href: "/sell" },
   { label: "Catalogue", href: "/catalogue" },
   { label: "Vault", href: "/vault" },
-  { label: "Account", href: "/account" },
-  { label: "About", href: "/about" },
+  { label: "Sell", href: "/sell" },
 ];
 
 /* v4.28 — the wordmark is now the canonical live identity
@@ -106,9 +117,7 @@ export default function NavBar({
 } = {}) {
   const [open, setOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [joinOpen, setJoinOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  const joinRef = useRef<HTMLDivElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -128,18 +137,6 @@ export default function NavBar({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [accountOpen]);
 
-  // v2.55 — close the signed-out "join" prompt on outside click.
-  useEffect(() => {
-    if (!joinOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (joinRef.current && !joinRef.current.contains(e.target as Node)) {
-        setJoinOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [joinOpen]);
-
   // v2.5 — Sign Out. Auth-flow law: this is the only place NavBar redirects
   // on its own initiative (a deliberate user action, not a login side
   // effect), so it's exempt from the "no forced redirects" login law.
@@ -158,94 +155,41 @@ export default function NavBar({
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 lg:flex">
-          {/* v3.23 — design ruling: "Account" is a GUEST-ONLY word.
-              Signed in, the avatar/name cluster is the single Account
-              entrance (My Account → Overview), so the primary word is just a
-              second door into the same workspace landing in a different room.
-              Signed out there is no avatar and no workspace control, so the
-              word stays and still opens the join panel below — the guest
-              never gets ambushed by authentication. */}
-          {NAV_LINKS.filter((item) => item.label !== "Account" || !authed).map((item) => {
-            // v2.55 — the "Account" word must never one-click-bounce a
-            // signed-out browser into /sell. Signed in: an ordinary link to
-            // /account. Signed out: it opens a small join prompt in place —
-            // create an account or sign in — never an ambush. Browsing is free.
-            if (item.label === "Account" && !authed) {
-              return (
-                // flex items-center: the wrapper must center its button like
-                // the row centers the sibling links — without it, the button
-                // rides the div's taller text baseline and "Account" sits
-                // ~1.5px low (Jason's off-center nav finding, v2.55-era).
-                <div key="account-join" ref={joinRef} className="relative flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setJoinOpen((v) => !v)}
-                    aria-expanded={joinOpen}
-                    aria-haspopup="menu"
-                    className={`text-[12px] uppercase tracking-[1.8px] transition-colors ${
-                      joinOpen
-                        ? "text-[var(--gold)]"
-                        : "text-[var(--slate)] hover:text-[var(--platinum)]"
-                    }`}
-                  >
-                    Account
-                  </button>
-                  {joinOpen && (
-                    <div
-                      role="menu"
-                      className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-[340px] max-w-[calc(100vw-32px)] -translate-x-1/2 border border-[var(--border-subtle)] bg-[var(--surface)] p-5"
-                    >
-                      <div className="mb-4 font-display text-[16px] font-light leading-[1.35] text-[var(--platinum)]">
-                        Make FairWatchTrade your home for watches and knowledge.
-                      </div>
-                      <ul className="mb-4 flex flex-col gap-3.5 text-[11px] leading-[1.55] text-[var(--muted)]">
-                        <li>Keep your saved watches, saved searches, offers, listings, and correspondence together in one place.</li>
-                        <li>See new listings in your FairWatchTrade notifications as soon as they are published — never held for a daily batch.</li>
-                        <li>Sell for 5% only when a sale is completed. No listing fees. No paid placement.</li>
-                      </ul>
-                      <Link
-                        href="/signup"
-                        onClick={() => setJoinOpen(false)}
-                        className="mb-2 block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2.5 text-center text-[9px] uppercase tracking-[2px] text-[var(--gold)] transition-colors hover:bg-[rgba(201,168,76,0.1)]"
-                      >
-                        Create account
-                      </Link>
-                      <Link
-                        href="/login"
-                        onClick={() => setJoinOpen(false)}
-                        className="block px-3 py-1 text-center text-[9px] uppercase tracking-[2px] text-[var(--slate)] transition-colors hover:text-[var(--platinum)]"
-                      >
-                        Sign in
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-[12px] uppercase tracking-[1.8px] transition-colors ${
-                  pathname === item.href
-                    ? "text-[var(--gold)]"
-                    : "text-[var(--slate)] hover:text-[var(--platinum)]"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          {/* Four words, identical in both auth states.
+
+              The label size is 13.7px: the 12px this row carried for its
+              whole life measured undersized at real desktop viewing
+              distance, and 13.7 is that raised ~14%. Tracking stays 1.8px —
+              it is a fixed px value, so it does not scale with the type and
+              does not need to. */}
+          {NAV_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`text-[13.7px] uppercase tracking-[1.8px] transition-colors ${
+                pathname === item.href
+                  ? "text-[var(--gold)]"
+                  : "text-[var(--slate)] hover:text-[var(--platinum)]"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
           {/* Bell — authenticated users only; count seeded server-side. */}
           {authed && <NotificationsBell initialUnreadCount={initialUnreadCount} />}
 
           {/* v2.5 — Account indicator. Logged-out: icon + Sign In / Register,
               links to /login. Logged-in: icon + displayName + chevron, opens
-              the account dropdown. */}
+              the account dropdown.
+
+              These two carry the same 13.7px as the four words beside them:
+              they sit on the same line, so leaving them at 12px would have
+              made the row read as two different type sizes. The dropdown
+              this opens is a separate panel and keeps its own scale. */}
           {!authed ? (
             <Link
               href="/login"
-              className="flex items-center gap-2 text-[12px] uppercase tracking-[1.8px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
+              className="flex items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
             >
               <AccountIcon />
               Sign In / Register
@@ -257,7 +201,7 @@ export default function NavBar({
                 onClick={() => setAccountOpen((v) => !v)}
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
-                className={`flex items-center gap-2 text-[12px] uppercase tracking-[1.8px] transition-colors ${
+                className={`flex items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] transition-colors ${
                   accountOpen ? "text-[var(--gold-subtle)]" : "text-[var(--muted)] hover:text-[var(--gold)]"
                 }`}
               >
