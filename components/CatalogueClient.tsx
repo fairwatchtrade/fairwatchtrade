@@ -1301,13 +1301,30 @@ export default function CatalogueClient({
             unbounded user data. A long one at 26px ran past the edge of a
             380px phone with about two characters of headroom. 18px plus
             break-words means no name, however long, can overflow or reflow
-            the line. */}
+            the line.
+
+            RULED inline-block, and it is the wrap behaviour that earns it.
+            As a plain inline span the name TORE at the line break — a long
+            business name rendered as "Good morning, Mynatt Fine" above
+            "Timepieces of Sebring.", split at whatever point the viewport
+            edge happened to land. As an atomic box it stays on the first
+            line when it fits and moves to the next line WHOLE when it does
+            not, and at 18px that costs nothing: the line counts are
+            identical to the torn version.
+
+            max-w-full is what keeps the box inside the column, and the
+            baseline risk this shape can carry does not arise here —
+            measured at 380px, "Good morning," holds the first line in every
+            case rather than dropping to align with a wrapped name's last
+            line. */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
           {clockGreeting}
           {greetingName ? (
             <>
               ,{" "}
-              <span className="break-words text-[18px]">{greetingName}</span>
+              <span className="inline-block max-w-full break-words text-[18px]">
+                {greetingName}
+              </span>
             </>
           ) : null}
           .
