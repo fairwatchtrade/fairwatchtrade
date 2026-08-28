@@ -1468,9 +1468,15 @@ export default function BrowseClient({
           ariaLabel={
             "Search FairWatchTrade"
           }
-          placeholder={
-            "Search watches, references, or listing codes"
-          }
+          /* RULED: the empty Browse field shows no prompt text at all. It
+             read as a sentence the collector had to clear before typing one
+             of their own, and it sat above a block that then said nothing
+             was there yet — two pieces of copy explaining an empty box. The
+             enlarged magnifier is the whole affordance now. The field keeps
+             its accessible name through ariaLabel, so removing the visible
+             prompt costs a screen reader nothing. Dealer Room is untouched:
+             it passes its own placeholder and runs in legibilityMode. */
+          placeholder=""
         />
       </div>}
 

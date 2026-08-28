@@ -42,7 +42,10 @@ export default function BrowseSearch({
   chips,
   onClearAll,
   ariaLabel = "Search FairWatchTrade",
-  placeholder = "Search watches, references, or listing codes",
+  /* No default prompt text. Both mounts pass this explicitly, so the old
+     default was already dead copy — and leaving it here would quietly hand
+     the ruled-away prompt back to the next surface that forgets to pass one. */
+  placeholder = "",
   legibilityMode = false,
   dealerRoomMode = false,
 }: {
@@ -238,7 +241,7 @@ export default function BrowseSearch({
             aria-label={ariaLabel}
             placeholder={placeholder}
             autoComplete="off"
-            className={`min-w-0 w-full bg-transparent pr-2 text-[var(--platinum)] outline-none focus-visible:outline-none ${legibilityMode ? "placeholder:text-[var(--muted)]" : "placeholder:text-[var(--ghost)]"} ${dealerRoomMode ? "py-2 text-[13px]" : "py-[14px] text-[15px] sm:text-[16px]"}`}
+            className={`min-w-0 w-full bg-transparent pr-2 text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none ${dealerRoomMode ? "py-2 text-[13px]" : "py-[14px] text-[15px] sm:text-[16px]"}`}
           />
           {!dealerRoomMode && <button
             ref={helpBtnRef}
