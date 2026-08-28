@@ -6,10 +6,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
    BROWSE SEARCH SHELL — DD10.
 
    The search field, the restrained graphite "?" with its anchored speech
-   bubble, and the shared "Your Search" rows. Search-made meanings and manually
+   bubble, and the shared interpreted-criteria rows. Search-made meanings and manually
    chosen Refine filters render as the same kind of removable row here, because
-   they are one product — only the small kicker distinguishes where a row came
-   from.
+   they are one product — the border colour carries where a row came from,
+   and only a manually chosen filter still says so in words.
+
+   Nothing renders beneath the field while the search is dormant, and the
+   criteria carry no heading when they do exist: the field is the label.
 
    Composition and interaction follow DD10; colour and type come from the real
    FairWatchTrade tokens, not DD10's standalone palette. The production header
@@ -216,7 +219,7 @@ export default function BrowseSearch({
         {/* ── Search field ───────────────────────────────────────────────── */}
         <div className={dealerRoomMode ? "grid grid-cols-[minmax(0,1fr)_48px] gap-1.5" : ""}>
         <div className={`relative flex min-w-0 items-center border border-[var(--input-line)] bg-[var(--input-bg)] transition-colors focus-within:border-[var(--input-line-focus)] ${dealerRoomMode ? "min-h-[38px]" : "min-h-[46px] sm:min-h-[50px]"}`}>
-          <div aria-hidden="true" className={dealerRoomMode ? "w-9 text-center text-[15px] text-[var(--muted)]" : "w-10 text-center text-[18px] text-[var(--muted)] sm:w-[46px]"}>
+          <div aria-hidden="true" className={dealerRoomMode ? "w-9 text-center text-[15px] text-[var(--muted)]" : "w-10 text-center text-[23px] text-[var(--slate)] sm:w-[46px]"}>
             ⌕
           </div>
           <input
@@ -235,7 +238,7 @@ export default function BrowseSearch({
             aria-label={ariaLabel}
             placeholder={placeholder}
             autoComplete="off"
-            className={`min-w-0 w-full bg-transparent pr-2 text-[var(--platinum)] outline-none placeholder:text-[var(--muted)] focus-visible:outline-none ${dealerRoomMode ? "py-2 text-[13px]" : "py-[14px] text-[15px] sm:text-[16px]"}`}
+            className={`min-w-0 w-full bg-transparent pr-2 text-[var(--platinum)] outline-none focus-visible:outline-none ${legibilityMode ? "placeholder:text-[var(--muted)]" : "placeholder:text-[var(--ghost)]"} ${dealerRoomMode ? "py-2 text-[13px]" : "py-[14px] text-[15px] sm:text-[16px]"}`}
           />
           {!dealerRoomMode && <button
             ref={helpBtnRef}
@@ -343,42 +346,31 @@ export default function BrowseSearch({
         )}
         </div>
 
-        {/* ── Your Search ────────────────────────────────────────────────── */}
-        {(!dealerRoomMode || chips.length > 0) && <div className="mt-[10px] md:mt-[14px]">
-          <div className="mb-[6px] flex items-center justify-between gap-3 md:mb-[9px]">
-            <span
-              className={
-                legibilityMode
-                  ? "text-[11px] uppercase tracking-[0.14em] text-[var(--slate)]"
-                  : "text-[11px] uppercase tracking-[0.17em] text-[var(--muted)]"
-              }
-            >
-              Your Search
-            </span>
-            {chips.length > 0 && (
-              <button
-                type="button"
-                onClick={onClearAll}
-                className="text-[12px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)]"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
+        {/* ── Interpreted criteria ──────────────────────────────────────────
+            RULED: a dormant search renders NOTHING beneath the field. This
+            block used to announce itself with a "Your Search" heading and
+            then admit "No search details yet" underneath it — two lines of
+            chrome standing between the field and the watches on every first
+            load, in order to report that the collector had not typed
+            anything yet.
 
-          {chips.length === 0 ? (
-            <span
-              className={
-                legibilityMode
-                  ? "text-[13px] text-[var(--slate)]"
-                  : "text-[12px] text-[var(--muted)]"
-              }
-            >
-              No search details yet
-            </span>
-          ) : (
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {chips.map((chip) => (
+            When criteria do exist they are the first thing under the field.
+            No heading above them: the field they sit directly beneath is the
+            only label they need. Clear all rides at the end of the same flow
+            rather than claiming a row of its own above the criteria. */}
+        {chips.length > 0 && (
+          <div className="mt-[10px] flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center md:mt-[14px]">
+            {chips.map((chip) => {
+              /* RULED form: "Brand · Parmigiani Fleurier", never
+                 "SEARCH Brand: Parmigiani Fleurier". The split happens HERE,
+                 in the view, and on the FIRST ": " only — the label producers
+                 in lib/search are interpretation and this presentation round
+                 does not touch them, while cutting at the first separator
+                 leaves a value carrying its own colon intact. */
+              const cut = chip.label.indexOf(": ");
+              const name = cut > 0 ? chip.label.slice(0, cut) : null;
+              const value = cut > 0 ? chip.label.slice(cut + 2) : chip.label;
+              return (
                 <div
                   key={chip.id}
                   className={`flex items-center justify-between gap-2 border bg-[var(--surface)] px-[10px] py-[10px] text-[12px] text-[var(--platinum-dim)] sm:w-auto sm:justify-start sm:px-[9px] sm:py-2 ${
@@ -386,16 +378,23 @@ export default function BrowseSearch({
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-[7px]">
-                    <small
-                      className={`flex-none uppercase tracking-[0.1em] ${
-                        legibilityMode
-                          ? "text-[10px] text-[var(--slate)]"
-                          : "text-[11px] text-[var(--muted)]"
-                      }`}
-                    >
-                      {chip.source === "filter" ? "Filter" : "Search"}
-                    </small>
-                    <b className="font-normal">{chip.label}</b>
+                    {/* Only a manually chosen Refine filter still names its
+                        origin. "Search" named the obvious on a row sitting
+                        directly beneath the search field; "Filter" is
+                        contrastive and earns its place. The border colour
+                        carries the distinction either way. */}
+                    {chip.source === "filter" && (
+                      <small
+                        className={`flex-none uppercase tracking-[0.1em] ${
+                          legibilityMode
+                            ? "text-[10px] text-[var(--slate)]"
+                            : "text-[11px] text-[var(--muted)]"
+                        }`}
+                      >
+                        Filter
+                      </small>
+                    )}
+                    <b className="font-normal">{name ? `${name} · ${value}` : value}</b>
                   </span>
                   <button
                     type="button"
@@ -406,10 +405,17 @@ export default function BrowseSearch({
                     ×
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>}
+              );
+            })}
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="self-start text-[12px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)] sm:ml-1 sm:self-auto"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
