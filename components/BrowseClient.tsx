@@ -2390,12 +2390,24 @@ export default function BrowseClient({
                             centring the BOXES leaves the plus optically low.
                             Transform, so it moves the ink without moving the
                             layout — and it applies because a flex item is
-                            blockified (it would be inert on a bare inline). */}
+                            blockified (it would be inert on a bare inline).
+
+                            The gap moves 4px to 6px — one step on the spacing
+                            scale, and the smallest one available. It buys less
+                            than the numbers suggest: this glyph is fullwidth,
+                            so it carries 3.3px of its own side bearing, and the
+                            button's 1.5px tracking lands after it too. The real
+                            ink-to-ink distance was therefore already 8.7px and
+                            becomes 10.7px — grown about 23%, the same
+                            proportion the glyph itself grew. Two steps would
+                            reach 12.7px against a 7.5px cap height, at which
+                            point the mark stops reading as attached to its
+                            label and starts reading as two separate things. */}
                         <button
                           type="button"
                           onClick={() => handleAddToCatalogue(row.id)}
                           disabled={savedIds.has(row.id)}
-                          className={`mt-[10px] flex w-full items-center gap-1 border px-[10px] py-[7px] text-[11px] uppercase tracking-[1.5px] transition ${
+                          className={`mt-[10px] flex w-full items-center gap-1.5 border px-[10px] py-[7px] text-[11px] uppercase tracking-[1.5px] transition ${
                             savedIds.has(row.id)
                               ? "cursor-default border-[var(--border-gold)] text-[var(--gold)]"
                               : "border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--slate)]"
