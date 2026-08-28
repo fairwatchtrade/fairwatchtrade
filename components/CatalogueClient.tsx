@@ -1285,9 +1285,26 @@ export default function CatalogueClient({
           the moment the rail exists again, so the desktop composition is
           untouched. */}
       <div className="min-w-0 flex-1 px-5 py-8 md:px-0">
-        {/* Greeting */}
+        {/* Greeting.
+
+            The greeting is the beat that carries the warmth, so it keeps the
+            full 26px. The collector's own address does not: they already know
+            who they are, and it is identification rather than a salutation.
+            At 18px it stops competing with the greeting and reads as what it
+            is.
+
+            It also stops being a hazard. `displayName` is unbounded user
+            data, and when it is an email it is a single unbreakable token —
+            no spaces to wrap at. At 26px on a 380px screen the address had
+            about two characters of headroom before it ran past the edge of
+            the phone, and the next character had nowhere to go. 18px gives a
+            realistically long address roughly 45px of room; break-words is
+            the guarantee behind that, so even an absurd address wraps
+            instead of overflowing. Same lesson the masthead learned when an
+            unbounded display name pushed that row past the viewport. */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          {clockGreeting}, {displayName}.
+          {clockGreeting},{" "}
+          <span className="break-words text-[18px]">{displayName}.</span>
         </h1>
 
         {/* Collector Navigation, narrow widths only. The rail beside this
