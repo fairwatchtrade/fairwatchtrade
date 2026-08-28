@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CatalogueRail from "@/components/CatalogueRail";
+import CatalogueRoomSelector from "@/components/CatalogueRoomSelector";
 import SavedSearchesCard from "@/components/SavedSearchesCard";
 import {
   railCard,
@@ -1275,6 +1276,12 @@ export default function CatalogueClient({
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
           {clockGreeting}, {displayName}.
         </h1>
+
+        {/* Collector Navigation, narrow widths only. The rail beside this
+            column hides below md and this takes over there, so the two never
+            coexist and neither is a shrunken version of the other. Desktop
+            renders it as display:none and is untouched. */}
+        <CatalogueRoomSelector />
 
         {/* Catalogue Match hero — four honest states (Permissioned
             Adjacency). The gold border/background are present in EVERY

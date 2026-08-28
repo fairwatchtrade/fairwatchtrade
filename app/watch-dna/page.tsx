@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import CatalogueRail from "@/components/CatalogueRail";
+import CatalogueRoomSelector from "@/components/CatalogueRoomSelector";
 import WatchDnaQuiz from "@/components/WatchDnaQuiz";
 import { isArchetypeKey } from "@/lib/watchDna";
 
@@ -76,7 +77,14 @@ export default async function WatchDnaPage({
   return (
     <div className="flex min-h-screen bg-[var(--ink)]">
       <CatalogueRail />
-      <main className="flex flex-1 justify-center px-4 py-12">
+      {/* The column exists so Collector Navigation's narrow-width form can
+          stack ABOVE the content: the row above places the rail beside it,
+          and a selector added as a row sibling would sit next to the quiz
+          rather than over it. Above md the selector is display:none and this
+          wrapper is a pass-through, so the desktop composition is unchanged. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <CatalogueRoomSelector />
+        <main className="flex flex-1 justify-center px-4 py-12">
         <div className="w-full max-w-xl text-center">
           <div className="mb-7 text-center">
             <div className="text-[11px] uppercase tracking-[0.25em] text-[var(--muted)]">
@@ -95,7 +103,8 @@ export default async function WatchDnaPage({
             initialArchetype={initialArchetype}
           />
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

@@ -361,6 +361,35 @@ const workspace = read("components/WantedWorkspace.tsx");
     "the collector group survives and still leads with My Catalogue",
     /RailSection label="Yours"[\s\S]{0,600}label="My Catalogue"/.test(rail)
   );
+
+  /* Collector Navigation now has two forms — the desktop rail and the narrow
+     room selector — and they are separate files. These hold them to the SAME
+     seven destinations in the SAME order, so a destination added, removed or
+     re-pointed on one side cannot silently skip the other. */
+  /* Read the CODE, not the prose. The selector's header comment names Sell
+     and Seller Workspace in the course of explaining why neither is in it,
+     and an unstripped match on that comment would fail the very assertion
+     the comment is describing. */
+  const selector = strip(read("components/CatalogueRoomSelector.tsx"));
+  const railHrefs = [...strip(rail).matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+  const selectorHrefs = [...selector.matchAll(/href: "([^"]+)"/g)].map((m) => m[1]);
+
+  ok(
+    "the narrow selector carries exactly the rail's seven destinations, in order",
+    selectorHrefs.length === 7 && railHrefs.join("|") === selectorHrefs.join("|")
+  );
+  ok(
+    "it groups them the way the rail does",
+    /label: "Discover"/.test(selector) && /label: "Yours"/.test(selector)
+  );
+  ok(
+    "it replaces the rail below md rather than coexisting with it",
+    /md:hidden/.test(selector)
+  );
+  ok(
+    "and it is not a doorway back to the seller building",
+    !/\/sell/.test(selector) && !/Seller Workspace/.test(selector) && !/"\/account/.test(selector)
+  );
   ok(
     "mobile reaches Wanted through the existing drawer, not a new primitive",
     /\{ label: "Wanted", href: "\/wanted" \}/.test(mobile)
