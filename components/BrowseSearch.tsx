@@ -26,6 +26,16 @@ export type SearchChip = {
   onRemove: () => void;
 };
 
+/* Presentation-only display names. The producers in lib/search are
+   interpretation and are deliberately NOT edited to change what a chip says:
+   "Search text" is the correct name for that meaning inside the parser, and
+   "Text" is the correct word on a row sitting beneath a search field — there,
+   "Search" names the field the row is already under, not the criterion. A
+   chip is a view; renaming what a view shows is the view's own business. */
+const CRITERION_DISPLAY_NAME: Record<string, string> = {
+  "Search text": "Text",
+};
+
 const EXAMPLES = [
   "manual wind with more than 5 days of power reserve",
   "manual wind power reserve >5d",
@@ -350,29 +360,89 @@ export default function BrowseSearch({
         </div>
 
         {/* ── Interpreted criteria ──────────────────────────────────────────
-            RULED: a dormant search renders NOTHING beneath the field. This
-            block used to announce itself with a "Your Search" heading and
-            then admit "No search details yet" underneath it — two lines of
-            chrome standing between the field and the watches on every first
-            load, in order to report that the collector had not typed
-            anything yet.
+            TWO presentations, deliberately NOT merged into one.
 
-            When criteria do exist they are the first thing under the field.
-            No heading above them: the field they sit directly beneath is the
-            only label they need. Clear all rides at the end of the same flow
-            rather than claiming a row of its own above the criteria. */}
-        {chips.length > 0 && (
+            Browse/CWF carries the ruled cleanup. Dealer Room keeps precisely
+            what it had before that ruling, because this component is shared
+            and a Browse ruling is not authority to redesign a dealer's
+            storefront. The first cleanup round changed both surfaces for no
+            better reason than that they ran down a single code path, and
+            splitting them here is the correction: the dealer branch below is
+            the pre-ruling markup restored. */}
+
+        {/* Dealer Room — pre-ruling presentation. Its outer condition was
+            already chips.length > 0, so the old empty-state branch was
+            unreachable on this surface and is not carried over. */}
+        {dealerRoomMode && chips.length > 0 && (
+          <div className="mt-[10px] md:mt-[14px]">
+            <div className="mb-[6px] flex items-center justify-between gap-3 md:mb-[9px]">
+              <span
+                className={
+                  legibilityMode
+                    ? "text-[11px] uppercase tracking-[0.14em] text-[var(--slate)]"
+                    : "text-[11px] uppercase tracking-[0.17em] text-[var(--muted)]"
+                }
+              >
+                Your Search
+              </span>
+              <button
+                type="button"
+                onClick={onClearAll}
+                className="text-[12px] text-[var(--gold-dim)] transition-colors hover:text-[var(--gold)]"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {chips.map((chip) => (
+                <div
+                  key={chip.id}
+                  className={`flex items-center justify-between gap-2 border bg-[var(--surface)] px-[10px] py-[10px] text-[12px] text-[var(--platinum-dim)] sm:w-auto sm:justify-start sm:px-[9px] sm:py-2 ${
+                    chip.source === "filter" ? "border-[color:light-dark(#5D7186,#34495b)]" : "border-[color:light-dark(#6E6B52,#4a4a3c)]"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-[7px]">
+                    <small
+                      className={`flex-none uppercase tracking-[0.1em] ${
+                        legibilityMode
+                          ? "text-[10px] text-[var(--slate)]"
+                          : "text-[11px] text-[var(--muted)]"
+                      }`}
+                    >
+                      {chip.source === "filter" ? "Filter" : "Search"}
+                    </small>
+                    <b className="font-normal">{chip.label}</b>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${chip.label}`}
+                    onClick={chip.onRemove}
+                    className="flex h-8 w-8 flex-none items-center justify-center text-[16px] leading-none text-[var(--muted)] transition-colors hover:text-[var(--platinum)] sm:h-auto sm:w-auto sm:px-[2px]"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Browse / CWF — the ruled presentation. No heading, nothing at all
+            while dormant, criteria first under the field, and Clear all at
+            the end of that same flow rather than in a row of its own. */}
+        {!dealerRoomMode && chips.length > 0 && (
           <div className="mt-[10px] flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center md:mt-[14px]">
             {chips.map((chip) => {
-              /* RULED form: "Brand · Parmigiani Fleurier", never
-                 "SEARCH Brand: Parmigiani Fleurier". The split happens HERE,
-                 in the view, and on the FIRST ": " only — the label producers
-                 in lib/search are interpretation and this presentation round
-                 does not touch them, while cutting at the first separator
-                 leaves a value carrying its own colon intact. */
+              /* RULED form: "Brand · Parmigiani Fleurier", and "Text · tonda
+                 pf" rather than "Search text · tonda pf" — the word Search is
+                 gone from the tags entirely. The split happens HERE on the
+                 FIRST ": " only, and the rename is a lookup on the criterion
+                 name, so lib/search keeps its own vocabulary and a value
+                 carrying its own colon survives the cut intact. */
               const cut = chip.label.indexOf(": ");
-              const name = cut > 0 ? chip.label.slice(0, cut) : null;
+              const rawName = cut > 0 ? chip.label.slice(0, cut) : null;
               const value = cut > 0 ? chip.label.slice(cut + 2) : chip.label;
+              const name = rawName ? (CRITERION_DISPLAY_NAME[rawName] ?? rawName) : null;
               return (
                 <div
                   key={chip.id}
@@ -384,18 +454,17 @@ export default function BrowseSearch({
                     {/* Only a manually chosen Refine filter still names its
                         origin. "Search" named the obvious on a row sitting
                         directly beneath the search field; "Filter" is
-                        contrastive and earns its place. The border colour
-                        carries the distinction either way. */}
+                        contrastive and earns its place. */}
                     {chip.source === "filter" && (
                       <small
-                        className={`flex-none uppercase tracking-[0.1em] ${
-                          legibilityMode
-                            ? "text-[10px] text-[var(--slate)]"
-                            : "text-[11px] text-[var(--muted)]"
-                        }`}
-                      >
-                        Filter
-                      </small>
+                      className={`flex-none uppercase tracking-[0.1em] ${
+                        legibilityMode
+                          ? "text-[10px] text-[var(--slate)]"
+                          : "text-[11px] text-[var(--muted)]"
+                      }`}
+                    >
+                      Filter
+                    </small>
                     )}
                     <b className="font-normal">{name ? `${name} · ${value}` : value}</b>
                   </span>
