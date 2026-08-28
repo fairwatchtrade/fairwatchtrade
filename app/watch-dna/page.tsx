@@ -83,7 +83,13 @@ export default async function WatchDnaPage({
           rather than over it. Above md the selector is display:none and this
           wrapper is a pass-through, so the desktop composition is unchanged. */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <CatalogueRoomSelector />
+        {/* px-4 matches the main below it, so the selector's hairlines line
+            up with the quiz's own text edge instead of running to the
+            viewport. The selector carries no inset of its own — its
+            container owes it one. */}
+        <div className="px-4">
+          <CatalogueRoomSelector />
+        </div>
         <main className="flex flex-1 justify-center px-4 py-12">
         <div className="w-full max-w-xl text-center">
           <div className="mb-7 text-center">

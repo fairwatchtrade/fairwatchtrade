@@ -136,10 +136,15 @@ export default function CatalogueRoomSelector() {
     setOpen(false);
   }
 
+  /* No horizontal padding of its own: the CONTAINER owns the inset, so this
+     control lines up with the page text above and below it rather than
+     floating in from an edge nobody else respects. Any future mount must
+     therefore sit inside a container that provides the narrow-width inset —
+     both current mounts do. */
   return (
     <nav
       ref={navRef}
-      className="relative px-5 pb-3 pt-4 md:hidden"
+      className="relative pb-3 pt-4 md:hidden"
       aria-label="Collector navigation"
     >
       <button
@@ -164,12 +169,13 @@ export default function CatalogueRoomSelector() {
 
       {/* Absolutely positioned on purpose: the menu is borrowed space, not
           new page structure. `top-[46px]` sits it on the control's lower
-          hairline; left/right match the nav's own px-5 so its edges line up
-          with the control above it rather than with the viewport. */}
+          hairline; left-0/right-0 span exactly the control's own width, so
+          the menu's edges land on the hairline's edges — and the container's
+          inset carries both. */}
       {open && (
         <div
           role="menu"
-          className="absolute left-5 right-5 top-[46px] z-40 border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
+          className="absolute left-0 right-0 top-[46px] z-40 border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
         >
           {COLLECTOR_GROUPS.map((group) => (
             <div key={group.label}>

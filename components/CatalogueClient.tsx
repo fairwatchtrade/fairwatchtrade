@@ -1270,8 +1270,21 @@ export default function CatalogueClient({
           below md. */}
       <CatalogueRail />
 
-      {/* Right content */}
-      <div className="min-w-0 flex-1 py-8">
+      {/* Right content.
+
+          THE LEFT CLIFF. On desktop this column never needed horizontal
+          padding: the 238px rail plus the row's gap-5 held every line of
+          text well clear of the viewport edge. Below md the rail removes
+          itself — and took that floor with it, so the greeting, the reader's
+          own address and every section eyebrow sat hard against the true
+          edge of the phone.
+
+          px-5 restores the floor at exactly the 20px this composition already
+          uses everywhere else (the row gap, the rail's own px-5 — one value
+          doing every adjacent job). md:px-0 hands the job back to the rail
+          the moment the rail exists again, so the desktop composition is
+          untouched. */}
+      <div className="min-w-0 flex-1 px-5 py-8 md:px-0">
         {/* Greeting */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
           {clockGreeting}, {displayName}.
