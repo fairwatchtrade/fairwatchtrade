@@ -39,9 +39,15 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
 
    Dropping About removes a word (~47) and a gap (24); raising the labels
    ~14% adds roughly 31 back across the four that remain, so the row got
-   NARROWER, not wider — ~810 against the same lg (1024) breakpoint. Type
-   size cannot reopen this: the display name is truncate-capped at 150px,
-   so a larger label grows the four words and nothing else.
+   NARROWER, not wider — ~810 against the same lg (1024) breakpoint.
+
+   The name is no longer capped at a flat 150px, and that does NOT reopen
+   the collision this budget exists to prevent. The cap has been replaced by
+   a min-w-0 chain from the desktop cluster down to the name span, so the
+   name is the one item in the row flexbox is permitted to shrink: it takes
+   the slack the row actually has and gives it straight back when the row
+   runs short, truncating rather than pushing. A long name can no longer
+   widen the masthead OR be clipped while 373px sits unused beside it.
 
    NEVER size this from a screenshot: pixels in an image are not CSS pixels
    unless the zoom is known.
@@ -96,7 +102,7 @@ function Chevron({ open }: { open: boolean }) {
       height="8"
       viewBox="0 0 8 8"
       fill="none"
-      className={`transition-transform ${open ? "rotate-180" : ""}`}
+      className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
       aria-hidden="true"
     >
       <path d="M1 2.5L4 5.5L7 2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
@@ -150,11 +156,29 @@ export default function NavBar({
 
   return (
     <nav className="w-full border-b border-[var(--border-subtle)] bg-[var(--ink)]">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 sm:px-6">
+      {/* RULED: the masthead uses the available desktop width with normal
+          edge gutters, matching the full-width character of the strip
+          beneath it.
+
+          It used to be max-w-6xl (1152px) centred. On any window wider than
+          that it became an island — the wordmark starting 133px in and the
+          account cluster ending 125px short of the right, while the metals
+          strip directly below ran edge to edge. The identity crept inward on
+          both sides with empty margin sitting outside it, and no width cap
+          here was ever load-bearing: the row is a logo and a short word list,
+          not a column of prose that needs a measure.
+
+          No max-width now. px-6 is the gutter, and it is the ONLY thing
+          holding text off the viewport edge on this band — the Left Cliff
+          Law lives here. */}
+      <div className="flex h-14 w-full items-center justify-between px-6">
         <FairWatchTradeLogo />
 
-        {/* Desktop links */}
-        <div className="hidden items-center gap-6 lg:flex">
+        {/* Desktop links. min-w-0 so the cluster is allowed to shrink at all:
+            a flex item defaults to min-width:auto and will refuse to go below
+            its content, which is what forced the fixed cap on the name
+            below. */}
+        <div className="hidden min-w-0 items-center gap-6 lg:flex">
           {/* Four words, identical in both auth states.
 
               The label size is 13.7px: the 12px this row carried for its
@@ -195,25 +219,43 @@ export default function NavBar({
               Sign In / Register
             </Link>
           ) : (
-            <div ref={accountRef} className="relative">
+            <div ref={accountRef} className="relative min-w-0">
               <button
                 type="button"
                 onClick={() => setAccountOpen((v) => !v)}
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
-                className={`flex items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] transition-colors ${
+                className={`flex min-w-0 items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] transition-colors ${
                   accountOpen ? "text-[var(--gold-subtle)]" : "text-[var(--muted)] hover:text-[var(--gold)]"
                 }`}
               >
-                <span className={accountOpen ? "text-[var(--gold)]" : "text-[var(--slate)]"}>
+                {/* shrink-0 on both marks: when the row does run out of room
+                    the NAME is the thing that gives, never the identity icon
+                    or the chevron. */}
+                <span
+                  className={`shrink-0 ${accountOpen ? "text-[var(--gold)]" : "text-[var(--slate)]"}`}
+                >
                   <AccountIcon />
                 </span>
-                {/* v3.23 — the display name is unbounded user data. Left
-                    free it wrapped to two lines and pushed the row past the
-                    viewport (Jason's signed-in overflow). Single line,
-                    bounded, ellipsis — so no name can widen the masthead. */}
+                {/* The display name is unbounded user data, and v3.23 bounded
+                    it at a flat 150px because left free it wrapped to two
+                    lines and pushed the row past the viewport.
+
+                    That cap held the row together but it was blind: it clipped
+                    at 150px whether the row was starved or had 373px of unused
+                    slack sitting beside it, which is exactly what a signed-in
+                    masthead on a wide screen has. An email measured 200px and
+                    was cut off with room to spare.
+
+                    min-w-0 replaces the guess with the real constraint. The
+                    name renders at its natural width, and the min-w-0 chain
+                    from the cluster down to this span lets flexbox shrink it —
+                    truncate then clips it — but ONLY once the row genuinely
+                    runs out of room. v3.23's guarantee is intact: no name can
+                    widen the masthead. It simply stops shortening names the
+                    masthead could have shown. */}
                 <span
-                  className={`max-w-[150px] truncate ${
+                  className={`min-w-0 truncate ${
                     accountOpen ? "text-[var(--platinum)]" : "text-[var(--slate)]"
                   }`}
                 >
