@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
 import type { CatalogueMatchRow, CatalogueSearch } from "@/lib/catalogueMatches";
+import { getCatalogueGreetingIdentity } from "@/lib/catalogueGreetingIdentity";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER CATALOGUE — /catalogue
@@ -38,10 +39,17 @@ export default async function CataloguePage() {
     redirect("/login?callbackUrl=/catalogue");
   }
 
-  /* The greeting names the hour, not the collector, so this page no longer
-     resolves a display identity. lib/signedInDisplayIdentity is deliberately
-     left in place: it is the shared resolver, and the account surfaces that
-     will need a real name still want it. It simply has no caller today. */
+  /* The greeting names the collector again — but only when there is a real
+     name to use. This REVERSES the earlier ruling that the greeting names
+     nobody; that ruling existed because the only name available came from
+     the shared resolver, whose chain falls through to the raw email.
+
+     lib/catalogueGreetingIdentity is a separate resolver for exactly that
+     reason: it is allowed to return null, so a collector with no display
+     name gets "Good morning." rather than their own email address read back
+     at them. lib/signedInDisplayIdentity is untouched and still serves the
+     account surfaces that genuinely want an identifier of last resort. */
+  const greetingName = await getCatalogueGreetingIdentity(supabase, user.id);
 
   // The collector's saved searches — names for attribution, paused and
   // include_adjacent so presentation can honor both at read time.
@@ -65,6 +73,7 @@ export default async function CataloguePage() {
 
   return (
     <CatalogueClient
+      greetingName={greetingName}
       searches={searches}
       matchRows={matches}
     />

@@ -85,6 +85,11 @@ export default function AccountSettings({
   // identity is the repo's established signal: owning dealer_import media.
   const [prefCurrency, setPrefCurrency] = useState("");
   const [isDealer, setIsDealer] = useState(false);
+  /* Narrower than isDealer on purpose — see where it is set. Gates the
+     Catalogue greeting override, which is meaningless without a business
+     name to resolve. */
+  const [hasDealerProfile, setHasDealerProfile] = useState(false);
+  const [greetingUsesBusiness, setGreetingUsesBusiness] = useState(false);
   const [currencyMsg, setCurrencyMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Dealer Room identity is managed here, never on the public room. The logo
@@ -119,6 +124,9 @@ export default function AccountSettings({
     notify_email?: boolean;
     notify_sms?: boolean;
     phone_number?: string;
+    /* NULL is a real value here, not an omission — it is how the greeting
+       override is cleared back to normal behaviour. */
+    greeting_identity?: string | null;
   }) {
     setPrefsMsg(null);
     const { error } = await supabase.from("profiles").update(next).eq("id", userId);
@@ -139,7 +147,9 @@ export default function AccountSettings({
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, notify_email, notify_sms, phone_number, preferred_listing_currency, appearance")
+        .select(
+          "display_name, notify_email, notify_sms, phone_number, preferred_listing_currency, appearance, greeting_identity"
+        )
         .eq("id", userId)
         .single();
       if (active && profile) {
@@ -152,6 +162,7 @@ export default function AccountSettings({
             ? profile.preferred_listing_currency
             : ""
         );
+        setGreetingUsesBusiness(profile.greeting_identity === "business");
         // The document attribute (rendered by the server from cookie/account
         // truth) is what the user is actually looking at — seed from it
         // first so the control never contradicts the room around it.
@@ -173,6 +184,12 @@ export default function AccountSettings({
         .maybeSingle();
       if (active) {
         setIsDealer(Boolean(dealerProfile) || (dealerMedia ?? []).length > 0);
+        /* Deliberately NOT isDealer. That flag is the broader "behaves like a
+           dealer" signal and is true for someone with imported media but no
+           dealer profile — for whom a business-name greeting has no business
+           name to resolve. The greeting control is gated on the row that
+           actually holds the name. */
+        setHasDealerProfile(Boolean(dealerProfile));
         setDealerName(dealerProfile?.business_name || profile?.display_name || "");
         setDealerSlug(dealerProfile?.slug || "");
         setDealerLocation(dealerProfile?.location || "");
@@ -343,6 +360,53 @@ export default function AccountSettings({
               </span>
             )}
           </div>
+
+          {/* Dealer greeting override — rendered ONLY for an account that has
+              a dealer profile, because it is the dealer row that holds the
+              business name this would greet them by. A collector never sees
+              a control for a choice they cannot make.
+
+              It saves immediately through the same profiles path the
+              notification switches use; unticking writes NULL, which is the
+              column's own word for normal behaviour rather than a third
+              state meaning the same thing. */}
+          {hasDealerProfile && (
+            <div className="mt-6 flex items-start justify-between gap-6 border-t border-[var(--border-faint)] pt-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] text-[var(--platinum-dim)]">
+                  Use my business name in my Catalogue greeting
+                </div>
+                <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                  Your Catalogue greets you by your display name. Turn this on to
+                  be greeted by your dealer business name instead.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={greetingUsesBusiness}
+                aria-label="Use my business name in my Catalogue greeting"
+                onClick={() => {
+                  const next = !greetingUsesBusiness;
+                  setGreetingUsesBusiness(next);
+                  savePrefs({ greeting_identity: next ? "business" : null });
+                }}
+                className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
+                  greetingUsesBusiness
+                    ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
+                    : "border-[var(--border-subtle)] bg-transparent"
+                }`}
+              >
+                <span
+                  className={`absolute top-[3px] h-3 w-3 transition-all ${
+                    greetingUsesBusiness
+                      ? "left-[22px] bg-[var(--gold-fill)]"
+                      : "left-[3px] bg-[var(--ghost)]"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </section>
 
         <div className="fw-rule mb-10" />

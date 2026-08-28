@@ -111,6 +111,8 @@ export type ListingRow = {
 };
 
 type CatalogueProps = {
+  /** Resolved server-side; null means the greeting names nobody. */
+  greetingName: string | null;
   searches: CatalogueSearch[];
   matchRows: CatalogueMatchRow<ListingRow>[];
 };
@@ -1048,6 +1050,7 @@ function MyOffersSection({
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function CatalogueClient({
+  greetingName,
   searches,
   matchRows,
 }: CatalogueProps) {
@@ -1283,21 +1286,31 @@ export default function CatalogueClient({
           the moment the rail exists again, so the desktop composition is
           untouched. */}
       <div className="min-w-0 flex-1 px-5 py-8 md:px-0">
-        {/* Greeting — the hour, and nothing else.
+        {/* Greeting — the hour, then a name only when there is a real one.
 
-            It used to name the collector, but the only name available was
-            whatever identity resolved first, and for an account that never
-            set a display name that was their raw email address. Greeting
-            someone with their own email is not a greeting; it is an
-            identifier read back at them. It was also the source of a real
-            layout hazard, because an email is a single unbreakable token
-            with no spaces to wrap at — on a 380px screen it had about two
-            characters of headroom before running past the edge of the phone.
+            greetingName is resolved on the server and is NULL for a
+            collector who has not set a display name, which is why the comma
+            lives inside the conditional: the alternative to a name here is
+            not an empty string but no clause at all. "Good morning, ." is
+            the failure this shape makes unrepresentable.
 
-            Naming nobody removes both problems at once, and there is nothing
-            left here that unbounded user data can overflow. */}
+            The name keeps the 18px treatment rather than the heading's 26px.
+            Two reasons, and both still hold now that identity is back: the
+            reader already knows who they are, so the hour is the part
+            carrying the warmth; and display_name and business_name are both
+            unbounded user data. A long one at 26px ran past the edge of a
+            380px phone with about two characters of headroom. 18px plus
+            break-words means no name, however long, can overflow or reflow
+            the line. */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
-          {clockGreeting}.
+          {clockGreeting}
+          {greetingName ? (
+            <>
+              ,{" "}
+              <span className="break-words text-[18px]">{greetingName}</span>
+            </>
+          ) : null}
+          .
         </h1>
 
         {/* Collector Navigation, narrow widths only. The rail beside this
