@@ -1294,14 +1294,26 @@ export default function CatalogueClient({
             not an empty string but no clause at all. "Good morning, ." is
             the failure this shape makes unrepresentable.
 
-            The name keeps the 18px treatment rather than the heading's 26px.
-            Two reasons, and both still hold now that identity is back: the
-            reader already knows who they are, so the hour is the part
-            carrying the warmth; and display_name and business_name are both
-            unbounded user data. A long one at 26px ran past the edge of a
-            380px phone with about two characters of headroom. 18px plus
-            break-words means no name, however long, can overflow or reflow
-            the line.
+            RULED: the name carries NO type treatment of its own. It inherits
+            the sentence — same 26px, same Cormorant, same weight, same
+            colour — because it IS the sentence.
+
+            It spent two versions at 18px, and the measurement is what killed
+            that. The room selector below this line sets its current room at
+            16px — SMALLER than the 18px name — and reads perfectly, because
+            its label sits in a different typeface, uppercase, letterspaced
+            and muted: every dimension differs, so the size gap reads as two
+            roles. The name had the opposite problem. Same face, same weight,
+            same colour, same case, same line as "Good morning," — identical
+            in every respect except size. With nothing to justify it, a size
+            change mid-sentence does not read as hierarchy; it reads as one
+            sentence set inconsistently.
+
+            The 18px was inherited from the version where this rendered a raw
+            email, which genuinely had to shrink. The resolver cannot return
+            an email any more, so the shrink lost its job and kept its seat.
+            No muted colour and no second hierarchy trick either: one
+            sentence, so it looks like one sentence.
 
             RULED inline-block, and it is the wrap behaviour that earns it.
             As a plain inline span the name TORE at the line break — a long
@@ -1316,13 +1328,15 @@ export default function CatalogueClient({
             baseline risk this shape can carry does not arise here —
             measured at 380px, "Good morning," holds the first line in every
             case rather than dropping to align with a wrapped name's last
-            line. */}
+            line. At the full 26px a long dealer name costs more lines than
+            it did at 18px; that cost was weighed and accepted rather than
+            discovered. */}
         <h1 className="font-display text-[26px] font-light text-[var(--platinum)]">
           {clockGreeting}
           {greetingName ? (
             <>
               ,{" "}
-              <span className="inline-block max-w-full break-words text-[18px]">
+              <span className="inline-block max-w-full break-words">
                 {greetingName}
               </span>
             </>
