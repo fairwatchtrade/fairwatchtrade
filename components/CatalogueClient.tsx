@@ -837,7 +837,13 @@ function MyOffersSection({
     // WS1 (2026-07-28) — bounded section width: this section sits OUTSIDE the
     // v2.84-capped two-column grid, so on ultrawide screens its rows stretched
     // status to the viewport cliff. The cap binds only beyond 1100px.
-    <div className="mt-8 max-w-[1100px]">
+    //
+    // The id is the collector rail's address for this section, matching the
+    // pattern #saved-watches already uses. Safe as a nav target because this
+    // section is durable — it renders in every state, including empty — so
+    // the link can never arrive at nothing. scroll-mt-32 clears the sticky
+    // header, same offset as its neighbour.
+    <div id="my-offers" className="mt-8 max-w-[1100px] scroll-mt-32">
       <div className="mb-4 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
         My Offers
       </div>

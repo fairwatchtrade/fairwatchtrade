@@ -346,9 +346,20 @@ const workspace = read("components/WantedWorkspace.tsx");
     /RailSection label="Discover"[\s\S]{0,900}label="Wanted"\s+href="\/wanted"/.test(rail)
   );
   ok("New Arrivals is still absent from the rail", !/New Arrivals/.test(strip(rail)));
+  /* This began as a collateral guard for the Wanted flight: adding Wanted to
+     Discover must not disturb the rail's other sections, which were then
+     "Seller" and "Collection". Both have since been ruled on — the Seller
+     group was removed from the collector rail outright, and Collection
+     became "Yours" when standing searches and offers joined the saved
+     watches. The guard keeps its job and changes its pins: it now protects
+     the correction instead of the layout it replaced. */
   ok(
-    "the rail's other sections are untouched",
-    /label="Seller" exit/.test(rail) && /RailSection label="Collection"/.test(rail)
+    "the seller group stays OUT of the collector rail",
+    !/label="Seller"/.test(rail) && !/href="\/sell"/.test(rail)
+  );
+  ok(
+    "the collector group survives and still leads with My Catalogue",
+    /RailSection label="Yours"[\s\S]{0,600}label="My Catalogue"/.test(rail)
   );
   ok(
     "mobile reaches Wanted through the existing drawer, not a new primitive",
