@@ -21,11 +21,25 @@
    adding it there means saved Searches quietly stop matching on it.
    ──────────────────────────────────────────────────────────────────────── */
 
-export const SEARCH_MEANING_VERSION = 1;
+/* v2 — SFX-006B added the governed `family` and `variant` levels. The bump
+   is required by the law in this file's header: a stored meaning is replayed
+   by the DATABASE evaluator, not re-parsed, so a state written by a newer
+   parser must be distinguishable from one written before these kinds
+   existed. Both evaluators learned them in the same round —
+   supabase/migrations/20260828120000_sfx006b_family_variant_meanings.sql */
+export const SEARCH_MEANING_VERSION = 2;
 
 export type MeaningKind =
   | "brand"
   | "collection"
+  /* SFX-006B — the governed Vault hierarchy continues below Collection:
+     Brand -> Collection -> Family -> Variant -> Reference. "Tonda PF" is a
+     FAMILY under Collection "Tonda"; flattening it into collection would
+     make search claim less identity than FairWatchTrade already owns. The
+     levels stay distinct internally even if a later UI presents them in
+     friendlier collector wording. */
+  | "family"
+  | "variant"
   | "caseMaterial"
   | "excludeCaseMaterial"
   | "complication"
@@ -655,6 +669,13 @@ export function matchesMeaning(listing: SearchableListing, meaning: Meaning): bo
     case "brand":
       return (listing.brand ?? "").toLowerCase() === v.toLowerCase();
     case "collection":
+    /* SFX-006B — Family and Variant use the SAME predicate as collection:
+       the governed name must actually appear in the listing's own model
+       text. A listing that does not say it is not matched — no inference
+       from brand plus hierarchy position. Mirrored exactly in
+       saved_search_matches_listing and saved_search_meaning_exact. */
+    case "family":
+    case "variant":
       return (listing.model ?? "").toLowerCase().includes(v.toLowerCase());
     case "caseMaterial":
       // Exact identity: Gold Filled is not Gold.
