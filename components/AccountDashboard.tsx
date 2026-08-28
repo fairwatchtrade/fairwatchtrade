@@ -472,7 +472,7 @@ function DashboardView({
         {kpis.map((kpi) => (
           <div
             key={kpi.label}
-            className="flex-1 border-r border-[var(--border-faint)] px-6 py-6 last:border-r-0"
+            className="flex-1 border-r border-[var(--border-faint)] px-3 py-5 last:border-r-0 md:px-6 md:py-6"
           >
             <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               {kpi.label}
@@ -616,6 +616,34 @@ export default function AccountDashboard({
   // v2.8 — Submit for Review. router is used only to re-run the SERVER page's
   // own listings query after a successful transition; see submitForReview().
   const router = useRouter();
+
+  /* Mobile Account room navigator (v6.95) — the single compact selector that
+     gives the phone what the desktop rail gives the browser. Its value is the
+     current room (always obvious); choosing drives the SAME ?module= truth via
+     selectModule, or the Settings route. messages/requests both read as their
+     one Communications room; Marketplace Control is intentionally absent. */
+  const MOBILE_ROOM_IDS = [
+    "dashboard",
+    "inventory",
+    "trades",
+    "communications",
+    "saved",
+    "wanted",
+    "accelerator",
+  ] as const;
+  const mobileRoomValue =
+    activeModule === "messages" || activeModule === "requests"
+      ? "communications"
+      : (MOBILE_ROOM_IDS as readonly string[]).includes(activeModule)
+        ? activeModule
+        : "inventory";
+  function selectRoom(v: string) {
+    if (v === "settings") {
+      router.push("/account/settings");
+      return;
+    }
+    selectModule(v as ModuleId);
+  }
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [submitErrorId, setSubmitErrorId] = useState<string | null>(null);
   const [submitErrorMsg, setSubmitErrorMsg] = useState<string | null>(null);
@@ -861,17 +889,42 @@ export default function AccountDashboard({
                   stacks BELOW the list under lg, so "on the right" would be
                   false on a phone. */}
               <div className="relative flex items-center gap-1">
-                <h2 className="font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)]">
-                  <span className="md:hidden">
-                    {activeModule === "saved"
-                      ? "Saved Searches"
-                      : activeModule === "communications" ||
-                          activeModule === "messages" ||
-                          activeModule === "requests"
-                        ? "Communications"
-                        : "Listings"}
-                  </span>
-                  <span className="hidden md:inline">{moduleTitle}</span>
+                {/* Mobile-only room selector; desktop keeps the left rail and
+                    this stays hidden. One tap opens the OS picker — the
+                    restrained resolution of the existing select language, no
+                    second drawer, no bottom-sheet code of our own. */}
+                <div className="relative md:hidden">
+                  <label htmlFor="account-room" className="sr-only">
+                    Account room
+                  </label>
+                  <select
+                    id="account-room"
+                    value={mobileRoomValue}
+                    onChange={(e) => selectRoom(e.target.value)}
+                    className="w-full appearance-none border-b border-[var(--border-mid)] bg-transparent py-1.5 pr-7 font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none"
+                  >
+                    <option value="dashboard">Overview</option>
+                    <option value="inventory">Listings</option>
+                    <option value="trades">Trades</option>
+                    <option value="communications">Messages</option>
+                    <option value="saved">Saved</option>
+                    <option value="wanted">Wanted</option>
+                    <option value="accelerator">Dealer</option>
+                    <option value="settings">Settings</option>
+                  </select>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
+                  >
+                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h2 className="hidden font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] md:block">
+                  {moduleTitle}
                 </h2>
                 {showingListingsRoom && (
                   <HelpBubble
@@ -995,71 +1048,53 @@ export default function AccountDashboard({
               onThreadsChanged={refreshThreads}
               onRequestsChanged={refreshRequests}
             />
+          ) : activeModule === "dashboard" ? (
+            /* Overview — now on BOTH viewports (v6.95). It hosts the Dealer
+               Accelerator doorway, which is exactly why mobile Listings no
+               longer needs to carry the billboard. */
+            <DashboardView
+              listings={searchFiltered}
+              counts={counts}
+              selectedListing={selectedListing}
+              onSelect={setSelectedListing}
+              onSubmitForReview={submitForReview}
+              submittingId={submittingId}
+              submitErrorId={submitErrorId}
+              submitErrorMsg={submitErrorMsg}
+              hasImportedDrafts={hasImportedDrafts}
+              onOpenAccelerator={() => openAccelerator("start")}
+              onOpenImportedDrafts={() => openAccelerator("drafts")}
+            />
           ) : (
+            /* Listings — one room on both viewports (identical props). On
+               mobile the Dealer Accelerator entry is demoted BELOW the
+               listing content: the first viewport is the seller's actual
+               inventory, and DA stays available, secondary, beneath it.
+               Desktop Listings never carried the billboard and still doesn't;
+               Overview keeps DA as its prominent doorway. */
             <>
-              <div className="md:hidden">
-                {/* Dealer Accelerator entry on mobile — the card renders
-                    above the listings room (mobile Account has no Overview
-                    module to host it). */}
-                <div className="px-4 pt-4">
-                  <DealerAcceleratorEntry
-                    hasImportedDrafts={hasImportedDrafts}
-                    onOpenAccelerator={() => openAccelerator("start")}
-                    onOpenImportedDrafts={() => openAccelerator("drafts")}
-                  />
-                </div>
-                <SellerListingsRoom
-                  listings={searchFiltered}
-                  decisions={decisions}
-                  publishedAt={publishedAt}
-                  threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
-                  threadsLoaded={threadsLoaded}
-                  onSubmitForReview={submitForReview}
-                  onOpenImportedDrafts={() => openAccelerator("drafts")}
-                  onRemoved={() => {
-                    router.refresh();
-                    refreshRequests();
-                  }}
-                  submittingId={submittingId}
-                  submitErrorId={submitErrorId}
-                  submitErrorMsg={submitErrorMsg}
-                />
-              </div>
-
-              {/* Desktop: module-driven. */}
-              <div className="hidden md:block">
-                {activeModule === "dashboard" ? (
-              <DashboardView
+              <SellerListingsRoom
                 listings={searchFiltered}
-                counts={counts}
-                selectedListing={selectedListing}
-                onSelect={setSelectedListing}
+                decisions={decisions}
+                publishedAt={publishedAt}
+                threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
+                threadsLoaded={threadsLoaded}
                 onSubmitForReview={submitForReview}
+                onOpenImportedDrafts={() => openAccelerator("drafts")}
+                onRemoved={() => {
+                  router.refresh();
+                  refreshRequests();
+                }}
                 submittingId={submittingId}
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
-                hasImportedDrafts={hasImportedDrafts}
-                onOpenAccelerator={() => openAccelerator("start")}
-                onOpenImportedDrafts={() => openAccelerator("drafts")}
               />
-                ) : (
-                  <SellerListingsRoom
-                    listings={searchFiltered}
-                    decisions={decisions}
-                    publishedAt={publishedAt}
-                    threadStats={threads.map((t) => ({ listingId: t.listing?.id ?? null }))}
-                    threadsLoaded={threadsLoaded}
-                    onSubmitForReview={submitForReview}
-                    onOpenImportedDrafts={() => openAccelerator("drafts")}
-                  onRemoved={() => {
-                    router.refresh();
-                    refreshRequests();
-                  }}
-                    submittingId={submittingId}
-                    submitErrorId={submitErrorId}
-                    submitErrorMsg={submitErrorMsg}
-                  />
-                )}
+              <div className="px-4 pb-6 pt-2 md:hidden">
+                <DealerAcceleratorEntry
+                  hasImportedDrafts={hasImportedDrafts}
+                  onOpenAccelerator={() => openAccelerator("start")}
+                  onOpenImportedDrafts={() => openAccelerator("drafts")}
+                />
               </div>
             </>
           )}
