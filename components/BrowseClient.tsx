@@ -1152,8 +1152,14 @@ export default function BrowseClient({
   useEffect(() => {
     if (!openSnapshotId) return;
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && t.closest("input, textarea, select")) return;
+      /* instanceof, not a cast. A cast only silences the compiler; the target
+         of a keydown is not guaranteed to BE an element, and `document` has no
+         .closest -- so a cast turns that case into a thrown TypeError inside
+         the listener, which kills Escape silently rather than falling through
+         to it. Narrowing honestly makes the non-element case close the panel,
+         which is the right answer: nothing was being typed into. */
+      const t = e.target;
+      if (t instanceof Element && t.closest("input, textarea, select")) return;
       if (e.key === "Escape") {
         e.preventDefault();
         setOpenSnapshotId(null);
