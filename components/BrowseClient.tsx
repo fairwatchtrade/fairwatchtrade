@@ -2296,6 +2296,10 @@ export default function BrowseClient({
                 const hasSnapshot = snapshotRows.length > 0;
                 const isSnapshotOpen = openSnapshotId === row.id;
                 const isCompared = compareSelected.has(row.id);
+                /* The snapshot floats over whatever follows the row. The last
+                   row has no row following it -- what is down there is the
+                   footer, so the panel opens UPWARD from that one. */
+                const isLastRow = paginated[paginated.length - 1]?.id === row.id;
 
                 return (
                   <div
@@ -2560,7 +2564,36 @@ export default function BrowseClient({
                     )}
 
                     {isSnapshotOpen && (
-                      <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[var(--panel-line)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_var(--panel-shadow-color)]">
+                      /* WHICH WAY IT OPENS.
+
+                         Downward everywhere except the last row, where there
+                         is nothing below to float over. Anchored down there,
+                         the panel landed ON the footer -- measured at 151px
+                         past the footer's top edge, and its own bottom edge
+                         within a pixel of the end of the document, so the
+                         final rows of specification could not be scrolled to
+                         at all. It was unreachable, not merely untidy.
+
+                         Anchoring the BOTTOM to the row instead makes footer
+                         overlap impossible by construction rather than tuned
+                         away: the panel now grows away from the footer, so no
+                         reserved gap, no measured height and no magic number
+                         can go stale as the panel's content changes. The one
+                         thing it costs is that a last-row panel covers the row
+                         ABOVE it, which is the same bargain every other row
+                         already makes with the row below.
+
+                         Still absolute, so nothing moves and Browse stays
+                         stable. The shadow flips with it, because a panel that
+                         rises must not cast its shadow onto the thing it rose
+                         from. */
+                      <div
+                        className={`absolute left-[100px] right-4 z-40 border border-[var(--panel-line)] bg-[var(--ink-deep)] p-5 ${
+                          isLastRow
+                            ? "bottom-[calc(100%-14px)] shadow-[0_-16px_40px_var(--panel-shadow-color)]"
+                            : "top-[calc(100%-14px)] shadow-[0_16px_40px_var(--panel-shadow-color)]"
+                        }`}
+                      >
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                             Collector Snapshot · {row.model ?? row.brand}
