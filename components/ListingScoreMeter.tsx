@@ -141,10 +141,33 @@ export default function ListingScoreMeter({
         })}
       </ul>
 
-      {/* Destination line — always present, even at score 0. Not a reward. */}
+      {/* Destination line — always present, even at score 0. Not a reward.
+
+          It is an INSTRUCTION, not a status claim, and that is the whole point:
+          "prepare" is truthful at every state this meter can show, so it needs
+          no progress-awareness and no conditional wording. The previous line
+          asserted readiness the seller had not earned — it sat directly under
+          0/22 effort points, granting the destination for free while the score
+          beside it withheld the same thing to encourage wrist shots and extra
+          angles. The two contradicted each other in one panel.
+
+          "Almost ready" was considered and rejected: it is still a status
+          claim, only hedged, so it keeps a truth condition that can drift.
+
+          The meter can NEVER mean ready. Its 22 points are photographs,
+          documentation and description only — Step III's details are a
+          separate requirement it does not score — so a seller at 22/22 still
+          has work left. Do not later "fix" this to read ready at full score.
+
+          THE CLOSING LINE IS NOT THIS LINE. "Your watch is ready for its next
+          collector." is the founder-locked arrival, and it stays exactly where
+          the Soul places it, on the review/publish moment in ReviewStep. This
+          is the build tool asking for the work; that is the acknowledgement
+          once the work is done. Same destination phrase, imperative here and
+          declarative there — the seller completes the sentence by doing it. */}
       <div className="mt-5 border-t border-[var(--border-faint)] pt-4 text-center">
         <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
-          Your watch is ready for its next collector.
+          Prepare your watch for its next collector.
         </p>
       </div>
     </div>
