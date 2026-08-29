@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { resolveCanonicalReference } from "@/lib/identity/canonicalReferenceResolver";
+import {
+  resolveCanonicalReference,
+  vaultReferenceMetadata,
+} from "@/lib/identity/canonicalReferenceResolver";
+import {
+  isTudorBrand,
+  parseTudorAdmission,
+  TUDOR_NOT_ADMITTED,
+} from "@/lib/admission/tudorReference";
 
 /* ════════════════════════════════════════════════════════════════════════
    CANONICAL REFERENCE RESOLUTION (SellFlow · Step 1)
@@ -66,6 +74,21 @@ export async function POST(req: Request) {
 
   try {
     const resolution = await resolveCanonicalReference({ brand, model, reference });
+    /* Tudor rides a derived admission summary alongside the resolution, so
+       the Sell corridor can render truthfully before submission. Derived
+       and ADVISORY, exactly like the canonical id itself: the publication
+       path re-resolves both server-side and believes neither from the
+       browser. Non-Tudor responses are byte-identical to before. */
+    if (isTudorBrand(brand)) {
+      const tudorAdmission =
+        resolution.status === "resolved" && resolution.vaultReferenceId
+          ? parseTudorAdmission(
+              await vaultReferenceMetadata(resolution.vaultReferenceId),
+              resolution.vaultReferenceId
+            )
+          : TUDOR_NOT_ADMITTED;
+      return NextResponse.json({ ...resolution, tudorAdmission });
+    }
     return NextResponse.json(resolution);
   } catch {
     /* Fail closed on IDENTITY, open on FLOW: a Vault read failure yields no

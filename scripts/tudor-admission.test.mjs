@@ -285,4 +285,20 @@ const identityGate = (r) => r.gates.find((g) => g.key === "identity");
     /enhancedEvidenceActive =\s*\r?\n\s*profile\?\.documentationPolicy === "enhanced_evidence_allowed" &&\s*\r?\n\s*admission\?\.documentationAvailable !== true;/.test(src));
 }
 
+/* ── H · server wiring: the gate is a real refusal, not copy ── */
+{
+  const route = readFileSync(new URL("../app/api/listings/route.ts", import.meta.url), "utf8");
+  ok("the listings POST re-resolves Tudor admission server-side",
+    route.includes("resolveTudorReferenceAdmission({"));
+  ok("a non-admitted Tudor reference is refused with HTTP 400 and the reference-policy stop",
+    /reference_not_admitted[\s\S]{0,200}TUDOR_REFERENCE_NOT_ADMITTED[\s\S]{0,200}status: 400/.test(route));
+  ok("the Rolex Style grammar is guarded to Rolex and never touches Tudor",
+    /admissionProfile\.brand === "Rolex"[\s\S]{0,120}classifyRolexIdentifier\(body\.reference\)/.test(route));
+  ok("the retry pre-check still precedes the admission gate — a retry resumes, never re-gates",
+    route.indexOf("idempotency pre-check") < route.indexOf("await resolveTudorReferenceAdmission"));
+  const cr = readFileSync(new URL("../app/api/canonical-reference/route.ts", import.meta.url), "utf8");
+  ok("the canonical-reference route derives the Tudor summary for the client corridor",
+    cr.includes("tudorAdmission") && cr.includes("parseTudorAdmission("));
+}
+
 console.log(`tudor-admission: ${passed} assertions PASS`);

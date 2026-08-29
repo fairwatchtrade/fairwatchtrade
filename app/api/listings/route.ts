@@ -44,6 +44,9 @@ import {
   ROLEX_IDENTIFIER_STOP,
   ROLEX_IDENTIFIER_STOP_DETAIL,
 } from "@/lib/admission/rolexIdentifier";
+import { isTudorBrand } from "@/lib/admission/tudorReference";
+import { resolveTudorReferenceAdmission } from "@/lib/admission/tudorReferenceResolution";
+import { TUDOR_REFERENCE_NOT_ADMITTED } from "@/lib/admission/requirementProfile";
 import { resolveCanonicalForPersistence } from "@/lib/identity/canonicalReferenceResolver";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -890,7 +893,33 @@ export async function POST(request: NextRequest) {
         walked. Non-profile brands skip this entirely; a retry above is
         exempt because its listing already exists and must stay resumable.
         PFC274 = 62 — the evaluate route is untouched. ── */
-  const admissionProfile = requirementProfileFor(body.brand);
+  /* ── Tudor reference admission — canonical server truth, fail closed.
+        The browser's derived summary is rendering context, never
+        authority: the server re-resolves the submitted identity text
+        through the same Watch Identity seam and reads the admission
+        contract off the canonical Vault reference itself. Not resolved,
+        not admitted, malformed, or ambiguous all land in the same place —
+        the truthful reference-level stop. This is a reference-policy
+        refusal, not an evidence failure: no quantity of photographs
+        overcomes it, and the copy does not pretend otherwise. Placed with
+        the profile gate below, after the idempotency pre-check, so a
+        retry still RESUMES and never re-gates. ── */
+  let tudorAdmission = null;
+  if (isTudorBrand(body.brand)) {
+    tudorAdmission = await resolveTudorReferenceAdmission({
+      brand: typeof body.brand === "string" ? body.brand : "",
+      model: typeof body.model === "string" ? body.model : "",
+      reference: typeof body.reference === "string" ? body.reference : "",
+    });
+    if (!tudorAdmission.admitted) {
+      return NextResponse.json(
+        { error: "reference_not_admitted", detail: TUDOR_REFERENCE_NOT_ADMITTED },
+        { status: 400 }
+      );
+    }
+  }
+
+  const admissionProfile = requirementProfileFor(body.brand, tudorAdmission);
   if (admissionProfile) {
     /* ── Rolex identifier (Style-number ruling 2026-08-06) — the SAME
           deterministic classification the client corridor runs, applied
@@ -902,8 +931,14 @@ export async function POST(request: NextRequest) {
           humble copy — never a claim that the value is unknown to Rolex.
           Identifier recognition NEVER satisfies the documentation gates
           evaluated below. ── */
-    const identifier = classifyRolexIdentifier(body.reference);
-    if (identifier.kind === "unsupported") {
+    /* Rolex grammar for Rolex only. Tudor identity is canonical Vault
+       truth resolved above; its references never pass through the Rolex
+       Style classifier. */
+    const identifier =
+      admissionProfile.brand === "Rolex"
+        ? classifyRolexIdentifier(body.reference)
+        : null;
+    if (identifier && identifier.kind === "unsupported") {
       return NextResponse.json(
         {
           error: "admission_requirements",
@@ -912,7 +947,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (identifier.kind === "style") {
+    if (identifier && identifier.kind === "style") {
       body.reference = identifier.reference;
       const detailsWithStyle = (body.details ?? {}) as Record<string, unknown>;
       detailsWithStyle.admission = {
