@@ -148,7 +148,7 @@ export default function ReviewStep({
   const admissionProfile = requirementProfileFor(draft.brand);
   const photoCategories = draft.photos.map((p) => p.category);
   const admissionGates = admissionProfile
-    ? evaluateAdmissionGates({
+    ? evaluateAdmissionGates(admissionProfile, {
         admission: draft.details.admission,
         includedWithWatch: draft.details.includedWithWatch,
         documentation: draft.details.documentation,

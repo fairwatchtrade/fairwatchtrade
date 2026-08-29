@@ -45,6 +45,11 @@ import type { DocumentationStatus, PhotoCategory } from "@/lib/scoring";
    classification remain resumable — unclassifiedComponents() iterates THIS
    list, so a stale extra key is simply ignored, never an error. */
 import { classifyRolexIdentifier } from "./rolexIdentifier.ts";
+import type {
+  TudorDocumentationPolicy,
+  TudorIdentityRequirement,
+  TudorReferenceAdmission,
+} from "./tudorReference.ts";
 
 export const COMPONENT_KEYS = [
   "dial",
@@ -133,6 +138,12 @@ export type AdmissionState = {
   styleNumber?: string;
   /** Review affirmation: replacement components are stated plainly in the description. */
   componentsStatedPlainly?: boolean;
+  /** Track 2 (enhanced-evidence Tudor): seller-entered identity-marking
+      values, keyed by the admitted reference's requirement keys. Evidence
+      ANSWERS only — the requirements themselves live on the canonical
+      Vault reference and are re-resolved server-side, so seller-editable
+      state can never widen what is demanded of it. */
+  enhancedIdentityEvidence?: Record<string, string>;
 };
 
 /* ── Early, exact eligibility stops (locked copy) ───────────────────────── */
@@ -147,6 +158,26 @@ export const ADMISSION_STOPS = {
   unsupportedFullSet:
     "The watch may include documentation and a box, but the relationship among them is not sufficiently supported for “full set” language.",
 } as const;
+
+/* Tudor's own stop table — same keys, Tudor's own words. Never Rolex copy
+   with the brand swapped by hand later: the gates select a table by the
+   profile's brand, Rolex resolves to the byte-identical object above, and
+   neither brand can drift into lecturing the other's sellers. */
+export const TUDOR_ADMISSION_STOPS = {
+  documentationUnavailable:
+    "FairWatchTrade requires the original identity-bearing documentation for this Tudor reference. This watch cannot continue without it.",
+  incompleteWatch:
+    "FairWatchTrade accepts complete, wearable Tudor watches. Watch heads and unfinished project watches are not eligible.",
+  componentUnsupported: ADMISSION_STOPS.componentUnsupported,
+  unsupportedFullSet: ADMISSION_STOPS.unsupportedFullSet,
+} as const;
+
+/* The reference-policy stop. This is NOT an evidence failure and must
+   never read like one: no amount of photographs overcomes a reference
+   that is not admitted, and the copy neither blames the watch nor
+   promises that more effort would change the answer. */
+export const TUDOR_REFERENCE_NOT_ADMITTED =
+  "This Tudor reference is not currently admitted to FairWatchTrade. FairWatchTrade accepts selected Tudor references rather than the brand generally.";
 
 /* ── The requirement profile ─────────────────────────────────────────────── */
 
@@ -166,16 +197,27 @@ export type EntryCondition = {
   key: "documentationAvailable" | "completeWatch";
   prompt: string;
   stop: string;
+  /** Default true. False marks a condition whose "No" answer ROUTES rather
+      than stops — Track 2 Tudor: no original papers is not a refusal, it
+      is the turn into the enhanced evidence corridor. Absent on every
+      Rolex condition, whose behavior is unchanged. */
+  stopsWhenFalse?: boolean;
 };
 
 export type RequirementProfile = {
-  brand: "Rolex";
+  brand: "Rolex" | "Tudor";
   /** Shown the moment Curation identifies the brand. */
   activationNote: string;
   /** The photograph checklist for this profile — evidence, not gallery suggestions. */
   requiredViews: RequiredView[];
   photosNote: string;
   entryConditions: EntryCondition[];
+  /** Tudor only. The documentation policy of the ADMITTED reference and,
+      under enhanced_evidence_allowed, the identity markings it requires.
+      Absent on Rolex — absence selects the default documentation gate,
+      which is the exact pre-existing branch. */
+  documentationPolicy?: TudorDocumentationPolicy;
+  identityEvidence?: TudorIdentityRequirement[];
 };
 
 const ROLEX_PROFILE: RequirementProfile = {
@@ -214,11 +256,82 @@ const ROLEX_PROFILE: RequirementProfile = {
   ],
 };
 
-/** The one lookup. Null = the standard curated path, entirely untouched. */
-export function requirementProfileFor(
-  brand: string | null | undefined
+/* ── The Tudor profile — derived per admitted reference, never a constant ──
+   Rolex has one profile because Rolex has one policy. A Tudor profile is a
+   function of WHICH reference was admitted: its documentation policy and,
+   under enhanced evidence, the exact identity markings that reference
+   demands. Mechanics are shared with Rolex — views, entry conditions,
+   component and packaging law — while every word of copy is Tudor's own.
+
+   Papers/Warranty is a required VIEW only under original_required. Under
+   enhanced_evidence_allowed the papers may legitimately not exist, so the
+   view cannot be a precondition — but a seller on that reference who DOES
+   have papers still passes through the full Track 1 documentation gate,
+   itemization and photograph included. Old does not make original papers
+   invalid. */
+export function tudorProfileFor(
+  referenceAdmission: TudorReferenceAdmission | null | undefined
 ): RequirementProfile | null {
-  return (brand ?? "").trim().toLowerCase() === "rolex" ? ROLEX_PROFILE : null;
+  if (!referenceAdmission?.admitted) return null;
+  const enhanced =
+    referenceAdmission.documentationPolicy === "enhanced_evidence_allowed";
+  return {
+    brand: "Tudor",
+    documentationPolicy: referenceAdmission.documentationPolicy,
+    identityEvidence: referenceAdmission.identityEvidence,
+    activationNote: enhanced
+      ? "This Tudor reference is admitted to FairWatchTrade. Exact identity, component representation, and completeness requirements are now active. If the original papers are absent, this reference is authorized for the enhanced identity-evidence path instead."
+      : "This Tudor reference is admitted to FairWatchTrade. Exact identity, original documentation, component representation, and completeness requirements are now active. A box is optional and must be classified if included.",
+    requiredViews: [
+      { category: "Dial", view: "Dial and hands" },
+      { category: "Caseback", view: "Caseback" },
+      { category: "Crown Side", view: "Crown and side profile" },
+      { category: "Non-Crown Side", view: "Case, serial and reference markings" },
+      { category: "Bracelet/Strap", view: "Bracelet or strap" },
+      { category: "Clasp/Pin Buckle", view: "Clasp and code" },
+      ...(enhanced
+        ? []
+        : [{ category: "Papers/Warranty", view: "Warranty card / papers" } as RequiredView]),
+    ],
+    photosNote:
+      "These images support exact identity, component correctness and completeness. Serial and reference marking photographs remain review evidence — please do not obscure them from FairWatchTrade review. Never open a case or remove a bracelet just to produce a photograph: photograph what is safely visible, and service documentation is welcome supporting evidence, never required.",
+    entryConditions: [
+      {
+        key: "documentationAvailable",
+        prompt: enhanced
+          ? "I can provide the original matching papers for this watch."
+          : "I can provide the original identity-bearing documentation for this watch.",
+        stop: TUDOR_ADMISSION_STOPS.documentationUnavailable,
+        ...(enhanced ? { stopsWhenFalse: false } : {}),
+      },
+      {
+        key: "completeWatch",
+        prompt:
+          "The watch is complete and wearable — not a watch head or an unfinished project.",
+        stop: TUDOR_ADMISSION_STOPS.incompleteWatch,
+      },
+    ],
+  };
+}
+
+/** The one lookup. Null = the standard curated path, entirely untouched.
+ *
+ *  Deliberately SYNCHRONOUS, exactly as before. Tudor admission requires a
+ *  Vault answer, and that answer is resolved through the existing Watch
+ *  Identity seam by the caller's own layer — the API route on the server,
+ *  the draft's derived summary on the client — then handed in here as
+ *  data. Eight call sites keep their shape; a brand without its admission
+ *  answer is simply not a profile brand yet, which is also the truthful
+ *  dormant state: until a reference is admitted somewhere, Tudor resolves
+ *  to null everywhere, and nothing below this line is reachable. */
+export function requirementProfileFor(
+  brand: string | null | undefined,
+  referenceAdmission?: TudorReferenceAdmission | null
+): RequirementProfile | null {
+  const b = (brand ?? "").trim().toLowerCase();
+  if (b === "rolex") return ROLEX_PROFILE;
+  if (b === "tudor") return tudorProfileFor(referenceAdmission);
+  return null;
 }
 
 /* ── Watch-identity change law (admission-state reset) ───────────────────
@@ -367,7 +480,10 @@ export type AdmissionGateInput = {
   photoCategories: string[];
 };
 
-export function evaluateAdmissionGates(input: AdmissionGateInput): {
+export function evaluateAdmissionGates(
+  profile: RequirementProfile | null,
+  input: AdmissionGateInput
+): {
   gates: PublicationGate[];
   ready: boolean;
 } {
@@ -375,14 +491,64 @@ export function evaluateAdmissionGates(input: AdmissionGateInput): {
     input;
   const gates: PublicationGate[] = [];
 
+  /* Brand-selected copy. Rolex — and a null profile, the pre-widening
+     callers' shape — resolves to the byte-identical ADMISSION_STOPS object
+     the gates always used; only a Tudor profile selects Tudor's words.
+     Predicates below are untouched by this selection. */
+  const stops =
+    profile?.brand === "Tudor" ? TUDOR_ADMISSION_STOPS : ADMISSION_STOPS;
+
   // 1 · Identity and documentation
   const papersPhotographed = input.photoCategories.includes("Papers/Warranty");
-  if (admission?.documentationAvailable !== true) {
+
+  /* Track 2 turn — the ONE additive exception. It exists only for a Tudor
+     profile whose ADMITTED REFERENCE carries enhanced_evidence_allowed,
+     and only when the seller has said the original papers are absent.
+     Every other case — every Rolex, every null profile, every
+     original_required Tudor, and an enhanced-reference seller who HAS the
+     papers — takes the exact pre-existing branch below, unchanged. */
+  const enhancedEvidenceActive =
+    profile?.documentationPolicy === "enhanced_evidence_allowed" &&
+    admission?.documentationAvailable !== true;
+
+  if (enhancedEvidenceActive) {
+    const required = profile?.identityEvidence ?? [];
+    const supplied = admission?.enhancedIdentityEvidence ?? {};
+    const missing = required.filter((r) => !(supplied[r.key] ?? "").trim());
+    if (required.length === 0) {
+      /* A parser this state cannot come from — enhanced admission without
+         identifier requirements is refused at read time — but a gate that
+         demands nothing in place of papers must not exist even in theory. */
+      gates.push({
+        key: "identity",
+        title: "Identity and documentation",
+        status: "blocked",
+        detail: stops.documentationUnavailable,
+      });
+    } else if (missing.length > 0) {
+      gates.push({
+        key: "identity",
+        title: "Identity and documentation",
+        status: "blocked",
+        detail: `This reference is authorized for identity evidence in place of original papers. Still needed: ${missing
+          .map((r) => r.label)
+          .join(", ")}.`,
+      });
+    } else {
+      gates.push({
+        key: "identity",
+        title: "Identity and documentation",
+        status: "pass",
+        detail:
+          "Identity evidence supplied in place of original papers — authorized for this reference.",
+      });
+    }
+  } else if (admission?.documentationAvailable !== true) {
     gates.push({
       key: "identity",
       title: "Identity and documentation",
       status: "blocked",
-      detail: ADMISSION_STOPS.documentationUnavailable,
+      detail: stops.documentationUnavailable,
     });
   } else if (!papersItemized(includedWithWatch)) {
     gates.push({
@@ -417,7 +583,7 @@ export function evaluateAdmissionGates(input: AdmissionGateInput): {
       key: "components",
       title: "Component representation",
       status: "blocked",
-      detail: ADMISSION_STOPS.componentUnsupported,
+      detail: stops.componentUnsupported,
       correction: `Still unclassified: ${unclassified
         .map((k) => COMPONENT_LABELS[k])
         .join(", ")}.`,
@@ -447,7 +613,7 @@ export function evaluateAdmissionGates(input: AdmissionGateInput): {
       key: "completeness",
       title: "Completeness",
       status: "blocked",
-      detail: ADMISSION_STOPS.incompleteWatch,
+      detail: stops.incompleteWatch,
     });
   } else {
     gates.push({
@@ -478,7 +644,7 @@ export function evaluateAdmissionGates(input: AdmissionGateInput): {
       key: "packaging",
       title: "Packaging language",
       status: "blocked",
-      detail: ADMISSION_STOPS.unsupportedFullSet,
+      detail: stops.unsupportedFullSet,
       correction: `Remove “full set” and describe the box as ${
         hasBox ? packagingLabel : "not included"
       }.`,
@@ -489,7 +655,7 @@ export function evaluateAdmissionGates(input: AdmissionGateInput): {
       key: "packaging",
       title: "Packaging language",
       status: "blocked",
-      detail: ADMISSION_STOPS.unsupportedFullSet,
+      detail: stops.unsupportedFullSet,
     });
   } else {
     gates.push({
@@ -525,7 +691,7 @@ export function evaluatePublishAdmission(
         .join("; ")}.`,
     };
   }
-  const { gates, ready } = evaluateAdmissionGates(input);
+  const { gates, ready } = evaluateAdmissionGates(profile, input);
   if (!ready) {
     const offending = gates.find((g) => g.status !== "pass");
     return {

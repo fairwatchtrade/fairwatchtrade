@@ -254,3 +254,19 @@ export async function searchVaultReferences(
     .map(flatten)
     .filter((c): c is CanonicalCandidate => c !== null);
 }
+
+/** The raw governed metadata of one Vault reference — the admission
+    contract's home. Deliberately NOT part of SELECT_WITH_CHAIN: identity
+    resolution and policy reading are different questions, and the chain
+    select feeds surfaces that have no business carrying policy blobs. */
+export async function vaultReferenceMetadata(id: string): Promise<unknown | null> {
+  if (!id) return null;
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("vault_references")
+    .select("metadata")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { metadata?: unknown }).metadata ?? null;
+}

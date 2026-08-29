@@ -32,6 +32,11 @@ import {
   COMPONENT_KEYS,
   COMPONENT_LABELS,
 } from "../lib/admission/requirementProfile.ts";
+
+/* The gates are profile-aware since the Tudor corridor widening; every
+   assertion in this suite exercises the Rolex profile, whose behavior the
+   widening is required to preserve exactly. */
+const ROLEX_GATE_PROFILE = requirementProfileFor("Rolex");
 import {
   classifyRolexIdentifier,
   ROLEX_IDENTIFIER_STOP,
@@ -147,14 +152,14 @@ const READY_INPUT = {
 };
 
 {
-  const { gates, ready } = evaluateAdmissionGates(READY_INPUT);
+  const { gates, ready } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, READY_INPUT);
   ok("fully supported listing is ready", ready);
   eq("four gates render", gates.length, 4);
   ok("all four pass", gates.every((g) => g.status === "pass"));
 }
 
 {
-  const { gates, ready } = evaluateAdmissionGates({
+  const { gates, ready } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, documentationAvailable: undefined },
   });
@@ -163,7 +168,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates } = evaluateAdmissionGates({
+  const { gates } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     photoCategories: allCats.filter((c) => c !== "Papers/Warranty"),
   });
@@ -172,7 +177,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates, ready } = evaluateAdmissionGates({
+  const { gates, ready } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, components: { dial: "original" } },
   });
@@ -188,12 +193,12 @@ const READY_INPUT = {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, components: replaced },
   };
-  const unconfirmed = evaluateAdmissionGates(base);
+  const unconfirmed = evaluateAdmissionGates(ROLEX_GATE_PROFILE, base);
   eq("service replacement without plain statement → needs confirmation",
     unconfirmed.gates.find((g) => g.key === "components").status,
     "needs_confirmation");
   ok("needs confirmation is not ready", !unconfirmed.ready);
-  const confirmed = evaluateAdmissionGates({
+  const confirmed = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...base,
     admission: { ...base.admission, componentsStatedPlainly: true },
   });
@@ -202,7 +207,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates, ready } = evaluateAdmissionGates({
+  const { gates, ready } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, completeWatch: false },
   });
@@ -212,7 +217,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates } = evaluateAdmissionGates({
+  const { gates } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, packaging: undefined },
     documentation: "Papers Only",
@@ -222,7 +227,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates } = evaluateAdmissionGates({
+  const { gates } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, packaging: "period_appropriate" },
     documentation: "Papers Only",
@@ -235,7 +240,7 @@ const READY_INPUT = {
 }
 
 {
-  const { gates } = evaluateAdmissionGates({
+  const { gates } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     ...READY_INPUT,
     admission: { ...READY_INPUT.admission, packaging: "period_appropriate" },
     documentation: "Full Set",
@@ -365,7 +370,7 @@ eq("Style documentation flag",
   // A watch with a recognized Style but no documentation evidence still
   // blocks on the identity gate — identifier recognition and documentation
   // are separate facts by ruling.
-  const { gates } = evaluateAdmissionGates({
+  const { gates } = evaluateAdmissionGates(ROLEX_GATE_PROFILE, {
     admission: { styleNumber: "R79173327B6252", completeWatch: true },
     includedWithWatch: [],
     documentation: undefined,
