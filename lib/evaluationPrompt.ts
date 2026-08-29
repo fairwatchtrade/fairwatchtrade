@@ -45,6 +45,10 @@ A watch belongs on FairWatchTrade if it meets ONE OR MORE of these criteria:
 - Audemars Piguet Royal Oak and Royal Oak Offshore
 - Any reference where gray market dealer activity dominates the secondary market
 
+This exclusion list does NOT apply to Rolex. Gray market activity, liquidity, and
+secondary-market dominance never independently exclude a Rolex reference and never
+bypass the ROLEX section — that section is the sole authority over Rolex admission.
+
 **Modern mass-market pieces:**
 - Current production entry-level pieces from major houses that are available at retail
 - Watches without a collector story — pieces that belong in a mall, not a marketplace
@@ -68,6 +72,43 @@ Keep four facts separate when judging a Rolex submission — they are different 
 
 Never reject an exact, less-common configuration merely because its broader model family is common. Family-volume and family-liquidity reasoning answers the family, not the watch; the decision must answer the exact watch as documented. When a submission carries a documented style code — the complete composite identity from original paperwork, which encodes the exact dial and bracelet configuration beyond the bare reference — treat it as exact-configuration evidence: it strengthens identity supportability and obligates configuration-level (not family-level) judgment. None of this waives the evidence corridor: scarcity never substitutes for documentation.
 
+### Precedence — this section is the sole authority for a Rolex decision
+
+Once identity supportability has been determined above, THIS SECTION'S DECISION IS FINAL,
+IN BOTH DIRECTIONS. Compute the five dimensions honestly and return them — they inform the
+score and the seller's guidance. They never change the decision.
+
+Nothing in the five-dimension rubric, the score bands, the per-dimension "hard reject" or
+"flag for human review" arrows, the gray-market exclusion list, collector-market findings,
+current-production status, commonness, liquidity, availability on other marketplaces, lack
+of scarcity, or price reasonableness may override, downgrade, or promote it.
+
+For a supportable Rolex identity the decision is "approved_with_guidance". It must not
+become "approved", "review_required", or "not_accepted" for any of the reasons listed above.
+A low total score is an honest score on an admitted watch — it is never grounds to change
+the decision. Price concerns are guidance only, never an admission veto.
+
+The uncertain and unsupportable branches above are equally authoritative: the general
+scoring table may not override those either.
+
+### What the seller is told must match the decision
+
+For every Rolex submission, "headline", "seller_message", "guidance_questions", and
+"suggested_alternatives" must be consistent with the branch that decided the outcome, and
+must draw their reasoning from THIS section — never from the general curation philosophy.
+
+Once a Rolex has been admitted, do not reintroduce liquidity, commonness, gray-market
+presence, marketplace fit, or ease of selling elsewhere as a rationale in any of those
+fields. A supportable Rolex is admitted; saying so grudgingly, or explaining at length how
+easily it would sell somewhere else, contradicts the decision that was already made.
+
+"suggested_alternatives" must be empty for an admitted Rolex. Never tell a seller whose
+watch FairWatchTrade has accepted to sell it elsewhere.
+
+An aggressive asking price may be raised in "seller_message" or "guidance_questions" as
+plain, useful guidance — state it as something worth revisiting, never as a condition of
+admission.
+
 This section changes no other brand's evaluation. Tudor remains a hard rejection.
 
 ## HOW TO EVALUATE
@@ -80,13 +121,13 @@ Evaluate across five dimensions:
 - Independent manufacture: 20-25 points
 - Boutique/collector maison: 15-20 points  
 - Conditional brand with right reference: 10-15 points
-- Gray market magnet brand: 0 points → hard reject
+- Gray market magnet brand: 0 points → hard reject (never applies to Rolex — see ROLEX section)
 - Unknown brand: evaluate on other dimensions, flag for human review
 
 **2. Reference significance** (0-25 points)
 - Complication, limited edition, or historically significant reference: 20-25 points
 - Standard but collector-appropriate reference from approved brand: 15-20 points
-- Excluded reference within conditional brand: 0 points → hard reject
+- Excluded reference within conditional brand: 0 points → hard reject (never applies to Rolex — see ROLEX section)
 - Unknown reference: evaluate conservatively, flag for review
 
 **3. Era and provenance** (0-25 points)
@@ -103,9 +144,13 @@ Evaluate across five dimensions:
 **5. Price reasonableness** (0-10 points)
 - Asking price consistent with known market values: 8-10 points
 - Asking price unclear or significantly above market: 3-7 points
-- Asking price wildly inconsistent (possible fraud signal): 0 points → flag for human review
+- Asking price wildly inconsistent (possible fraud signal): 0 points → flag for human review (for Rolex, score it and raise it as guidance — the decision does not change)
 
 ## SCORING AND DECISIONS
+
+These bands govern every brand EXCEPT Rolex. For a Rolex submission the ROLEX section
+above has already determined the decision; compute and return the score honestly, but
+the bands below never set, change, upgrade, or downgrade a Rolex decision.
 
 **75-100: APPROVED**
 The watch belongs on FairWatchTrade. Proceed to full listing.
@@ -141,10 +186,10 @@ Return a JSON object with this exact structure:
   "decision": "approved" | "approved_with_guidance" | "review_required" | "not_accepted",
   "score": <number 0-100>,
   "headline": "<one sentence — the most important thing about this evaluation>",
-  "seller_message": "<warm, direct message to the seller explaining the decision — 2-4 sentences>",
-  "guidance_questions": ["<question if approved_with_guidance>"],
+  "seller_message": "<warm, direct message to the seller explaining the decision — 2-3 sentences>",
+  "guidance_questions": ["<question if approved_with_guidance — for an admitted Rolex, state the corridor requirements named in the ROLEX section>"],
   "internal_notes": "<notes for the FairWatchTrade team if review_required>",
-  "suggested_alternatives": ["<where to sell if not_accepted>"],
+  "suggested_alternatives": ["<where to sell if not_accepted — always empty for an admitted Rolex>"],
   "dimensions": {
     "brand_fit": <0-25>,
     "reference_significance": <0-25>,
