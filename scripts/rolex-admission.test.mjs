@@ -631,9 +631,24 @@ ok("a disclosed replacement crystal is never by itself a rejection",
     /Escape/.test(helpBubble) && /popstate/.test(helpBubble) &&
       /pointerdown/.test(helpBubble) && /pushState/.test(helpBubble) &&
       /btnRef\.current\?\.focus\(\)/.test(helpBubble));
+  /* PIN THE TOKEN, NOT THE COLOUR.
+
+     This assertion used to name two raw values -- bg-[#151a22] and
+     rgba(201,168,76,0.48). The Daylight migration re-tokenised both, the
+     assertion went stale, and because a failure here THROWS rather than
+     tallying, the whole file stopped executing at this line: every Rolex
+     assertion below it silently stopped running while the suite still
+     looked like it was merely "failing". A guard that aborts is worse than
+     a guard that fails, because it takes the rest of the guard with it.
+
+     The design rule this checks is unchanged -- one help affordance, the
+     Search help's language: a pill trigger, the gold border, the rotated
+     tail. Naming the CSS variables instead of the values expresses that
+     rule at the layer that actually owns it, so a future palette change
+     moves the colour without silencing the guard. */
   ok("the shared bubble is the Search help's visual language",
-    helpBubble.includes("rounded-full border bg-[#151a22]") &&
-      helpBubble.includes("rgba(201,168,76,0.48)") &&
+    helpBubble.includes("rounded-full border bg-[var(--surface-2)]") &&
+      helpBubble.includes("border-[var(--border-gold-strong)]") &&
       helpBubble.includes("rotate-45"));
   ok("no second inline-expanding help slab remains in the Sell Flow",
     !sellFlow.includes("conditionHelpOpen"));
