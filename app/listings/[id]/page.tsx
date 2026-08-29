@@ -17,6 +17,9 @@ import type { CurationSummary } from "@/lib/curationReview";
 import ListingPurchaseRequestProvider from "@/components/ListingPurchaseRequestProvider";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
 import {
+  frameFor,
+  frameStyle,
+  isDefaultFrame,
   resolveHeroIndex,
   resolveStoryIndex,
   sanitizePhotoPresentation,
@@ -462,6 +465,25 @@ export default async function ListingDetailPage({
     photoUrls.findIndex((u) => u === automaticStoryUrl)
   );
   const storyPhotoUrl = storyIndex >= 0 ? (photoUrls[storyIndex] ?? null) : null;
+
+  /* SELLER FRAMING -- the Story band crops, and a crop is exactly where a
+     seller who framed this photograph has already said which part matters.
+     The same frameFor/frameStyle path the browse card uses is read here so
+     there is no second definition of what a frame means.
+
+     frameFor returns the automatic centre frame for an unframed photograph,
+     so isDefaultFrame is what separates "the seller aimed this" from "nobody
+     did": an unframed photo emits NO inline style and stays on the plain
+     centred object-cover in the class below, rather than carrying a style
+     that only restates the default. The container aspect passed is the
+     band's own 8:5, so a rotated photograph cover-scales against the box it
+     actually occupies instead of a 4:3 one it does not. */
+  const storyPathname =
+    storyIndex >= 0 ? (sorted[storyIndex]?.photo?.pathname ?? null) : null;
+  const storyFrame = frameFor(presentation, storyPathname);
+  const storyFrameStyle = isDefaultFrame(storyFrame)
+    ? undefined
+    : frameStyle(storyFrame, 8 / 5);
 
   /* §2 IDENTITY — maker eyebrow, model heading, reference signature.
      `brand` and `model` are separate columns; the model value is normally the
@@ -980,15 +1002,35 @@ export default async function ListingDetailPage({
               /* Decorative on purpose: the photograph repeats evidence the
                  gallery already presents accessibly, and giving it nothing to
                  announce is the same promise as giving it nothing to click. */
+              /* A RATIO, NEVER A FIXED HEIGHT.
+
+                 Two fixed heights (160px, then 220px from 56rem) sat against
+                 a column that runs from about 332px narrow to its 974px
+                 ceiling, so the crop was a function of the viewport rather
+                 than a decision: roughly 4.4:1 on a wide desktop, and 4.4:1
+                 again between 768px and 895px, where the column had already
+                 grown while the height was still the narrow one. At that
+                 shape a square photograph kept under a quarter of its own
+                 height, which is why the band read as a strip of background
+                 with a sliver of watch in it.
+
+                 One ratio holds the same crop at every width. `relative` and
+                 `overflow-hidden` stay because frameStyle documents them as
+                 its parent contract -- the rotated branch positions itself
+                 against them. The image is h-full w-full rather than
+                 absolutely positioned for the same reason: that branch sets
+                 its own position, width and height, and inset-0 would fight
+                 it. */
               <div
                 aria-hidden="true"
-                className="relative mt-6 h-[160px] overflow-hidden border-t border-[var(--border-faint)] min-[56rem]:h-[220px]"
+                className="relative mt-6 aspect-[8/5] overflow-hidden border-t border-[var(--border-faint)]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={storyPhotoUrl}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
+                  style={storyFrameStyle}
+                  className="h-full w-full object-cover"
                 />
               </div>
             )}
