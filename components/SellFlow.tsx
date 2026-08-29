@@ -56,8 +56,10 @@ import {
   requirementProfileFor,
   missingRequiredViews,
   watchIdentityChanged,
+  TUDOR_REFERENCE_NOT_ADMITTED,
   type AdmissionState,
 } from "@/lib/admission/requirementProfile";
+import { isTudorBrand, draftTudorAdmission } from "@/lib/admission/tudorReference";
 import {
   classifyRolexIdentifier,
   ROLEX_IDENTIFIER_STOP,
@@ -850,7 +852,10 @@ export default function SellFlow({
   /* ── Brand admission (Rolex Admission Design Gate v1) ──────────────────
      The identified watch supplies the requirement profile; null means the
      standard path — non-profile sellers never see admission requirements. */
-  const admissionProfile = requirementProfileFor(draft.brand);
+  const admissionProfile = requirementProfileFor(
+    draft.brand,
+    draftTudorAdmission(draft)
+  );
   const missingAdmissionViews = admissionProfile
     ? missingRequiredViews(
         admissionProfile,
@@ -1357,7 +1362,7 @@ function CurationStep({
      entry conditions are answered here, before any evaluation call — the
      product stops early and explains why rather than allowing a listing
      destined for rejection. */
-  const profile = requirementProfileFor(draft.brand);
+  const profile = requirementProfileFor(draft.brand, draftTudorAdmission(draft));
   const admission = draft.details.admission;
   const setAdmission = (p: Partial<AdmissionState>) =>
     patch({
@@ -1366,12 +1371,23 @@ function CurationStep({
         admission: { ...draft.details.admission, ...p },
       },
     });
+  /* A condition whose stopsWhenFalse is false ROUTES on No instead of
+     stopping — Track 2 Tudor: absent papers turn into the identity-
+     evidence corridor rather than a wall. Rolex conditions never set the
+     flag, so both expressions reduce to exactly their previous meaning
+     for every Rolex seller. */
   const entryStopped =
     !!profile &&
-    profile.entryConditions.some((c) => admission?.[c.key] === false);
+    profile.entryConditions.some(
+      (c) => admission?.[c.key] === false && (c.stopsWhenFalse ?? true)
+    );
   const entryConditionsMet =
     !profile ||
-    profile.entryConditions.every((c) => admission?.[c.key] === true);
+    profile.entryConditions.every(
+      (c) =>
+        admission?.[c.key] === true ||
+        (admission?.[c.key] === false && !(c.stopsWhenFalse ?? true))
+    );
 
   /* ── Rolex identifier layer (Style-number ruling 2026-08-06) ───────────
      Deterministic, BEFORE any AI involvement. A bare canonical reference
@@ -1381,7 +1397,7 @@ function CurationStep({
      identity-format judgments are never left to model prose. Recognition
      of an identifier NEVER satisfies the documentation gate. */
   const identifier =
-    profile && draft.reference.trim()
+    profile?.brand === "Rolex" && draft.reference.trim()
       ? classifyRolexIdentifier(draft.reference)
       : null;
   const identifierStopped = identifier?.kind === "unsupported";
@@ -1439,7 +1455,7 @@ function CurationStep({
   useEffect(() => {
     if (!draft.vaultReferenceId) return;
     if (canonicalKeyStillValid(draft.vaultReferenceKey, canonicalContext())) return;
-    patch({ vaultReferenceId: null, vaultReferenceKey: "" });
+    patch({ vaultReferenceId: null, vaultReferenceKey: "", tudorAdmission: undefined });
     // canonicalContext() reads exactly the three fields in the dep list; the
     // early return above ends any re-entry after the clear lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1471,6 +1487,15 @@ function CurationStep({
               ? data.vaultReferenceId
               : null,
           vaultReferenceKey: key,
+          /* Tudor only: the route sends a derived admission summary beside
+             the resolution. Stored under the SAME key, so the staleness
+             rule that governs the canonical id governs this too. Absent
+             field (every other brand) clears whatever a previous Tudor
+             identity may have left. */
+          tudorAdmission:
+            data && typeof data.tudorAdmission === "object" && data.tudorAdmission !== null
+              ? { key, value: data.tudorAdmission }
+              : undefined,
         });
       } catch {
         /* Identity is enrichment. A failed lookup leaves the draft exactly
@@ -1577,6 +1602,20 @@ function CurationStep({
     !identifierStopped;
 
   async function check() {
+    /* ── Tudor reference-admission stop — BEFORE any evaluation call.
+          Reference-level truth: FairWatchTrade admits selected Tudor
+          references, and a reference that has not been admitted (or has
+          not resolved yet) stops here with the reference-policy copy
+          rather than reaching an evaluator. This is not an evidence
+          failure and no photograph changes it. The server enforces the
+          same law independently at submission. */
+    if (isTudorBrand(draft.brand)) {
+      const adm = draftTudorAdmission(draft);
+      if (!adm || !adm.admitted) {
+        setError(TUDOR_REFERENCE_NOT_ADMITTED);
+        return;
+      }
+    }
     setBusy(true);
     setError("");
     try {
@@ -1906,7 +1945,7 @@ function CurationStep({
                   onChange={(v) => setAdmission({ [c.key]: v })}
                   sentenceLegend
                 />
-                {admission?.[c.key] === false && (
+                {admission?.[c.key] === false && (c.stopsWhenFalse ?? true) && (
                   <p
                     role="alert"
                     className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]"
@@ -1914,9 +1953,55 @@ function CurationStep({
                     {c.stop}
                   </p>
                 )}
+                {admission?.[c.key] === false && c.stopsWhenFalse === false && (
+                  <p className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]">
+                    No original papers — this reference is authorized for
+                    the identity-evidence path below instead.
+                  </p>
+                )}
               </div>
             ))}
           </div>
+
+          {/* ── Enhanced identity evidence (Track 2) — exists only when the
+                ADMITTED reference authorizes evidence in place of papers
+                and the seller has said the papers are absent. Each marking
+                the reference names takes a value here; the photographs of
+                those markings ride the required evidence views. Answers
+                live in admission state, so a change of watch identity
+                clears them with everything else. ── */}
+          {profile.documentationPolicy === "enhanced_evidence_allowed" &&
+            admission?.documentationAvailable === false && (
+              <div className="mt-4 grid gap-4">
+                {(profile.identityEvidence ?? []).map((r) => (
+                  <div key={r.key}>
+                    <label className={label} htmlFor={`tudor-evidence-${r.key}`}>
+                      {r.label}
+                    </label>
+                    <input
+                      id={`tudor-evidence-${r.key}`}
+                      className={inputIdentifier}
+                      value={admission?.enhancedIdentityEvidence?.[r.key] ?? ""}
+                      onChange={(e) =>
+                        setAdmission({
+                          enhancedIdentityEvidence: {
+                            ...admission?.enhancedIdentityEvidence,
+                            [r.key]: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="exactly as marked on the watch"
+                    />
+                    {r.photoRequired && (
+                      <p className="mt-1 text-[11px] leading-[1.5] text-[var(--muted)]">
+                        Photograph this marking where it is safely visible — it
+                        rides the required photo views on the Photos step.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
           {!entryConditionsMet && !entryStopped && (
             <p className="mt-4 text-[12px] text-[var(--muted)]">
@@ -1983,7 +2068,7 @@ function PhotosStep({
 
   /* Brand admission: the photograph checklist changes for a profile brand.
      These are evidence, not decorative gallery suggestions. */
-  const profile = requirementProfileFor(draft.brand);
+  const profile = requirementProfileFor(draft.brand, draftTudorAdmission(draft));
   const missingViews = profile
     ? new Set(
         missingRequiredViews(

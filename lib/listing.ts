@@ -7,6 +7,7 @@ import { type UploadedPhoto } from "@/lib/storage";
 import { type PhotoPresentation, defaultPresentation } from "@/lib/photoPresentation";
 import { type PhotoRedactionRecord } from "@/lib/photoRedaction";
 import type { AdmissionState } from "@/lib/admission/requirementProfile";
+import type { TudorReferenceAdmission } from "@/lib/admission/tudorReference";
 
 /* ════════════════════════════════════════════════════════════════════════
    LISTING DRAFT — the single state object that travels through all 5 steps
@@ -110,6 +111,14 @@ export type ListingDraft = {
      server's answer is what persists. */
   vaultReferenceId?: string | null;
   vaultReferenceKey?: string;
+  /* Tudor reference admission, DERIVED and advisory — the server-computed
+     summary that rode back with the canonical resolution, stored under the
+     SAME identity key so staleness is detectable the same way: edit brand,
+     model or reference and the key stops matching, and the summary is
+     ignored and cleared rather than trusted one keystroke past its
+     context. Never authority: publication re-resolves server-side and
+     believes nothing the browser carries. */
+  tudorAdmission?: { key: string; value: TudorReferenceAdmission };
   significanceScore: number | null; // Part 1, fixed once curation passes
   curationDecision: CurationDecision;
   curationReasoning: string;

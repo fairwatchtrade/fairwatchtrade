@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { type ListingDraft, type ListingDetails } from "@/lib/listing";
+import { draftTudorAdmission } from "@/lib/admission/tudorReference";
 import { type DocumentationStatus } from "@/lib/scoring";
 import {
   requirementProfileFor,
@@ -472,7 +473,7 @@ export default function DetailsStep({
      writes re-govern the derived documentation status in the same patch: a
      packaging change can grant or withdraw "Full Set", and the summary
      status must never lag the claim that supports it. */
-  const profile = requirementProfileFor(draft.brand);
+  const profile = requirementProfileFor(draft.brand, draftTudorAdmission(draft));
   const admission = d.admission;
   const setAdmission = (p: Partial<AdmissionState>) => {
     const next = { ...admission, ...p };

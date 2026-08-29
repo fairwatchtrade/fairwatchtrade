@@ -3,6 +3,7 @@ import type { ListingSubmission } from "./evaluationPrompt.ts";
 import { parsePrice } from "./parsePrice.ts";
 import { isSupportedCurrency } from "./supportedCurrencies.ts";
 import { requirementProfileFor } from "./admission/requirementProfile.ts";
+import { draftTudorAdmission } from "./admission/tudorReference.ts";
 import { classifyRolexIdentifier } from "./admission/rolexIdentifier.ts";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -86,7 +87,19 @@ function priceForEvaluation(draft: ListingDraft): number | undefined {
 function profileIdentityForEvaluation(
   draft: ListingDraft
 ): Pick<ListingSubmission, "reference" | "model" | "style_number"> | null {
-  if (!requirementProfileFor(draft.brand)) return null;
+  const profile = requirementProfileFor(draft.brand, draftTudorAdmission(draft));
+  if (!profile) return null;
+  /* Tudor identity is canonical Vault truth — the reference travels as the
+     seller entered it and never through the Rolex Style grammar, which
+     encodes another marque's internal coding. Style numbers are a Rolex
+     fact; for Tudor the field is simply absent. */
+  if (profile.brand === "Tudor") {
+    return {
+      reference: (draft.reference ?? "").trim() || undefined,
+      model: (draft.model ?? "").trim() || undefined,
+      style_number: undefined,
+    };
+  }
   // Null-safe on purpose: live drafts always initialize these fields, but
   // this module must never crash on a partial draft (test fixtures, future
   // callers) — a missing field is "Not provided", not an exception.

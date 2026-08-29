@@ -301,4 +301,22 @@ const identityGate = (r) => r.gates.find((g) => g.key === "identity");
     cr.includes("tudorAdmission") && cr.includes("parseTudorAdmission("));
 }
 
+/* ── I · client wiring: truthful stop, keyed staleness, no Rolex grammar ── */
+{
+  const sf = readFileSync(new URL("../components/SellFlow.tsx", import.meta.url), "utf8");
+  ok("the Sell corridor stops a non-admitted Tudor BEFORE any evaluation call",
+    sf.indexOf("TUDOR_REFERENCE_NOT_ADMITTED") > 0 &&
+      sf.indexOf("setError(TUDOR_REFERENCE_NOT_ADMITTED)") < sf.indexOf("await runCuration(draft)"));
+  ok("the derived summary is honored only under its identity key",
+    sf.includes("tudorAdmission: undefined") && sf.includes("{ key, value: data.tudorAdmission }"));
+  ok("the client Rolex Style grammar is guarded to the Rolex profile",
+    sf.includes(String.raw`profile?.brand === "Rolex" && draft.reference.trim()`));
+  const cs = readFileSync(new URL("../lib/curationSubmission.ts", import.meta.url), "utf8");
+  ok("Tudor evaluator identity never passes through the Rolex grammar",
+    /brand === "Tudor"[\s\S]{0,900}style_number: undefined/.test(cs));
+  const tr = readFileSync(new URL("../lib/admission/tudorReference.ts", import.meta.url), "utf8");
+  ok("a stale or missing key reads as not-a-profile-brand-yet",
+    tr.includes("t.key !== d.vaultReferenceKey) return null;"));
+}
+
 console.log(`tudor-admission: ${passed} assertions PASS`);

@@ -136,3 +136,18 @@ export function parseTudorAdmission(
 export function isTudorBrand(brand: string | null | undefined): boolean {
   return (brand ?? "").trim().toLowerCase() === "tudor";
 }
+
+/** The draft's Tudor admission answer, honored ONLY while its identity key
+    still matches the draft's current canonical-resolution key. Structural
+    parameter on purpose: this module stays dependency-free, so it names the
+    two draft fields it reads rather than importing the draft type. A
+    missing summary, a missing key, or any mismatch is the same answer -
+    null - which downstream reads as "not a profile brand yet". */
+export function draftTudorAdmission(d: {
+  tudorAdmission?: { key: string; value: TudorReferenceAdmission };
+  vaultReferenceKey?: string;
+}): TudorReferenceAdmission | null {
+  const t = d.tudorAdmission;
+  if (!t || !d.vaultReferenceKey || t.key !== d.vaultReferenceKey) return null;
+  return t.value;
+}

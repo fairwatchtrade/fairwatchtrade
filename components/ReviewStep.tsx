@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { type ListingDraft } from "@/lib/listing";
+import { draftTudorAdmission } from "@/lib/admission/tudorReference";
 import PhotoPresentationEditor, {
   PhotoPresentationEntry,
 } from "@/components/PhotoPresentationEditor";
@@ -145,7 +146,10 @@ export default function ReviewStep({
         here, so the seller sees exactly what has passed, what needs
         confirmation, and what must be corrected before submission. Null for
         every non-profile brand: the step is unchanged for them. */
-  const admissionProfile = requirementProfileFor(draft.brand);
+  const admissionProfile = requirementProfileFor(
+    draft.brand,
+    draftTudorAdmission(draft)
+  );
   const photoCategories = draft.photos.map((p) => p.category);
   const admissionGates = admissionProfile
     ? evaluateAdmissionGates(admissionProfile, {
