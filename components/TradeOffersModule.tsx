@@ -314,6 +314,14 @@ export default function TradeOffersModule() {
       ) : (
         offers.map((o) => {
           const viewer = viewerId === o.proposer_id ? "proposer" : "recipient";
+          /* Founder ruling: counterparty identity is profiles.display_name
+             through the sanctioned public view, or NOTHING. A null or blank
+             name collapses honestly — never a manufactured placeholder
+             standing where a person's identity belongs. */
+          const counterpartName =
+            (counterpartNames[
+              viewer === "proposer" ? o.recipient_id : o.proposer_id
+            ] ?? "").trim() || null;
           const summary = tradeSummary(
             {
               targetIdentity: watchIdentity({
@@ -373,17 +381,16 @@ export default function TradeOffersModule() {
                     <div className="mt-1 text-[11px] text-[var(--muted)]">{historyLine}</div>
                   )}
                   {/* The other party, by name — a trade is with a PERSON,
-                      and until now this surface never said which one. Same
-                      fallback the Correspondence inbox uses when a profile
-                      has no public name. */}
-                  <div className="mt-1 text-[11px] text-[var(--platinum-dim)]">
-                    With{" "}
-                    <span className="text-[var(--platinum)]">
-                      {counterpartNames[
-                        viewer === "proposer" ? o.recipient_id : o.proposer_id
-                      ] ?? "FairWatchTrade Member"}
-                    </span>
-                  </div>
+                      and until now this surface never said which one. When
+                      no public display name exists the line is OMITTED
+                      entirely: an honest absence, never a placeholder
+                      rendered as someone's identity. */}
+                  {counterpartName && (
+                    <div className="mt-1 text-[11px] text-[var(--platinum-dim)]">
+                      With{" "}
+                      <span className="text-[var(--platinum)]">{counterpartName}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="pt-1 text-[9px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
                   {currentState}
@@ -508,11 +515,7 @@ export default function TradeOffersModule() {
                         {(deal.cash_direction === "proposer_pays") ===
                         (viewer === "proposer")
                           ? "from you"
-                          : `from ${
-                              counterpartNames[
-                                viewer === "proposer" ? o.recipient_id : o.proposer_id
-                              ] ?? "your counterparty"
-                            }`}
+                          : `from ${counterpartName ?? "your counterparty"}`}
                         . Recorded here, settled between you. FairWatchTrade does not move it.
                       </span>
                     </p>
