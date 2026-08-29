@@ -1,34 +1,48 @@
 /* ────────────────────────────────────────────────────────────────────────
    FOLDING LOUPE — the inspection mark
 
-   A purpose-built small-control drawing, optimised for 16px and verified at
-   18px and 24px. It is NOT the previous artwork scaled down, and it is not a
-   trace of one: the earlier licensed asset was a 1200×1200 filled illustration
-   carrying a double-ring bezel, three lens hatches, a slotted hinge screw and
-   a separate body outline. At an 18px control that is roughly a 70x reduction
-   — its strokes land near a fifth of a pixel and collapse into grey mush. This
-   drawing keeps the folding-loupe identity and spends its detail budget only
-   where a mark that small can still hold it: two lens rings, ONE glint, the
-   arm, the hinge, the folded cover, the end catch.
+   ONE governed drawing, rendered at the detail the size can actually hold.
+   This is not two icons and not a redesign: the small variant WITHHOLDS
+   elements, it never adds or reinterprets any.
 
-   STROKED, not filled, and deliberately so. `stroke="currentColor"` with
-   `fill="none"` means the mark inherits whatever state its button is in —
-   charcoal at rest, gold on hover, focus, and while the panel is open. A
-   multi-tone or filled-colour drawing would have frozen that state language.
+   WHY THE FULL DRAWING FAILS SMALL. At 18px the scale factor is 0.75, so:
 
-   The stroke is allowed to scale with the icon (no non-scaling-stroke): 1.8 in
-   a 24 viewBox renders 1.8px at 24, 1.35px at 18, 1.2px at 16, so the weight
-   stays proportionally identical at every size it is used.
+     · the two lens rings sit 1.55 units apart — 1.16px — while the stroke
+       drawing them is 1.35px. The gap is NARROWER THAN THE LINES, so two
+       concentric rings cannot resolve; they merge into one smudge. That is
+       geometry, not rendering quality, and it is the single biggest reason
+       the full drawing reads as a squiggle on a card.
+     · the hinge circle is 2.03px across with a 1.35px stroke — a dot, not a
+       ring — and the slot inside it lands at 1.27px, invisible.
+     · the glint is 1.17px long; its round caps alone are 1.35px, so it is a
+       dot pretending to be a highlight.
 
-   Geometry fits the box with room to spare — extents run 1.6 to 23.35 once the
-   0.9 stroke half-width is counted — so nothing clips at any size.
+   At 16px every one of those is worse (1.03px ring gap against a 1.2px
+   stroke). Below the threshold those four elements are therefore omitted:
+   they spend ink to produce mush.
 
-   There is no second loupe drawing anywhere in the product; this one component
-   feeds Listing Detail (24px), the Browse card (18px) and the Quick Specs
-   panel heading (16px). The `⌕` marks on the Browse search field and in
-   Marketplace Control are a different affordance and are not this.
+   WHAT SURVIVES, and why it is enough: the outer lens ring reads as a clean
+   7px circle once its twin is gone, the arm and the folded cover carry the
+   silhouette, and the lower housing cue is what makes the object a FOLDING
+   loupe rather than a plain magnifier. That cue is deliberately kept — it
+   resolves at ~5.6px, and it is identity-bearing.
 
-   The size is the caller's business.
+   The lens is NOT enlarged in the small variant, though that was permitted:
+   the housing cue begins 4.79 units from the lens centre, so any enlargement
+   past r≈4.8 buries it inside the ring. The cue is worth more than the
+   millimetre.
+
+   At 22px and above the full drawing renders exactly as delivered.
+
+   STROKED, not filled. `stroke="currentColor"` with `fill="none"` means the
+   mark inherits whatever state its button is in — charcoal at rest, gold on
+   hover, focus, and while the panel is open. A filled multi-tone drawing
+   would have frozen that. The stroke scales with the icon, so its weight is
+   proportionally identical at every size.
+
+   One component feeds Listing Detail (24px), the Browse card (18px) and the
+   Quick Specs panel heading (16px). The `⌕` marks on the Browse search field
+   and in Marketplace Control are a different affordance and are not this.
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function LoupeIcon({
@@ -38,6 +52,10 @@ export default function LoupeIcon({
   size?: number;
   className?: string;
 }) {
+  /* The threshold is where the ring gap finally clears the stroke weight.
+     16px and 18px fall below it; 24px sits above. */
+  const detailed = size >= 22;
+
   return (
     <svg
       width={size}
@@ -53,22 +71,26 @@ export default function LoupeIcon({
       focusable="false"
       className={className}
     >
-      {/* Lens — outer bezel and inner glass. */}
+      {/* Lens — the outer bezel always reads. */}
       <circle cx="7.5" cy="7.2" r="4.7" />
-      <circle cx="7.5" cy="7.2" r="3.15" />
 
-      {/* One glint. Two would merge into a smudge at 16px. */}
-      <path d="M5.55 5.45 6.65 4.35" />
+      {/* Inner glass ring: only where it can sit clear of its twin. */}
+      {detailed && <circle cx="7.5" cy="7.2" r="3.15" />}
 
-      {/* Folding arm, lens to hinge. */}
+      {/* Glint: 1.17px below the threshold, shorter than its own round caps. */}
+      {detailed && <path d="M5.55 5.45 6.65 4.35" />}
+
+      {/* Folding arm, lens to hinge — both edges of the taper. */}
       <path d="M10.95 10.4 12.55 12.1" />
       <path d="M10.45 4.8 13.35 11.25" />
 
-      {/* Hinge and its slot. */}
-      <circle cx="13.55" cy="12.45" r="1.35" />
-      <path d="M12.95 13.05 14.15 11.85" />
+      {/* Hinge and its slot: a 2px circle drawn with a 1.35px stroke is a
+          blob, so both are withheld small. The arm's round caps close the
+          gap to the cover on their own at that size. */}
+      {detailed && <circle cx="13.55" cy="12.45" r="1.35" />}
+      {detailed && <path d="M12.95 13.05 14.15 11.85" />}
 
-      {/* Folded cover / handle. */}
+      {/* Folded cover / handle — the silhouette that carries the object. */}
       <path
         d="M14.75 12.25
            C17.35 13.65 20.15 15.15 21.25 17.45
@@ -83,8 +105,8 @@ export default function LoupeIcon({
            C21.95 20.55 21.55 20.9 21.05 21.05"
       />
 
-      {/* Lower lens housing cue — what makes it read as a folding loupe
-          rather than a plain magnifier. */}
+      {/* Lower lens housing cue — kept at every size. This is what says
+          FOLDING loupe rather than magnifying glass. */}
       <path
         d="M3.65 10.05
            C4.4 11.95 6.1 13.05 8.15 12.9
