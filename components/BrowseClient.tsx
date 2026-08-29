@@ -1139,6 +1139,30 @@ export default function BrowseClient({
   const toggleSnapshot = (id: string) =>
     setOpenSnapshotId((prev) => (prev === id ? null : id));
 
+  /* ESCAPE CLOSES THE OPEN SNAPSHOT.
+
+     Bound to the document, because the collector's hands may be anywhere on
+     the page by the time they want the panel gone -- the same reason the card
+     inspector binds its own Escape there. Fields are guarded for the same
+     reason too: inside the search input Escape means "abandon what I am
+     typing", and a panel must not steal that.
+
+     The listener exists only while something is open, so a Browse with every
+     snapshot closed carries no key handler at all. */
+  useEffect(() => {
+    if (!openSnapshotId) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest("input, textarea, select")) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpenSnapshotId(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openSnapshotId]);
+
   const toggleCompare = (id: string) =>
     setCompareSelected((prev) => {
       const next = new Set(prev);
@@ -2494,6 +2518,41 @@ export default function BrowseClient({
                         read as a floating surface over the row beneath — any
                         aesthetic refinement of this treatment is deferred to
                         the Design Gate, per the brief's out-of-scope list. */}
+                    {/* ── DISMISSAL CATCHER ──────────────────────────────
+                        A transparent layer between the row and the panel, so
+                        an outside click is SWALLOWED by construction.
+
+                        This is deliberately NOT the document-mousedown-plus-
+                        ref pattern the card inspector uses for its own
+                        dismissal. That inspector floats over cards; this panel
+                        hangs off a row whose photograph IS a link to the
+                        listing. A document listener would let the same click
+                        both close the snapshot and navigate away -- dismissing
+                        and leaving would be one gesture, which is exactly the
+                        defect the inspection bubble already solved this way.
+                        The link never receives the click, rather than
+                        receiving it and being asked politely not to act.
+
+                        It paints nothing. The results stay fully visible and
+                        legible behind it; this is a catcher, not a scrim.
+
+                        z-30 sits under the panel's z-40 inside this row, and
+                        the row itself is already raised to z-30 among its
+                        siblings while open -- so the catcher covers the rows
+                        beneath and the panel still takes its own clicks.
+                        Clicks inside the panel never reach here at all. ── */}
+                    {isSnapshotOpen && (
+                      <div
+                        className="fixed inset-0 z-30"
+                        aria-hidden="true"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenSnapshotId(null);
+                        }}
+                      />
+                    )}
+
                     {isSnapshotOpen && (
                       <div className="absolute left-[100px] right-4 top-[calc(100%-14px)] z-40 border border-[var(--panel-line)] bg-[var(--ink-deep)] p-5 shadow-[0_16px_40px_var(--panel-shadow-color)]">
                         <div className="mb-3 flex items-center justify-between">
