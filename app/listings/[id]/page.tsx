@@ -480,10 +480,55 @@ export default async function ListingDetailPage({
      actually occupies instead of a 4:3 one it does not. */
   const storyPathname =
     storyIndex >= 0 ? (sorted[storyIndex]?.photo?.pathname ?? null) : null;
+  /* THE STORY BAND ASPECT LIVES HERE, ONCE, AS A PAIR.
+
+     Tailwind reads class names as literal source text, so the ratio cannot
+     be interpolated into the class -- which means the number handed to
+     frameStyle and the class that sizes the box are two separate facts that
+     must agree. A rotated photograph cover-scales against the aspect it is
+     TOLD, so if these two ever drift apart the frame silently mis-scales and
+     nothing errors. Keep them adjacent and change them together.
+
+     WHY SQUARE, AND WHY IT IS DELIBERATELY PROVISIONAL. A square is the only
+     neutral choice: it is equidistant from portrait and landscape, so it
+     cannot be badly wrong for either, where a landscape frame guts a portrait
+     source and a portrait frame guts a landscape one. That matters because a
+     marketplace does not get to choose the shape of the photographs sellers
+     bring it.
+
+     This is NOT a ratio derived from a representative sample. The inventory
+     it was sanity-checked against is a handful of seeded listings, which is
+     enough to reject an obviously hostile frame and not nearly enough to
+     choose an optimal one. Revisit when real inventory exists and the spread
+     of real seller photography can actually say something. */
+  const STORY_ASPECT = 1;
+  const STORY_ASPECT_CLASS = "aspect-square";
+
   const storyFrame = frameFor(presentation, storyPathname);
   const storyFrameStyle = isDefaultFrame(storyFrame)
     ? undefined
-    : frameStyle(storyFrame, 8 / 5);
+    : frameStyle(storyFrame, STORY_ASPECT);
+
+  /* THE OPENING PARAGRAPH KEEPS THE FULL MEASURE.
+
+     The narrative is one stored string, so the composition has to find its
+     own seam: the first blank line. Everything before it opens the section
+     at full width; everything after it sits in the narrower column beside
+     the photograph. A single-paragraph description has no seam, so it all
+     goes beside the photograph rather than being cut somewhere arbitrary.
+
+     Each part keeps whitespace-pre-line, so a seller's own single newlines
+     survive inside a part exactly as they did when the whole string was one
+     element. */
+  const storyParagraphs = (listing.description ?? "")
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const storyIntro = storyParagraphs.length > 1 ? storyParagraphs[0] : null;
+  const storyBody =
+    storyParagraphs.length > 1
+      ? storyParagraphs.slice(1).join("\n\n")
+      : (storyParagraphs[0] ?? null);
 
   /* §2 IDENTITY — maker eyebrow, model heading, reference signature.
      `brand` and `model` are separate columns; the model value is normally the
@@ -993,46 +1038,85 @@ export default async function ListingDetailPage({
             <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
               From the Seller
             </div>
-            {listing.description && (
+            {/* No photograph, no composition: the narrative keeps the full
+                measure exactly as it always has. The two-column reading only
+                exists because there is something to read it against. */}
+            {listing.description && !storyPhotoUrl && (
               <p className="mt-3 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
                 {listing.description}
               </p>
             )}
+
             {storyPhotoUrl && (
-              /* Decorative on purpose: the photograph repeats evidence the
-                 gallery already presents accessibly, and giving it nothing to
-                 announce is the same promise as giving it nothing to click. */
-              /* A RATIO, NEVER A FIXED HEIGHT.
+              <>
+                {storyIntro && (
+                  <p className="mt-3 whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+                    {storyIntro}
+                  </p>
+                )}
+                {/* THE READING, NOT A BANNER.
 
-                 Two fixed heights (160px, then 220px from 56rem) sat against
-                 a column that runs from about 332px narrow to its 974px
-                 ceiling, so the crop was a function of the viewport rather
-                 than a decision: roughly 4.4:1 on a wide desktop, and 4.4:1
-                 again between 768px and 895px, where the column had already
-                 grown while the height was still the narrow one. At that
-                 shape a square photograph kept under a quarter of its own
-                 height, which is why the band read as a strip of background
-                 with a sliver of watch in it.
+                    The photograph sits BESIDE the words, which is what this
+                    section always said it was for. Full width beneath them
+                    made a decorative echo louder than the gallery, which is
+                    the surface that actually carries evidence -- and at the
+                    full 974px measure the image also rendered past 1:1 of its
+                    own source, so every softness in a hand-held photograph was
+                    shown at magnification. The narrower column renders the
+                    same file at roughly a third of that width, where
+                    downsampling hides what enlargement advertised.
 
-                 One ratio holds the same crop at every width. `relative` and
-                 `overflow-hidden` stay because frameStyle documents them as
-                 its parent contract -- the rotated branch positions itself
-                 against them. The image is h-full w-full rather than
-                 absolutely positioned for the same reason: that branch sets
-                 its own position, width and height, and inset-0 would fight
-                 it. */
-              <div
-                aria-hidden="true"
-                className="relative mt-6 aspect-[8/5] overflow-hidden border-t border-[var(--border-faint)]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={storyPhotoUrl}
-                  alt=""
-                  style={storyFrameStyle}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+                    A GRID, DELIBERATELY NOT A FLOAT. Text does not wrap around
+                    the photograph. A float would read more editorial but binds
+                    the layout to the length of seller prose: a short narrative
+                    lets the image escape its own section, and this text is
+                    whitespace-pre-line, so a seller who hard-wraps their lines
+                    controls the wrap. The grid cannot be broken by what
+                    somebody types.
+
+                    Narrow stacks copy first, photograph second -- which is DOM
+                    order, so no ordering rules are needed. col-start-2 is not
+                    decoration: with a single-paragraph narrative there is no
+                    left cell, and without it the photograph would fall into
+                    the wide column. */}
+                <div className="mt-6 grid gap-5 min-[56rem]:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] min-[56rem]:items-start min-[56rem]:gap-[44px]">
+                  {storyBody && (
+                    <p className="whitespace-pre-line font-display text-[16px] font-light leading-[1.9] text-[var(--platinum-dim)]">
+                      {storyBody}
+                    </p>
+                  )}
+
+                  {/* Decorative on purpose: the photograph repeats evidence the
+                      gallery already presents accessibly, and giving it nothing
+                      to announce is the same promise as giving it nothing to
+                      click.
+
+                      A RATIO, NEVER A FIXED HEIGHT. Two fixed heights (160px,
+                      then 220px from 56rem) once sat against a column that ran
+                      from about 332px to 974px, so the crop was a function of
+                      the viewport rather than a decision -- about 4.4:1 on a
+                      wide desktop, and 4.4:1 again between 768px and 895px
+                      where the column had already grown while the height was
+                      still the narrow one. `relative` and `overflow-hidden`
+                      stay because frameStyle documents them as its parent
+                      contract, and the image is h-full w-full rather than
+                      absolutely positioned because that rotated branch sets its
+                      own position, width and height and inset-0 would fight
+                      it. */}
+                  <div
+                    aria-hidden="true"
+                    className={`relative ${STORY_ASPECT_CLASS} overflow-hidden border border-[var(--border-faint)] min-[56rem]:col-start-2`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={storyPhotoUrl}
+                      alt=""
+                      style={storyFrameStyle}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+              </>
             )}
           </section>
         )}
