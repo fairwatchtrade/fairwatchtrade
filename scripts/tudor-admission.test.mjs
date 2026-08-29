@@ -319,4 +319,73 @@ const identityGate = (r) => r.gates.find((g) => g.key === "identity");
     tr.includes("t.key !== d.vaultReferenceKey) return null;"));
 }
 
+/* ── J · ingest validation: loud at the door, and pinned to the parser ── */
+{
+  const { validateFwtAdmission, collectFwtAdmissionErrors } = await import(
+    "./ingest-vault-validation.js"
+  ).then((m) => m.default ?? m);
+
+  // The validator and the runtime parser must agree — same fixtures, both.
+  const agree = (label, meta) => {
+    const v = validateFwtAdmission(meta.fwt_admission);
+    const p = parseTudorAdmission(meta, REF_ID);
+    ok(`validator and parser agree: ${label}`, v.ok === p.admitted);
+    return v;
+  };
+  agree("original_required", ORIGINAL_META);
+  agree("enhanced with identifiers", ENHANCED_META);
+  const badStatus = agree("unknown status", {
+    fwt_admission: { status: "pending", documentation_policy: "original_required" },
+  });
+  ok("…and the validator names the field", badStatus.field === "fwt_admission.status");
+  const badPolicy = agree("unknown policy", {
+    fwt_admission: { status: "admitted", documentation_policy: "papers_optional" },
+  });
+  ok("…policy failure names its field", badPolicy.field === "fwt_admission.documentation_policy");
+  const noIds = agree("enhanced without identifiers", {
+    fwt_admission: { status: "admitted", documentation_policy: "enhanced_evidence_allowed" },
+  });
+  ok("…identifier failure names its field",
+    noIds.field === "fwt_admission.identity_evidence.required_identifiers");
+  agree("identifier with empty label", {
+    fwt_admission: {
+      status: "admitted",
+      documentation_policy: "enhanced_evidence_allowed",
+      identity_evidence: { required_identifiers: [{ key: "x", label: " ", photo_required: true }] },
+    },
+  });
+
+  // The deep scan finds a malformed declaration wherever the format nests it,
+  // and reports the sibling reference.
+  const brandFixture = {
+    name: "Tudor",
+    collections: [{
+      name: "Black Bay",
+      families: [{
+        name: "Heritage",
+        variants: [{
+          name: "79090",
+          references: [
+            { reference: "79090", fwt_admission: { status: "admited", documentation_policy: "original_required" } },
+            "79190",
+          ],
+        }],
+      }],
+    }],
+  };
+  const errs = collectFwtAdmissionErrors(brandFixture);
+  eq("the malformed fixture is caught exactly once", errs.length, 1);
+  eq("…naming the reference", errs[0].reference, "79090");
+  eq("…and the exact field", errs[0].field, "fwt_admission.status");
+  eq("a clean fixture scans clean", collectFwtAdmissionErrors({ name: "Tudor", collections: [] }).length, 0);
+
+  // The ingest script aborts before ANY write, and carries the key through.
+  const iv = readFileSync(new URL("./ingest-vault.js", import.meta.url), "utf8");
+  ok("the ingest preflights the WHOLE run before the first write",
+    iv.indexOf("collectFwtAdmissionErrors(data)") < iv.indexOf("await ingestBrand(data, file)") &&
+      /ADMISSION METADATA INVALID[\s\S]{0,400}process\.exit\(1\)/.test(iv));
+  ok("validated fwt_admission rides the metadata rebuild verbatim",
+    iv.includes("...(ref.fwt_admission ? { fwt_admission: ref.fwt_admission } : {})"));
+}
+
 console.log(`tudor-admission: ${passed} assertions PASS`);

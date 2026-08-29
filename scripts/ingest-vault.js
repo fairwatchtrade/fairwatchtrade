@@ -11,6 +11,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
 const { createClient } = require('@supabase/supabase-js');
+const { collectFwtAdmissionErrors } = require('./ingest-vault-validation');
 
 const VAULT_PATH = 'G:/My Drive/Fairwatchtrade Vault GD/FairWatchTrade-Vault-Lab/brands';
 
@@ -284,6 +285,12 @@ async function ingestBrand(brandData, filename) {
                 case_material: ref.case || ref.case_material || null,
                 movement: ref.movement || null,
                 notes: ref.notes || null,
+                /* Governed admission policy rides through VERBATIM — the
+                   preflight in main() has already validated every declared
+                   fwt_admission in the run, or we never got here. Without
+                   this carry the rebuilt metadata silently dropped the key
+                   and no reference could ever be admitted. */
+                ...(ref.fwt_admission ? { fwt_admission: ref.fwt_admission } : {}),
               }
             };
           }
@@ -347,13 +354,42 @@ async function main() {
     console.log(`Found ${entries.length} JSON files to ingest\n`);
   }
 
-  let success = 0;
-  let failed = 0;
-
+  /* ── Admission-metadata preflight — the WHOLE run, before ANY write ──
+     Hand-authored fwt_admission must never fail silently: ingested with a
+     typo it would read as NOT ADMITTED at runtime while its author
+     believes the reference is live. Every file is parsed and every
+     declared admission block validated up front; one malformed field
+     aborts the entire run with the brand, the reference and the exact
+     field named, and nothing has been written yet — not even for the
+     clean files ahead of it in the list. */
+  const parsed = [];
+  const admissionErrors = [];
   for (const { file, filePath } of entries) {
     try {
       const raw = fs.readFileSync(filePath, 'utf-8');
       const data = JSON.parse(raw);
+      parsed.push({ file, data });
+      for (const e of collectFwtAdmissionErrors(data)) {
+        admissionErrors.push({ file, ...e });
+      }
+    } catch (err) {
+      parsed.push({ file, parseError: err.message });
+    }
+  }
+  if (admissionErrors.length > 0) {
+    console.error('❌ ADMISSION METADATA INVALID — ingest aborted before any write.');
+    for (const e of admissionErrors) {
+      console.error(`   ${e.file} · reference ${e.reference} · ${e.field}: ${e.reason}`);
+    }
+    process.exit(1);
+  }
+
+  let success = 0;
+  let failed = 0;
+
+  for (const { file, data, parseError } of parsed) {
+    try {
+      if (parseError) throw new Error(parseError);
       await ingestBrand(data, file);
       success++;
     } catch (err) {
