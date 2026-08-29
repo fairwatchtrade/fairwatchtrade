@@ -10,6 +10,32 @@
    fill="currentColor" so it inherits whatever state its button is in:
    resting, hover, focus. The size is the caller's business, because the mark
    appears both as a 19px control on a card and larger beside a heading.
+
+   ── SMALL-ICON LEGIBILITY — read before redrawing this mark ──────────────
+
+   This component renders at three production sizes: 16px in the Quick Specs
+   panel heading, 18px on a Browse card, 24px on Listing Detail. 16px is the
+   real target.
+
+   · Design and judge at the SMALLEST production size first, then verify at
+     18px and 24px. Never draw large and check small afterwards.
+   · Preserve obvious lens/body asymmetry. Two rounded masses of similar
+     visual weight stop reading as a loupe; silhouette is the first read at
+     this size, before any internal detail.
+   · No structural cue may originate inside the lens-ring stroke band —
+     within about half a stroke-width either side of the ring path. For a
+     24-unit geometry at stroke 1.8 that means avoiding roughly r ± 0.9 from
+     the lens centre; anything starting there is drawn underneath the ring
+     and never appears.
+   · Single-colour FILLED geometry may use currentColor and keeps full state
+     tinting. Only a multi-tone drawing would freeze it. Filled art also
+     survives small sizes better than outlines, which have to keep their own
+     lines apart from one another.
+
+   The governing principle, which is not specific to icons:
+
+     DESIGN AT THE SIZE OF USE, NOT MERELY AT THE SIZE OF CREATION.
+
    ──────────────────────────────────────────────────────────────────────── */
 
 export default function LoupeIcon({
