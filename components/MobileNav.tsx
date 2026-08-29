@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useSyncExternalStore, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -250,6 +250,13 @@ type NavLink = {
   authedOnly?: boolean;
 };
 
+/* Stable subscription for the drawer's query reads: popstate is the only
+   navigation that changes the query without triggering a React render. */
+function subscribeToPopstate(onChange: () => void) {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
 const COLLECTOR_LINKS: NavLink[] = [
   { label: "Browse", href: "/browse" },
   { label: "Catalogue", href: "/catalogue" },
@@ -329,6 +336,50 @@ export default function MobileNav({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  /* ── Query-aware active state ─────────────────────────────────────────
+     Trades and Correspondence live at /account?module=…, but usePathname()
+     never carries the query — so `pathname === item.href` was false for
+     them FOREVER, and the plain /account comparison lit the Account entry
+     instead while a collector sat inside Trades.
+
+     The query is read from window.location deliberately instead of
+     useSearchParams(): this drawer mounts in the root layout, where that
+     hook would demand a Suspense boundary on every static route for the
+     sake of an overlay nobody sees until they tap. useSyncExternalStore
+     is the sanctioned reader for that external value — the server
+     snapshot is empty (inactive, safely), the client snapshot is re-read
+     on every render (every route change and every open re-renders this
+     component), and popstate covers back/forward, the one navigation
+     that changes the query without a render of its own. */
+  const locationSearch = useSyncExternalStore(
+    subscribeToPopstate,
+    () => window.location.search,
+    () => ""
+  );
+  const moduleParam = new URLSearchParams(locationSearch).get("module");
+
+  /* One rule for every entry: the path must match, and when the href names
+     query params, each of those must match too. An href with no query is
+     exactly the old comparison. */
+  const isItemActive = (href: string) => {
+    const [path, query] = href.split("?");
+    if (pathname !== path) return false;
+    if (!query) return true;
+    for (const [k, v] of new URLSearchParams(query)) {
+      if ((k === "module" ? moduleParam : null) !== v) return false;
+    }
+    return true;
+  };
+
+  /* The modules that belong to their OWN drawer entries. Account still
+     lights for every other /account view — settings, listings, saved —
+     but never while Trades or Correspondence owns the room, because two
+     lit entries would claim the collector is in two places at once. */
+  const accountActive =
+    pathname === "/account" &&
+    moduleParam !== "trades" &&
+    moduleParam !== "communications";
 
   // Escape closes the drawer and returns focus to the hamburger trigger (a11y:
   // the keyboard user lands back where they opened it). Outside interaction
@@ -415,7 +466,7 @@ export default function MobileNav({
             <DrawerLink
               key={`collector-${item.label}`}
               item={item}
-              active={pathname === item.href}
+              active={isItemActive(item.href)}
               tone="lead"
               onNavigate={onClose}
             />
@@ -429,7 +480,7 @@ export default function MobileNav({
             <DrawerLink
               key={`utility-${item.label}`}
               item={item}
-              active={pathname === item.href}
+              active={isItemActive(item.href)}
               tone="quiet"
               onNavigate={onClose}
             />
@@ -448,12 +499,12 @@ export default function MobileNav({
               href="/account"
               onClick={onClose}
               className={`flex items-center gap-3 border-l-2 px-5 py-[13px] text-[14.8px] transition ${
-                pathname === "/account"
+                accountActive
                   ? "border-[var(--gold)] bg-[color:light-dark(rgba(122,95,32,0.05),rgba(201,168,76,0.04))] text-[var(--platinum)]"
                   : "border-transparent text-[var(--muted)] hover:text-[var(--platinum)]"
               }`}
             >
-              <NavIcon label="Account" active={pathname === "/account"} />
+              <NavIcon label="Account" active={accountActive} />
               <span>Account</span>
             </Link>
           ) : (
@@ -492,7 +543,7 @@ export default function MobileNav({
             <DrawerLink
               key={`utility-${item.label}`}
               item={item}
-              active={pathname === item.href}
+              active={isItemActive(item.href)}
               tone="quiet"
               onNavigate={onClose}
             />
