@@ -117,23 +117,31 @@ export default function TradeOffersModule() {
   const [offers, setOffers] = useState<OfferRow[] | null>(null);
   const [deals, setDeals] = useState<Record<string, DealRow>>({});
   const [viewerId, setViewerId] = useState<string | null>(null);
+  /* Counterpart display names by user id — the sanctioned public names the
+     route resolves beside the offers. Read-only presentation state. */
+  const [counterpartNames, setCounterpartNames] = useState<Record<string, string | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
   const fetchOffers = useCallback(async (): Promise<{
     offers: OfferRow[];
     viewerId: string | null;
+    counterpartNames: Record<string, string | null>;
   }> => {
     try {
       const res = await fetch("/api/trade-offers");
-      if (!res.ok) return { offers: [], viewerId: null };
+      if (!res.ok) return { offers: [], viewerId: null, counterpartNames: {} };
       const data = await res.json();
       return {
         offers: Array.isArray(data.offers) ? data.offers : [],
         viewerId: typeof data.viewerId === "string" ? data.viewerId : null,
+        counterpartNames:
+          data.counterpartNames && typeof data.counterpartNames === "object"
+            ? data.counterpartNames
+            : {},
       };
     } catch {
-      return { offers: [], viewerId: null };
+      return { offers: [], viewerId: null, counterpartNames: {} };
     }
   }, []);
 
@@ -164,6 +172,7 @@ export default function TradeOffersModule() {
     const [o, d] = await Promise.all([fetchOffers(), fetchDeals()]);
     setOffers(o.offers);
     setViewerId(o.viewerId);
+    setCounterpartNames(o.counterpartNames);
     setDeals(d);
   }, [fetchOffers, fetchDeals]);
 
@@ -174,6 +183,7 @@ export default function TradeOffersModule() {
       if (cancelled) return;
       setOffers(o.offers);
       setViewerId(o.viewerId);
+      setCounterpartNames(o.counterpartNames);
       setDeals(d);
     })();
     return () => {
@@ -362,6 +372,18 @@ export default function TradeOffersModule() {
                   {historyLine && (
                     <div className="mt-1 text-[11px] text-[var(--muted)]">{historyLine}</div>
                   )}
+                  {/* The other party, by name — a trade is with a PERSON,
+                      and until now this surface never said which one. Same
+                      fallback the Correspondence inbox uses when a profile
+                      has no public name. */}
+                  <div className="mt-1 text-[11px] text-[var(--platinum-dim)]">
+                    With{" "}
+                    <span className="text-[var(--platinum)]">
+                      {counterpartNames[
+                        viewer === "proposer" ? o.recipient_id : o.proposer_id
+                      ] ?? "FairWatchTrade Member"}
+                    </span>
+                  </div>
                 </div>
                 <div className="pt-1 text-[9px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
                   {currentState}
@@ -476,11 +498,21 @@ export default function TradeOffersModule() {
                   {deal.cash_direction !== "none" && deal.cash_amount != null && (
                     <p className="mt-2 text-[12px] text-[var(--platinum-dim)]">
                       Cash adjustment {formatMoney(deal.cash_amount, deal.cash_currency)}{" "}
+                      {/* Viewer-relative, never role-language: the exchange
+                          sides above already speak as "you receive / you
+                          give", and the money must speak the same way. A
+                          seller should never have to remember which of the
+                          two of them the word "proposer" meant. */}
                       <span className="text-[var(--muted)]">
                         &mdash;{" "}
-                        {deal.cash_direction === "proposer_pays"
-                          ? "from the proposer"
-                          : "from the recipient"}
+                        {(deal.cash_direction === "proposer_pays") ===
+                        (viewer === "proposer")
+                          ? "from you"
+                          : `from ${
+                              counterpartNames[
+                                viewer === "proposer" ? o.recipient_id : o.proposer_id
+                              ] ?? "your counterparty"
+                            }`}
                         . Recorded here, settled between you. FairWatchTrade does not move it.
                       </span>
                     </p>

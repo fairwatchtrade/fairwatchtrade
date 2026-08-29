@@ -65,7 +65,36 @@ export async function GET() {
     return NextResponse.json({ error: "read_failed", detail: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ offers: data ?? [], viewerId: user.id }, { status: 200 });
+  /* Counterpart names — the OTHER party of each offer, resolved through
+     public_seller_profiles, the sanctioned public-name path (see
+     /api/messages GET: reading `profiles` directly silently degrades to
+     nothing once RLS tightens to select-own; the view is what display
+     names are shared through). Additive field: a client that ignores it
+     behaves exactly as before, and a lookup failure costs the names,
+     never the offers. */
+  const offers = data ?? [];
+  const counterpartIds = [
+    ...new Set(
+      offers
+        .map((o) => (o.proposer_id === user.id ? o.recipient_id : o.proposer_id))
+        .filter((id): id is string => typeof id === "string" && id !== "")
+    ),
+  ];
+  let counterpartNames: Record<string, string | null> = {};
+  if (counterpartIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("public_seller_profiles")
+      .select("id, display_name")
+      .in("id", counterpartIds);
+    counterpartNames = Object.fromEntries(
+      (profiles ?? []).map((p) => [p.id as string, (p.display_name as string | null) ?? null])
+    );
+  }
+
+  return NextResponse.json(
+    { offers, viewerId: user.id, counterpartNames },
+    { status: 200 }
+  );
 }
 
 export async function POST(request: NextRequest) {
