@@ -44,6 +44,8 @@ import type { DocumentationStatus, PhotoCategory } from "@/lib/scoring";
    honest classification is the goal. Saved drafts that still carry a `case`
    classification remain resumable — unclassifiedComponents() iterates THIS
    list, so a stale extra key is simply ignored, never an error. */
+import { classifyRolexIdentifier } from "./rolexIdentifier.ts";
+
 export const COMPONENT_KEYS = [
   "dial",
   "hands",
@@ -217,6 +219,54 @@ export function requirementProfileFor(
   brand: string | null | undefined
 ): RequirementProfile | null {
   return (brand ?? "").trim().toLowerCase() === "rolex" ? ROLEX_PROFILE : null;
+}
+
+/* ── Watch-identity change law (admission-state reset) ───────────────────
+   Admission answers are affirmations about ONE physical watch: "I can
+   provide THIS watch's documentation", "THIS watch is complete", "THIS
+   component is original". They must never silently survive a change of
+   which watch the draft is about — a seller who affirmed a Submariner's
+   papers and then retyped the field into a Datejust would otherwise arrive
+   at Review pre-affirmed on answers nobody gave about the Datejust.
+
+   What counts as "the same watch" here deliberately reuses the semantics
+   the product already has, rather than inventing a second identity:
+
+   · brand equality is the dispatcher's own rule above — trim + lowercase;
+   · reference equality is canonicalReferenceText's rule from the Sell
+     path: trimmed text, except that under the Rolex profile a documented
+     Style and its derived canonical reference are the SAME identity, so
+     editing R79173327B6252 down to 79173 is a spelling change, not a
+     different watch, and must not cost the seller their affirmations.
+
+   The reset itself lives with the draft's owner (the Sell Flow patch
+   door); this function only answers the question, so the rule is testable
+   without a browser and cannot drift per-surface. */
+
+/** The reference text's identity under a brand — trim, plus the Rolex
+    Style→canonical equivalence when the brand has the Rolex profile. */
+export function normalizedReferenceIdentity(
+  brand: string | null | undefined,
+  reference: string | null | undefined
+): string {
+  const trimmed = (reference ?? "").trim();
+  if (!requirementProfileFor(brand)) return trimmed;
+  const ident = classifyRolexIdentifier(trimmed);
+  return ident.kind === "unsupported" ? trimmed : ident.reference;
+}
+
+/** True when brand/reference now describe a materially different watch. */
+export function watchIdentityChanged(
+  prev: { brand: string; reference: string },
+  next: { brand: string; reference: string }
+): boolean {
+  const prevBrand = prev.brand.trim().toLowerCase();
+  const nextBrand = next.brand.trim().toLowerCase();
+  if (prevBrand !== nextBrand) return true;
+  return (
+    normalizedReferenceIdentity(prev.brand, prev.reference) !==
+    normalizedReferenceIdentity(next.brand, next.reference)
+  );
 }
 
 /* ── Composition helpers (read-time, single source of truth) ─────────────── */

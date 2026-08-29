@@ -55,6 +55,7 @@ import {
 import {
   requirementProfileFor,
   missingRequiredViews,
+  watchIdentityChanged,
   type AdmissionState,
 } from "@/lib/admission/requirementProfile";
 import {
@@ -510,9 +511,45 @@ export default function SellFlow({
     };
   }, []);
 
+  /* ── The one mutation door — and therefore the one reset seam ─────────
+     Admission affirmations answer questions about ONE physical watch, so
+     a patch that materially changes WHICH watch (brand, or the seller-
+     entered reference identity) clears them, exactly as the canonical
+     vault id above already clears itself when its context stops matching.
+     The same law, the same reason: stale identity-bound state silently
+     filed under a different watch is worse than no state at all.
+
+     Deliberate boundaries:
+     · watchIdentityChanged owns "materially different" — trim/lowercase
+       brand, canonical-reference semantics for the Rolex Style, so a
+       no-op reselect or a Style→canonical retype never clears;
+     · hydration cannot fire this: adoptRow and the mount-resume path go
+       through setDraft directly, so a reloaded unchanged draft keeps its
+       admission answers untouched;
+     · only details.admission is cleared — every other detail the seller
+       entered survives, because dial colour is true of the NEW watch
+       until the seller says otherwise, while an affirmation is not;
+     · the guard is skipped when nothing is there to clear, so per-
+       keystroke reference edits do not churn the details object (or the
+       autosave revisions riding on it) while admission is still empty. */
   function patch(p: Partial<ListingDraft>) {
     userTouchedRef.current = true;
-    setDraft((d) => ({ ...d, ...p }));
+    setDraft((d) => {
+      const next = { ...d, ...p };
+      if (
+        ("brand" in p || "reference" in p) &&
+        d.details.admission !== undefined &&
+        watchIdentityChanged(
+          { brand: d.brand, reference: d.reference },
+          { brand: next.brand, reference: next.reference }
+        )
+      ) {
+        const details = { ...next.details };
+        delete details.admission;
+        next.details = details;
+      }
+      return next;
+    });
   }
 
   /* ── Privacy redaction commit (the one owner of the swap) ───────────────
