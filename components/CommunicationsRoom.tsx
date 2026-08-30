@@ -659,7 +659,7 @@ export default function CommunicationsRoom({
               </p>
             </HelpBubble>
           </div>
-          <div className="flex gap-1 overflow-x-auto px-3 py-2 md:block md:space-y-[2px] md:overflow-visible md:px-2 md:py-0">
+          <div className="flex flex-wrap gap-1 px-3 py-2 md:block md:space-y-[2px] md:px-2 md:py-0">
             {(Object.keys(FOLDER_LABEL) as CommFolder[]).map((f) => {
               const active = folder === f;
               const count = counts[f];
