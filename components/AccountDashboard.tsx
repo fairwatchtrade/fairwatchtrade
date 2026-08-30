@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import AccountRail from "@/components/AccountRail";
 import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
+import AccountRoomSelector from "@/components/AccountRoomSelector";
 import DealerAcceleratorRoom from "@/components/DealerAcceleratorRoom";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
 import WantedRequestsModule from "@/components/WantedRequestsModule";
@@ -923,39 +924,19 @@ export default function AccountDashboard({
                   false on a phone. */}
               <div className="relative flex items-center gap-1">
                 {/* Mobile-only room selector; desktop keeps the left rail and
-                    this stays hidden. One tap opens the OS picker — the
-                    restrained resolution of the existing select language, no
-                    second drawer, no bottom-sheet code of our own. */}
-                <div className="relative md:hidden">
-                  <label htmlFor="account-room" className="sr-only">
-                    Account room
-                  </label>
-                  <select
-                    id="account-room"
-                    value={mobileRoomValue}
-                    onChange={(e) => selectRoom(e.target.value)}
-                    className="w-full appearance-none border-b border-[var(--border-mid)] bg-transparent py-1.5 pr-7 font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] focus:border-[var(--border-gold)] focus:outline-none"
-                  >
-                    <option value="dashboard">Overview</option>
-                    <option value="inventory">Listings</option>
-                    <option value="trades">Trades</option>
-                    <option value="communications">Messages</option>
-                    <option value="saved">Saved</option>
-                    <option value="wanted">Wanted</option>
-                    <option value="accelerator">Dealer</option>
-                    <option value="settings">Settings</option>
-                  </select>
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
-                  >
-                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
+                    this stays hidden. The original native <select> was the
+                    restrained first resolution, but its open state on a real
+                    phone is the OS radio-sheet — a giant native drawer in
+                    none of the product's language. This is the same compact
+                    46px control the collector navigation settled on: an
+                    owned lightweight overlay, the current room always
+                    legible, and the identical ?module= truth underneath —
+                    selection still calls the same selectRoom the native
+                    select called. */}
+                <AccountRoomSelector
+                  value={mobileRoomValue}
+                  onSelect={selectRoom}
+                />
                 <h2 className="hidden font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] md:block">
                   {moduleTitle}
                 </h2>
