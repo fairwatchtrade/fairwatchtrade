@@ -137,15 +137,22 @@ export default function AccountRoomSelector({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex h-[46px] items-center gap-3 border-y border-[var(--border-subtle)] pr-1 text-left"
+        className="flex h-[46px] items-center gap-3 border-y border-[var(--border-subtle)] text-left"
       >
-        <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
-          Account
+        {/* The closed control copies the collector selector's rendered
+            treatment verbatim — baseline-grouped label and room word, then
+            the gold chevron: the one affordance language every FWT room
+            selector shares. Mineral remains the SELECTION language inside
+            the open menu (edge, wash, check), per the ruled palette split. */}
+        <span className="flex items-baseline gap-3">
+          <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+            Account
+          </span>
+          <span className="font-display text-[16px] font-light text-[var(--platinum)]">
+            {currentLabel}
+          </span>
         </span>
-        <span className="font-display text-[16px] font-light text-[var(--platinum)]">
-          {currentLabel}
-        </span>
-        <span className="text-[var(--mineral)]">
+        <span className="text-[var(--gold)]">
           <Chevron open={open} />
         </span>
       </button>

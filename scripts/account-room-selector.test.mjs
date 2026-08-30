@@ -57,15 +57,15 @@ ok("Escape returns focus to the trigger",
 ok("route/module change still closes via render-adjustment, never an effect",
   src.includes("valueWhenOpened !== value") && src.includes("setOpen(false);"));
 
-/* ── 4 · the ruled palette survives (v7.42) ── */
-ok("chevron is mineral",
-  /text-\[var\(--mineral\)\]"?>\s*<Chevron/.test(src));
+/* ── 4 · the ruled palette survives (v7.42 selection + v7.46 chevron) ── */
+ok("chevron copies the collector selector's gold treatment",
+  /text-\[var\(--gold\)\]"?>\s*<Chevron/.test(src));
 ok("selected edge + wash are mineral, at the governed wash value",
   src.includes('border-[var(--mineral)] bg-[rgba(62,99,121,0.07)]'));
 ok("selection check is mineral",
   /selected && \([\s\S]{0,60}text-\[var\(--mineral\)\]/.test(src));
-ok("no gold remains in the selector's structural language",
-  !src.includes("--gold"));
+ok("no gold leaks into the SELECTION language — edge, wash and check stay mineral",
+  !src.includes("border-[var(--gold)]") && !src.includes("bg-[var(--gold"));
 ok("current-room word keeps the display serif ink",
   src.includes('font-display text-[16px] font-light text-[var(--platinum)]'));
 
