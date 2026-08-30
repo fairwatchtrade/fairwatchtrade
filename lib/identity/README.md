@@ -1,3 +1,28 @@
+---
+system_id: identity
+owns:
+  - lib/identity
+protected:
+  - path: lib/identity/identifierToken.ts
+    reason: HMAC construction with identifier type and both version numbers inside the domain. A change silently makes every prior token non-comparable, and no raw value exists to re-tokenize from.
+  - path: lib/identity/canonicalIdentity.ts
+    reason: referenceCompareKey is deliberately timid - whitespace and case only. Widening it widens what the platform will silently call the same watch. That is a founder ruling, not a refactor.
+traps:
+  - Observation chains are append-only. A current-generation query must filter is_current = true, or superseded corrections read as live evidence.
+  - Chain head is not the effective edge. physical_watch_decision_heads gives the latest event; physical_watch_effective_decisions gives what is currently believed. A RETRACTED row sits as chain head while the pair is effectively unresolved.
+  - Conflict is derived over the FULL closure after every change, never over the pair just written. Confirming one pair can make a long-standing non-match two hops away contradictory that instant.
+  - The identifier equality token is HMAC, not SHA256. Never delete IDENTIFIER_TOKEN_KEY_V1 - destroying an old key permanently blinds the platform to every observation written under it.
+  - Passport reads every event at ITS OWN decision_generation via resolve_physical_watch_as_of, never through current identity. Reading through current identity would make a withdrawn conclusion look as though it had always been true.
+  - listings.physical_watch_id is minted by a column DEFAULT, not application code. Nothing in TypeScript writes it and nothing should start.
+  - 06A uses ON DELETE SET NULL and 06B uses ON DELETE RESTRICT. The opposite answers are deliberate - taxonomy may be reclassified, object identity may not be severed.
+not_built:
+  - No backfill of canonical identity. Historical rows are corrected by a human or not at all.
+  - No same-watch matching, dedupe, merge or split in 06A or 06B. 06D is the first round permitted to reason about same-watch identity.
+  - No raw identifier storage and no buyer-facing masked reveal.
+  - No public Passport route, no collector route, no SEO or canonical Passport page.
+  - listing_decision_events records no private_active transition, so private-to-public and public-to-private transitions cannot be durably proven. The Passport reports the gap rather than inferring one.
+---
+
 # Watch Identity
 
 Two separate questions live in this folder, and conflating them is how

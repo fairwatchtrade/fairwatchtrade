@@ -1,3 +1,26 @@
+---
+system_id: wanted
+owns:
+  - app/wanted
+  - app/api/wanted
+  - lib/wanted.ts
+  - components/WantedWorkspace.tsx
+  - components/WantedRequestsModule.tsx
+  - supabase/migrations/20260823210000_wanted_requests_v1.sql
+watches:
+  - app/api/listings
+protected:
+  - path: supabase/migrations/20260823210000_wanted_requests_v1.sql
+    reason: Defines wanted_requests_for_seller(), the only seller-facing read. Its returns table deliberately omits target_price, max_price, collector_note and requester_id.
+traps:
+  - wanted_requests has an own-row SELECT policy and NO seller policy at all. A seller session querying the table gets zero rows. Do not add a seller policy to make a seller-facing read work - the seller path is the SECURITY DEFINER projection.
+  - Privacy here is structural, not a column list. Selecting fewer columns is the weak form; there is deliberately no column list for a future edit to get wrong.
+  - The budget comparison runs inside Postgres and leaves as one of three words - within, near, outside. It must never leave as a number.
+not_built:
+  - Nothing reuses saved_searches. A collector may hold both a Saved Search and a Wanted for the same watch; that is expected, not duplication.
+  - Wanted is not Purchase Request, not Private Listing, not Trade, and not Agent-Native discovery. They share plumbing ideas and are separate products.
+---
+
 # Wanted / Looking For — the demand primitive
 
 > A collector declares the exact watch they are actively trying to buy, and an

@@ -44,3 +44,6 @@ app/api/watch-ship/
 # local agent workspace and dev server logs — never staged, never shipped
 .claude/
 dev*.log
+
+# continuity recovery packets are compiled on demand and are never authority
+continuity/packets/

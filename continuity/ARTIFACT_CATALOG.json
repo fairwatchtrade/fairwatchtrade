@@ -1,0 +1,192 @@
+{
+  "catalog_version": 1,
+  "note": "Hand-maintained pointer and classifier. A catalog entry does not make its target authoritative. Authority comes from the artifact's own authority_state and from the governing front door named in continuity/README.md.",
+  "writer_field_note": "writer records a ROLE, never an individual's name. See continuity/README.md.",
+  "contract": {
+    "single_current_authority": [
+      { "system": "continuity", "type": "build_order" }
+    ]
+  },
+  "systems": [
+    {
+      "system_id": "wanted",
+      "title": "Wanted / Looking For — collector demand primitive",
+      "material_paths": [
+        "app/wanted",
+        "app/api/wanted",
+        "lib/wanted.ts",
+        "components/WantedWorkspace.tsx",
+        "components/WantedRequestsModule.tsx"
+      ]
+    },
+    {
+      "system_id": "identity",
+      "title": "Watch Identity — canonical, physical, identifier, resolution, transfer, passport",
+      "material_paths": [
+        "lib/identity"
+      ]
+    },
+    {
+      "system_id": "trades",
+      "title": "Trade Offers and Trade Deals",
+      "material_paths": [
+        "app/api/trade-offers",
+        "app/api/trades",
+        "app/api/trade/transfer",
+        "lib/trade.ts",
+        "components/TradeOffersModule.tsx",
+        "components/ProposeTradeDialog.tsx"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "LAW-PRODUCT-LAWS-FRONT-DOOR",
+      "type": "law",
+      "system": "governance",
+      "title": "FairWatchTrade Product Laws — front door and authority order",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/README.md" },
+      "writer": "founder",
+      "date": null,
+      "note": "Declares the standing authority order: Product Soul, then Product Laws, then Current Work Order, then Repository Truth."
+    },
+    {
+      "id": "LAW-PRODUCT-FIDELITY",
+      "type": "law",
+      "system": "governance",
+      "title": "Product Fidelity Rules",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/Product_Fidelity_Rules.md" },
+      "writer": "founder",
+      "date": null,
+      "note": "Repo copy. A newer governance copy is maintained outside the repository; see the contradiction record CONTRA-FIDELITY-RULE-COUNT."
+    },
+    {
+      "id": "LAW-READABILITY-FLOOR",
+      "type": "law",
+      "system": "design-system",
+      "title": "Readability Floor Governance",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/Readability-Floor-Governance.md" },
+      "writer": "founder",
+      "date": null,
+      "note": "Governs colour-token floors. A proposed rendered-letterform amendment exists outside the repository and is NOT repository authority."
+    },
+    {
+      "id": "LAW-EXACT-IDENTIFIER-SEARCH",
+      "type": "law",
+      "system": "search",
+      "title": "Exact Identifier Search Law",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/Exact_Identifier_Search_Law.md" },
+      "writer": "founder",
+      "date": null,
+      "note": "Related never masquerades as found."
+    },
+    {
+      "id": "LAW-SOLO-DEV-WORKTREE",
+      "type": "law",
+      "system": "governance",
+      "title": "Solo-Developer / Worktree Proportionality Law",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/Solo-Developer-Worktree-Proportionality-Law.md" },
+      "writer": "founder",
+      "date": null,
+      "note": "One canonical working tree is the default."
+    },
+    {
+      "id": "LAW-HELP-BUBBLE",
+      "type": "law",
+      "system": "design-system",
+      "title": "Help Bubble Law",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "docs/product-laws/Help_Bubble_Law.md" },
+      "writer": "founder",
+      "date": null
+    },
+    {
+      "id": "DESIGN-IDENTITY-HOME",
+      "type": "design",
+      "system": "identity",
+      "title": "Watch Identity — colocated architecture record (06A through 06F)",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "lib/identity/README.md" },
+      "writer": "build",
+      "date": null,
+      "note": "Also serves as this system's System Home."
+    },
+    {
+      "id": "DESIGN-WANTED-HOME",
+      "type": "design",
+      "system": "wanted",
+      "title": "Wanted / Looking For — colocated architecture record",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "app/wanted/README.md" },
+      "writer": "build",
+      "date": null,
+      "note": "Also serves as this system's System Home."
+    },
+    {
+      "id": "DESIGN-GALAXY-HOME",
+      "type": "design",
+      "system": "vault-galaxy",
+      "title": "Vault Galaxy publication model — colocated architecture record",
+      "authority_state": "current",
+      "source": { "class": "repo", "location": "app/vault/galaxy/README.md" },
+      "writer": "build",
+      "date": null,
+      "note": "First instance of the colocated README convention."
+    },
+    {
+      "id": "ORDER-DOC-003-V4",
+      "type": "build_order",
+      "system": "continuity",
+      "title": "DOC-003 Zero-Context Continuity Spine — build order",
+      "authority_state": "authorized",
+      "source": {
+        "class": "external_handoff",
+        "location": "FWT_DOC-003_Zero_Context_Continuity_Spine_Seven_Build_Order_2026-08-30_v4_AUTHORIZED.md",
+        "location_verified": false,
+        "note": "Handed to the builder as a file outside the repository and outside Drive. The compiler cannot independently locate it."
+      },
+      "supersedes": ["ORDER-DOC-003-V3"],
+      "writer": "product-architecture",
+      "date": "2026-08-30",
+      "note": "Authority-state promotion of the v3 packet. No architecture, parser, scope, or implementation semantics changed."
+    },
+    {
+      "id": "ORDER-DOC-003-V3",
+      "type": "build_order",
+      "system": "continuity",
+      "title": "DOC-003 Zero-Context Continuity Spine — review candidate",
+      "authority_state": "superseded",
+      "superseded_by": "ORDER-DOC-003-V4",
+      "source": {
+        "class": "external_handoff",
+        "location": "DOC-003 v3 review candidate",
+        "location_verified": false,
+        "note": "Referenced by the v4 packet. Exact filename not independently verified by the builder; recorded as a supersession edge only."
+      },
+      "writer": "product-architecture",
+      "date": "2026-08-30",
+      "note": "Candidate/review draft. Must never compile as current authority."
+    },
+    {
+      "id": "CONTRA-FIDELITY-RULE-COUNT",
+      "type": "incident",
+      "system": "governance",
+      "title": "Repo Product Fidelity Rules trail the governance copy",
+      "authority_state": "current",
+      "source": {
+        "class": "production_proof",
+        "location": "Compare docs/product-laws/Product_Fidelity_Rules.md against the founder's governance copy.",
+        "proof_method": "grep the repo file for rule headings 13, 14, 15; observed absent 2026-08-30.",
+        "location_verified": true
+      },
+      "writer": "build",
+      "date": "2026-08-30",
+      "note": "Unresolved contradiction, recorded not repaired. DOC-003 may report this and may not silently repair governance documents."
+    }
+  ]
+}
