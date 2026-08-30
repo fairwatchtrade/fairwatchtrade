@@ -1040,7 +1040,17 @@ export default function AccountDashboard({
           {activeModule === "saved" ? (
             <SavedSearchesModule />
           ) : activeModule === "trades" ? (
-            <TradeOffersModule />
+            /* SFX-024 — the Trades surface owns its narrow gutter HERE, at
+               the one mounting seam, rather than hand-padding every child.
+               The workspace header above is inset px-6 while this module
+               rendered flush, so on the real phone every heading, exchange
+               block and Transfer Record sat against the physical left edge
+               (the recurring left-cliff law violation). px-4 matches the
+               surrounding mobile idiom; md:px-0 keeps the accepted desktop
+               presentation byte-identical. */
+            <div className="px-4 pb-6 md:px-0 md:pb-0">
+              <TradeOffersModule />
+            </div>
           ) : activeModule === "wanted" ? (
             /* Rendered ONCE outside the mobile/desktop split, the same
                reasoning as Saved Searches above: mounted in both branches
