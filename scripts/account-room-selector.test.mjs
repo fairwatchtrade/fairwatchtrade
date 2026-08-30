@@ -60,6 +60,8 @@ ok("route/module change still closes via render-adjustment, never an effect",
 /* ── 4 · the ruled palette survives (v7.42 selection + v7.46 chevron) ── */
 ok("chevron copies the collector selector's gold treatment",
   /text-\[var\(--gold\)\]"?>\s*<Chevron/.test(src));
+ok("the closed control carries the collector selector's exact geometry — full width, chevron on the right edge",
+  src.includes('flex h-[46px] w-full items-center justify-between border-y border-[var(--border-subtle)] text-left'));
 ok("selected edge + wash are mineral, at the governed wash value",
   src.includes('border-[var(--mineral)] bg-[rgba(62,99,121,0.07)]'));
 ok("selection check is mineral",

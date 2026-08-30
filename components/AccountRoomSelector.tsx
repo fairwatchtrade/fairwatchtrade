@@ -130,14 +130,14 @@ export default function AccountRoomSelector({
   }
 
   return (
-    <nav ref={navRef} className="relative md:hidden" aria-label="Account room">
+    <nav ref={navRef} className="relative w-full md:hidden" aria-label="Account room">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex h-[46px] items-center gap-3 border-y border-[var(--border-subtle)] text-left"
+        className="flex h-[46px] w-full items-center justify-between border-y border-[var(--border-subtle)] text-left"
       >
         {/* The closed control copies the collector selector's rendered
             treatment verbatim — baseline-grouped label and room word, then

@@ -922,7 +922,7 @@ export default function AccountDashboard({
                   No direction word: the panel is to the right on desktop but
                   stacks BELOW the list under lg, so "on the right" would be
                   false on a phone. */}
-              <div className="relative flex items-center gap-1">
+              <div className="relative flex min-w-0 flex-1 items-center gap-1 md:min-w-fit md:flex-initial">
                 {/* Mobile-only room selector; desktop keeps the left rail and
                     this stays hidden. The original native <select> was the
                     restrained first resolution, but its open state on a real
