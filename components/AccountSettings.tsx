@@ -318,31 +318,49 @@ export default function AccountSettings({
   return (
     <main className="min-h-screen bg-[var(--ink)] px-6 py-12 text-[var(--platinum)]">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-8">
-          <div className="text-[11px] uppercase tracking-[2.6px] text-[var(--gold-subtle)]">
-            Account
-          </div>
-          <h1 className="mt-2 font-display text-[28px] font-light text-[var(--platinum)]">
-            Account Settings
-          </h1>
-        </div>
+        {/* ── Section 1 — Profile, identity-first on mobile ──────────────
 
-        {/* ── Section 1 — Profile ── */}
-        <section className="mb-10">
-          <div className="mb-4 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
-            Profile
+            The upper mobile screen is precious, and the old stack spent it
+            on furniture: eyebrow, title, PROFILE, DISPLAY NAME — four lines
+            of labels before the collector's own name. On the phone the
+            editable display-name field IS the identity heading now: its
+            value leads the page in the serif, its gold underline is the
+            only hint it can be edited, and Account Settings sits beneath it
+            as the title. CSS order does the recomposition inside one flex
+            column, so desktop keeps its exact original sequence and
+            spacing; the labels the phone hides remain for the screen
+            reader — the field finally has a REAL label element either way. */}
+        <section className="mb-10 flex flex-col">
+          <div className="order-2 mb-4 md:order-1 md:mb-8">
+            <div className="hidden text-[11px] uppercase tracking-[2.6px] text-[var(--gold-subtle)] md:block">
+              Account
+            </div>
+            <h1 className="font-display text-[28px] font-light text-[var(--platinum)] md:mt-2">
+              Account Settings
+            </h1>
           </div>
-          <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-            Display name
+
+          <div className="order-1 md:order-2">
+            <div className="mb-4 hidden text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] md:block">
+              Profile
+            </div>
+            <label
+              htmlFor="account-display-name"
+              className="sr-only mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] md:not-sr-only md:block"
+            >
+              Display name
+            </label>
+            <input
+              id="account-display-name"
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Your display name"
+              className="fw-input !text-[22px] md:!text-[16px]"
+            />
           </div>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your display name"
-            className="fw-input"
-          />
-          <div className="mt-3 flex items-center gap-3">
+
+          <div className="order-3 mt-3 flex items-center gap-3">
             <button
               onClick={saveProfile}
               disabled={profileBusy}
@@ -371,7 +389,7 @@ export default function AccountSettings({
               column's own word for normal behaviour rather than a third
               state meaning the same thing. */}
           {hasDealerProfile && (
-            <div className="mt-6 flex items-start justify-between gap-6 border-t border-[var(--border-faint)] pt-4">
+            <div className="order-4 mt-6 flex items-start justify-between gap-6 border-t border-[var(--border-faint)] pt-4">
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] text-[var(--platinum-dim)]">
                   Use my business name in my Catalogue greeting
