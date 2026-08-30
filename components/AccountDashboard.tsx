@@ -1049,6 +1049,28 @@ export default function AccountDashboard({
                surrounding mobile idiom; md:px-0 keeps the accepted desktop
                presentation byte-identical. */
             <div className="px-4 pb-6 md:px-0 md:pb-0">
+              {/* SFX-025 — an explicit, deterministic way OUT. On the phone
+                 the only exit from this surface was Android/browser Back,
+                 and during the founder walk latency made a first press look
+                 ignored; the second press then overshot by two pages. This
+                 control is application navigation, not history: one tap is
+                 one selectModule to the Account overview through the same
+                 governed ?module= truth every switch uses - synchronous
+                 pushState, so there is no latency window to double-press
+                 into, and pressed feedback is immediate. It reads Back to
+                 Account rather than Back to Trades because this surface IS
+                 Trades - the room and the detail are one surface in the
+                 shipped product, and a control must name where it goes, not
+                 where a different topology would have put it. Mobile-only:
+                 desktop already has the persistent workspace navigation. */}
+              <button
+                type="button"
+                onClick={() => selectModule("dashboard")}
+                className="mb-4 flex min-h-[40px] items-center gap-2 text-[12px] uppercase tracking-[1.2px] text-[var(--platinum-dim)] transition-colors active:opacity-60 hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:hidden"
+              >
+                <span aria-hidden="true">←</span>
+                <span>Back to Account</span>
+              </button>
               <TradeOffersModule />
             </div>
           ) : activeModule === "wanted" ? (
