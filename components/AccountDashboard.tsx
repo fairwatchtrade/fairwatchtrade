@@ -900,6 +900,19 @@ export default function AccountDashboard({
         <div className="flex min-w-0 max-w-[1280px] flex-1 flex-col">
           {/* Shared workspace header */}
           <div className="flex-shrink-0 border-b border-[var(--border-faint)] px-6 pt-5 pb-0">
+            {/* Mobile: the room selector owns a FULL row of its own. It
+                shared the CTA row through v7.47, and the faithful right-
+                edge chevron geometry left it visually jammed against
+                CREATE LISTING on the real device — a full-width control
+                cannot be faithful inside half a row. The row below keeps
+                the CTA at its same right edge, one line down; desktop is
+                untouched because this row does not exist there. */}
+            <div className="mb-3 md:hidden">
+              <AccountRoomSelector
+                value={mobileRoomValue}
+                onSelect={selectRoom}
+              />
+            </div>
             <div className="mb-4 flex items-center justify-between">
               {/* Mobile is Inventory-only — except the explicit Saved
                   Searches deep link, which is the only mobile path there. */}
@@ -922,21 +935,7 @@ export default function AccountDashboard({
                   No direction word: the panel is to the right on desktop but
                   stacks BELOW the list under lg, so "on the right" would be
                   false on a phone. */}
-              <div className="relative flex min-w-0 flex-1 items-center gap-1 md:min-w-fit md:flex-initial">
-                {/* Mobile-only room selector; desktop keeps the left rail and
-                    this stays hidden. The original native <select> was the
-                    restrained first resolution, but its open state on a real
-                    phone is the OS radio-sheet — a giant native drawer in
-                    none of the product's language. This is the same compact
-                    46px control the collector navigation settled on: an
-                    owned lightweight overlay, the current room always
-                    legible, and the identical ?module= truth underneath —
-                    selection still calls the same selectRoom the native
-                    select called. */}
-                <AccountRoomSelector
-                  value={mobileRoomValue}
-                  onSelect={selectRoom}
-                />
+              <div className="relative flex items-center gap-1">
                 <h2 className="hidden font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] md:block">
                   {moduleTitle}
                 </h2>

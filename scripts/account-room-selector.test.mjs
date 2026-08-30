@@ -87,4 +87,16 @@ ok("current-room word keeps the display serif ink",
       src.includes("onSelect(room.id)"));
 }
 
+/* ── 6 · the mounting composition: a full row of its own ── */
+{
+  const dash = readFileSync(new URL("../components/AccountDashboard.tsx", import.meta.url), "utf8");
+  ok("the mobile selector owns a full-width row of its own, above the CTA row",
+    dash.indexOf("<AccountRoomSelector") < dash.indexOf("mb-4 flex items-center justify-between") &&
+      dash.split("<AccountRoomSelector").length - 1 === 1);
+  ok("that row exists on mobile only",
+    dash.includes(String.raw`className="mb-3 md:hidden"`));
+  ok("the CTA row no longer contains the selector",
+    dash.includes(String.raw`className="relative flex items-center gap-1"`));
+}
+
 console.log(`account-room-selector: ${passed} assertions PASS`);
