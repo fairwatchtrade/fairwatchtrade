@@ -90,17 +90,23 @@ export default function AccountRoomSelector({
   const currentLabel =
     ACCOUNT_ROOMS.find((r) => r.id === value)?.label ?? "Listings";
 
-  /* Outside dismissal, and Escape returns focus to the control that opened
-     the menu — the same contract the collector selector and the global
-     drawer honour. */
+  /* Escape closes and returns focus to the control that opened the menu.
+
+     POINTER dismissal deliberately does NOT live here anymore. The first
+     ship listened for document mousedown and closed the menu — which
+     consumed nothing. On Android Chrome a tap fires touchstart/touchend,
+     then a synthesized mousedown, then a CLICK at the same coordinates;
+     the listener closed the menu on the mousedown, the menu unmounted,
+     and the click landed on whatever stood underneath — on Overview, the
+     Dealer Accelerator row, so dismissing the selector NAVIGATED the
+     collector to Dealer. Dismissing and activating were one gesture,
+     which is exactly the defect the inspection bubble solved with a
+     transparent catcher: the outside tap must be SWALLOWED by
+     construction, not received underneath and asked politely not to act.
+     The backdrop below owns that now. */
   useEffect(() => {
     if (!open) return;
 
-    function onPointerDown(e: MouseEvent) {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setOpen(false);
@@ -108,10 +114,8 @@ export default function AccountRoomSelector({
       }
     }
 
-    document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
@@ -145,6 +149,28 @@ export default function AccountRoomSelector({
           <Chevron open={open} />
         </span>
       </button>
+
+      {/* ── DISMISSAL CATCHER ──────────────────────────────────────────
+          A transparent layer between the page and the menu, so an outside
+          tap closes the selector and does NOTHING ELSE. The tap's click
+          lands here — still mounted, above every underlying control — is
+          consumed, and the control beneath never receives it. It paints
+          nothing; this is a catcher, not a scrim. z-30 sits under the
+          menu's z-40, so the menu still takes its own taps, and the
+          trigger (in normal flow beneath the catcher) simply closes-by-
+          catcher while open, which is what its own toggle would have
+          done. */}
+      {open && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-30 cursor-default"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(false);
+          }}
+        />
+      )}
 
       {/* Borrowed space, not page structure: absolutely positioned so the
           workspace beneath never reflows for a menu that is about to close
