@@ -484,15 +484,48 @@ function DashboardView({
         ))}
       </div>
 
-      {/* Dealer Accelerator entry — Design Gate v2 (hash-pinned). The
-          prominent doorway, directly below the activity strip: discoverable,
-          never a buried settings feature. */}
-      <div className="px-6 pt-6">
+      {/* Dealer Accelerator entry — Design Gate v2. The prominent doorway,
+          directly below the activity strip: discoverable, never a buried
+          settings feature — ON DESKTOP, where the viewport can hold a
+          billboard and still read as Overview.
+
+          On the phone that same billboard consumed the first useful
+          viewport, so Overview visually RESOLVED into a Dealer landing
+          page (founder-observed on the real device). The room must read
+          as Overview first; the doorway stays discoverable as a genuinely
+          subordinate one-row entry below instead. Same two capabilities,
+          demoted presentation — no product machinery changed. */}
+      <div className="hidden px-6 pt-6 md:block">
         <DealerAcceleratorEntry
           hasImportedDrafts={hasImportedDrafts}
           onOpenAccelerator={onOpenAccelerator}
           onOpenImportedDrafts={onOpenImportedDrafts}
         />
+      </div>
+      {/* Mobile: the compact subordinate entry. One quiet row; when
+          imported drafts are waiting it says so and opens the review
+          destination directly, otherwise it opens the Accelerator start.
+          Both existing capabilities survive the demotion. */}
+      <div className="px-6 pt-5 md:hidden">
+        <button
+          type="button"
+          onClick={hasImportedDrafts ? onOpenImportedDrafts : onOpenAccelerator}
+          className="flex w-full items-center justify-between gap-3 border border-[var(--border-faint)] px-4 py-3 text-left transition-colors active:opacity-70"
+        >
+          <span className="min-w-0">
+            <span className="block text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
+              Dealer Accelerator
+            </span>
+            {hasImportedDrafts && (
+              <span className="mt-0.5 block text-[12px] text-[var(--platinum-dim)]">
+                Imported drafts waiting for review
+              </span>
+            )}
+          </span>
+          <span aria-hidden="true" className="text-[var(--muted)]">
+            →
+          </span>
+        </button>
       </div>
 
       {/* RECENT PREVIEW — last 3, no tabs */}
