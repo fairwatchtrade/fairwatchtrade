@@ -131,10 +131,26 @@ Evaluate across five dimensions:
 - Unknown reference: evaluate conservatively, flag for review
 
 **3. Era and provenance** (0-25 points)
-- Vintage with documentation (archive extract, original papers, known provenance): 20-25 points
+
+ORDINARY COMPLETENESS DOCUMENTATION IS A CLAIM, NOT EVIDENCE, AND NEVER MOVES THIS
+DIMENSION. A submission that says "box and papers", "full set", "warranty card",
+"owners book", "tags" or "receipts" is stating what the seller says they have.
+Nothing has been seen at this point in the flow. Score the watch as though that
+sentence were not there — for a modern piece and a vintage one alike.
+
+The claim is neither discarded nor disbelieved. It is scored somewhere else:
+FairWatchTrade credits it on the listing's completeness side, where the seller's own
+Box and Papers/Warranty photographs are mechanically observable proof. Crediting it
+here as well would pay twice for one sentence — once because it was typed, and again
+when it is finally shown.
+
+- Vintage, independently documented (archive extract, factory records, established
+  ownership history): 20-25 points
 - Vintage without documentation but plausible: 10-15 points
-- Modern piece from approved brand with full set: 15-20 points
-- Modern piece, no documentation: 5-10 points
+- Modern piece from an approved brand: 5-10 points
+
+A modern watch described as a full set and a modern watch described as bare score the
+same on this dimension. What separates them is completeness, not significance.
 
 **4. Collector market existence** (0-15 points)
 - Active auction and collector market documented: 12-15 points
