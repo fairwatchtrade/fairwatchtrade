@@ -78,7 +78,11 @@ ok("current-room word keeps the display serif ink",
   ok("Marketplace Control remains absent as a DESTINATION (the comment may name it as excluded)",
     !/label: "Marketplace/i.test(src) && !/id: "market/i.test(src));
   ok("selection speaks through the caller's onSelect — no second routing truth",
-    !src.includes("router.") && !src.includes("pushState") && src.includes("onSelect(room.id)"));
+    // Call syntax only: the header COMMENT rightly describes the caller's
+    // pushState mechanism; the component itself must never invoke routing.
+    !/router.(push|replace|back)(/.test(src) &&
+      !/history.pushState(/.test(src) &&
+      src.includes("onSelect(room.id)"));
 }
 
 console.log(`account-room-selector: ${passed} assertions PASS`);
