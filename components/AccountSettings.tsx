@@ -323,15 +323,17 @@ export default function AccountSettings({
             The upper mobile screen is precious, and the old stack spent it
             on furniture: eyebrow, title, PROFILE, DISPLAY NAME — four lines
             of labels before the collector's own name. On the phone the
-            editable display-name field IS the identity heading now: its
-            value leads the page in the serif, its gold underline is the
-            only hint it can be edited, and Account Settings sits beneath it
-            as the title. CSS order does the recomposition inside one flex
+            editable display-name field IS the identity heading: its value
+            leads the page in the serif with Account Settings immediately
+            beneath, and — decisively — NO underline between them on the
+            phone, because a line there cut one phrase into two statements.
+            The field stays fully editable; Save just below is the
+            affordance the missing underline no longer has to be. CSS order does the recomposition inside one flex
             column, so desktop keeps its exact original sequence and
             spacing; the labels the phone hides remain for the screen
             reader — the field finally has a REAL label element either way. */}
         <section className="mb-10 flex flex-col">
-          <div className="order-2 mb-4 md:order-1 md:mb-8">
+          <div className="order-2 mb-6 md:order-1 md:mb-8">
             <div className="hidden text-[11px] uppercase tracking-[2.6px] text-[var(--gold-subtle)] md:block">
               Account
             </div>
@@ -340,7 +342,7 @@ export default function AccountSettings({
             </h1>
           </div>
 
-          <div className="order-1 md:order-2">
+          <div className="order-1 max-md:mb-1 md:order-2">
             <div className="mb-4 hidden text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] md:block">
               Profile
             </div>
@@ -356,7 +358,7 @@ export default function AccountSettings({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your display name"
-              className="fw-input !text-[22px] md:!text-[16px]"
+              className="fw-input !text-[22px] max-md:!border-b-0 max-md:!pb-0 md:!text-[16px]"
             />
           </div>
 
