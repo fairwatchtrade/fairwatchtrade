@@ -337,7 +337,11 @@ export default function AccountSettings({
             <div className="hidden text-[11px] uppercase tracking-[2.6px] text-[var(--gold-subtle)] md:block">
               Account
             </div>
-            <h1 className="font-display text-[28px] font-light text-[var(--platinum)] md:mt-2">
+            {/* Tabbed in beneath the identity on the phone — the indent is
+                what turns two stacked lines of different sizes into one
+                hanging phrase: the name owns the margin, the title belongs
+                to the name. */}
+            <h1 className="font-display text-[28px] font-light text-[var(--platinum)] max-md:pl-6 md:mt-2">
               Account Settings
             </h1>
           </div>
