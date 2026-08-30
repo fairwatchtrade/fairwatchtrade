@@ -936,6 +936,21 @@ export default function AccountDashboard({
                   stacks BELOW the list under lg, so "on the right" would be
                   false on a phone. */}
               <div className="relative flex items-center gap-1">
+                {/* Mobile Trades: the way OUT rides the same row as the way
+                    IN to selling — the upper mobile screen is precious, and
+                    a return control does not earn a row of its own. Same
+                    governed navigation as everywhere: one tap, one
+                    selectModule, synchronous. Desktop never sees it. */}
+                {activeModule === "trades" && (
+                  <button
+                    type="button"
+                    onClick={() => selectModule("dashboard")}
+                    className="flex min-h-[40px] items-center gap-2 text-[12px] uppercase tracking-[1.2px] text-[var(--platinum-dim)] transition-colors active:opacity-60 hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:hidden"
+                  >
+                    <span aria-hidden="true">←</span>
+                    <span>Back to Account</span>
+                  </button>
+                )}
                 <h2 className="hidden font-display text-[20px] font-light tracking-[0.5px] text-[var(--platinum)] md:block">
                   {moduleTitle}
                 </h2>
@@ -1029,28 +1044,11 @@ export default function AccountDashboard({
                surrounding mobile idiom; md:px-0 keeps the accepted desktop
                presentation byte-identical. */
             <div className="px-4 pb-6 md:px-0 md:pb-0">
-              {/* SFX-025 — an explicit, deterministic way OUT. On the phone
-                 the only exit from this surface was Android/browser Back,
-                 and during the founder walk latency made a first press look
-                 ignored; the second press then overshot by two pages. This
-                 control is application navigation, not history: one tap is
-                 one selectModule to the Account overview through the same
-                 governed ?module= truth every switch uses - synchronous
-                 pushState, so there is no latency window to double-press
-                 into, and pressed feedback is immediate. It reads Back to
-                 Account rather than Back to Trades because this surface IS
-                 Trades - the room and the detail are one surface in the
-                 shipped product, and a control must name where it goes, not
-                 where a different topology would have put it. Mobile-only:
-                 desktop already has the persistent workspace navigation. */}
-              <button
-                type="button"
-                onClick={() => selectModule("dashboard")}
-                className="mb-4 flex min-h-[40px] items-center gap-2 text-[12px] uppercase tracking-[1.2px] text-[var(--platinum-dim)] transition-colors active:opacity-60 hover:text-[var(--platinum)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:hidden"
-              >
-                <span aria-hidden="true">←</span>
-                <span>Back to Account</span>
-              </button>
+              {/* The explicit mobile way out (one tap, one selectModule,
+                 synchronous — no history, no latency window) lives in the
+                 header row beside CREATE LISTING now, so the room content
+                 starts immediately and the top of the phone screen is not
+                 spent on stacked navigation rows. */}
               <TradeOffersModule />
             </div>
           ) : activeModule === "wanted" ? (
