@@ -1867,6 +1867,11 @@ function CurationStep({
             <HelpBubble
               label="Condition help"
               historyKey="fwtConditionHelp"
+              /* Out of the tab order: this ? sits inside the form the seller
+                 tabs through, and the trigger opens on focus, so leaving it
+                 tabbable fires the bubble between fields. Mouse and touch
+                 are unchanged. */
+              tabbable={false}
               title="One grade, honestly supported"
               /* The 36px hit target is centred on the label row, so its lower
                  half reached into the select below and the ? met the select's

@@ -43,6 +43,7 @@ export default function HelpBubble({
   caretClassName,
   triggerClassName,
   caretTracksTrigger = false,
+  tabbable = true,
 }: {
   /** Accessible name for the trigger and dialog (e.g. "Condition help"). */
   label: string;
@@ -54,6 +55,18 @@ export default function HelpBubble({
   bubbleClassName?: string;
   caretClassName?: string;
   triggerClassName?: string;
+  /** Whether the ? takes a stop in the keyboard tab order. Default true.
+
+      Set false where the ? sits INSIDE a form the seller tabs through. The
+      trigger opens on focus by design, so on those surfaces every tab
+      between fields would fire a bubble the seller did not ask for and then
+      have to tab back out of — the help interrupting the task it exists to
+      support. Pointer, touch and click behaviour are untouched: this changes
+      the tab order only, never whether the control works.
+
+      Not a general default. On a reading surface the ? is a destination and
+      belongs in the tab order; only a form makes it an obstacle. */
+  tabbable?: boolean;
   /** When the bubble is anchored to a WIDE positioning ancestor (so a
       fixed-width card can never force mobile-viewport expansion), the caret
       can no longer be placed with a static offset — the trigger's position
@@ -309,6 +322,7 @@ export default function HelpBubble({
       <button
         ref={btnRef}
         type="button"
+        tabIndex={tabbable ? undefined : -1}
         aria-label={label}
         aria-expanded={open}
         className={`group relative flex h-11 w-11 flex-none items-center justify-center sm:h-9 sm:w-9 ${triggerClassName ?? ""}`}

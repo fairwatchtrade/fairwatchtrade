@@ -540,6 +540,9 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                       <HelpBubble
                         label="Service Evidence help"
                         historyKey="fwtServiceEvidenceHelp"
+                        /* Same reason as the Condition help: inside the
+                           seller's tab path, opens on focus. */
+                        tabbable={false}
                         title="Optional supporting evidence"
                         triggerClassName="-my-3"
                         /* A REAL width at every breakpoint. This bubble
