@@ -80,8 +80,8 @@ ok("current-room word keeps the display serif ink",
   ok("selection speaks through the caller's onSelect — no second routing truth",
     // Call syntax only: the header COMMENT rightly describes the caller's
     // pushState mechanism; the component itself must never invoke routing.
-    !/router.(push|replace|back)(/.test(src) &&
-      !/history.pushState(/.test(src) &&
+    !/router\.(push|replace|back)\(/.test(src) &&
+      !/history\.pushState\(/.test(src) &&
       src.includes("onSelect(room.id)"));
 }
 
