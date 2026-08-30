@@ -141,7 +141,7 @@ export default function AccountRoomSelector({
         <span className="font-display text-[16px] font-light text-[var(--platinum)]">
           {currentLabel}
         </span>
-        <span className="text-[var(--gold)]">
+        <span className="text-[var(--mineral)]">
           <Chevron open={open} />
         </span>
       </button>
@@ -155,10 +155,12 @@ export default function AccountRoomSelector({
           className="absolute left-0 top-[46px] z-40 w-[228px] border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
         >
           {ACCOUNT_ROOMS.map((room) => {
-            /* Quiet, but unmistakable: a gold left edge and the faintest
-               gold wash — the language the workspace already uses for the
-               active room, and the tick is what survives when the wash is
-               washed out by sunlight on a phone. */
+            /* Quiet, but unmistakable: a mineral left edge and the faintest
+               mineral wash. Ruled visual law: gold is FWT identity, mineral
+               is architecture, orientation and selection - so a structural
+               selector speaks mineral while the room content keeps its ink.
+               The tick is what survives when sunlight washes the wash out
+               on a phone. */
             const selected = room.id === value;
             return (
               <button
@@ -172,13 +174,13 @@ export default function AccountRoomSelector({
                 }}
                 className={`flex min-h-[42px] w-full items-center justify-between border-l-2 px-3.5 text-left text-[14px] transition-colors ${
                   selected
-                    ? "border-[var(--gold)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
+                    ? "border-[var(--mineral)] bg-[rgba(62,99,121,0.07)] text-[var(--platinum)]"
                     : "border-transparent text-[var(--slate)] hover:text-[var(--platinum)]"
                 }`}
               >
                 <span>{room.label}</span>
                 {selected && (
-                  <span className="text-[var(--gold)]" aria-hidden="true">
+                  <span className="text-[var(--mineral)]" aria-hidden="true">
                     ✓
                   </span>
                 )}
