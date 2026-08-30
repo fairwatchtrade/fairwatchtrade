@@ -72,6 +72,17 @@ export function markPublished(draftId: string, listingId: string): Promise<Publi
   return call<PublishCloseResult>("listing_draft_mark_published", { p_draft_id: draftId, p_listing_id: listingId });
 }
 
+/** Retire a draft from the resume pool WITHOUT deleting it.
+
+    The Sell page opens on `status='active' ORDER BY updated_at DESC LIMIT 1`,
+    so before this existed a draft could only leave that pool by being
+    published — whichever draft anyone on the account touched last owned the
+    Sell page permanently. Set-aside is the door out: the row, its content and
+    its photos all survive, it simply stops competing to be resumed. */
+export function setAsideDraft(draftId: string): Promise<{ state: string }> {
+  return call<{ state: string }>("listing_draft_set_aside", { p_draft_id: draftId });
+}
+
 /* ── Reads (RLS listing_drafts_select_own scopes these to the owner) ────── */
 
 export type DraftRow = {

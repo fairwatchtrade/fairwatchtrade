@@ -39,6 +39,7 @@ import {
   isSupportedCurrency,
 } from "@/lib/supportedCurrencies";
 import ListFromPhoneHandoff from "@/components/ListFromPhoneHandoff";
+import { resetIdentityBoundState } from "@/lib/sellDraftReset";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   createDraft,
@@ -48,6 +49,7 @@ import {
   markPublished,
   fetchDraftRow,
   fetchNewestActiveDraft,
+  setAsideDraft,
   handoffIsLive,
   desktopIsPaused,
   type StatusResult,
@@ -55,7 +57,6 @@ import {
 import {
   requirementProfileFor,
   missingRequiredViews,
-  watchIdentityChanged,
   TUDOR_REFERENCE_NOT_ADMITTED,
   type AdmissionState,
 } from "@/lib/admission/requirementProfile";
@@ -460,6 +461,8 @@ export default function SellFlow({
      keep today's in-memory behavior — the handoff itself requires sign-in. */
   const [authed, setAuthed] = useState(false);
   const [serverDraftId, setServerDraftId] = useState<string | null>(null);
+  const [startingNew, setStartingNew] = useState(false);
+  const [startNewError, setStartNewError] = useState("");
   const revisionRef = useRef(0);
   const userTouchedRef = useRef(false);
   const creatingRef = useRef(false);
@@ -528,29 +531,30 @@ export default function SellFlow({
      · hydration cannot fire this: adoptRow and the mount-resume path go
        through setDraft directly, so a reloaded unchanged draft keeps its
        admission answers untouched;
-     · only details.admission is cleared — every other detail the seller
-       entered survives, because dial colour is true of the NEW watch
-       until the seller says otherwise, while an affirmation is not;
-     · the guard is skipped when nothing is there to clear, so per-
-       keystroke reference edits do not churn the details object (or the
-       autosave revisions riding on it) while admission is still empty. */
+     · admission affirmations and the curation result are cleared — every
+       other detail the seller entered survives, because dial colour is
+       true of the NEW watch until the seller says otherwise, while an
+       affirmation and a score are not;
+     · each clear is guarded by whether anything is actually there, so
+       per-keystroke reference edits do not churn the details object (or
+       the autosave revisions riding on it) over empty state.
+
+     THE CURATION RESULT IS IDENTITY-BOUND STATE AND LEAVES WITH THE WATCH.
+     significanceScore is the significance of ONE watch; carrying it onto a
+     different one is the same defect this seam already existed to prevent,
+     and it reached production — a score earned by one submission was still
+     on screen after the identity beneath it changed. The decision and its
+     reasoning leave with it deliberately: a cleared score beside a surviving
+     "pass" would be worse than either, because the flow gates on the
+     decision and would carry an admission granted to another watch.
+
+     Cleared, never recomputed. The seller re-runs curation, exactly as they
+     did the first time; nothing here silently re-evaluates on their behalf. */
   function patch(p: Partial<ListingDraft>) {
     userTouchedRef.current = true;
     setDraft((d) => {
       const next = { ...d, ...p };
-      if (
-        ("brand" in p || "reference" in p) &&
-        d.details.admission !== undefined &&
-        watchIdentityChanged(
-          { brand: d.brand, reference: d.reference },
-          { brand: next.brand, reference: next.reference }
-        )
-      ) {
-        const details = { ...next.details };
-        delete details.admission;
-        next.details = details;
-      }
-      return next;
+      return resetIdentityBoundState(d, next);
     });
   }
 
@@ -731,6 +735,51 @@ export default function SellFlow({
       setPhoneActive(false);
       setPollLive(false);
       setHandoffOpen(false);
+    }
+  }
+
+  /* ── The door out of a resumed draft ──────────────────────────────────
+     The Sell page opens on the newest ACTIVE draft for the account, and a
+     draft could only ever leave that pool by being published. So whichever
+     draft anyone on the account touched last owned this page permanently —
+     including a draft begun by someone else on another machine, which is how
+     this was found. Cross-device persistence is deliberate and stays; what
+     was missing was a way to decline it.
+
+     Set aside PRESERVES. Every word, every photograph and the revision
+     history all survive on the row; it simply stops competing to be resumed.
+     Nothing here deletes the seller's prior work, and nothing sets a draft
+     aside on the seller's behalf.
+
+     serverDraftId is dropped to null and userTouched back to false on
+     purpose: the autosave creates a row only once the seller actually types,
+     so abandoning a "start new" adds nothing to the pool it just escaped.
+     Both step counters reset — maxStep is a high-water mark that never
+     retreats on its own, and a fresh listing must not inherit reachable
+     steps from the draft it replaced. */
+  async function startNewListing() {
+    if (startingNew) return;
+    setStartingNew(true);
+    setStartNewError("");
+    try {
+      if (serverDraftId) {
+        const res = await setAsideDraft(serverDraftId);
+        if (res.state !== "SET_ASIDE" && res.state !== "ALREADY_SET_ASIDE") {
+          setStartNewError("That draft could not be set aside — nothing was changed.");
+          return;
+        }
+      }
+      setDraft(emptyDraft());
+      setServerDraftId(null);
+      revisionRef.current = 0;
+      userTouchedRef.current = false;
+      setPhoneActive(false);
+      setPollLive(false);
+      setHandoffOpen(false);
+      setStepRaw(0);
+      setMaxStep(0);
+    } finally {
+      setStartingNew(false);
     }
   }
 
@@ -1100,6 +1149,41 @@ export default function SellFlow({
               </div>
             </div>
           )}
+
+          {/* Not this watch? — the seller-facing escape from a resumed draft.
+
+              Shown only when there is a persisted draft carrying real work.
+              A brand-new empty draft has nothing to set aside, and offering
+              the control there would be noise. */}
+          {serverDraftId &&
+            (draft.brand ||
+              draft.reference ||
+              draft.photos.length > 0 ||
+              draft.significanceScore != null) && (
+              <div className="border-t border-[var(--border-faint)] pt-5">
+                <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
+                  Not this watch?
+                </div>
+                <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                  This listing was resumed from your account, so it may have been
+                  started on another device. Setting it aside keeps every word and
+                  photograph — it only stops it opening here.
+                </p>
+                <button
+                  type="button"
+                  onClick={startNewListing}
+                  disabled={startingNew}
+                  className={`mt-3 w-full border border-[var(--border-subtle)] px-4 py-2.5 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] ${
+                    startingNew ? "cursor-wait opacity-70" : ""
+                  }`}
+                >
+                  {startingNew ? "Setting aside…" : "Start a new listing"}
+                </button>
+                {startNewError && (
+                  <div className="mt-2 text-[11px] text-[var(--danger)]">{startNewError}</div>
+                )}
+              </div>
+            )}
 
           {/**
            * WatchBlueprint is a companion to the seller.

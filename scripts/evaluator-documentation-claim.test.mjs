@@ -25,6 +25,9 @@ import { readFileSync } from "node:fs";
 let n = 0;
 const ok = (label, cond) => { n += 1; assert.ok(cond, label); };
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+/* Comments DESCRIBE the no-re-evaluation rule, so a source assertion about
+   code must not read them — prose is not behaviour. */
+const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const prompt = read("lib/evaluationPrompt.ts");
 const scoring = read("lib/scoring.ts");
@@ -84,7 +87,7 @@ ok(
 /* ── Significance stays fixed at curation — no re-evaluation was added ──── */
 ok(
   "no post-photo significance re-evaluation was introduced",
-  !/reevaluate|re-evaluate|recomputeSignificance/i.test(read("components/SellFlow.tsx"))
+  !/reevaluate|re-evaluate|recomputeSignificance/i.test(stripComments(read("components/SellFlow.tsx")))
 );
 
 console.log(`evaluator-documentation-claim: ${n} assertions passed`);
