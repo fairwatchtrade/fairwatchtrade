@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { composeWatchPassport } from "@/lib/passport/watchPassport";
+import WatchPassportAssistant from "@/components/WatchPassportAssistant";
 
 /* ════════════════════════════════════════════════════════════════════════
    /admin/passport/[beadId] — the founder's Passport
@@ -122,6 +123,17 @@ export default async function WatchPassportPage({
                 : "Not currently resolved with any other record."}
           </div>
         </div>
+
+        {/* Tier A Assistant. It recomposes the projection itself rather than
+            reading the rendered timeline above, so its answers are current
+            governed truth and not a reading of this snapshot. */}
+        <WatchPassportAssistant
+          beadId={p.bead}
+          timelineCount={p.timeline.length}
+          evidenceCount={p.identifierEvidence.length}
+          conflicted={p.currentIdentity.conflicted}
+          identityState={p.currentIdentity.state}
+        />
 
         {/* ── TIMELINE · what happened ──────────────────────────────── */}
         <div style={panel}>

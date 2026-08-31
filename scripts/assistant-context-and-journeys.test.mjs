@@ -22,6 +22,8 @@ import {
   edgeKey,
   ROOM_SPEC,
   ROOM_OPERATION,
+  ROOM_SUBJECT,
+  IMPLEMENTED_ROOMS,
   ARCHITECTURE_ROOMS,
 } from "../lib/assistantRooms.ts";
 import { hoursSince, needsReorientation } from "../lib/assistantThreadTiming.ts";
@@ -215,6 +217,23 @@ for (const room of ARCHITECTURE_ROOMS) {
   ok("Marketplace can confirm a removal", ROOM_OPERATION.marketplace_control === "remove_listing");
   ok("Dealer Accelerator has NO operation", !ROOM_OPERATION.dealer_accelerator);
   ok("Dealer Accelerator's target tier is A", ROOM_SPEC.dealer_accelerator.target === "A");
+  ok("Watch Passport has NO operation", !ROOM_OPERATION.watch_passport);
+  ok("Watch Passport's target tier is A", ROOM_SPEC.watch_passport.target === "A");
+
+  /* Passport's subject is a bead, not a listing. Getting this wrong would
+     send a physical-watch id to the listings table and report the founder's
+     own record as missing. */
+  ok("Passport's subject is a physical watch", ROOM_SUBJECT.watch_passport === "physical_watch");
+  ok("the listing rooms declare a listing subject",
+    ROOM_SUBJECT.founder_review === "listing" &&
+    ROOM_SUBJECT.marketplace_control === "listing" &&
+    ROOM_SUBJECT.dealer_accelerator === "listing");
+  ok("every implemented room declares a subject",
+    IMPLEMENTED_ROOMS.every((r) => ROOM_SUBJECT[r] === "listing" || ROOM_SUBJECT[r] === "physical_watch"));
+  ok("the route only runs the listings reread for listing rooms",
+    /ROOM_SUBJECT\[room\] === "listing"[\s\S]{0,120}readWorkingSet/.test(
+      readFileSync("app/api/admin/assistant/route.ts", "utf8")
+    ));
 
   const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
   const confirmBlock = route.slice(route.indexOf('action === "confirm"'));

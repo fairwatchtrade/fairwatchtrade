@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { composeWatchPassport } from "@/lib/passport/watchPassport";
 import { executeListingStatusTransition } from "@/lib/listingStatusTransition";
 import {
   removeConsequenceLines,
@@ -14,6 +15,7 @@ import {
   ROOM_SPEC,
   ROOM_LABEL,
   ROOM_OPERATION,
+  ROOM_SUBJECT,
   type ImplementedRoom,
   type RoomResolution,
 } from "@/lib/assistantRooms";
@@ -422,6 +424,83 @@ function describeReviewFacts(f: ReviewFacts): string {
   return lines.join("\n");
 }
 
+/* ── WATCH PASSPORT: recomputed, never remembered ────────────────────────
+
+   Passport is a pure projection with no table, no snapshot and no correction
+   layer, so the authoritative reread IS a fresh composition from the
+   governed bead. Nothing here is cached between turns.
+
+   The current/history boundary is preserved in the description itself,
+   because collapsing it is the one thing this room must never do: what FWT
+   believes NOW and what it believed WHEN something happened are different
+   facts, and an item reached through a belief since withdrawn stays labelled
+   as the belief it was rather than being quietly re-read through today's. */
+async function readPassportFacts(beadId: string): Promise<Reread<string>> {
+  let p: Awaited<ReturnType<typeof composeWatchPassport>>;
+  try {
+    /* Composed exactly as the founder's own Passport page composes it — no
+       client argument, so the Assistant and the page cannot drift onto two
+       different readers of the same evidence. */
+    p = await composeWatchPassport(beadId);
+  } catch (e) {
+    return couldNotVerify("watch_passport", e instanceof Error ? e.message : "composition failed");
+  }
+  if (!p) return couldNotVerify("watch_passport", `no physical-watch record for ${beadId}`);
+
+  const lines: string[] = [];
+
+  lines.push("CURRENT — what FairWatchTrade believes about this record NOW:");
+  lines.push(
+    `- Known to FairWatchTrade since ${p.knownToFwtSince ?? "unrecorded"}. This is the platform's knowledge boundary ONLY — never an origin, a manufacture date, or a first sale, and it is not a timeline event.`
+  );
+  lines.push(
+    p.currentIdentity.conflicted
+      ? "- Identity continuity is UNDER REVIEW: current decisions about this record contradict each other, so history from other records is NOT combined here. Nothing has been deleted."
+      : p.currentIdentity.state === "RESOLVED"
+        ? `- Currently resolved with ${Math.max(0, p.currentIdentity.members.length - 1)} other record(s) as one physical watch (generation ${p.currentIdentity.generation ?? "—"}).`
+        : "- Not currently resolved with any other record."
+  );
+
+  lines.push("");
+  lines.push(`HISTORICAL — ${p.timeline.length} recorded chapter(s), each read at the identity that applied AT THAT TIME:`);
+  if (p.timeline.length === 0) {
+    lines.push(
+      "- None. FairWatchTrade holds no events for this watch, which is NOT evidence that none occurred."
+    );
+  } else {
+    for (const item of p.timeline.slice(0, 25)) {
+      lines.push(
+        `- ${item.title} · ${item.effectiveAt ?? "undated"}${
+          item.effectiveAtIsRecordedAt ? " (date RECORDED, not date it occurred)" : ""
+        }${
+          item.identityBasis === "historical_prior_resolution"
+            ? " · READ UNDER A PRIOR IDENTITY CONCLUSION since withdrawn — present it as the belief it was, never as current truth"
+            : ""
+        }`
+      );
+    }
+  }
+
+  lines.push("");
+  lines.push(
+    p.identifierEvidence.length === 0
+      ? "IDENTIFIER EVIDENCE: none recorded."
+      : `IDENTIFIER EVIDENCE (presence and source class ONLY — never a value, a fragment, or an equality claim, and presence is NOT proof of authenticity): ${p.identifierEvidence
+          .map((e) => `${e.observations}× ${e.identifierType} via ${e.sourceClass}`)
+          .join("; ")}`
+  );
+
+  if (p.sourceGovernanceGaps.length > 0) {
+    lines.push("");
+    lines.push(`SOURCE GOVERNANCE GAPS — things that CANNOT be proven from durable evidence: ${p.sourceGovernanceGaps.join(" ")}`);
+  }
+
+  lines.push("");
+  lines.push(`THIS PASSPORT MUST NEVER CLAIM: ${p.disclosures.join(" ")}`);
+
+  return { state: "OK", value: lines.join("\n") };
+}
+
 /* ── the governed remove preview, read through the trusted client ─────── */
 async function readRemovePreview(
   service: ReturnType<typeof createServiceClient>,
@@ -565,6 +644,25 @@ Respond with ONLY a JSON object — no prose outside it, no markdown fences:
 - reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed.
 - propose_approve and propose_remove: ALWAYS empty/null in this room. You have no action to propose.`;
 
+/* WATCH PASSPORT — Tier A, and the one room where the boundary between what
+   is believed NOW and what was believed THEN is the entire product. */
+const PASSPORT_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Watch Passport room. You work only on the founder's explicit instructions, inside the founder's own session.
+
+The Passport is a biography of evidence FairWatchTrade actually has. You can explain what is currently believed about this physical watch, what happened to it, and — critically — the difference between those two things. You have NO action of any kind here: nothing to approve, remove, resolve, merge, correct, or publish. Say so plainly if asked, and never imply a change occurred.
+
+THE BOUNDARY YOU MUST NEVER COLLAPSE: what FairWatchTrade believes NOW and what it believed WHEN an event was recorded are different facts. An item marked as read under a prior identity conclusion must be presented as the belief it was at that time — never quietly re-read through today's understanding, and never described as currently true.
+
+NEVER CLAIM, even if asked directly: complete ownership history, chain of custody, anything before FWT first knew the object, manufacturer provenance, authentication, authenticity, service history without durable object-level evidence, original sale or owner, or verified serial continuity. FWT records begin at its knowledge boundary, and empty history is NOT evidence of no history.
+
+Identifier evidence is presence and source class only. Never state, guess, reconstruct, or compare an identifier VALUE or fragment, and never say that identifier evidence proves authenticity.
+
+If the record shows identity continuity under review, say that history from other records is deliberately NOT combined and that nothing has been deleted.
+
+Respond with ONLY a JSON object — no prose outside it, no markdown fences:
+{"reply": string, "propose_approve": [], "propose_remove": null}
+- reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed.
+- propose_approve and propose_remove: ALWAYS empty/null. This room has no action.`;
+
 type ModelOut = {
   reply: string;
   proposeApprove: string[];
@@ -653,7 +751,9 @@ async function callModel(
             ? MARKETPLACE_PROMPT
             : room === "dealer_accelerator"
               ? DEALER_PROMPT
-              : REVIEW_PROMPT,
+              : room === "watch_passport"
+                ? PASSPORT_PROMPT
+                : REVIEW_PROMPT,
         messages,
       }),
     });
@@ -1184,8 +1284,15 @@ export async function POST(request: NextRequest) {
     /* ── ROUND I: authoritative reread, or refusal ──────────────────────
        A failed reread never degrades into thread memory, prior turns, or
        cached labels. The model is not called at all, so it cannot narrate a
-       current-state answer the product could not verify. */
-    const reread = await readWorkingSet(service, room, roomContext);
+       current-state answer the product could not verify.
+
+       Rooms whose subject is not a listing skip the listings reread
+       entirely — sending a bead id to the listings table would report the
+       founder's own record as missing. */
+    const reread: Reread<WorkingEntry[]> =
+      ROOM_SUBJECT[room] === "listing"
+        ? await readWorkingSet(service, room, roomContext)
+        : { state: "OK", value: [] };
     if (reread.state === "COULD_NOT_VERIFY") {
       const now = new Date().toISOString();
       const nextCtx: SessionContext = {
@@ -1241,6 +1348,46 @@ export async function POST(request: NextRequest) {
         });
       }
       roomFacts = describeReviewFacts(facts.value);
+    }
+
+    /* Watch Passport: the reread IS the projection, recomposed this turn. */
+    if (room === "watch_passport") {
+      const beadId = roomContext.selectedId ?? roomContext.visibleIds[0] ?? null;
+      if (!beadId) {
+        return NextResponse.json(
+          {
+            error: "missing_room_context",
+            detail:
+              "This page didn't tell me which watch record it is showing, so I'm not going to answer about one.",
+            work_preserved: true,
+          },
+          { status: 400 }
+        );
+      }
+      const facts = await readPassportFacts(beadId);
+      if (facts.state === "COULD_NOT_VERIFY") {
+        const now = new Date().toISOString();
+        await saveContext(service, session.id as string, {
+          messages: [
+            ...turns,
+            { role: "founder" as const, text, at: now },
+            { role: "assistant" as const, text: facts.sentence, at: now },
+          ].slice(-STORED_TURNS_MAX),
+          pending_plan: ctx.pending_plan ?? null,
+        });
+        return NextResponse.json({
+          session_id: session.id,
+          room,
+          thread_id: thread?.id ?? null,
+          reply: facts.sentence,
+          current_truth: "COULD_NOT_VERIFY",
+          failed_source: facts.source,
+          plan: null,
+          preview: null,
+          consequences: [],
+        });
+      }
+      roomFacts = facts.value;
     }
 
     /* Arrival Contract: when work has just been handed into this room, the

@@ -55,7 +55,19 @@ export const IMPLEMENTED_ROOMS = [
   "founder_review",
   "marketplace_control",
   "dealer_accelerator",
+  "watch_passport",
 ] as const;
+
+/* What KIND of governed object a room's visible ids name. Not every room is
+   about listings, and assuming so would send a bead id to the listings table
+   and report the founder's own record as missing. The reread branches on
+   this rather than on a guess about the id's shape. */
+export const ROOM_SUBJECT: Record<ImplementedRoom, "listing" | "physical_watch"> = {
+  founder_review: "listing",
+  marketplace_control: "listing",
+  dealer_accelerator: "listing",
+  watch_passport: "physical_watch",
+};
 
 /* Which rooms may perform a governed Assistant mutation, and which one.
    Tier A rooms are absent by design: a room without DO is useful and honest,

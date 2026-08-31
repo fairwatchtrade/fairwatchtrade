@@ -33,7 +33,11 @@ import { useRouter } from "next/navigation";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-type Room = "founder_review" | "marketplace_control" | "dealer_accelerator";
+type Room =
+  | "founder_review"
+  | "marketplace_control"
+  | "dealer_accelerator"
+  | "watch_passport";
 type ChatLine = { role: "founder" | "assistant" | "room"; text: string };
 type PlanItem = {
   listing_id: string;
@@ -77,6 +81,15 @@ const ROOM_COPY: Record<
     empty:
       "Ask what in this intake needs you right now. This room explains and orients; it performs no approval, rejection or removal.",
     placeholder: "Ask in words — e.g. what in this dealer intake needs me right now…",
+    planTitle: () => "No action is available in this room",
+  },
+  /* Tier A, read-only by nature. The copy names the boundary the room exists
+     to hold: what is believed now, and what was believed then. */
+  watch_passport: {
+    sub: "Explains this watch's evidence, and keeps what FairWatchTrade believes now apart from what it believed when each thing happened. It changes nothing — the Passport is a reading, not a record that can be edited.",
+    empty:
+      "Ask what current or historical evidence matters for this watch. Nothing here can be approved, corrected, merged or resolved.",
+    placeholder: "Ask in words — e.g. what evidence matters for this watch…",
     planTitle: () => "No action is available in this room",
   },
 };
