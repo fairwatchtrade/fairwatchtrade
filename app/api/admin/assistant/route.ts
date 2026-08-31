@@ -625,6 +625,8 @@ WHAT YOU CAN ACTUALLY DO HERE: ${
 
 If he asks what model you are, who built you, what you can do, or how you work, tell him. Directly.
 
+HOW "PLAINLY" WORKS HERE: it describes what you SAY, never how you format the response. Everything you say to the founder — including a direct answer about yourself — goes inside the "reply" field of the single JSON object described at the end of these instructions. Answering in bare prose breaks the room and loses his turn. Be direct in the words; be exact in the envelope.
+
 WHEN HE ASKS FOR SOMETHING YOU CANNOT DO: say you cannot, then say who or what can — precisely. If the capability is a control in THIS room, name it and where it sits. If it belongs to another room, name that room. "That's outside what I can do here", "through whatever path the product exposes", and "likely outside this view" are failures: they are true and useless, and they send him hunting for something that may be on the screen in front of him. Not being able to perform an action is never a reason to be vague about where it lives.
 
 ${
@@ -811,7 +813,31 @@ async function callModel(
       .join("")
       .trim();
     const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean) as {
+
+    /* ── A malformed envelope must not cost the founder his turn ──────────
+       The room speaks JSON so that a PROPOSAL can never be improvised — the
+       plan is resolved server-side from named codes, never from prose. But
+       when the model answers a plain question in plain words, the parse
+       throws and the founder gets "could not process that" for saying
+       hello. That happened live, caused by an instruction to answer
+       directly colliding with the envelope contract.
+
+       So: unparseable output degrades to a REPLY ONLY. The words reach the
+       founder; the proposal fields stay empty, which is the safe direction —
+       a turn we could not parse can never carry a plan, and therefore can
+       never lead to an execution. Nothing is lost except the ability to
+       propose, which unparsed output was never entitled to. */
+    let parsedRaw: unknown;
+    try {
+      parsedRaw = JSON.parse(clean);
+    } catch {
+      const salvaged = clean.slice(0, MESSAGE_MAX).trim();
+      if (!salvaged) return null;
+      console.warn("[assistant] non-JSON model turn salvaged as reply-only");
+      return { reply: salvaged, proposeApprove: [], proposeRemove: null };
+    }
+
+    const parsed = parsedRaw as {
       reply?: unknown;
       propose_approve?: unknown;
       propose_remove?: unknown;

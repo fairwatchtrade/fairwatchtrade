@@ -372,6 +372,25 @@ for (const room of ARCHITECTURE_ROOMS) {
     IMPLEMENTED_ROOMS.some((r) => !ROOM_CONTROLS[r]));
 }
 
+// ── A malformed model turn degrades to words, never to a plan ────────────
+{
+  const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
+  const salvage = /catch \{\s*const salvaged[\s\S]{0,600}?\n    \}/.exec(route)?.[0] ?? "";
+  ok("a parse failure is caught rather than killing the turn", salvage.length > 0);
+  /* The safety property: unparsed output may carry WORDS but never a
+     proposal. A turn nobody could parse must never reach the confirm seam
+     with something to execute. */
+  ok("salvaged output proposes no approvals", /proposeApprove: \[\]/.test(salvage));
+  ok("salvaged output proposes no removal", /proposeRemove: null/.test(salvage));
+  ok("empty salvage still fails closed", /if \(!salvaged\) return null/.test(salvage));
+  ok("the salvage is bounded by the message cap", /slice\(0, MESSAGE_MAX\)/.test(salvage));
+
+  /* And the instruction that caused the collision is now explicit. */
+  ok("the prompt separates plain WORDS from the strict envelope",
+    /describes what you SAY, never how you format/.test(route));
+  ok("it warns that bare prose loses the turn", /Answering in bare prose breaks the room/.test(route));
+}
+
 // ── Transcript roles must be visually distinct ───────────────────────────
 {
   const fa = readFileSync("components/FounderAssistant.tsx", "utf8");
