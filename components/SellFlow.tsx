@@ -476,6 +476,9 @@ export default function SellFlow({
   const userTouchedRef = useRef(false);
   const creatingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* The top of the flow itself, so resuming a saved listing can put the form
+     in front of the seller instead of leaving them above a long list. */
+  const flowTopRef = useRef<HTMLDivElement | null>(null);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [phoneActive, setPhoneActive] = useState(false);
   const [pollLive, setPollLive] = useState(false);
@@ -808,6 +811,14 @@ export default function SellFlow({
       setStepRaw(0);
       setMaxStep(0);
       setDraftsRefreshKey((k) => k + 1);
+      /* Bring the seller to the listing they just chose. The saved-listings
+         band sits above the flow, so with a long list the form they opened
+         was scrolled far below them and nothing moved — "continue this
+         listing" left them at the top to go hunting for it. Choosing a
+         listing collapses the list; this puts the form in front of them. */
+      requestAnimationFrame(() => {
+        flowTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } finally {
       setSwitchingDraftId(null);
     }
@@ -1081,6 +1092,9 @@ export default function SellFlow({
           {switchError}
         </div>
       )}
+
+      {/* Scroll anchor: the top of the listing form itself. */}
+      <div ref={flowTopRef} className="scroll-mt-4" />
 
       <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
 

@@ -217,7 +217,14 @@ export default function SavedListingDrafts({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => void onResume(d)}
+                      /* Choosing collapses the list. It has done its job, and
+                         leaving 77 rows open between the seller and the form
+                         they just opened is how "continue this listing"
+                         became "now go find it". */
+                      onClick={async () => {
+                        await onResume(d);
+                        setOpen(false);
+                      }}
                       disabled={isBusy}
                       className={`w-full border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)] sm:w-auto ${
                         isBusy ? "cursor-wait opacity-70" : ""
