@@ -2794,6 +2794,23 @@ export default function MarketplaceControl({
             room="marketplace_control"
             listingId={assistantFor}
             onClose={() => setAssistantFor(null)}
+            /* Codes this room can actually reach — the rows currently on
+               screen. A code the Assistant names from outside this set stays
+               plain text rather than becoming a link that goes nowhere. */
+            linkableCodes={Object.fromEntries(
+              payload.rows
+                .filter((r) => r.public_code)
+                .map((r) => [String(r.public_code).toUpperCase(), r.id])
+            )}
+            /* Clicking a code selects the listing and brings the row to the
+               founder, rather than making him read the code and then hunt
+               the ledger for it by eye. */
+            onPickListing={(listingId) => {
+              const row = payload.rows.find((r) => r.id === listingId);
+              if (!row) return;
+              setSelected(row);
+              requestAnimationFrame(() => scrollToSelectedRow(listingId));
+            }}
             /* The source-of-"here" contract. This is the SAME payload and
                view state the table above renders from — not a second query.
                The Assistant previously read its own "newest 40" slice and

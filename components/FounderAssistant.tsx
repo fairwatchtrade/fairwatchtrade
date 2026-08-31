@@ -166,6 +166,8 @@ export default function FounderAssistant({
   onClose,
   room = "founder_review",
   getRoomContext,
+  linkableCodes,
+  onPickListing,
 }: {
   listingId: string;
   onClose: () => void;
@@ -174,6 +176,14 @@ export default function FounderAssistant({
      mount an Assistant — that is the source-of-"here" contract expressed in
      the type system rather than in a comment nobody reads. */
   getRoomContext: () => RoomContextInput;
+  /* Listing codes the ROOM can actually take you to, uppercase code → id.
+     Only these become links. A code the room cannot reach stays plain text,
+     which is honest: the Assistant already tells the founder when something
+     it names is outside the current working set, and offering a link that
+     goes nowhere would contradict it. */
+  linkableCodes?: Record<string, string>;
+  /* The room selects and reveals the listing. Only the room knows how. */
+  onPickListing?: (listingId: string) => void;
 }) {
   const router = useRouter();
   const copy = ROOM_COPY[room];
@@ -484,6 +494,47 @@ export default function FounderAssistant({
   const activeThread = threads.find((t) => t.id === threadId) ?? null;
   const handoffDestinations = HANDOFFS_FROM[room] ?? [];
 
+  /* ── Listing codes become doors ────────────────────────────────────────
+     When the Assistant names a listing, that name should take you to it.
+     Reading a code out of a sentence and then hunting the ledger for it by
+     eye is work the product can simply do.
+
+     Only codes the ROOM declared reachable are linked. A code outside the
+     current working set stays plain text — the Assistant already says when
+     something it names is not in the room, and a link that went nowhere
+     would contradict its own sentence. */
+  function linkifyCodes(text: string): React.ReactNode {
+    if (!linkableCodes || !onPickListing) return text;
+    const parts: React.ReactNode[] = [];
+    const re = /\b[A-Za-z]\d{5}\b/g;
+    let last = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      const id = linkableCodes[match[0].toUpperCase()];
+      if (!id) continue;
+      if (match.index > last) parts.push(text.slice(last, match.index));
+      const code = match[0];
+      parts.push(
+        <button
+          key={`${match.index}-${code}`}
+          type="button"
+          className="fwa-code"
+          onClick={() => onPickListing(id)}
+          title={`Show ${code.toUpperCase()} in the list`}
+        >
+          {/* Rendered in its canonical form. The model may write a code in
+              any case; a FairWatchTrade listing code looks the same
+              everywhere it appears, and the ledger shows it uppercase. */}
+          {code.toUpperCase()}
+        </button>
+      );
+      last = match.index + code.length;
+    }
+    if (parts.length === 0) return text;
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || busy) return;
@@ -773,7 +824,7 @@ export default function FounderAssistant({
               <span className="fwa-who">
                 {m.role === "founder" ? "You" : m.role === "assistant" ? "Assistant" : "Room"}
               </span>
-              <span className="fwa-text">{m.text}</span>
+              <span className="fwa-text">{linkifyCodes(m.text)}</span>
             </div>
           ))
         )}
@@ -922,6 +973,12 @@ const FWA_CSS = `
 .fwa-line{display:grid;grid-template-columns:calc(72px * var(--fwa-scale,1)) minmax(0,1fr);gap:10px;font-size:calc(13px * var(--fwa-scale,1));line-height:1.6}
 .fwa-who{color:var(--muted);font-size:calc(10px * var(--fwa-scale,1));letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
 .fwa-text{color:var(--platinum-dim);white-space:pre-wrap;overflow-wrap:anywhere}
+/* A listing code the room can reach. Reads as part of the sentence and
+   behaves like a door — inherits its size from the conversation so it moves
+   with the founder's type setting. */
+.fwa-code{font:inherit;color:var(--gold);background:none;border:none;padding:0;text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line-gold)}
+.fwa-code:hover{color:var(--gold);text-decoration-color:var(--gold)}
+.fwa-code:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
 .fwa-line.founder .fwa-text{color:var(--platinum)}
 .fwa-room{color:var(--muted);font-size:calc(12px * var(--fwa-scale,1));line-height:1.6;border:1px dashed var(--field-line);background:var(--well);padding:10px 12px}
 .fwa-plan{border:1px solid var(--line-gold);background:rgba(201,168,76,.035);padding:11px 13px}
