@@ -17,6 +17,8 @@ import {
   ROOM_OPERATION,
   ROOM_SUBJECT,
   ROOM_CONTROLS,
+  availableHandoffs,
+  isImplementedRoom,
   type ImplementedRoom,
   type RoomResolution,
 } from "@/lib/assistantRooms";
@@ -135,6 +137,15 @@ const OPERATION_FOR_ROOM = ROOM_OPERATION;
 
 /* The governed exit-reason vocabulary. Mirrored here for VALIDATION only —
    remove_listing_core() re-validates it and remains the authority. */
+/* Phrases that solicit confirmation of a pending action. If the model uses
+   any of these while no structured proposal survived validation, the reply
+   is claiming a plan the product does not have. Deliberately matched on the
+   ASK — "shall I proceed", "please confirm" — rather than on plan-shaped
+   formatting, because the harm is soliciting approval for something that is
+   not pending, not describing an option in prose. */
+const CLAIMS_A_PENDING_PLAN =
+  /\b(shall i proceed|please confirm|do you approve|here is the (confirmed )?plan|confirm (the|this) plan|ready to proceed|proceed\?)\b/i;
+
 const REASON_CODES = [
   "sold_in_store",
   "sold_elsewhere",
@@ -606,6 +617,36 @@ function buildArrivalNote(
    it. Nothing here asserts a capability the room does not have — the DO
    sentence is generated from the same operation map the confirm seam
    enforces. */
+/* ── The Assistant can MOVE work, and never knew it ──────────────────────
+
+   Asked to approve a listing from Marketplace Control, it correctly refused
+   — approval is Founder Review's governed action — and then told the founder
+   to go do it himself. But Founder Review is attached, the edge between the
+   two rooms is one of the architecture's required journeys, and the whole
+   machinery for carrying the thread, the listing and the reason across it
+   already exists. Nobody had told the model it was there, so a capability
+   the product had built went unoffered.
+
+   Generated from the same edge registry the handoff control renders from, so
+   a room can never advertise a route that is not actually implemented, and a
+   newly attached room starts offering its routes without anyone remembering
+   to write a sentence. */
+function handoffBrief(room: Room): string {
+  const dests = availableHandoffs(room).filter(isImplementedRoom);
+  if (dests.length === 0) return "";
+  const named = dests
+    .map((d) => {
+      const op = ROOM_OPERATION[d];
+      return `${ROOM_LABEL[d]}${op ? ` — which CAN ${op}` : " — which sees and explains, and performs no action"}`;
+    })
+    .join("; ");
+  return `
+
+CARRYING THE WORK SOMEWHERE ELSE: this room connects to ${named}. If he asks for something this room cannot do but a connected room can, say which room owns it AND offer to carry the work there rather than leaving him to walk over alone. A handoff takes the operational thread, the listing it concerns and the reason for moving with it, so nothing is re-explained on arrival.
+
+He starts it from the Work strip at the top of this card: name the work, then use the "Take to …" control. If no work is attached yet — the strip says so — tell him plainly that starting one is what makes carrying it possible. Never claim you moved anything; he moves it, you offer it.`;
+}
+
 function selfDescription(room: Room): string {
   const op = OPERATION_FOR_ROOM[room];
   const controls = ROOM_CONTROLS[room];
@@ -628,6 +669,8 @@ If he asks what model you are, who built you, what you can do, or how you work, 
 HOW "PLAINLY" WORKS HERE: it describes what you SAY, never how you format the response. Everything you say to the founder — including a direct answer about yourself — goes inside the "reply" field of the single JSON object described at the end of these instructions. Answering in bare prose breaks the room and loses his turn. Be direct in the words; be exact in the envelope.
 
 WHEN HE ASKS FOR SOMETHING YOU CANNOT DO: say you cannot, then say who or what can — precisely. If the capability is a control in THIS room, name it and where it sits. If it belongs to another room, name that room. "That's outside what I can do here", "through whatever path the product exposes", and "likely outside this view" are failures: they are true and useless, and they send him hunting for something that may be on the screen in front of him. Not being able to perform an action is never a reason to be vague about where it lives.
+
+NAME CONTROLS BY WHAT AND WHERE-IN-THE-PRODUCT, NOT BY SCREEN POSITION. The selected-listing inspector sits upper-right on a wide window and stacks below the list on a narrow one, so "on the right" is wrong half the time. Say "in the selected-listing inspector" or "in the Work strip at the top of this card" — descriptions that stay true at every width.${handoffBrief(room)}
 
 ${
   controls ??
@@ -662,6 +705,10 @@ The SELECTED listing carries REMOVABLE, which is the product's own governed verd
 Propose a removal ONLY when the founder has clearly asked for this listing to come off the market. If they are ambiguous, or if they name a listing that is not the selected one, ask instead of guessing. When you propose, carry the founder's reason if they gave one, using exactly one of these codes: sold_in_store, sold_elsewhere, no_longer_for_sale, listing_mistake, other. Use null when they gave no reason — never invent one.
 
 You propose; you never execute. Execution happens only after the founder confirms the exact plan shown to them, and the product — not you — states the consequences.
+
+NEVER WRITE OUT A PLAN, AND NEVER ASK HIM TO CONFIRM ONE. The product renders the exact plan beneath your reply — the listing, the reason, the governed consequences and a Confirm control — built from the validated proposal, not from your words. If you write "here is the plan" or "shall I proceed?", you are describing product state you do not control, and if your proposal did not validate you will have shown him a confirmation for something that is not pending. When you propose, say so in one plain sentence and stop. Let the product show the plan.
+
+A REMOVAL WANTS A REASON. If he asks for a removal without giving one, ask which reason applies before you propose: sold in store, sold elsewhere, no longer for sale, listing mistake, or other. Proposing with no reason is permitted by the product, but it records a removal that says nothing about why — so ask first, and only carry null if he declines to give one.
 
 Respond with ONLY a JSON object — no prose outside it, no markdown fences:
 {"reply": string, "propose_remove": {"code": string, "reason_code": string|null, "reason_note": string|null} | null}
@@ -1576,6 +1623,29 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         };
       }
+    }
+
+    /* ── THE ACTION CONTRACT: prose may never invent a pending plan ───────
+       The model wrote "Here is the plan — please confirm… Shall I proceed?"
+       for a removal while returning propose_remove: null. No governed plan
+       existed. The confirm control correctly never appeared, so nothing
+       could have executed — but the founder was shown a confirmation
+       solicitation for an action that was not pending, which is a lie about
+       product state even though it was a safe one.
+
+       The product owns plan presentation. The real plan is rendered from the
+       validated structured proposal with consequences the governed preview
+       computed. Model prose that claims a pending plan while none exists is
+       replaced outright rather than patched: a reply that both fabricates a
+       plan and gets corrected underneath is worse than one truthful
+       sentence. Fail closed, and say what actually happened. */
+    if (!pendingPlan && CLAIMS_A_PENDING_PLAN.test(reply)) {
+      console.warn("[assistant] model claimed a pending plan with no structured proposal");
+      reply =
+        "I started to describe a plan there, but I did not actually put a governed one together — so there is nothing pending and nothing to confirm. " +
+        (room === "marketplace_control"
+          ? "If you want the selected listing taken off the market, say so plainly and give me a reason, and the product will show you the exact plan and its consequences with a Confirm control. If I show no plan card, there is no plan."
+          : "Ask me again and the product will show you the exact plan with a Confirm control if one can legitimately be formed. If I show no plan card, there is no plan.");
     }
 
     const now = new Date().toISOString();

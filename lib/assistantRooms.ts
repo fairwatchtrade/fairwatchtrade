@@ -268,7 +268,9 @@ export const ROOM_CONTROLS: Partial<Record<ImplementedRoom, string>> = {
   – Delete Eligible Listing… permanently deletes, and only when the listing is genuinely eligible.
   – Ask the assistant… opens you.
 
-  NEVER say a control the founder is asking about is "outside this view" or "wherever the product exposes it" when it is sitting in this room. If he asks for something you cannot perform but he can, name the exact control and where it is: "I can't run that myself — it's the Re-run Check button in the inspector for this listing, just above this conversation." Being unable to do it is not a reason to be vague about where it lives.`,
+  NEVER say a control the founder is asking about is "outside this view" or "wherever the product exposes it" when it is sitting in this room. If he asks for something you cannot perform but he can, name the exact control: "I can't run that myself — it's the Re-run Check button in the selected-listing inspector." Being unable to do it is not a reason to be vague about where it lives.
+
+  Describe these by NAME and container, never by screen position: the inspector sits upper-right on a wide window and stacks below the list on a narrow one, so "on the right" is wrong half the time.`,
 };
 
 /* ── REQUIRED OPERATIONAL JOURNEY SET (ROJ-01 … ROJ-04) ───────────────────
