@@ -95,6 +95,55 @@ for (const [label, bad] of [
     describeContext(v1.context) !== describeContext(v2.context));
 }
 
+// ── Needs Attention and exact-match are ROOM truth ───────────────────────
+{
+  const r = resolveRoomContext(
+    {
+      visibleIds: ["a", "b"],
+      selectedId: null,
+      attention: { a: ["no photographs", "price missing"], b: [] },
+      exactMatch: { id: "zz", inCurrentFilters: false },
+    },
+    "marketplace_control"
+  );
+  ok("attention reasons are carried", r.context.attention.a.length === 2);
+  ok("an empty reason list is dropped rather than kept as a flag",
+    r.context.attention.b === undefined);
+  ok("exact match is carried", r.context.exactMatch?.id === "zz");
+  ok("out-of-filter exact match is marked", r.context.exactMatch?.inCurrentFilters === false);
+
+  const desc = describeContext(r.context);
+  ok("the description reports the flagged count", /1 record\(s\) flagged/.test(desc));
+  ok("the description says the exact match is outside the filters",
+    /OUTSIDE the current filters/.test(desc));
+}
+{
+  // Attention is never invented when the room reports none.
+  const r = resolveRoomContext({ visibleIds: ["a"], selectedId: null }, "marketplace_control");
+  ok("no attention reported means none carried", Object.keys(r.context.attention).length === 0);
+  ok("no exact match reported means null", r.context.exactMatch === null);
+  ok("the description does not claim flags that were not reported",
+    !/flagged/.test(describeContext(r.context)));
+}
+{
+  // A changed attention set must change the room description — otherwise the
+  // context-change proof cannot detect it.
+  const a = resolveRoomContext({ visibleIds: ["a"], selectedId: null, attention: { a: ["x"] } }, "marketplace_control");
+  const b = resolveRoomContext({ visibleIds: ["a"], selectedId: null, attention: {} }, "marketplace_control");
+  ok("a changed attention set changes the description",
+    describeContext(a.context) !== describeContext(b.context));
+}
+{
+  // Malformed attention must degrade, never throw or half-populate.
+  const r = resolveRoomContext(
+    { visibleIds: ["a"], selectedId: null, attention: { a: "not an array", b: [7, "ok"] }, exactMatch: "nope" },
+    "marketplace_control"
+  );
+  ok("non-array attention entries are dropped", r.context.attention.a === undefined);
+  ok("non-string reasons are filtered out", r.context.attention.b.join() === "ok");
+  ok("a malformed exact match becomes null", r.context.exactMatch === null);
+}
+
 // ── Could not look is not nothing found ──────────────────────────────────
 {
   const r = couldNotVerify("listings", "timeout");

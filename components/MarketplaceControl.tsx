@@ -2810,6 +2810,17 @@ export default function MarketplaceControl({
                 total_in_view: payload.total,
                 needs_attention: Object.keys(payload.attention ?? {}).length,
               },
+              /* Needs Attention as THIS ROOM computed it, with the room's own
+                 truthful reasons. Re-deriving these server-side from a status
+                 word would be the approximation this contract exists to stop. */
+              attention: payload.attention ?? {},
+              /* Exact Identifier Search Law: an exact match may exist while
+                 the active filters exclude it. The room can see that; the
+                 Assistant must be told rather than describing a working set
+                 the founder can see a result sitting above. */
+              exactMatch: payload.exact
+                ? { id: payload.exact.id, inCurrentFilters: payload.exact.inCurrentFilters }
+                : null,
             })}
           />
         </div>

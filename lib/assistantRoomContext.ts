@@ -52,6 +52,16 @@ export type RenderedRoomContext = {
   counts: Record<string, number>;
   /** Sub-context within the room (an inspected record, an open sale). */
   subview: string | null;
+  /* Needs Attention, as the ROOM computed it. This is room truth rather than
+     a status word the model could re-derive — the room already knows why a
+     listing is flagged, and re-deriving it server-side would be the same
+     approximation this contract exists to prevent. */
+  attention: Record<string, string[]>;
+  /* Exact Identifier Search state. The room must be able to say that an
+     exact match exists but sits outside the current filters, or the
+     Assistant would describe a working set the founder can see a result
+     above. Never a substituted near match. */
+  exactMatch: { id: string; inCurrentFilters: boolean } | null;
 };
 
 export type ContextResolution =
@@ -123,6 +133,23 @@ export function resolveRoomContext(raw: unknown, room: ImplementedRoom): Context
     }
   }
 
+  const attention: Record<string, string[]> = {};
+  if (o.attention && typeof o.attention === "object" && !Array.isArray(o.attention)) {
+    for (const [k, v] of Object.entries(o.attention as Record<string, unknown>)) {
+      if (Array.isArray(v)) {
+        const reasons = v.filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 160));
+        if (reasons.length) attention[k.slice(0, 100)] = reasons;
+      }
+    }
+  }
+
+  let exactMatch: RenderedRoomContext["exactMatch"] = null;
+  if (o.exactMatch && typeof o.exactMatch === "object" && !Array.isArray(o.exactMatch)) {
+    const e = o.exactMatch as Record<string, unknown>;
+    const id = str(e.id, 100);
+    if (id) exactMatch = { id, inCurrentFilters: e.inCurrentFilters === true };
+  }
+
   const num = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) ? v : null;
 
@@ -140,6 +167,8 @@ export function resolveRoomContext(raw: unknown, room: ImplementedRoom): Context
       pageSize: num(o.pageSize),
       counts,
       subview: str(o.subview, 60),
+      attention,
+      exactMatch,
     },
   };
 }
@@ -160,6 +189,15 @@ export function describeContext(c: RenderedRoomContext): string {
   if (c.selectedId) bits.push("one record selected");
   const counts = Object.entries(c.counts);
   if (counts.length) bits.push(`room counts ${counts.map(([k, v]) => `${k}=${v}`).join(", ")}`);
+  const flagged = Object.keys(c.attention).length;
+  if (flagged) bits.push(`${flagged} record(s) flagged Needs Attention by the room`);
+  if (c.exactMatch) {
+    bits.push(
+      c.exactMatch.inCurrentFilters
+        ? "an exact identifier match is present in the current filters"
+        : "an exact identifier match exists OUTSIDE the current filters"
+    );
+  }
   return bits.join(" · ");
 }
 

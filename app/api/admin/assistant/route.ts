@@ -319,6 +319,108 @@ async function readWorkingSet(
    passes it. Reintroducing a server-side room query would reintroduce the
    defect, which is why no such function exists to copy. */
 
+/* ── FOUNDER REVIEW: the governed facts that answer the room's question ──
+
+   "What is blocking this listing from a decision?" cannot be answered from
+   identity and status. It needs the decision history, the integrity review
+   that may be holding it, and whether a buyer is already waiting on it.
+
+   Every source fails closed independently. A partial picture presented as a
+   whole one is how an Assistant tells a founder a listing is clear when the
+   thing holding it simply did not load. */
+type ReviewFacts = {
+  decisions: {
+    decision: string;
+    prior: string | null;
+    resulting: string | null;
+    at: string;
+    via: string;
+  }[];
+  integrity: { status: string; resolved_at: string | null; notes: string | null } | null;
+  requests: { status: string; created_at: string }[];
+};
+
+async function readReviewFacts(
+  service: ReturnType<typeof createServiceClient>,
+  listingId: string
+): Promise<Reread<ReviewFacts>> {
+  const [decisions, integrity, requests] = await Promise.all([
+    service
+      .from("listing_decision_events")
+      .select("decision, prior_status, resulting_status, created_at, executed_via")
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    service
+      .from("listing_integrity_reviews")
+      .select("status, resolved_at, admin_notes")
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    service
+      .from("purchase_requests")
+      .select("status, created_at")
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  if (decisions.error) return couldNotVerify("listing_decision_events", decisions.error.message);
+  if (integrity.error) return couldNotVerify("listing_integrity_reviews", integrity.error.message);
+  if (requests.error) return couldNotVerify("purchase_requests", requests.error.message);
+
+  const review = (integrity.data ?? [])[0] as
+    | { status: string; resolved_at: string | null; admin_notes: string | null }
+    | undefined;
+
+  return {
+    state: "OK",
+    value: {
+      decisions: (decisions.data ?? []).map((d) => ({
+        decision: String(d.decision ?? ""),
+        prior: (d.prior_status as string | null) ?? null,
+        resulting: (d.resulting_status as string | null) ?? null,
+        at: String(d.created_at ?? ""),
+        via: String(d.executed_via ?? "direct"),
+      })),
+      integrity: review
+        ? { status: review.status, resolved_at: review.resolved_at, notes: review.admin_notes }
+        : null,
+      requests: (requests.data ?? []).map((r) => ({
+        status: String(r.status ?? ""),
+        created_at: String(r.created_at ?? ""),
+      })),
+    },
+  };
+}
+
+function describeReviewFacts(f: ReviewFacts): string {
+  const lines: string[] = [];
+  lines.push(
+    f.integrity
+      ? `Integrity review: ${f.integrity.status}${
+          f.integrity.resolved_at ? ` (resolved ${f.integrity.resolved_at})` : " — NOT resolved"
+        }${f.integrity.notes ? ` · notes: ${f.integrity.notes.slice(0, 200)}` : ""}`
+      : "Integrity review: none on record for this listing."
+  );
+  lines.push(
+    f.decisions.length
+      ? `Decision history (newest first): ${f.decisions
+          .map((d) => `${d.decision} ${d.prior ?? "?"}→${d.resulting ?? "?"} via ${d.via}`)
+          .join("; ")}`
+      : "Decision history: no decision has ever been recorded for this listing."
+  );
+  const live = f.requests.filter((r) => r.status === "pending" || r.status === "accepted");
+  lines.push(
+    f.requests.length
+      ? `Purchase requests: ${f.requests.length} on record, ${live.length} still live (${f.requests
+          .map((r) => r.status)
+          .join(", ")}).`
+      : "Purchase requests: none."
+  );
+  return lines.join("\n");
+}
+
 /* ── the governed remove preview, read through the trusted client ─────── */
 async function readRemovePreview(
   service: ReturnType<typeof createServiceClient>,
@@ -455,7 +557,8 @@ async function callModel(
   workingSet: WorkingEntry[],
   founderText: string,
   roomContext: RenderedRoomContext,
-  arrival: string | null
+  arrival: string | null,
+  roomFacts: string | null
 ): Promise<ModelOut | null> {
   const setLines = workingSet.length
     ? workingSet
@@ -485,6 +588,18 @@ async function callModel(
     roomContext
   )}`;
 
+  /* Needs Attention arrives WITH its reasons, computed by the room. The
+     model is told to report them rather than infer why a listing is flagged
+     from its status word — a model guessing eligibility from a status has
+     already been wrong in production once. */
+  const byId = new Map(workingSet.map((e) => [e.id, e]));
+  const attentionLines = Object.entries(roomContext.attention)
+    .map(([id, reasons]) => {
+      const e = byId.get(id);
+      return `- ${e?.code || id}: ${reasons.join("; ")}`;
+    })
+    .join("\n");
+
   const messages = [
     ...turns.slice(-MODEL_TURNS_MAX).map((t) => ({
       role: t.role === "founder" ? ("user" as const) : ("assistant" as const),
@@ -494,7 +609,11 @@ async function callModel(
       role: "user" as const,
       content:
         (arrival ? `${arrival}\n\n` : "") +
-        `${hereLines}\n\nWORKING SET (the records above, re-read from production for this turn):\n${setLines}\n\nFOUNDER: ${founderText}`,
+        `${hereLines}\n\nWORKING SET (the records above, re-read from production for this turn):\n${setLines}` +
+        (attentionLines ? `\n\nNEEDS ATTENTION — the room's own reasons, not inferred from status:\n${attentionLines}` : "") +
+        (roomFacts ? `\n\nGOVERNED REVIEW FACTS (re-read from production this turn):\n${roomFacts}` : "") +
+        `\n\nROOM-NATIVE QUESTION this room exists to answer: ${ROOM_SPEC[room].nativeQuestion}` +
+        `\n\nFOUNDER: ${founderText}`,
     },
   ];
 
@@ -1067,6 +1186,38 @@ export async function POST(request: NextRequest) {
     }
     const workingSet = reread.value;
 
+    /* Founder Review's room-native question is "what is blocking this listing
+       from a decision?", which identity and status cannot answer. These are
+       the governed sources that can, and they fail closed with the same
+       refusal rather than letting a half-loaded picture read as a clear one. */
+    let roomFacts: string | null = null;
+    if (room === "founder_review" && openListingId) {
+      const facts = await readReviewFacts(service, openListingId);
+      if (facts.state === "COULD_NOT_VERIFY") {
+        const now = new Date().toISOString();
+        await saveContext(service, session.id as string, {
+          messages: [
+            ...turns,
+            { role: "founder" as const, text, at: now },
+            { role: "assistant" as const, text: facts.sentence, at: now },
+          ].slice(-STORED_TURNS_MAX),
+          pending_plan: ctx.pending_plan ?? null,
+        });
+        return NextResponse.json({
+          session_id: session.id,
+          room,
+          thread_id: thread?.id ?? null,
+          reply: facts.sentence,
+          current_truth: "COULD_NOT_VERIFY",
+          failed_source: facts.source,
+          plan: null,
+          preview: null,
+          consequences: [],
+        });
+      }
+      roomFacts = describeReviewFacts(facts.value);
+    }
+
     /* Arrival Contract: when work has just been handed into this room, the
        first substantive response names where it came from, what it carried,
        why, and whether current truth still supports that reason. */
@@ -1080,7 +1231,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const modelOut = await callModel(room, turns, workingSet, text, roomContext, arrival);
+    const modelOut = await callModel(room, turns, workingSet, text, roomContext, arrival, roomFacts);
     if (!modelOut) {
       // Nothing is stored and nothing executes on a failed turn.
       return NextResponse.json(
