@@ -1135,6 +1135,56 @@ export default function CatalogueClient({
 
   const activeThreads = threads.filter((t) => !t.archivedByMe && t.listing);
 
+  /* Hash landing (v7.77). The collector rail, the narrow-width room selector
+     and both purchase-request confirmations address sections of this page by
+     hash — #my-offers most of all, because "View My Offers" is what a buyer
+     presses in the second after sending an offer.
+
+     The browser lands on the hash once, against the page as it exists at
+     first paint. Correspondence sits directly ABOVE #my-offers and is not
+     there yet: it renders only when /api/messages resolves, and a buyer who
+     just made an offer is precisely the buyer who has threads. When that
+     block appears it pushes the section down by its full height, and the
+     collector who asked for their offers is left reading their conversations
+     instead. Landing on the right anchor is not the same as landing on the
+     right content, and only the second one is what the link promised.
+
+     So the landing is re-asserted once the content above has settled. The
+     effect is bounded by its own dependency rather than by a timer:
+     activeThreads.length changes at most once, when the single threads fetch
+     resolves. Same-page hash clicks are untouched — nothing above has moved,
+     so the browser is already right and this never re-runs for them.
+
+     It yields to the collector immediately and permanently. Wheel, touch and
+     keys are the signals that a human has taken the page; scrollIntoView
+     fires none of the three, so this can never cancel itself. */
+  const landingClaimed = useRef(false);
+  useEffect(() => {
+    if (landingClaimed.current) return;
+
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    /* Instant, never smooth. This is arrival, not a tour — and a smooth
+       scroll re-firing as the page settles reads as the page fighting the
+       reader. scroll-mt-32 on the section supplies the sticky header. */
+    target.scrollIntoView({ behavior: "auto", block: "start" });
+
+    const claim = () => {
+      landingClaimed.current = true;
+    };
+    window.addEventListener("wheel", claim, { passive: true, once: true });
+    window.addEventListener("touchmove", claim, { passive: true, once: true });
+    window.addEventListener("keydown", claim, { once: true });
+    return () => {
+      window.removeEventListener("wheel", claim);
+      window.removeEventListener("touchmove", claim);
+      window.removeEventListener("keydown", claim);
+    };
+  }, [activeThreads.length]);
+
   useEffect(() => {
     let cancelled = false;
     async function loadOffers() {

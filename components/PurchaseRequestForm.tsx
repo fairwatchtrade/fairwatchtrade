@@ -447,7 +447,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   </div>
                 </div>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/catalogue" className={primaryBtn}>View My Offers</Link>
+                  <Link href="/catalogue#my-offers" className={primaryBtn}>View My Offers</Link>
                   <Link href={backToListing} className={tertiaryBtn}>Return to listing</Link>
                 </div>
               </StatePanel>

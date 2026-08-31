@@ -150,7 +150,7 @@ export default function InlinePurchaseRequest({
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             {view === "success" && (
-              <Link href="/catalogue" className={linkAction}>
+              <Link href="/catalogue#my-offers" className={linkAction}>
                 View My Offers
               </Link>
             )}
