@@ -2777,6 +2777,40 @@ export default function MarketplaceControl({
             room="marketplace_control"
             listingId={assistantFor}
             onClose={() => setAssistantFor(null)}
+            /* The source-of-"here" contract. This is the SAME payload and
+               view state the table above renders from — not a second query.
+               The Assistant previously read its own "newest 40" slice and
+               answered about listings that were not on screen. Read fresh on
+               every send, so changing filter, search, sort, page or selection
+               genuinely changes what the Assistant is looking at. */
+            getRoomContext={() => ({
+              visibleIds: [
+                ...new Set([
+                  ...payload.rows.map((r) => r.id),
+                  ...(assistantFor ? [assistantFor] : []),
+                ]),
+              ],
+              selectedId: assistantFor,
+              view: view.life,
+              subview: view.mode,
+              search: view.q || null,
+              sort: view.sort,
+              page: payload.page,
+              pageSize: payload.per,
+              filters: {
+                status: view.status,
+                seller: view.seller,
+                new24h: view.new24h,
+                dealer: view.dealer,
+                requests: view.requests,
+                attention: view.attention,
+              },
+              counts: {
+                on_screen: payload.rows.length,
+                total_in_view: payload.total,
+                needs_attention: Object.keys(payload.attention ?? {}).length,
+              },
+            })}
           />
         </div>
       )}

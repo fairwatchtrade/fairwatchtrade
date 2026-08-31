@@ -72,18 +72,59 @@ const ROOM_COPY: Record<
   },
 };
 
+/* What the room must declare about itself. Supplied as a FUNCTION, not a
+   snapshot: it is called at send time so the context describes the room as it
+   is at that moment. A value captured at mount would go stale the instant the
+   founder changed a filter — and the whole point is that changing the room
+   changes the answer. */
+export type RoomContextInput = {
+  visibleIds: string[];
+  selectedId: string | null;
+  view?: string | null;
+  filters?: Record<string, string | number | boolean | null>;
+  search?: string | null;
+  sort?: string | null;
+  page?: number | null;
+  pageSize?: number | null;
+  counts?: Record<string, number>;
+  subview?: string | null;
+};
+
+type ThreadSummary = {
+  id: string;
+  title: string | null;
+  status: "ACTIVE" | "PAUSED" | "COMPLETE";
+  origin_room: string;
+  current_room: string | null;
+  last_activity_at: string;
+  open_loops: number;
+  anchors: number;
+  needs_reorientation: boolean;
+};
+
 export default function FounderAssistant({
   listingId,
   onClose,
   room = "founder_review",
+  getRoomContext,
 }: {
   listingId: string;
   onClose: () => void;
   room?: Room;
+  /* REQUIRED. A room that cannot say what the founder is looking at may not
+     mount an Assistant — that is the source-of-"here" contract expressed in
+     the type system rather than in a comment nobody reads. */
+  getRoomContext: () => RoomContextInput;
 }) {
   const router = useRouter();
   const copy = ROOM_COPY[room];
   const [sessionId, setSessionId] = useState<string | null>(null);
+  /* Operational Thread: chosen deliberately, never attached on arrival.
+     Entering a room is navigation, and navigation does not move work. */
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [consequences, setConsequences] = useState<string[]>([]);
@@ -110,11 +151,13 @@ export default function FounderAssistant({
           } | null;
           resume_report?: string;
           detail?: string;
+          threads?: ThreadSummary[];
         };
         if (cancelled) return;
         if (!res.ok) {
           setError(data?.detail || `The Assistant is unavailable (${res.status}).`);
         } else if (data.session) {
+          setThreads(Array.isArray(data.threads) ? data.threads : []);
           setSessionId(data.session.id);
           setLines([
             ...(data.session.messages ?? []).map((m) => ({
@@ -125,6 +168,8 @@ export default function FounderAssistant({
           ]);
           setPlan(data.session.pending_plan ?? null);
           setConsequences(data.session.plan_consequences ?? []);
+        } else {
+          setThreads(Array.isArray(data.threads) ? data.threads : []);
         }
       } catch {
         if (!cancelled) setError("The Assistant is unreachable — nothing was changed.");
@@ -152,6 +197,114 @@ export default function FounderAssistant({
     return { ok: res.ok, status: res.status, data };
   }
 
+  /* ── Operational Thread control ────────────────────────────────────────
+     Every one of these is an explicit founder act. There is deliberately no
+     "attach the most recent thread" path anywhere in this component. */
+
+  async function refreshThreads(): Promise<ThreadSummary[]> {
+    const { ok, data } = await post({ action: "thread_list" });
+    const next = ok && Array.isArray(data.threads) ? (data.threads as ThreadSummary[]) : [];
+    setThreads(next);
+    return next;
+  }
+
+  async function startWork() {
+    const title = newTitle.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { ok, data } = await post({ action: "thread_start", title });
+      if (!ok) {
+        setError(String(data.detail ?? "That work could not be started."));
+        return;
+      }
+      const t = data.thread as ThreadSummary | undefined;
+      if (t?.id) {
+        setThreadId(t.id);
+        setLines((l) => [...l, { role: "room", text: `Working on: ${t.title ?? title}` }]);
+      }
+      setNewTitle("");
+      setThreadOpen(false);
+      await refreshThreads();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resumeWork(id: string) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { ok, data } = await post({ action: "thread_resume", thread_id: id });
+      if (!ok) {
+        setError(String(data.detail ?? "That work could not be resumed."));
+        return;
+      }
+      setThreadId(id);
+      const t = data.thread as ThreadSummary | undefined;
+      const loops = Array.isArray(data.open_loops) ? data.open_loops.length : 0;
+      const reorientation = typeof data.reorientation === "string" ? data.reorientation : null;
+      setLines((l) => [
+        ...l,
+        {
+          role: "room",
+          text:
+            (reorientation ? `${reorientation}\n` : "") +
+            `Resumed: ${t?.title ?? "this work"}.` +
+            (loops > 0
+              ? ` ${loops} unresolved obligation${loops === 1 ? "" : "s"} still on it.`
+              : " Nothing unresolved is recorded on it."),
+        },
+      ]);
+      setThreadOpen(false);
+      await refreshThreads();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pauseWork() {
+    if (!threadId || busy) return;
+    setBusy(true);
+    try {
+      const { ok, data } = await post({ action: "thread_pause", thread_id: threadId });
+      if (!ok) setError(String(data.detail ?? "That work could not be paused."));
+      else {
+        setLines((l) => [
+          ...l,
+          { role: "room", text: "Paused. It stays in your saved work with everything it carries." },
+        ]);
+        setThreadId(null);
+        await refreshThreads();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeWork() {
+    if (!threadId || busy) return;
+    setBusy(true);
+    try {
+      const { ok, data } = await post({ action: "thread_close", thread_id: threadId });
+      if (!ok) {
+        /* Unresolved obligations refuse closure — the product says so in
+           words rather than silently discarding them. */
+        setError(String(data.detail ?? "That work could not be closed."));
+        return;
+      }
+      setLines((l) => [...l, { role: "room", text: "Closed." }]);
+      setThreadId(null);
+      await refreshThreads();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const activeThread = threads.find((t) => t.id === threadId) ?? null;
+
   async function send() {
     const text = input.trim();
     if (!text || busy) return;
@@ -160,10 +313,14 @@ export default function FounderAssistant({
     setLines((l) => [...l, { role: "founder", text }]);
     setInput("");
     try {
+      /* Read the room AT SEND TIME. This is what makes "change the room, ask
+         again, get a different answer" true rather than aspirational. */
       const { ok, status, data } = await post({
         action: "message",
         session_id: sessionId,
         listing_id: listingId,
+        thread_id: threadId,
+        room_context: getRoomContext(),
         text,
       });
       if (!ok) {
@@ -275,6 +432,115 @@ export default function FounderAssistant({
           </button>
         </div>
       </header>
+
+      {/* ── Operational Thread strip ─────────────────────────────────────
+          The founder-facing door to preserved work. It is one line inside
+          the existing room-native card: no orb, no rail, no separate Admin
+          destination, and it does not take over the room. Recoverable work
+          must also be VISIBLE work, and a thread with no return door is not
+          a foundation. */}
+      <div className="fwa-thread">
+        <div className="fwa-thread-now">
+          <span className="fwa-thread-label">Work</span>
+          {activeThread ? (
+            <span className="fwa-thread-title">
+              {activeThread.title ?? "Untitled work"}
+              {activeThread.open_loops > 0 && (
+                <span className="fwa-loops">
+                  {activeThread.open_loops} unresolved
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="fwa-thread-none">
+              Not attached to any thread — this is an ordinary turn.
+            </span>
+          )}
+        </div>
+        <div className="fwa-thread-actions">
+          {activeThread && (
+            <>
+              <button type="button" className="fwa-quiet" onClick={pauseWork} disabled={busy}>
+                Pause
+              </button>
+              <button type="button" className="fwa-quiet" onClick={closeWork} disabled={busy}>
+                Close work
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="fwa-quiet"
+            onClick={async () => {
+              const next = !threadOpen;
+              setThreadOpen(next);
+              if (next) await refreshThreads();
+            }}
+            aria-expanded={threadOpen}
+            disabled={busy}
+          >
+            {threadOpen ? "Hide work" : "Choose work"}
+          </button>
+        </div>
+      </div>
+
+      {threadOpen && (
+        <div className="fwa-thread-panel">
+          <div className="fwa-thread-new">
+            <input
+              className="fwa-input"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value.slice(0, 160))}
+              placeholder="Name this work — e.g. Dufour intake needs a decision"
+              disabled={busy}
+            />
+            <button
+              type="button"
+              className="fwa-go"
+              onClick={startWork}
+              disabled={busy || !newTitle.trim()}
+            >
+              Start
+            </button>
+          </div>
+
+          {threads.length === 0 ? (
+            <p className="fwa-thread-empty">
+              No preserved work yet. Starting one keeps the object, the reason and
+              anything unresolved with you as you move between rooms.
+            </p>
+          ) : (
+            <ul className="fwa-thread-list">
+              {threads.map((t) => (
+                <li key={t.id} className="fwa-thread-row">
+                  <div className="fwa-thread-row-main">
+                    <span className="fwa-thread-row-title">{t.title ?? "Untitled work"}</span>
+                    <span className="fwa-thread-row-meta">
+                      {t.status === "PAUSED" ? "Paused" : "Active"}
+                      {" · "}
+                      {t.anchors} object{t.anchors === 1 ? "" : "s"}
+                      {t.open_loops > 0 && ` · ${t.open_loops} unresolved`}
+                      {t.needs_reorientation && " · not worked recently"}
+                    </span>
+                  </div>
+                  {t.id === threadId ? (
+                    <span className="fwa-thread-current">On this turn</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="fwa-quiet"
+                      onClick={() => resumeWork(t.id)}
+                      disabled={busy}
+                    >
+                      Continue
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="fwa-log" ref={logRef}>
         {!ready ? (
@@ -403,6 +669,24 @@ const FWA_CSS = `
 .fwa-sub{margin:0;max-width:560px;color:var(--muted);font-size:10px;line-height:1.55}
 .fwa-head-actions{display:flex;gap:8px;flex-shrink:0}
 .fwa-quiet{border:1px solid var(--field-line);background:var(--chip);color:var(--platinum-dim);padding:6px 10px;font-size:10px}
+/* Operational Thread strip — one line, room-native, never a rail. */
+.fwa-thread{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--field-line);padding:8px 12px}
+.fwa-thread-now{display:flex;align-items:baseline;gap:8px;min-width:0}
+.fwa-thread-label{font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--gold-dim)}
+.fwa-thread-title{font-size:12px;color:var(--platinum);min-width:0;overflow-wrap:anywhere}
+.fwa-thread-none{font-size:11px;color:var(--muted)}
+.fwa-loops{margin-left:8px;font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold)}
+.fwa-thread-actions{display:flex;gap:6px;flex-shrink:0}
+.fwa-thread-panel{border-bottom:1px solid var(--field-line);padding:10px 12px}
+.fwa-thread-new{display:flex;gap:8px;align-items:stretch}
+.fwa-thread-new .fwa-input{min-height:34px;resize:none}
+.fwa-thread-empty{margin:10px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+.fwa-thread-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fwa-thread-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--field-line);padding-top:8px}
+.fwa-thread-row-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.fwa-thread-row-title{font-size:12px;color:var(--platinum);overflow-wrap:anywhere}
+.fwa-thread-row-meta{font-size:10px;color:var(--muted)}
+.fwa-thread-current{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);flex-shrink:0}
 .fwa-quiet:disabled{opacity:.34;cursor:not-allowed}
 .fwa-log{max-height:340px;overflow-y:auto;padding:12px 16px;display:grid;gap:10px}
 .fwa-line{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;font-size:11px;line-height:1.55}

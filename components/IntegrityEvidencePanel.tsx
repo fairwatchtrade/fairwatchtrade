@@ -645,7 +645,7 @@ export default function IntegrityEvidencePanel({
         </button>
       </footer>
       {assistantOpen && (
-        <FounderAssistant listingId={listingId} onClose={() => setAssistantOpen(false)} />
+        <FounderAssistant listingId={listingId} onClose={() => setAssistantOpen(false)} getRoomContext={() => ({ visibleIds: [listingId], selectedId: listingId, subview: "adjudication", view: "review", filters: {}, counts: { on_screen: 1 } })} />
       )}
     </section>
   );

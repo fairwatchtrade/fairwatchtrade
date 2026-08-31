@@ -11,9 +11,35 @@ import {
 import {
   resolveRoom,
   roomRefusalStatus,
+  ROOM_SPEC,
+  ROOM_LABEL,
   type ImplementedRoom,
   type RoomResolution,
 } from "@/lib/assistantRooms";
+import {
+  resolveRoomContext,
+  describeContext,
+  couldNotVerify,
+  type RenderedRoomContext,
+  type Reread,
+} from "@/lib/assistantRoomContext";
+import {
+  listLiveThreads,
+  getThread,
+  startThread,
+  activateThread,
+  pauseThread,
+  closeThread,
+  handoffThread,
+  threadAnchors,
+  openLoops,
+  createOpenLoop,
+  disposeOpenLoop,
+  addAnchor,
+  needsReorientation,
+  reorientationSentence,
+  type OperationalThread,
+} from "@/lib/assistantThread";
 
 /* ════════════════════════════════════════════════════════════════════════
    FOUNDER ASSISTANT — app/api/admin/assistant/route.ts   (v6.89)
@@ -141,6 +167,10 @@ type WorkingEntry = {
      production and declined work the product allows. */
   removable?: boolean;
   refusal?: string | null;
+  /* The room showed this record and production no longer produces it. Kept
+     in the set and named, because a silently shorter list is a different
+     room presented as this one. */
+  missing?: boolean;
 };
 
 /* The refusal response for a room that did not resolve.
@@ -204,72 +234,82 @@ function entryFrom(row: Record<string, unknown>, open: boolean): WorkingEntry {
   };
 }
 
-/* ── FOUNDER REVIEW working set: the open record + the pending-review
-      queue, read from production NOW (§11.1 — no invented UI state). ── */
-async function readReviewSet(
-  service: ReturnType<typeof createServiceClient>,
-  openListingId: string | null
-): Promise<WorkingEntry[]> {
-  const entries = new Map<string, WorkingEntry>();
+/* ── THE WORKING SET — what the room shows, re-read from production ──────
 
-  const { data: queue } = await service
+   The room supplies WHICH records are in front of the founder. Production
+   supplies what those records currently mean. There is deliberately no
+   branch here that builds a set the room did not pass: the previous
+   Marketplace reader ran its own "newest 40" query and answered about a room
+   the founder was not looking at.
+
+   A record the room shows that production can no longer produce is reported
+   as MISSING rather than dropped — a silently shorter list is a different
+   room presented as this one.
+
+   Any read failure returns COULD_NOT_VERIFY and the model is never called
+   for a current-state claim. Could not look is not nothing found. */
+async function readWorkingSet(
+  service: ReturnType<typeof createServiceClient>,
+  room: Room,
+  ctx: RenderedRoomContext
+): Promise<Reread<WorkingEntry[]>> {
+  const ids = [
+    ...new Set([...ctx.visibleIds, ...(ctx.selectedId ? [ctx.selectedId] : [])]),
+  ].slice(0, QUEUE_LIMIT + LEDGER_LIMIT);
+
+  if (ids.length === 0) return { state: "OK", value: [] };
+
+  const { data, error } = await service
     .from("listings")
     .select("id, public_code, brand, model, reference, status")
-    .eq("status", "pending_review")
-    .order("created_at", { ascending: true })
-    .limit(QUEUE_LIMIT);
-  for (const row of queue ?? []) entries.set(row.id as string, entryFrom(row, false));
+    .in("id", ids);
+  if (error) return couldNotVerify("listings", error.message);
 
-  if (openListingId) {
-    const { data: open } = await service
-      .from("listings")
-      .select("id, public_code, brand, model, reference, status")
-      .eq("id", openListingId)
-      .maybeSingle();
-    if (open) entries.set(open.id as string, entryFrom(open, true));
+  const byId = new Map((data ?? []).map((r) => [r.id as string, r]));
+  const entries: WorkingEntry[] = [];
+
+  for (const id of ids) {
+    const row = byId.get(id);
+    if (!row) {
+      entries.push({
+        id,
+        code: "",
+        brand: null,
+        model: null,
+        reference: null,
+        status: "",
+        open: ctx.selectedId === id,
+        missing: true,
+      });
+      continue;
+    }
+    entries.push(entryFrom(row, ctx.selectedId === id));
   }
 
-  return [...entries.values()];
-}
-
-/* ── MARKETPLACE CONTROL working set: the SELECTED listing plus a live
-      slice of the room's inventory. The selection is what the Assistant may
-      act on; the slice is only so it can answer questions about the room
-      without inventing anything. Both are read from production this turn. ── */
-async function readMarketplaceSet(
-  service: ReturnType<typeof createServiceClient>,
-  selectedListingId: string | null
-): Promise<WorkingEntry[]> {
-  const entries = new Map<string, WorkingEntry>();
-
-  const { data: ledger } = await service
-    .from("listings")
-    .select("id, public_code, brand, model, reference, status, updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(LEDGER_LIMIT);
-  for (const row of ledger ?? []) entries.set(row.id as string, entryFrom(row, false));
-
-  if (selectedListingId) {
-    const { data: sel } = await service
-      .from("listings")
-      .select("id, public_code, brand, model, reference, status")
-      .eq("id", selectedListingId)
-      .maybeSingle();
-    if (sel) {
-      const entry = entryFrom(sel, true);
-      /* The eligibility the founder would see, from the same function the
-         confirmation reads. The Assistant reports it; it never derives it. */
+  /* Marketplace Control only: the product's own removal verdict for the
+     selected listing, from the same function the confirmation reads. If the
+     verdict cannot be read, the turn refuses rather than letting the model
+     infer eligibility from a status word. */
+  if (room === "marketplace_control" && ctx.selectedId) {
+    const entry = entries.find((e) => e.id === ctx.selectedId);
+    if (entry && !entry.missing) {
       const p = await readRemovePreview(service, entry.id);
-      if (p) {
-        entry.removable = p.removable;
-        entry.refusal = p.refusal;
-      }
-      entries.set(entry.id, entry);
+      if (!p) return couldNotVerify("listing_remove_preview", "preview unavailable for the selected listing");
+      entry.removable = p.removable;
+      entry.refusal = p.refusal;
     }
   }
 
-  return [...entries.values()];
+  return { state: "OK", value: entries };
 }
+
+/* readMarketplaceSet is deliberately GONE. It ran an independent
+   `order by updated_at desc limit 40` and called the result "here", so the
+   Assistant answered about the newest listings in the database while the
+   founder was looking at a filtered, searched, sorted, paginated page. There
+   is now exactly one way for the server to learn what is on screen: the room
+   passes it. Reintroducing a server-side room query would reintroduce the
+   defect, which is why no such function exists to copy. */
 
 /* ── the governed remove preview, read through the trusted client ─────── */
 async function readRemovePreview(
@@ -291,6 +331,75 @@ function contextOf(raw: unknown): SessionContext {
 }
 function turnsOf(ctx: SessionContext): AssistantTurn[] {
   return Array.isArray(ctx.messages) ? ctx.messages : [];
+}
+
+/* ── ARRIVAL CONTRACT ─────────────────────────────────────────────────────
+
+   When work arrives carrying an Operational Thread, the first substantive
+   response must acknowledge where it came from, what governed object came
+   with it, why the founder is here, whether current truth still supports
+   that reason, and what is now in front of him.
+
+   Reading `reason_for_moving` silently is explicitly not enough, so the note
+   is composed HERE from thread facts joined against THIS TURN'S reread —
+   never from remembered product state — and handed to the model as material
+   it is instructed to use. The "does the reason still hold" clause is
+   answered by whether the anchored object is present in the freshly re-read
+   working set and what its status is now, which is a current fact rather
+   than a recollection. */
+function buildArrivalNote(
+  thread: OperationalThread,
+  room: Room,
+  anchors: { object_type: string; object_id: string }[],
+  loops: { obligation_type: string; founder_intent: string | null }[],
+  workingSet: WorkingEntry[]
+): string {
+  const lines: string[] = [];
+  lines.push(
+    `ACTIVE OPERATIONAL THREAD — "${thread.title ?? "untitled work"}", started in ${
+      ROOM_LABEL[thread.origin_room as keyof typeof ROOM_LABEL] ?? thread.origin_room
+    }.`
+  );
+  if (thread.operational_intent) {
+    lines.push(`What the founder set out to do: ${thread.operational_intent}`);
+  }
+
+  if (anchors.length === 0) {
+    lines.push("No governed objects are anchored to this thread yet.");
+  } else {
+    lines.push("Objects this work carries, checked against what this room just re-read:");
+    for (const a of anchors) {
+      const here = workingSet.find((e) => e.id === a.object_id);
+      if (!here) {
+        lines.push(
+          `- ${a.object_type} ${a.object_id} — NOT among the records this room is showing, so I cannot speak to its current state from here.`
+        );
+      } else if (here.missing) {
+        lines.push(
+          `- ${a.object_type} ${a.object_id} — the room is showing it but production no longer produces it.`
+        );
+      } else {
+        lines.push(
+          `- ${a.object_type} ${here.code || here.id} — current status ${here.status}. Say plainly whether that still matches why the founder came here.`
+        );
+      }
+    }
+  }
+
+  if (loops.length > 0) {
+    lines.push(
+      `Unresolved obligations on this thread: ${loops
+        .map((l) => l.obligation_type + (l.founder_intent ? ` (${l.founder_intent})` : ""))
+        .join("; ")}.`
+    );
+  }
+
+  lines.push(
+    "ARRIVAL CONTRACT: your first substantive sentence must say where this work came from, what it carried, " +
+      "why the founder is here, and whether current truth still supports that reason — including saying so plainly " +
+      "if the reason no longer holds. Do not silently continue as though nothing moved."
+  );
+  return lines.join("\n");
 }
 
 /* ── the model call: one narrow capability per room, JSON in, JSON out ── */
@@ -336,28 +445,37 @@ async function callModel(
   room: Room,
   turns: AssistantTurn[],
   workingSet: WorkingEntry[],
-  founderText: string
+  founderText: string,
+  roomContext: RenderedRoomContext,
+  arrival: string | null
 ): Promise<ModelOut | null> {
   const setLines = workingSet.length
     ? workingSet
-        .map(
-          (e) =>
-            `- ${e.code || e.id} · status ${e.status}${
-              e.open ? (room === "marketplace_control" ? " · SELECTED" : " · OPEN RECORD") : ""
-            }${
-              e.removable === undefined
-                ? ""
-                : e.removable
-                  ? " · REMOVABLE: yes"
-                  : ` · REMOVABLE: no (${e.refusal ?? "not removable"})`
-            } · ${
-              [e.brand, e.model, e.reference].filter(Boolean).join(" ") || "(no name recorded)"
-            }`
+        .map((e) =>
+          e.missing
+            ? `- ${e.id} · ON SCREEN BUT NO LONGER IN PRODUCTION — the room is showing a record that no longer exists`
+            : `- ${e.code || e.id} · status ${e.status}${
+                e.open ? (room === "marketplace_control" ? " · SELECTED" : " · OPEN RECORD") : ""
+              }${
+                e.removable === undefined
+                  ? ""
+                  : e.removable
+                    ? " · REMOVABLE: yes"
+                    : ` · REMOVABLE: no (${e.refusal ?? "not removable"})`
+              } · ${
+                [e.brand, e.model, e.reference].filter(Boolean).join(" ") || "(no name recorded)"
+              }`
         )
         .join("\n")
-    : room === "marketplace_control"
-      ? "(empty — nothing is selected and the ledger returned no records)"
-      : "(empty — nothing is open and the pending-review queue has no records)";
+    : "(the room reports nothing on screen right now)";
+
+  /* The room's own orientation, passed from what it renders. The model is
+     told explicitly that this — not a database slice — is "here", because
+     the failure being repaired was an Assistant confidently describing a
+     different working set than the founder's screen. */
+  const hereLines = `THIS ROOM RIGHT NOW (passed from the page the founder is looking at):\n${describeContext(
+    roomContext
+  )}`;
 
   const messages = [
     ...turns.slice(-MODEL_TURNS_MAX).map((t) => ({
@@ -366,7 +484,9 @@ async function callModel(
     })),
     {
       role: "user" as const,
-      content: `WORKING SET (read from production for this turn):\n${setLines}\n\nFOUNDER: ${founderText}`,
+      content:
+        (arrival ? `${arrival}\n\n` : "") +
+        `${hereLines}\n\nWORKING SET (the records above, re-read from production for this turn):\n${setLines}\n\nFOUNDER: ${founderText}`,
     },
   ];
 
@@ -494,7 +614,32 @@ export async function GET(request: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  if (!session) return NextResponse.json({ session: null, room });
+  /* The founder's live work, offered for DELIBERATE selection. Returning the
+     list is not resuming anything: nothing here is auto-attached, because
+     entering a room is navigation and navigation does not move work. */
+  const liveThreads = await listLiveThreads(service, gate.uid);
+  const threadSurface = await Promise.all(
+    liveThreads.map(async (t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      origin_room: t.origin_room,
+      current_room: t.current_room,
+      last_activity_at: t.last_activity_at,
+      open_loops: (await openLoops(service, t.id, true)).length,
+      anchors: (await threadAnchors(service, t.id)).length,
+      needs_reorientation: needsReorientation(t),
+    }))
+  );
+
+  if (!session) {
+    return NextResponse.json({
+      session: null,
+      room,
+      native_question: ROOM_SPEC[room].nativeQuestion,
+      threads: threadSurface,
+    });
+  }
 
   const ctx = contextOf(session.context);
   const plan = ctx.pending_plan ?? null;
@@ -540,6 +685,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     room,
+    native_question: ROOM_SPEC[room].nativeQuestion,
+    threads: threadSurface,
     session: {
       id: session.id,
       messages: turnsOf(ctx).slice(-STORED_TURNS_MAX),
@@ -565,6 +712,19 @@ export async function POST(request: NextRequest) {
     listing_id?: unknown;
     text?: unknown;
     plan_id?: unknown;
+    /* Round H: the room passes what the founder is looking at. There is no
+       server-side path that can build this. */
+    room_context?: unknown;
+    /* Thread selection is always explicit — never inferred from recency. */
+    thread_id?: unknown;
+    title?: unknown;
+    intent?: unknown;
+    to_room?: unknown;
+    reason?: unknown;
+    loop_id?: unknown;
+    obligation_type?: unknown;
+    disposition?: unknown;
+    loop_state?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -607,6 +767,203 @@ export async function POST(request: NextRequest) {
     return data ?? null;
   }
 
+  /* ═════ OPERATIONAL THREAD CONTROL ════════════════════════════════════
+     Start / resume / switch / pause / close, all deliberate. Nothing here
+     selects a thread on the founder's behalf, and none of these actions
+     touches product state — they move the WORK, not the watches. */
+
+  if (action === "thread_list") {
+    const threads = await listLiveThreads(service, gate.uid);
+    const withLoops = await Promise.all(
+      threads.map(async (t) => ({
+        ...t,
+        open_loops: (await openLoops(service, t.id, true)).length,
+        anchors: (await threadAnchors(service, t.id)).length,
+        needs_reorientation: needsReorientation(t),
+      }))
+    );
+    return NextResponse.json({ room, threads: withLoops });
+  }
+
+  if (action === "thread_start") {
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    if (!title) {
+      return NextResponse.json(
+        { error: "bad_request", detail: "Give this work a short name so you can find it later." },
+        { status: 400 }
+      );
+    }
+    const intent = typeof body.intent === "string" ? body.intent : null;
+    const t = await startThread(service, { ownerUid: gate.uid, room, title, intent });
+    if (!t) {
+      return NextResponse.json(
+        { error: "thread_failed", detail: "That thread could not be started. Nothing was changed." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ room, thread: t });
+  }
+
+  if (action === "thread_resume") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    if (!id) {
+      return NextResponse.json({ error: "bad_request", detail: "thread_id is required." }, { status: 400 });
+    }
+    const switchedFrom = typeof body.session_id === "string" ? null : null;
+    const t = await activateThread(service, {
+      ownerUid: gate.uid,
+      threadId: id,
+      room,
+      switchedFrom,
+    });
+    if (!t) {
+      return NextResponse.json(
+        {
+          error: "thread_not_resumable",
+          detail:
+            "That thread could not be resumed here — it may be closed. Nothing else was started in its place.",
+        },
+        { status: 409 }
+      );
+    }
+    const anchors = await threadAnchors(service, t.id);
+    const loops = await openLoops(service, t.id, true);
+    return NextResponse.json({
+      room,
+      thread: t,
+      anchors,
+      open_loops: loops,
+      reorientation: needsReorientation(t) ? reorientationSentence(t) : null,
+    });
+  }
+
+  if (action === "thread_pause") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    if (!id) {
+      return NextResponse.json({ error: "bad_request", detail: "thread_id is required." }, { status: 400 });
+    }
+    const ok = await pauseThread(service, gate.uid, id);
+    return ok
+      ? NextResponse.json({ room, paused: true })
+      : NextResponse.json({ error: "pause_failed", detail: "That thread could not be paused." }, { status: 500 });
+  }
+
+  if (action === "thread_close") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    if (!id) {
+      return NextResponse.json({ error: "bad_request", detail: "thread_id is required." }, { status: 400 });
+    }
+    const res = await closeThread(service, gate.uid, id);
+    if (res.state === "BLOCKED_BY_OPEN_LOOPS") {
+      return NextResponse.json(
+        { error: "open_loops_block_closure", detail: res.sentence, open_loops: res.loops },
+        { status: 409 }
+      );
+    }
+    if (res.state === "FAILED") {
+      return NextResponse.json({ error: "close_failed", detail: res.detail }, { status: 500 });
+    }
+    return NextResponse.json({ room, closed: true });
+  }
+
+  if (action === "thread_handoff") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    const to = typeof body.to_room === "string" ? body.to_room : "";
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!id || !to || !reason) {
+      return NextResponse.json(
+        { error: "bad_request", detail: "thread_id, to_room and reason are required." },
+        { status: 400 }
+      );
+    }
+    const res = await handoffThread(service, {
+      ownerUid: gate.uid,
+      threadId: id,
+      from: room,
+      to: to as never,
+      reason,
+    });
+    if (res.state !== "HANDED_OFF") {
+      return NextResponse.json(
+        { error: res.state.toLowerCase(), detail: res.sentence, work_preserved: true },
+        { status: res.state === "DESTINATION_UNSUPPORTED" ? 501 : 500 }
+      );
+    }
+    return NextResponse.json({ room, thread: res.thread, handed_off_to: to });
+  }
+
+  if (action === "loop_create") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    const obligation = typeof body.obligation_type === "string" ? body.obligation_type.trim() : "";
+    if (!id || !obligation) {
+      return NextResponse.json(
+        { error: "bad_request", detail: "thread_id and obligation_type are required." },
+        { status: 400 }
+      );
+    }
+    const loop = await createOpenLoop(service, {
+      ownerUid: gate.uid,
+      threadId: id,
+      obligationType: obligation,
+      intent: typeof body.intent === "string" ? body.intent : null,
+      room,
+    });
+    return loop
+      ? NextResponse.json({ room, open_loop: loop })
+      : NextResponse.json({ error: "loop_failed", detail: "That obligation could not be recorded." }, { status: 500 });
+  }
+
+  if (action === "loop_dispose") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    const loopId = typeof body.loop_id === "string" ? body.loop_id : "";
+    const state = body.loop_state === "DISMISSED" ? "DISMISSED" : "RESOLVED";
+    const disposition = typeof body.disposition === "string" ? body.disposition.trim() : "";
+    if (!id || !loopId || !disposition) {
+      return NextResponse.json(
+        {
+          error: "bad_request",
+          detail:
+            "thread_id, loop_id and a disposition are required — an obligation is never closed without saying why.",
+        },
+        { status: 400 }
+      );
+    }
+    const ok = await disposeOpenLoop(service, {
+      ownerUid: gate.uid,
+      threadId: id,
+      loopId,
+      state,
+      disposition,
+    });
+    return ok
+      ? NextResponse.json({ room, disposed: true, state })
+      : NextResponse.json(
+          { error: "dispose_failed", detail: "That obligation could not be dispositioned." },
+          { status: 500 }
+        );
+  }
+
+  if (action === "anchor_add") {
+    const id = typeof body.thread_id === "string" ? body.thread_id : "";
+    const objectId = typeof body.listing_id === "string" ? body.listing_id : "";
+    if (!id || !objectId) {
+      return NextResponse.json(
+        { error: "bad_request", detail: "thread_id and listing_id are required." },
+        { status: 400 }
+      );
+    }
+    const anchor = await addAnchor(service, {
+      ownerUid: gate.uid,
+      threadId: id,
+      objectType: "listing",
+      objectId,
+      room,
+    });
+    return anchor
+      ? NextResponse.json({ room, anchor })
+      : NextResponse.json({ error: "anchor_failed", detail: "That object could not be anchored." }, { status: 500 });
+  }
+
   /* ═════ message ═══════════════════════════════════════════════════════ */
   if (action === "message") {
     const text =
@@ -617,8 +974,41 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const openListingId =
-      typeof body.listing_id === "string" && body.listing_id ? body.listing_id : null;
+    /* ── ROUND H: "here" comes from the room, or the turn refuses ──────── */
+    const ctxResolution = resolveRoomContext(body.room_context, room);
+    if (ctxResolution.state !== "ok") {
+      return NextResponse.json(
+        {
+          error: "missing_room_context",
+          detail: ctxResolution.sentence,
+          diagnostic: ctxResolution.detail,
+          work_preserved: true,
+        },
+        { status: 400 }
+      );
+    }
+    const roomContext = ctxResolution.context;
+    const openListingId = roomContext.selectedId;
+
+    /* ── Thread: chosen, never inferred ─────────────────────────────────
+       A thread participates in this turn only because the founder selected
+       it or handed work here. Absence of a thread is an ordinary turn, not
+       a reason to resurrect the most recent one. */
+    const requestedThreadId =
+      typeof body.thread_id === "string" && body.thread_id ? body.thread_id : null;
+    const thread: OperationalThread | null = requestedThreadId
+      ? await getThread(service, gate.uid, requestedThreadId)
+      : null;
+    if (requestedThreadId && !thread) {
+      return NextResponse.json(
+        {
+          error: "thread_not_found",
+          detail:
+            "That operational thread could not be read, so I haven't started a different one in its place. Nothing was changed.",
+        },
+        { status: 404 }
+      );
+    }
 
     let session = sessionId ? await loadSession(sessionId) : null;
     if (!session) {
@@ -639,13 +1029,50 @@ export async function POST(request: NextRequest) {
     const ctx = contextOf(session.context);
     const turns = turnsOf(ctx);
 
-    /* Production truth for this turn — never remembered state. */
-    const workingSet =
-      room === "marketplace_control"
-        ? await readMarketplaceSet(service, openListingId)
-        : await readReviewSet(service, openListingId);
+    /* ── ROUND I: authoritative reread, or refusal ──────────────────────
+       A failed reread never degrades into thread memory, prior turns, or
+       cached labels. The model is not called at all, so it cannot narrate a
+       current-state answer the product could not verify. */
+    const reread = await readWorkingSet(service, room, roomContext);
+    if (reread.state === "COULD_NOT_VERIFY") {
+      const now = new Date().toISOString();
+      const nextCtx: SessionContext = {
+        messages: [
+          ...turns,
+          { role: "founder" as const, text, at: now },
+          { role: "assistant" as const, text: reread.sentence, at: now },
+        ].slice(-STORED_TURNS_MAX),
+        pending_plan: ctx.pending_plan ?? null,
+      };
+      await saveContext(service, session.id as string, nextCtx);
+      return NextResponse.json({
+        session_id: session.id,
+        room,
+        thread_id: thread?.id ?? null,
+        reply: reread.sentence,
+        current_truth: "COULD_NOT_VERIFY",
+        failed_source: reread.source,
+        plan: null,
+        preview: null,
+        consequences: [],
+      });
+    }
+    const workingSet = reread.value;
 
-    const modelOut = await callModel(room, turns, workingSet, text);
+    /* Arrival Contract: when work has just been handed into this room, the
+       first substantive response names where it came from, what it carried,
+       why, and whether current truth still supports that reason. */
+    let arrival: string | null = null;
+    if (thread) {
+      const anchors = await threadAnchors(service, thread.id);
+      const loops = await openLoops(service, thread.id, true);
+      arrival = buildArrivalNote(thread, room, anchors, loops, workingSet);
+      if (needsReorientation(thread)) {
+        arrival = `${reorientationSentence(thread)}\n${arrival}`;
+      }
+    }
+
+    const modelOut = await callModel(room, turns, workingSet, text, roomContext, arrival);
     if (!modelOut) {
       // Nothing is stored and nothing executes on a failed turn.
       return NextResponse.json(
@@ -761,9 +1188,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* The thread's activity clock advances because the founder worked it,
+       not because a page rendered. Anchoring the selected listing keeps the
+       object identity with the work as it moves rooms. */
+    if (thread) {
+      if (openListingId) {
+        await addAnchor(service, {
+          ownerUid: gate.uid,
+          threadId: thread.id,
+          objectType: "listing",
+          objectId: openListingId,
+          room,
+        });
+      }
+      await service
+        .from("assistant_operational_threads")
+        .update({ last_activity_at: new Date().toISOString(), current_room: room })
+        .eq("id", thread.id)
+        .eq("owner_uid", gate.uid);
+    }
+
     return NextResponse.json({
       session_id: session.id,
       room,
+      thread_id: thread?.id ?? null,
+      current_truth: "VERIFIED",
       reply,
       plan: pendingPlan,
       preview,
@@ -1035,7 +1484,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(
     {
       error: "invalid_action",
-      detail: "action must be one of: message, confirm, cancel_plan, close.",
+      detail:
+        "action must be one of: message, confirm, cancel_plan, close, thread_list, thread_start, " +
+        "thread_resume, thread_pause, thread_close, thread_handoff, loop_create, loop_dispose, anchor_add.",
     },
     { status: 400 }
   );

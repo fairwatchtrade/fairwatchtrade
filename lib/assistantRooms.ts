@@ -140,6 +140,149 @@ export function resolveRoom(raw: unknown): RoomResolution {
   };
 }
 
+/* ── REQUIRED COMPLETION ROOM SET ─────────────────────────────────────────
+   Owned by the architecture, not by whatever happened to get built. The word
+   "supported" may not be redefined after implementation to mean "finished".
+   A room below its target is Tier C with a blocker contract; it does not
+   quietly leave the set. */
+
+export type Tier = "A" | "B" | "C";
+export type Verb = "SEE" | "EXPLAIN" | "DO" | "CONTINUE" | "WATCH";
+
+export type RoomSpec = {
+  /** Minimum tier this room must reach for FULL completion. */
+  target: Exclude<Tier, "C">;
+  /** The room-native operational question. A room without one is blocked. */
+  nativeQuestion: string;
+};
+
+export const ROOM_SPEC: Record<ArchitectureRoom, RoomSpec> = {
+  marketplace_control: {
+    target: "B",
+    nativeQuestion: "What in this current Marketplace working set needs my attention?",
+  },
+  founder_review: {
+    target: "B",
+    nativeQuestion: "What is blocking this listing from a decision?",
+  },
+  auction_operations: {
+    target: "B",
+    nativeQuestion: "What is unresolved, contradictory, or blocked in this sale or run right now?",
+  },
+  dealer_accelerator: {
+    target: "A",
+    nativeQuestion: "What in this dealer intake needs me right now?",
+  },
+  watch_passport: {
+    target: "A",
+    nativeQuestion: "What current versus historical evidence matters for this watch?",
+  },
+  vault_enrichment: {
+    target: "B",
+    nativeQuestion: "What evidence or fact work is incomplete in this enrichment draft?",
+  },
+  vault_review: {
+    target: "B",
+    nativeQuestion: "What in this current Vault review set needs a decision or correction?",
+  },
+  vault_upgrade: {
+    target: "A",
+    nativeQuestion: "What is incomplete or contradictory in the upgrade work I am looking at right now?",
+  },
+  watch_resolution: {
+    target: "A",
+    nativeQuestion: "What identity evidence is unresolved for this watch right now?",
+  },
+};
+
+/* ── REQUIRED OPERATIONAL JOURNEY SET (ROJ-01 … ROJ-04) ───────────────────
+   Every directional edge implied by a required journey is itself required.
+   An adapter may add optional edges. An adapter may NOT reclassify one of
+   these as optional, unsupported, future work, or unnecessary — which is why
+   the list lives here and not in any adapter. */
+
+export type RequiredJourney = {
+  id: "ROJ-01" | "ROJ-02" | "ROJ-03" | "ROJ-04";
+  label: string;
+  /** Directional edges, each independently required. */
+  edges: ReadonlyArray<readonly [ArchitectureRoom, ArchitectureRoom]>;
+};
+
+export const REQUIRED_JOURNEYS: readonly RequiredJourney[] = [
+  {
+    id: "ROJ-01",
+    label: "Dealer Accelerator → Founder Review → Dealer Accelerator",
+    edges: [
+      ["dealer_accelerator", "founder_review"],
+      ["founder_review", "dealer_accelerator"],
+    ],
+  },
+  {
+    id: "ROJ-02",
+    label: "Founder Review ↔ Watch Resolution",
+    edges: [
+      ["founder_review", "watch_resolution"],
+      ["watch_resolution", "founder_review"],
+    ],
+  },
+  {
+    id: "ROJ-03",
+    label: "Founder Review ↔ Marketplace Control",
+    edges: [
+      ["founder_review", "marketplace_control"],
+      ["marketplace_control", "founder_review"],
+    ],
+  },
+  {
+    id: "ROJ-04",
+    label: "Auction Operations ↔ Watch Resolution",
+    edges: [
+      ["auction_operations", "watch_resolution"],
+      ["watch_resolution", "auction_operations"],
+    ],
+  },
+] as const;
+
+export type RoomEdge = readonly [ArchitectureRoom, ArchitectureRoom];
+
+/** All eight required directional edges, flattened. */
+export const REQUIRED_EDGES: readonly RoomEdge[] = REQUIRED_JOURNEYS.flatMap(
+  (j) => j.edges
+);
+
+export function edgeKey(from: ArchitectureRoom, to: ArchitectureRoom): string {
+  return `${from}→${to}`;
+}
+
+export function isRequiredEdge(from: ArchitectureRoom, to: ArchitectureRoom): boolean {
+  return REQUIRED_EDGES.some(([f, t]) => f === from && t === to);
+}
+
+/** Required edges that touch a room in either direction. */
+export function requiredEdgesFor(room: ArchitectureRoom): RoomEdge[] {
+  return REQUIRED_EDGES.filter(([f, t]) => f === room || t === room);
+}
+
+/* Which required edges are actually implementable today. An edge whose rooms
+   are not both attached cannot be proven, and saying so is the blocker
+   contract's job — never a reason to drop the edge from the required set. */
+export function requiredEdgeCoverage(): {
+  edge: RoomEdge;
+  key: string;
+  implementable: boolean;
+  missing: ArchitectureRoom[];
+}[] {
+  return REQUIRED_EDGES.map((edge) => {
+    const missing = edge.filter((r) => !isImplementedRoom(r));
+    return {
+      edge,
+      key: edgeKey(edge[0], edge[1]),
+      implementable: missing.length === 0,
+      missing,
+    };
+  });
+}
+
 /** HTTP status for a refusal. All are caller-side faults, never 500s. */
 export function roomRefusalStatus(r: RoomResolution): number {
   switch (r.state) {
