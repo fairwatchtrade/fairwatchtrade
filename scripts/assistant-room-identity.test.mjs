@@ -68,7 +68,8 @@ for (const [label, value] of [
 // A client ahead of the server must be told the room is not attached yet,
 // never that it does not exist.
 const unbuilt = ARCHITECTURE_ROOMS.filter((r) => !IMPLEMENTED_ROOMS.includes(r));
-ok("there are architecture rooms still unbuilt", unbuilt.length === 7);
+ok("three rooms are attached and six remain unbuilt",
+  IMPLEMENTED_ROOMS.length === 3 && unbuilt.length === 6);
 for (const room of unbuilt) {
   const r = resolveRoom(room);
   ok(`${room} is unsupported_room`, r.state === "unsupported_room");

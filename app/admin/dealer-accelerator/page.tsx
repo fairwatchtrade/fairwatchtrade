@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import DealerAcceleratorAssistant from "@/components/DealerAcceleratorAssistant";
 
 /* ────────────────────────────────────────────────────────────────────────
    ADMIN — Dealer Accelerator Review  (/admin/dealer-accelerator)
@@ -195,6 +196,23 @@ export default async function DealerAcceleratorReviewPage() {
           </ul>
         </div>
       )}
+
+      {/* Tier A Assistant, mounted with the ROWS THIS PAGE RENDERED rather
+          than a second query it would run for itself. It decides nothing
+          here — that is Founder Review's job, and the room says so. */}
+      <DealerAcceleratorAssistant
+        rows={imported.map((r) => ({
+          id: r.id,
+          code: r.public_code,
+          dealer: dealerNames.get(r.seller_id) ?? "Dealer",
+          watch: [r.brand, r.model].filter(Boolean).join(" ") || "Untitled watch",
+          reference: r.reference,
+          waitingSince: r.dealer_attested_at,
+          confirmations: Array.isArray(r.dealer_attested_acts)
+            ? (r.dealer_attested_acts as string[]).length
+            : null,
+        }))}
+      />
 
       <div className="mt-8">
         <Link

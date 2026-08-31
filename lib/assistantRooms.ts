@@ -54,7 +54,20 @@ export type ArchitectureRoom = (typeof ARCHITECTURE_ROOMS)[number];
 export const IMPLEMENTED_ROOMS = [
   "founder_review",
   "marketplace_control",
+  "dealer_accelerator",
 ] as const;
+
+/* Which rooms may perform a governed Assistant mutation, and which one.
+   Tier A rooms are absent by design: a room without DO is useful and honest,
+   and inventing a mutation to reach a tier is explicitly forbidden. A room
+   missing from this map cannot confirm anything, enforced at the confirm
+   seam rather than trusted to the prompt. */
+export const ROOM_OPERATION: Partial<
+  Record<ImplementedRoom, "approve_listings" | "remove_listing">
+> = {
+  founder_review: "approve_listings",
+  marketplace_control: "remove_listing",
+};
 
 export type ImplementedRoom = (typeof IMPLEMENTED_ROOMS)[number];
 

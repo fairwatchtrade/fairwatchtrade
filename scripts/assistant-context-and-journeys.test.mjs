@@ -21,6 +21,7 @@ import {
   isRequiredEdge,
   edgeKey,
   ROOM_SPEC,
+  ROOM_OPERATION,
   ARCHITECTURE_ROOMS,
 } from "../lib/assistantRooms.ts";
 import { hoursSince, needsReorientation } from "../lib/assistantThreadTiming.ts";
@@ -181,9 +182,18 @@ ok("direction matters", isRequiredEdge("dealer_accelerator", "founder_review"));
   const cov = requiredEdgeCoverage();
   ok("coverage reports all eight edges", cov.length === 8);
   const implementable = cov.filter((c) => c.implementable);
-  ok("only the Founder Review ↔ Marketplace pair is implementable today",
-    implementable.length === 2 &&
-    implementable.every((c) => c.key.includes("founder_review") && c.key.includes("marketplace_control")));
+  /* Three rooms attached ⇒ ROJ-03 (both directions) and ROJ-01 (both
+     directions) are now buildable. The other four still terminate in rooms
+     that do not exist, and coverage must say so rather than drop them. */
+  ok("four edges are implementable with three rooms attached", implementable.length === 4);
+  ok("ROJ-01 is now implementable in both directions",
+    implementable.some((c) => c.key === "dealer_accelerator→founder_review") &&
+    implementable.some((c) => c.key === "founder_review→dealer_accelerator"));
+  ok("ROJ-03 remains implementable in both directions",
+    implementable.some((c) => c.key === "founder_review→marketplace_control") &&
+    implementable.some((c) => c.key === "marketplace_control→founder_review"));
+  ok("the four edges touching unbuilt rooms are still reported as required",
+    cov.filter((c) => !c.implementable).length === 4);
   ok("every unimplementable edge names the missing room(s)",
     cov.filter((c) => !c.implementable).every((c) => c.missing.length > 0));
   ok("required edge count is unchanged by coverage", REQUIRED_EDGES.length === 8);
@@ -195,6 +205,28 @@ for (const room of ARCHITECTURE_ROOMS) {
   ok(`${room} declares a target tier`, spec.target === "A" || spec.target === "B");
   ok(`${room} names a room-native question`, spec.nativeQuestion.trim().endsWith("?"));
   ok(`${room}'s question is operational, not generic`, spec.nativeQuestion.length > 30);
+}
+
+// ── Tier A rooms have NO governed action, structurally ───────────────────
+// Inventing a mutation to reach a tier is forbidden; the absence must be a
+// lookup the confirm seam consults, not a promise the prompt makes.
+{
+  ok("Founder Review can confirm approvals", ROOM_OPERATION.founder_review === "approve_listings");
+  ok("Marketplace can confirm a removal", ROOM_OPERATION.marketplace_control === "remove_listing");
+  ok("Dealer Accelerator has NO operation", !ROOM_OPERATION.dealer_accelerator);
+  ok("Dealer Accelerator's target tier is A", ROOM_SPEC.dealer_accelerator.target === "A");
+
+  const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
+  const confirmBlock = route.slice(route.indexOf('action === "confirm"'));
+  ok("confirm refuses a room with no governed action",
+    /if \(!OPERATION_FOR_ROOM\[room\]\)/.test(confirmBlock));
+  const refusalIdx = confirmBlock.indexOf("room_has_no_governed_action");
+  ok("that refusal precedes the approve machinery",
+    refusalIdx > 0 && refusalIdx < confirmBlock.indexOf("executeListingStatusTransition"));
+  ok("that refusal precedes the remove machinery",
+    refusalIdx < confirmBlock.indexOf('rpc("remove_listing_assistant"'));
+  ok("a Tier A room cannot form a plan at all",
+    /if \(!OPERATION_FOR_ROOM\[room\]\) \{[\s\S]{0,200}pendingPlan = null/.test(route));
 }
 
 // ── Reorientation ────────────────────────────────────────────────────────

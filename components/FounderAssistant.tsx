@@ -33,7 +33,7 @@ import { useRouter } from "next/navigation";
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-type Room = "founder_review" | "marketplace_control";
+type Room = "founder_review" | "marketplace_control" | "dealer_accelerator";
 type ChatLine = { role: "founder" | "assistant" | "room"; text: string };
 type PlanItem = {
   listing_id: string;
@@ -69,6 +69,15 @@ const ROOM_COPY: Record<
       "Ask about the selected listing, or ask to take it off the market. Removal is reversible, it is one listing at a time, and nothing happens until you confirm.",
     placeholder: "Ask in words — e.g. why does this need attention, or take it off the market…",
     planTitle: () => "Removal plan — 1 listing",
+  },
+  /* Tier A. The copy says outright that this room decides nothing, because a
+     doorway that sounds like an adjudication room is worse than no doorway. */
+  dealer_accelerator: {
+    sub: "Answers from the queue's live truth. It decides nothing here — approvals and rejections happen in Founder Review, and it can carry this work there with the listing and the reason attached.",
+    empty:
+      "Ask what in this intake needs you right now. This room explains and orients; it performs no approval, rejection or removal.",
+    placeholder: "Ask in words — e.g. what in this dealer intake needs me right now…",
+    planTitle: () => "No action is available in this room",
   },
 };
 

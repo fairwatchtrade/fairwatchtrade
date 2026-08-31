@@ -13,6 +13,7 @@ import {
   roomRefusalStatus,
   ROOM_SPEC,
   ROOM_LABEL,
+  ROOM_OPERATION,
   type ImplementedRoom,
   type RoomResolution,
 } from "@/lib/assistantRooms";
@@ -124,10 +125,10 @@ const LEDGER_LIMIT = 40; // marketplace slice per re-read
    capable of turning an unrecognized key into Founder Review. */
 type Room = ImplementedRoom;
 
-const OPERATION_FOR_ROOM: Record<Room, "approve_listings" | "remove_listing"> = {
-  founder_review: "approve_listings",
-  marketplace_control: "remove_listing",
-};
+/* Which room may confirm which operation. A room absent from this map is
+   Tier A and can confirm nothing — enforced here at the seam, not left to
+   the prompt, because a prompt is guidance and a lookup is a property. */
+const OPERATION_FOR_ROOM = ROOM_OPERATION;
 
 /* The governed exit-reason vocabulary. Mirrored here for VALIDATION only —
    remove_listing_core() re-validates it and remains the authority. */
@@ -545,6 +546,25 @@ Respond with ONLY a JSON object — no prose outside it, no markdown fences:
 - reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed, and never state consequence numbers yourself.
 - propose_remove: the SELECTED listing's FairWatchTrade public code taken verbatim from the working set, or null when there is nothing to propose.`;
 
+/* DEALER ACCELERATOR — Tier A. SEE, EXPLAIN, CONTINUE, and no DO at all.
+
+   The refusal it must perform is a product behaviour, not a limitation to
+   apologise for: this room is a doorway, adjudication happens in Founder
+   Review, and a dealer waiting on a decision is helped by being told exactly
+   where the decision lives rather than by an Assistant improvising one. */
+const DEALER_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Dealer Accelerator room. You work only on the founder's explicit instructions, inside the founder's own session.
+
+This room is a DOORWAY, not a place decisions are made. You can answer questions about the imported drafts dealers have submitted and are waiting on, explain what each one is and how long it has been waiting, and help the founder decide what to attend to first.
+
+You have NO governed action here. You cannot approve, reject, clarify, remove, edit, or publish anything in this room, and you must never imply that you did or could. If the founder asks for any of those, say plainly that this room does not perform that action, name Founder Review as where that decision legitimately happens, and offer to carry the work there so it arrives with the listing and the reason attached. Refusing well and pointing at the right room IS your job here — never invent a workaround and never pretend an action occurred.
+
+THE WORKING SET in each message is the complete set of listings you may name, re-read from production this turn. Never invent a listing and never recall one from an earlier turn.
+
+Respond with ONLY a JSON object — no prose outside it, no markdown fences:
+{"reply": string, "propose_approve": [], "propose_remove": null}
+- reply: what you say to the founder. Courteous, concise, plain. Never claim anything was executed.
+- propose_approve and propose_remove: ALWAYS empty/null in this room. You have no action to propose.`;
+
 type ModelOut = {
   reply: string;
   proposeApprove: string[];
@@ -628,7 +648,12 @@ async function callModel(
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 900,
-        system: room === "marketplace_control" ? MARKETPLACE_PROMPT : REVIEW_PROMPT,
+        system:
+          room === "marketplace_control"
+            ? MARKETPLACE_PROMPT
+            : room === "dealer_accelerator"
+              ? DEALER_PROMPT
+              : REVIEW_PROMPT,
         messages,
       }),
     });
@@ -1253,7 +1278,14 @@ export async function POST(request: NextRequest) {
     let preview: RemovePreview | null = null;
     let consequences: string[] = [];
 
-    if (room === "marketplace_control") {
+    if (!OPERATION_FOR_ROOM[room]) {
+      /* Tier A: no plan can form here, whatever the model returned. The
+         prompt already says so; this makes it true even if it did not. */
+      pendingPlan = null;
+      if (modelOut.proposeApprove.length > 0 || modelOut.proposeRemove) {
+        reply += `\n(${ROOM_LABEL[room]} performs no governed action, so nothing was proposed. That decision belongs in Founder Review.)`;
+      }
+    } else if (room === "marketplace_control") {
       /* ── SINGLE SELECTED LISTING, RESOLVED SERVER-SIDE ────────────────
          The model's code is interpreted, never obeyed: it must resolve to
          the listing the founder actually has selected, and the governed
@@ -1402,6 +1434,22 @@ export async function POST(request: NextRequest) {
         {
           error: "no_matching_plan",
           detail: "That plan is no longer pending — ask the Assistant again.",
+        },
+        { status: 409 }
+      );
+    }
+    /* A Tier A room cannot confirm anything. This is the structural half of
+       the refusal PA-01 Step 1 exercises: even if a prompt were coaxed into
+       proposing a mutation here, there is no operation for this room to
+       confirm and execution is unreachable. */
+    if (!OPERATION_FOR_ROOM[room]) {
+      return NextResponse.json(
+        {
+          error: "room_has_no_governed_action",
+          detail:
+            `${ROOM_LABEL[room]} can see and explain this work, but it performs no governed action. ` +
+            "Nothing was executed. The decision belongs in Founder Review — I can carry this work there with everything it is holding.",
+          suggested_handoff: "founder_review",
         },
         { status: 409 }
       );
