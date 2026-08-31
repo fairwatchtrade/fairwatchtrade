@@ -38,8 +38,16 @@ import {
   addAnchor,
   needsReorientation,
   reorientationSentence,
+  recordEvent,
   type OperationalThread,
 } from "@/lib/assistantThread";
+import {
+  decideExecution,
+  unreceiptedSentence,
+  reconciledSentence,
+  type ExistingReceipt,
+  type OpenMarker,
+} from "@/lib/assistantOperations";
 
 /* ════════════════════════════════════════════════════════════════════════
    FOUNDER ASSISTANT — app/api/admin/assistant/route.ts   (v6.89)
@@ -1257,6 +1265,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* ── ROUND G: the replay gate ────────────────────────────────────────
+       The plan id IS the correlation id. Before any governed machinery is
+       touched, ask what the product already knows about this exact
+       operation. Both refusal outcomes below happen BEFORE execution, so a
+       double confirmation cannot become a double mutation. */
+    const correlationId = plan.id;
+    const confirmThreadId =
+      typeof body.thread_id === "string" && body.thread_id ? body.thread_id : null;
+
+    const { data: priorReceipt } = await service
+      .from("assistant_operation_receipts")
+      .select("id, created_at, succeeded_listing_ids")
+      .eq("correlation_id", correlationId)
+      .maybeSingle();
+
+    const { data: priorMarker } = await service
+      .from("assistant_unreceipted_operations")
+      .select("correlation_id, operation, succeeded_listing_ids, executed_at, receipt_error")
+      .eq("correlation_id", correlationId)
+      .eq("state", "OPEN")
+      .maybeSingle();
+
+    const gateDecision = decideExecution({
+      existingReceipt: (priorReceipt as ExistingReceipt) ?? null,
+      openMarker: (priorMarker as OpenMarker) ?? null,
+    });
+
+    if (gateDecision.state === "ALREADY_EXECUTED") {
+      return NextResponse.json({
+        session_id: session.id,
+        room,
+        reply: gateDecision.sentence,
+        replay_refused: true,
+        receipt_id: gateDecision.receiptId,
+        results: { succeeded: [], failed: [] },
+      });
+    }
+
+    if (gateDecision.state === "AWAITING_RECEIPT_RECONCILIATION") {
+      /* MINIMUM RETRY LAW: re-read current governed state before deciding
+         anything. The action already happened; what is missing is only its
+         record, so the legal repair is a receipt write, never a re-run. */
+      const { data: currentRows } = await service
+        .from("listings")
+        .select("id, status")
+        .in("id", plan.items.map((i) => i.listing_id));
+      const currentById = new Map(
+        (currentRows ?? []).map((r) => [r.id as string, r.status as string])
+      );
+
+      const { data: repaired, error: repairErr } = await service
+        .from("assistant_operation_receipts")
+        .insert({
+          session_id: session.id,
+          operation: plan.operation,
+          authorized_by: gate.uid,
+          correlation_id: correlationId,
+          requested_listing_ids: plan.items.map((i) => i.listing_id),
+          succeeded_listing_ids: gateDecision.marker.succeeded_listing_ids,
+          failed_listings: [],
+        })
+        .select("id")
+        .maybeSingle();
+
+      let reply = gateDecision.sentence;
+      if (!repairErr && repaired?.id) {
+        await service
+          .from("assistant_unreceipted_operations")
+          .update({
+            state: "RECONCILED",
+            reconciled_at: new Date().toISOString(),
+            reconciled_receipt_id: repaired.id,
+          })
+          .eq("correlation_id", correlationId)
+          .eq("state", "OPEN");
+        if (confirmThreadId) {
+          await recordEvent(service, {
+            threadId: confirmThreadId,
+            type: "RECEIPT_RECONCILED",
+            actorUid: gate.uid,
+            detail: { correlation_id: correlationId, receipt_id: repaired.id },
+          });
+        }
+        reply = `${reconciledSentence(repaired.id)}\nCurrent status now: ${plan.items
+          .map((i) => `${i.code} — ${currentById.get(i.listing_id) ?? "no longer present"}`)
+          .join("; ")}`;
+      }
+
+      return NextResponse.json({
+        session_id: session.id,
+        room,
+        reply,
+        replay_refused: true,
+        reconciled: !repairErr && !!repaired?.id,
+        receipt_id: repaired?.id ?? null,
+        results: { succeeded: [], failed: [] },
+      });
+    }
+
     const succeeded: { listing_id: string; code: string; status: string }[] = [];
     const failed: { listing_id: string; code: string; error: string; detail: string }[] = [];
 
@@ -1374,14 +1481,50 @@ export async function POST(request: NextRequest) {
         session_id: session.id,
         operation: plan.operation,
         authorized_by: gate.uid,
+        correlation_id: correlationId,
         requested_listing_ids: plan.items.map((i) => i.listing_id),
         succeeded_listing_ids: succeeded.map((s) => s.listing_id),
         failed_listings: failed,
       })
       .select("id")
       .maybeSingle();
+
+    /* ── The known unknown ───────────────────────────────────────────────
+       The mutation is already done at this point. If its record could not be
+       written, that fact is persisted so the founder does not have to carry
+       it — and so the next confirmation of this same plan hits the replay
+       gate above and repairs the receipt instead of acting again. */
+    let unreceipted = false;
     if (receiptErr) {
       console.error("[assistant] receipt insert failed:", receiptErr.message);
+      if (succeeded.length > 0) {
+        unreceipted = true;
+        const { error: markerErr } = await service
+          .from("assistant_unreceipted_operations")
+          .insert({
+            correlation_id: correlationId,
+            thread_id: confirmThreadId,
+            session_id: session.id,
+            operation: plan.operation,
+            authorized_by: gate.uid,
+            succeeded_listing_ids: succeeded.map((s) => s.listing_id),
+            receipt_error: receiptErr.message.slice(0, 400),
+          });
+        if (markerErr) {
+          console.error("[assistant] known-unknown marker failed:", markerErr.message);
+        } else if (confirmThreadId) {
+          await recordEvent(service, {
+            threadId: confirmThreadId,
+            type: "UNRECEIPTED_OPERATION",
+            actorUid: gate.uid,
+            detail: {
+              correlation_id: correlationId,
+              operation: plan.operation,
+              succeeded: succeeded.length,
+            },
+          });
+        }
+      }
     }
 
     /* The account is composed HERE from what actually happened — never by
@@ -1407,7 +1550,9 @@ export async function POST(request: NextRequest) {
     lines.push(
       receipt?.id
         ? `Receipt ${receipt.id}.`
-        : "The receipt could not be written — the results above still happened exactly as stated."
+        : unreceipted
+          ? unreceiptedSentence(succeeded.length, failed.length)
+          : "The receipt could not be written. Nothing succeeded, so there is no completed action missing a record."
     );
     const verb = plan.operation === "remove_listing" ? "remove_listing" : "approve_listings";
     const account = `Executed ${verb} on ${plan.items.length} listing(s): ${succeeded.length} succeeded, ${failed.length} did not.\n${lines.join("\n")}`;
