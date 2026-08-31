@@ -129,7 +129,18 @@ export default function SavedListingDrafts({
       </div>
 
       {open && (
-        <ul id="saved-listing-drafts" className="mt-4 space-y-3">
+        /* The list scrolls INSIDE itself rather than growing the page.
+           Seventy-seven saved listings expanding inline pushed the actual
+           listing form off the bottom of the screen, and the only way back
+           was a Hide button now seventy-seven rows above you. Capping it
+           keeps both the way out and the form on screen no matter how much
+           saved work exists — the alternative was a note explaining that the
+           form would be shoved away but would come back, which is a label
+           apologising for behaviour that should not happen. */
+        <ul
+          id="saved-listing-drafts"
+          className="mt-4 max-h-[340px] space-y-3 overflow-y-auto pr-1"
+        >
           {drafts.map((d) => {
             const id = draftIdentity(d.content);
             const isCurrent = d.id === currentDraftId;
