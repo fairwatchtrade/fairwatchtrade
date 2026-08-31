@@ -853,6 +853,23 @@ export default function MarketplaceControl({
      listing it was invoked for, so it keeps its subject even if the ledger
      re-renders underneath it. Closing it does not disturb the selection. */
   const [assistantFor, setAssistantFor] = useState<string | null>(null);
+  /* "Ask the assistant" mounts the card below the ledger, the pagination and
+     the dealer operations block. It used to leave the founder exactly where
+     he clicked, several screens above the thing he had just opened — a
+     button that names a destination and does not take you there. */
+  const assistantRef = useRef<HTMLDivElement | null>(null);
+  const assistantWasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!assistantFor;
+    /* Only on OPEN. Selecting another row while the card is already open must
+       not keep yanking the page down as the founder works the list. */
+    if (open && !assistantWasOpen.current) {
+      requestAnimationFrame(() => {
+        assistantRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    assistantWasOpen.current = open;
+  }, [assistantFor]);
   /* Restore is the governed inverse of Take Off Market. Its result is bound
      to the listing id it belongs to and renders only while that listing is
      the selection — moving on retires it, with no reset-via-effect. */
@@ -2772,7 +2789,7 @@ export default function MarketplaceControl({
           workspace. data-mc-keep so a click inside the conversation is aimed
           work and never doubles as putting the selection down. */}
       {assistantFor && (
-        <div data-mc-keep className="mt-4 border border-[var(--border-mid)]">
+        <div ref={assistantRef} data-mc-keep className="mt-4 scroll-mt-4 border border-[var(--border-mid)]">
           <FounderAssistant
             room="marketplace_control"
             listingId={assistantFor}

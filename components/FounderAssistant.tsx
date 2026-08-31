@@ -56,6 +56,12 @@ type Plan = {
 
 const INPUT_MAX = 2000;
 
+/* Assistant type scale — the founder's setting, remembered per browser. */
+const SCALE_KEY = "fwt.assistant.scale";
+const SCALE_MIN = 0.9;
+const SCALE_MAX = 1.8;
+const SCALE_STEP = 0.1;
+
 /* The required directional edges reachable from each attached room, mirrored
    from the architecture registry (lib/assistantRooms). An edge whose
    destination is not attached yet is simply absent here — it is NOT thereby
@@ -178,6 +184,33 @@ export default function FounderAssistant({
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadOpen, setThreadOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+
+  /* Type size is the founder's, and it is remembered. Read lazily rather
+     than in an effect: this component only ever mounts after a click, so it
+     never renders on the server and there is no hydration to mismatch.
+     Every storage access is guarded — a private window or blocked site data
+     simply means the default size, never a broken panel. */
+  const [scale, setScale] = useState<number>(() => {
+    try {
+      const raw = window.localStorage.getItem(SCALE_KEY);
+      const n = raw ? Number(raw) : NaN;
+      return Number.isFinite(n) && n >= SCALE_MIN && n <= SCALE_MAX ? n : 1;
+    } catch {
+      return 1;
+    }
+  });
+
+  function stepScale(delta: number) {
+    setScale((s) => {
+      const next = Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round((s + delta) * 20) / 20));
+      try {
+        window.localStorage.setItem(SCALE_KEY, String(next));
+      } catch {
+        /* Storage unavailable — the size still applies for this session. */
+      }
+      return next;
+    });
+  }
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [consequences, setConsequences] = useState<string[]>([]);
@@ -557,7 +590,11 @@ export default function FounderAssistant({
       }`;
 
   return (
-    <section className={`fwa fwa-room-${room}`} aria-label="Founder Assistant">
+    <section
+      className={`fwa fwa-room-${room}`}
+      aria-label="Founder Assistant"
+      style={{ ["--fwa-scale" as string]: String(scale) } as React.CSSProperties}
+    >
       <style>{FWA_CSS}</style>
       <header className="fwa-head">
         <div>
@@ -565,6 +602,30 @@ export default function FounderAssistant({
           <p className="fwa-sub">{copy.sub}</p>
         </div>
         <div className="fwa-head-actions">
+          {/* Type size. Scales the whole card together — conversation, plan,
+              consequences, input — so nothing drifts out of proportion. */}
+          <div className="fwa-type" role="group" aria-label="Assistant text size">
+            <button
+              type="button"
+              className="fwa-type-sm"
+              onClick={() => stepScale(-SCALE_STEP)}
+              disabled={scale <= SCALE_MIN}
+              aria-label="Smaller text"
+              title="Smaller text"
+            >
+              A
+            </button>
+            <button
+              type="button"
+              className="fwa-type-lg"
+              onClick={() => stepScale(SCALE_STEP)}
+              disabled={scale >= SCALE_MAX}
+              aria-label="Larger text"
+              title="Larger text"
+            >
+              A
+            </button>
+          </div>
           <button
             type="button"
             className="fwa-quiet"
@@ -824,54 +885,66 @@ const FWA_CSS = `
 .fwa button{cursor:pointer;font:inherit}
 .fwa textarea{font:inherit}
 .fwa-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line)}
-.fwa-kicker{color:var(--gold);font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px}
-.fwa-sub{margin:0;max-width:560px;color:var(--muted);font-size:10px;line-height:1.55}
-.fwa-head-actions{display:flex;gap:8px;flex-shrink:0}
-.fwa-quiet{border:1px solid var(--field-line);background:var(--chip);color:var(--platinum-dim);padding:6px 10px;font-size:10px}
+.fwa-kicker{color:var(--gold);font-size:calc(11px * var(--fwa-scale,1));letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px}
+.fwa-sub{margin:0;max-width:560px;color:var(--muted);font-size:calc(12px * var(--fwa-scale,1));line-height:1.55}
+.fwa-head-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
+.fwa-quiet{border:1px solid var(--field-line);background:var(--chip);color:var(--platinum-dim);padding:6px 10px;font-size:calc(11px * var(--fwa-scale,1))}
+/* Type size is the founder's choice, not ours. Every size in this panel is a
+   multiple of --fwa-scale, so one control moves the whole card together and
+   nothing drifts out of proportion. Remembered per browser. */
+.fwa-type{display:flex;align-items:center;gap:4px;border:1px solid var(--field-line);background:var(--chip);padding:2px}
+.fwa-type button{color:var(--platinum-dim);background:none;border:none;padding:4px 8px;line-height:1}
+.fwa-type button:disabled{opacity:.3;cursor:not-allowed}
+.fwa-type .fwa-type-sm{font-size:11px}
+.fwa-type .fwa-type-lg{font-size:15px}
 /* Operational Thread strip — one line, room-native, never a rail. */
 .fwa-thread{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--field-line);padding:8px 12px}
 .fwa-thread-now{display:flex;align-items:baseline;gap:8px;min-width:0}
-.fwa-thread-label{font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--gold-dim)}
-.fwa-thread-title{font-size:12px;color:var(--platinum);min-width:0;overflow-wrap:anywhere}
-.fwa-thread-none{font-size:11px;color:var(--muted)}
-.fwa-loops{margin-left:8px;font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold)}
+.fwa-thread-label{font-size:calc(10px * var(--fwa-scale,1));text-transform:uppercase;letter-spacing:1.4px;color:var(--gold-dim)}
+.fwa-thread-title{font-size:calc(13px * var(--fwa-scale,1));color:var(--platinum);min-width:0;overflow-wrap:anywhere}
+.fwa-thread-none{font-size:calc(12px * var(--fwa-scale,1));color:var(--muted)}
+.fwa-loops{margin-left:8px;font-size:calc(10px * var(--fwa-scale,1));text-transform:uppercase;letter-spacing:1.2px;color:var(--gold)}
 .fwa-thread-actions{display:flex;gap:6px;flex-shrink:0}
 .fwa-thread-panel{border-bottom:1px solid var(--field-line);padding:10px 12px}
 .fwa-thread-new{display:flex;gap:8px;align-items:stretch}
 .fwa-thread-new .fwa-input{min-height:34px;resize:none}
-.fwa-thread-empty{margin:10px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+.fwa-thread-empty{margin:10px 0 0;font-size:calc(12px * var(--fwa-scale,1));line-height:1.6;color:var(--muted)}
 .fwa-thread-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .fwa-thread-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--field-line);padding-top:8px}
 .fwa-thread-row-main{min-width:0;display:flex;flex-direction:column;gap:2px}
-.fwa-thread-row-title{font-size:12px;color:var(--platinum);overflow-wrap:anywhere}
-.fwa-thread-row-meta{font-size:10px;color:var(--muted)}
-.fwa-thread-current{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);flex-shrink:0}
+.fwa-thread-row-title{font-size:calc(13px * var(--fwa-scale,1));color:var(--platinum);overflow-wrap:anywhere}
+.fwa-thread-row-meta{font-size:calc(11px * var(--fwa-scale,1));color:var(--muted)}
+.fwa-thread-current{font-size:calc(10px * var(--fwa-scale,1));text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);flex-shrink:0}
 .fwa-quiet:disabled{opacity:.34;cursor:not-allowed}
-.fwa-log{max-height:340px;overflow-y:auto;padding:12px 16px;display:grid;gap:10px}
-.fwa-line{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;font-size:11px;line-height:1.55}
-.fwa-who{color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
+/* The log grows with the type so a larger size shows the same amount of
+   conversation rather than the same number of pixels. */
+.fwa-log{max-height:calc(340px * var(--fwa-scale,1));overflow-y:auto;padding:12px 16px;display:grid;gap:10px}
+.fwa-line{display:grid;grid-template-columns:calc(72px * var(--fwa-scale,1)) minmax(0,1fr);gap:10px;font-size:calc(13px * var(--fwa-scale,1));line-height:1.6}
+.fwa-who{color:var(--muted);font-size:calc(10px * var(--fwa-scale,1));letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
 .fwa-text{color:var(--platinum-dim);white-space:pre-wrap;overflow-wrap:anywhere}
 .fwa-line.founder .fwa-text{color:var(--platinum)}
-.fwa-room{color:var(--muted);font-size:10px;line-height:1.6;border:1px dashed var(--field-line);background:var(--well);padding:10px 12px}
+.fwa-room{color:var(--muted);font-size:calc(12px * var(--fwa-scale,1));line-height:1.6;border:1px dashed var(--field-line);background:var(--well);padding:10px 12px}
 .fwa-plan{border:1px solid var(--line-gold);background:rgba(201,168,76,.035);padding:11px 13px}
-.fwa-plan-title{color:var(--gold);font-size:10px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:8px}
-.fwa-plan-item{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.045);font-size:11px}
+.fwa-plan-title{color:var(--gold);font-size:calc(11px * var(--fwa-scale,1));letter-spacing:.13em;text-transform:uppercase;margin-bottom:8px}
+.fwa-plan-item{display:grid;grid-template-columns:calc(140px * var(--fwa-scale,1)) minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.045);font-size:calc(13px * var(--fwa-scale,1))}
 .fwa-plan-item b{color:var(--platinum);font-weight:400}
 .fwa-plan-item span{color:var(--platinum-dim);overflow-wrap:anywhere}
-.fwa-plan-reason{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px;padding:6px 0;font-size:11px}
-.fwa-plan-reason b{color:var(--muted);font-weight:400;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
+.fwa-plan-reason{display:grid;grid-template-columns:calc(140px * var(--fwa-scale,1)) minmax(0,1fr);gap:10px;padding:6px 0;font-size:calc(13px * var(--fwa-scale,1))}
+.fwa-plan-reason b{color:var(--muted);font-weight:400;font-size:calc(10px * var(--fwa-scale,1));letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
 .fwa-plan-reason span{color:var(--platinum-dim)}
 .fwa-consequences{margin:8px 0 0;padding:0 0 0 16px;display:grid;gap:4px}
-.fwa-consequences li{color:var(--platinum-dim);font-size:11px;line-height:1.55}
-.fwa-plan-note{margin-top:8px;color:var(--muted);font-size:9px;line-height:1.5}
+.fwa-consequences li{color:var(--platinum-dim);font-size:calc(13px * var(--fwa-scale,1));line-height:1.6}
+/* The sentence explaining what confirming actually does. It was 9px — the
+   smallest thing on screen was the one describing the consequence. */
+.fwa-plan-note{margin-top:8px;color:var(--muted);font-size:calc(12px * var(--fwa-scale,1));line-height:1.55}
 .fwa-plan-actions{display:flex;gap:9px;margin-top:10px;flex-wrap:wrap}
-.fwa-confirm{border:1px solid rgba(127,169,138,.42);background:var(--chip);color:#A4C7AD;padding:8px 11px;font-size:10px}
+.fwa-confirm{border:1px solid rgba(127,169,138,.42);background:var(--chip);color:#A4C7AD;padding:8px 11px;font-size:calc(12px * var(--fwa-scale,1))}
 .fwa-confirm-remove{border-color:rgba(181,155,91,.55);color:var(--gold)}
 .fwa-confirm:disabled{opacity:.34;cursor:not-allowed}
-.fwa-error{margin:0 16px 10px;font-size:11px;padding:6px 10px;border:1px solid #5a2a2a;background:#241315;color:#f0857d}
+.fwa-error{margin:0 16px 10px;font-size:calc(12px * var(--fwa-scale,1));padding:6px 10px;border:1px solid #5a2a2a;background:#241315;color:#f0857d}
 .fwa-compose{display:flex;gap:9px;padding:12px 16px;border-top:1px solid var(--line);align-items:flex-end}
-.fwa-input{flex:1;min-height:44px;resize:vertical;background:var(--field);border:1px solid var(--field-line);color:var(--platinum);padding:9px 10px;outline:none;line-height:1.5;font-size:12px}
-.fwa-send{border:1px solid var(--line-gold);background:var(--chip);color:var(--gold);padding:9px 14px;font-size:10px}
+.fwa-input{flex:1;min-height:calc(44px * var(--fwa-scale,1));resize:vertical;background:var(--field);border:1px solid var(--field-line);color:var(--platinum);padding:9px 10px;outline:none;line-height:1.5;font-size:calc(13px * var(--fwa-scale,1))}
+.fwa-send{border:1px solid var(--line-gold);background:var(--chip);color:var(--gold);padding:9px 14px;font-size:calc(12px * var(--fwa-scale,1))}
 .fwa-send:disabled{opacity:.34;cursor:not-allowed}
 @media(max-width:660px){
   .fwa-line{grid-template-columns:1fr;gap:2px}
