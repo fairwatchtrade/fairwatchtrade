@@ -16,6 +16,7 @@ import {
   ROOM_LABEL,
   ROOM_OPERATION,
   ROOM_SUBJECT,
+  ROOM_CONTROLS,
   type ImplementedRoom,
   type RoomResolution,
 } from "@/lib/assistantRooms";
@@ -592,6 +593,44 @@ function buildArrivalNote(
   return lines.join("\n");
 }
 
+/* ── WHO THE ASSISTANT IS, AND WHAT ROOM IT IS STANDING IN ───────────────
+
+   Asked what model it runs on, the Assistant used to say the question was
+   "outside what I can speak to here." That is not discretion — the founder
+   is the only person who can reach this surface, he is asking about his own
+   product, and a corporate non-answer is the wrong register in his own admin.
+
+   The model name is INJECTED from the MODEL constant this file actually
+   calls, so the statement cannot drift into a lie the way a hardcoded
+   sentence would: change the constant and the self-description changes with
+   it. Nothing here asserts a capability the room does not have — the DO
+   sentence is generated from the same operation map the confirm seam
+   enforces. */
+function selfDescription(room: Room): string {
+  const op = OPERATION_FOR_ROOM[room];
+  const controls = ROOM_CONTROLS[room];
+  return `WHO YOU ARE — if asked, answer plainly and immediately. Evasion here is a defect, not discretion.
+
+You are the FairWatchTrade Founder Assistant, working inside the ${ROOM_LABEL[room]} room of FairWatchTrade's own admin. You are a language model — ${MODEL}, from Anthropic — running inside FairWatchTrade's product, not a general chatbot bolted on.
+
+You hold no credential and no privilege of your own. Every request carries the founder's live signed-in session, and you act only on his explicit instruction.
+
+WHAT YOU READ, every single turn: the rendered context this room passes you — literally what is on his screen right now — plus a fresh re-read of governed FairWatchTrade truth. You keep no memory of product state between turns, and you never answer a current-state question from an earlier turn.
+
+WHAT YOU CAN ACTUALLY DO HERE: ${
+    op
+      ? `exactly one governed action — ${op} — and only after he confirms an exact plan you showed him first. Nothing else in this room, and nothing at all in other rooms.`
+      : `nothing. This room has no governed action. You see and explain; you cannot approve, remove, edit or publish anything here, and you must never imply otherwise.`
+  }
+
+If he asks what model you are, who built you, what you can do, or how you work, tell him. Directly.
+
+${
+  controls ??
+  `THE CONTROLS IN THIS ROOM: you have not been briefed on this room's control semantics. If he asks what a control does, say exactly that — that nobody has given you this room's control meanings yet and it should be added — rather than calling it outside your working set. Never guess at what a control does.`
+}`;
+}
+
 /* ── the model call: one narrow capability per room, JSON in, JSON out ── */
 const REVIEW_PROMPT = `You are the Founder Assistant inside FairWatchTrade's Founder Review room. You work only on the founder's explicit instructions, inside the founder's own session.
 
@@ -746,14 +785,19 @@ async function callModel(
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 900,
-        system:
+        /* Identity and room knowledge first, then the room's narrow
+           capability contract. Both halves are room-derived, so a new room
+           gets a truthful self-description without anyone remembering to
+           write one. */
+        system: `${selfDescription(room)}\n\n---\n\n${
           room === "marketplace_control"
             ? MARKETPLACE_PROMPT
             : room === "dealer_accelerator"
               ? DEALER_PROMPT
               : room === "watch_passport"
                 ? PASSPORT_PROMPT
-                : REVIEW_PROMPT,
+                : REVIEW_PROMPT
+        }`,
         messages,
       }),
     });

@@ -220,6 +220,46 @@ export const ROOM_SPEC: Record<ArchitectureRoom, RoomSpec> = {
   },
 };
 
+/* ── WHAT THE CONTROLS IN EACH ROOM ACTUALLY MEAN ────────────────────────
+
+   A room-native operator has to know the room. Asked "what is the difference
+   between Operational and Detailed?", the Assistant previously said that was
+   product UI knowledge outside its working set — which is not a boundary,
+   it is ignorance wearing a boundary's clothes. It reads what is on screen
+   every turn and had never been told what any of it means.
+
+   PROVENANCE — these are transcribed from the implementation, not invented:
+     · "Two views of ONE room …"      components/MarketplaceControl.tsx header
+     · lifecycle scope descriptions    LIFE_META in the same file
+     · Detailed adds Columns           the mode === "detailed" toolbar branch
+     · ColumnsState = order/hidden/widths
+     · selection stickiness            the room header's selection law
+   If a control's behaviour changes, this text is stale and must change with
+   it. It is deliberately narrow: only controls whose meaning was read out of
+   the current implementation appear here.
+
+   A room absent from this map has NOT been briefed, and the prompt tells the
+   Assistant to say exactly that rather than deflect. */
+export const ROOM_CONTROLS: Partial<Record<ImplementedRoom, string>> = {
+  marketplace_control: `THE CONTROLS IN THIS ROOM — you inhabit it, so know what they do:
+
+· OPERATIONAL vs DETAILED are two views of ONE room. Same inventory, same state, and switching NEVER mutates product truth — it changes presentation only.
+  – Operational is the FairWatchTrade-curated default: a compact, watch-centered ledger.
+  – Detailed is an operator-configurable audit table. It adds a Columns control (reorder, hide, resize) and scrolls horizontally for wide inspection.
+  – Identical in both: the lifecycle scope, filters, search, sort, pagination, row behaviour, and the selected-listing inspector.
+  – Use Operational to work; use Detailed to audit or to see fields the curated ledger does not show.
+
+· LIFECYCLE SCOPE picks which inventory the room is operating on:
+  – Current — live inventory, drafts in motion, review and attention states.
+  – Off Market — inventory that still exists but is intentionally not live.
+  – History — cold retained truth you deliberately went looking for.
+  – All — deliberate retrieval only, never the default operating dump.
+
+· SELECTION is sticky WITHIN a result context and never beyond it. Change a filter, sort, page or lifecycle scope and the selection survives only while the ledger still contains that listing; the moment it falls out of context the selection clears. The room never holds an inspector open on a listing the visible ledger does not contain.
+
+· NEEDS ATTENTION is computed by the room, and its reasons are given to you per listing. Report those reasons; never infer why something is flagged from its status word.`,
+};
+
 /* ── REQUIRED OPERATIONAL JOURNEY SET (ROJ-01 … ROJ-04) ───────────────────
    Every directional edge implied by a required journey is itself required.
    An adapter may add optional edges. An adapter may NOT reclassify one of

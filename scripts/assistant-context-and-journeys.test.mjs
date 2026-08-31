@@ -26,6 +26,7 @@ import {
   ROOM_SPEC,
   ROOM_OPERATION,
   ROOM_SUBJECT,
+  ROOM_CONTROLS,
   IMPLEMENTED_ROOMS,
   ARCHITECTURE_ROOMS,
 } from "../lib/assistantRooms.ts";
@@ -307,6 +308,68 @@ for (const room of ARCHITECTURE_ROOMS) {
     refusalIdx < confirmBlock.indexOf('rpc("remove_listing_assistant"'));
   ok("a Tier A room cannot form a plan at all",
     /if \(!OPERATION_FOR_ROOM\[room\]\) \{[\s\S]{0,200}pendingPlan = null/.test(route));
+}
+
+// ── Self-description: answer plainly, and never hardcode a lie ───────────
+{
+  const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
+
+  ok("a self-description exists", /function selfDescription/.test(route));
+  ok("it is prepended to every room's prompt",
+    /system: `\$\{selfDescription\(room\)\}/.test(route));
+
+  /* The model name must be INTERPOLATED from the constant actually called,
+     so it cannot drift into a lie when the constant changes. */
+  ok("the model name is injected from the MODEL constant", /\$\{MODEL\}/.test(route));
+  const decl = /const MODEL = "([^"]+)"/.exec(route);
+  ok("MODEL is a real constant", !!decl && decl[1].length > 3);
+  ok("the model name is not hardcoded in prose",
+    !new RegExp(`from Anthropic[^\`]*${decl[1]}`).test(route.replace(/\$\{MODEL\}/g, "«injected»")));
+
+  ok("it says evasion is a defect", /Evasion here is a defect/.test(route));
+  ok("it instructs a direct answer about the model", /what model you are/i.test(route));
+  ok("it states it holds no credential of its own", /no credential and no privilege/.test(route));
+  ok("it states it keeps no memory of product state", /no memory of product state/.test(route));
+
+  /* The capability sentence is generated from the same map the confirm seam
+     enforces, so it cannot claim an action the room does not have. */
+  ok("the DO sentence derives from the operation map",
+    /const op = OPERATION_FOR_ROOM\[room\]/.test(route));
+  ok("a room with no operation says it can do nothing",
+    /This room has no governed action/.test(route));
+}
+
+// ── Room knowledge: know the controls, or say you weren't told ───────────
+{
+  const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
+  const mc = ROOM_CONTROLS.marketplace_control ?? "";
+
+  ok("Marketplace Control has briefed control semantics", mc.length > 400);
+  ok("it explains Operational", /Operational/.test(mc));
+  ok("it explains Detailed", /Detailed/.test(mc));
+  ok("it says both are one room with the same state",
+    /two views of ONE room/i.test(mc) && /Same inventory, same state/i.test(mc));
+  ok("it says switching never mutates product truth", /NEVER mutates product truth/i.test(mc));
+  ok("it names what Detailed adds", /Columns control/.test(mc));
+  ok("it names what is identical in both", /filters, search, sort, pagination/.test(mc));
+  ok("it covers the lifecycle scopes",
+    /Current/.test(mc) && /Off Market/.test(mc) && /History/.test(mc) && /All/.test(mc));
+  ok("it uses the product's own words for History",
+    /cold retained truth you deliberately went looking for/i.test(mc));
+  ok("it covers selection stickiness", /sticky WITHIN a result context/i.test(mc));
+  ok("it forbids inferring attention from a status word",
+    /never infer why something is flagged from its status word/i.test(mc));
+
+  /* A room nobody has briefed must SAY it wasn't briefed. The defect being
+     fixed was calling a room-control question "outside the working set",
+     which sounds like a boundary and is actually ignorance. */
+  ok("unbriefed rooms admit it rather than deflecting",
+    /you have not been briefed on this room's control semantics/.test(route));
+  ok("unbriefed rooms are told not to call it outside the working set",
+    /rather than calling it outside your working set/.test(route));
+  ok("unbriefed rooms are told never to guess", /Never guess at what a control does/.test(route));
+  ok("rooms without briefed controls exist to exercise that path",
+    IMPLEMENTED_ROOMS.some((r) => !ROOM_CONTROLS[r]));
 }
 
 // ── Reorientation ────────────────────────────────────────────────────────
