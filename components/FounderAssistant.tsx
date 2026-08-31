@@ -56,6 +56,37 @@ type Plan = {
 
 const INPUT_MAX = 2000;
 
+/* The required directional edges reachable from each attached room, mirrored
+   from the architecture registry (lib/assistantRooms). An edge whose
+   destination is not attached yet is simply absent here — it is NOT thereby
+   downgraded, and the coverage function still reports it as required and
+   unbuildable. Adding a room means adding its edges in both places. */
+const HANDOFFS_FROM: Record<Room, { room: string; label: string }[]> = {
+  founder_review: [
+    { room: "dealer_accelerator", label: "Dealer Accelerator" },
+    { room: "marketplace_control", label: "Marketplace Control" },
+  ],
+  marketplace_control: [{ room: "founder_review", label: "Founder Review" }],
+  dealer_accelerator: [{ room: "founder_review", label: "Founder Review" }],
+  watch_passport: [],
+};
+
+/* Where each room actually lives. Rooms that are ABOUT one object return
+   null without it rather than opening a page that cannot show the work. */
+const ROOM_LABEL: Record<Room, string> = {
+  founder_review: "Founder Review",
+  marketplace_control: "Marketplace Control",
+  dealer_accelerator: "Dealer Accelerator",
+  watch_passport: "Watch Passport",
+};
+
+const ROOM_ROUTE: Record<string, (anchorId: string | null) => string | null> = {
+  marketplace_control: () => "/admin",
+  dealer_accelerator: () => "/admin/dealer-accelerator",
+  founder_review: (id) => (id ? `/admin/listings/${id}` : null),
+  watch_passport: (id) => (id ? `/admin/passport/${id}` : null),
+};
+
 const ROOM_COPY: Record<
   Room,
   { sub: string; empty: string; placeholder: string; planTitle: (n: number) => string }
@@ -204,6 +235,52 @@ export default function FounderAssistant({
     };
   }, [room]);
 
+  /* ── ARRIVAL ───────────────────────────────────────────────────────────
+     A thread named in the URL is an EXPLICIT operational handoff: the
+     Assistant generated this link itself when the founder moved the work.
+     Ordinary navigation to this same page carries no ?thread and attaches
+     nothing, which is the whole distinction between changing pages and
+     moving work.
+
+     The parameter is removed once consumed, so a later reload or a
+     bookmarked visit is ordinary navigation again rather than a handoff that
+     replays forever. History state is SPREAD, never replaced. */
+  useEffect(() => {
+    if (!ready) return;
+    const url = new URL(window.location.href);
+    const arriving = url.searchParams.get("thread");
+    if (!arriving) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await post({ action: "thread_resume", thread_id: arriving });
+      if (cancelled) return;
+      if (!ok) {
+        setError(String(data.detail ?? "The work that was being carried here could not be opened."));
+        return;
+      }
+      setThreadId(arriving);
+      const t = data.thread as ThreadSummary | undefined;
+      const loops = Array.isArray(data.open_loops) ? data.open_loops.length : 0;
+      const reorientation = typeof data.reorientation === "string" ? data.reorientation : null;
+      setLines((l) => [
+        ...l,
+        {
+          role: "room",
+          text:
+            (reorientation ? `${reorientation}\n` : "") +
+            `This work arrived here: ${t?.title ?? "untitled"}.` +
+            (loops > 0 ? ` ${loops} unresolved obligation${loops === 1 ? "" : "s"} came with it.` : ""),
+        },
+      ]);
+      await refreshThreads();
+      url.searchParams.delete("thread");
+      window.history.replaceState({ ...window.history.state }, "", url.toString());
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -325,7 +402,54 @@ export default function FounderAssistant({
     }
   }
 
+  /* ── Operational handoff: moving the WORK, not the page ────────────────
+     This is one of the only three ways continuity may travel. The founder
+     clicks a thread-aware control, the edge and its reason are recorded
+     server-side, and the destination is entered with the thread named in the
+     URL. Ordinary navigation to that same page carries nothing.
+
+     The reason is required by the server, so a handoff can never arrive
+     somewhere unable to say why it came. */
+  async function handoffTo(dest: string) {
+    if (!threadId || busy) return;
+    const needsAnchor = dest === "founder_review" || dest === "watch_passport";
+    if (needsAnchor && !listingId) {
+      setError(
+        "There's no specific record attached to this work yet, so I can't open that room around it. Select the record first."
+      );
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { ok, data } = await post({
+        action: "thread_handoff",
+        thread_id: threadId,
+        to_room: dest,
+        /* Recorded as history, not as a durable claim that the reason still
+           holds — the destination re-reads and may find it already answered. */
+        reason:
+          `Moved from ${ROOM_LABEL[room]} by the founder` +
+          (listingId ? `, carrying record ${listingId}` : ""),
+      });
+      if (!ok) {
+        /* An unsupported destination preserves the thread and says so. */
+        setError(String(data.detail ?? "That work could not be moved."));
+        return;
+      }
+      const route = ROOM_ROUTE[dest]?.(listingId);
+      if (!route) {
+        setError("That room needs a specific record to open around, and none is attached.");
+        return;
+      }
+      router.push(`${route}?thread=${encodeURIComponent(threadId)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const activeThread = threads.find((t) => t.id === threadId) ?? null;
+  const handoffDestinations = HANDOFFS_FROM[room] ?? [];
 
   async function send() {
     const text = input.trim();
@@ -480,6 +604,19 @@ export default function FounderAssistant({
           )}
         </div>
         <div className="fwa-thread-actions">
+          {activeThread &&
+            handoffDestinations.map((d) => (
+              <button
+                key={d.room}
+                type="button"
+                className="fwa-quiet"
+                onClick={() => handoffTo(d.room)}
+                disabled={busy}
+                title={`Move this work to ${d.label}, carrying the record and the reason`}
+              >
+                Take to {d.label}
+              </button>
+            ))}
           {activeThread && (
             <>
               <button type="button" className="fwa-quiet" onClick={pauseWork} disabled={busy}>

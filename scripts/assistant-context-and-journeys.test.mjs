@@ -19,6 +19,9 @@ import {
   REQUIRED_EDGES,
   requiredEdgeCoverage,
   isRequiredEdge,
+  availableHandoffs,
+  roomRoute,
+  roomNeedsAnchor,
   edgeKey,
   ROOM_SPEC,
   ROOM_OPERATION,
@@ -199,6 +202,64 @@ ok("direction matters", isRequiredEdge("dealer_accelerator", "founder_review"));
   ok("every unimplementable edge names the missing room(s)",
     cov.filter((c) => !c.implementable).every((c) => c.missing.length > 0));
   ok("required edge count is unchanged by coverage", REQUIRED_EDGES.length === 8);
+}
+
+// ── Handoffs: implemented edges, and honest absence ──────────────────────
+{
+  ok("Founder Review can hand off to both attached partners",
+    availableHandoffs("founder_review").sort().join() === "dealer_accelerator,marketplace_control");
+  ok("Marketplace hands back to Founder Review",
+    availableHandoffs("marketplace_control").join() === "founder_review");
+  ok("Dealer Accelerator hands off to Founder Review",
+    availableHandoffs("dealer_accelerator").join() === "founder_review");
+  ok("Watch Passport has no required outbound edge in this version",
+    availableHandoffs("watch_passport").length === 0);
+
+  /* Absence from the offer list is NOT a downgrade. Watch Resolution is
+     unbuilt, so Founder Review cannot offer it — and the coverage function
+     must still report that edge as required. */
+  ok("the unoffered Founder Review → Watch Resolution edge is still required",
+    isRequiredEdge("founder_review", "watch_resolution"));
+  ok("it is reported as required-and-unbuildable",
+    requiredEdgeCoverage().some(
+      (c) => c.key === "founder_review→watch_resolution" && !c.implementable
+    ));
+  ok("no room offers an edge that is not architecture-required",
+    ["founder_review", "marketplace_control", "dealer_accelerator", "watch_passport"].every((r) =>
+      availableHandoffs(r).every((d) => isRequiredEdge(r, d))
+    ));
+}
+
+// ── Where a handoff lands ────────────────────────────────────────────────
+{
+  ok("Marketplace has a route with no anchor", roomRoute("marketplace_control") === "/admin");
+  ok("Dealer Accelerator has a route with no anchor",
+    roomRoute("dealer_accelerator") === "/admin/dealer-accelerator");
+  /* Rooms that are ABOUT one object must refuse to be entered without it,
+     rather than opening a page that cannot show the carried work. */
+  ok("Founder Review needs an anchor", roomRoute("founder_review", null) === null);
+  ok("Founder Review opens around its record", roomRoute("founder_review", "abc") === "/admin/listings/abc");
+  ok("Passport needs an anchor", roomRoute("watch_passport", null) === null);
+  ok("Passport opens around its bead", roomRoute("watch_passport", "bead1") === "/admin/passport/bead1");
+  ok("anchor-needing rooms are declared as such",
+    roomNeedsAnchor("founder_review") && roomNeedsAnchor("watch_passport"));
+  ok("queue rooms do not need an anchor",
+    !roomNeedsAnchor("marketplace_control") && !roomNeedsAnchor("dealer_accelerator"));
+}
+
+// ── STRUCTURAL: arrival is explicit, and does not replay ─────────────────
+{
+  const fa = readFileSync("components/FounderAssistant.tsx", "utf8");
+  ok("arrival reads an explicit thread parameter", /searchParams\.get\("thread"\)/.test(fa));
+  ok("arrival resumes deliberately rather than auto-attaching",
+    /action: "thread_resume", thread_id: arriving/.test(fa));
+  ok("the parameter is consumed so a reload is ordinary navigation",
+    /searchParams\.delete\("thread"\)/.test(fa));
+  ok("history state is spread, never replaced",
+    /replaceState\(\{ \.\.\.window\.history\.state \}/.test(fa));
+  ok("handoff records a reason", /action: "thread_handoff"[\s\S]{0,300}reason:/.test(fa));
+  ok("a room needing an anchor refuses to be entered without one",
+    /needsAnchor && !listingId/.test(fa));
 }
 
 // ── Every required room names a room-native question ─────────────────────

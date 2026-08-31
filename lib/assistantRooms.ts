@@ -308,6 +308,39 @@ export function requiredEdgeCoverage(): {
   });
 }
 
+/* ── Where a room actually lives in production ───────────────────────────
+   A handoff has to arrive somewhere. Two of these rooms are ABOUT one
+   governed object and cannot be entered without it, so they return null
+   without an anchor rather than sending the founder to a page that cannot
+   show the work he was carrying. */
+export function roomRoute(room: ImplementedRoom, anchorId?: string | null): string | null {
+  switch (room) {
+    case "marketplace_control":
+      return "/admin";
+    case "dealer_accelerator":
+      return "/admin/dealer-accelerator";
+    case "founder_review":
+      return anchorId ? `/admin/listings/${anchorId}` : null;
+    case "watch_passport":
+      return anchorId ? `/admin/passport/${anchorId}` : null;
+  }
+}
+
+/** Does entering this room require carrying a specific object? */
+export function roomNeedsAnchor(room: ImplementedRoom): boolean {
+  return room === "founder_review" || room === "watch_passport";
+}
+
+/* Required destinations reachable FROM this room today. An edge whose
+   destination is not attached yet is not offered — and is not thereby
+   downgraded: requiredEdgeCoverage() still reports it as required and
+   unbuildable, which is the honest pair of facts. */
+export function availableHandoffs(from: ImplementedRoom): ArchitectureRoom[] {
+  return REQUIRED_EDGES.filter(([f, t]) => f === from && isImplementedRoom(t)).map(
+    ([, t]) => t
+  );
+}
+
 /** HTTP status for a refusal. All are caller-side faults, never 500s. */
 export function roomRefusalStatus(r: RoomResolution): number {
   switch (r.state) {
