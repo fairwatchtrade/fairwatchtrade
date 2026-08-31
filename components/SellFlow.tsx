@@ -41,6 +41,7 @@ import {
 import ListFromPhoneHandoff from "@/components/ListFromPhoneHandoff";
 import SavedListingDrafts from "@/components/SavedListingDrafts";
 import { resetIdentityBoundState } from "@/lib/sellDraftReset";
+import { LAST_STEP, readProgress } from "@/lib/sellProgress";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   createDraft,
@@ -131,6 +132,23 @@ function mandatoryDone(d: ListingDraft): boolean {
     scoreCompleteness(toScoringState(d)).items.find((i) => i.key === "mandatory")
       ?.done ?? false
   );
+}
+
+/* ── How far this draft can legitimately be resumed ──────────────────────
+   Progress is persisted, so a stored position must be re-checked against
+   what the draft NOW contains rather than trusted. A seller who reached
+   Details and later removed the photographs that got them there has not
+   kept that progress, and dropping them back at a step the content no
+   longer supports would be the flow manufacturing advancement.
+
+   These are the flow's OWN gates, not a second opinion: leaving Curation
+   requires a passing curation decision, and leaving Photos requires
+   mandatoryDone — the same two conditions the live Continue button uses.
+   Steps beyond Details carry no further gate, so they clamp together. */
+export function supportedStep(d: ListingDraft): number {
+  if (d.curationDecision !== "pass") return 0;
+  if (!mandatoryDone(d)) return 1;
+  return LAST_STEP;
 }
 
 /* The six DetailsStep chapters, keyed by their `data-chapter` attribute values.
@@ -393,7 +411,31 @@ export default function SellFlow({
      the mount run is a non-transition and touches nothing. */
   const prevStepRef = useRef(0);
 
+  /* The top of the listing form. Resuming a saved listing and advancing a
+     step both target THIS rather than the document, because /sell carries
+     page chrome above the flow. */
+  const flowTopRef = useRef<HTMLDivElement | null>(null);
+
+  /* Restoring a saved position is not a step transition: it must neither
+     push a history entry (the seller did not navigate) nor re-scroll (the
+     resume path places them itself).
+
+     This holds the step being hydrated TO rather than a boolean, and is
+     consumed on the next effect run whichever way that goes. A boolean
+     breaks when the restored position happens to equal the current one —
+     the effect never runs, the flag stays raised, and it silently swallows
+     the seller's next genuine transition. Matching on the value cannot: if
+     nothing moved, the stale value can only ever equal the step we did not
+     leave, and the next real change will not match it. */
+  const hydrateToRef = useRef<number | null>(null);
+
   useEffect(() => {
+    const hydratedTo = hydrateToRef.current;
+    hydrateToRef.current = null;
+    if (hydratedTo !== null && hydratedTo === step) {
+      prevStepRef.current = step;
+      return;
+    }
     if (poppingRef.current) {
       poppingRef.current = false;
       prevStepRef.current = step;
@@ -409,14 +451,16 @@ export default function SellFlow({
       // state must ride every entry this flow creates.
       window.history.pushState({ ...window.history.state, sellStep: step }, "");
     }
-    /* Entering a step lands at its top. The steps swap content inside one
-       page, so without this the scroll depth of the step being LEFT carried
-       into the one being entered — Photos → Continue delivered the seller
-       partway down Details, around Component Review, instead of at its
-       beginning. This is the cause (stale scroll across an in-place content
-       swap), not a symptom patch: the reset runs in the same effect that
-       commits the step change, never on a timer. */
-    window.scrollTo(0, 0);
+    /* Entering a step lands at the top OF THE WORK. The steps swap content
+       inside one page, so without this the scroll depth of the step being
+       LEFT carried into the one being entered — Photos → Continue delivered
+       the seller partway down Details instead of at its beginning. That
+       diagnosis was right and the target was wrong: scrolling the document
+       to zero sends them back up past the masthead, the metals ticker and
+       the page heading, so advancing a step walked them toward the entrance
+       of /sell rather than to the next thing to do. The anchor is the flow
+       itself, which is where the work is. */
+    flowTopRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
   }, [step]);
 
   /* Reload, tab close, or navigating away by URL still bypass step history
@@ -476,9 +520,10 @@ export default function SellFlow({
   const userTouchedRef = useRef(false);
   const creatingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /* The top of the flow itself, so resuming a saved listing can put the form
-     in front of the seller instead of leaving them above a long list. */
-  const flowTopRef = useRef<HTMLDivElement | null>(null);
+  /* True while an edit is waiting on the debounce. Lets a switch, a
+     set-aside or a Start New flush exactly what is outstanding, rather than
+     saving on every departure — or, as before, discarding it. */
+  const dirtyRef = useRef(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [phoneActive, setPhoneActive] = useState(false);
   const [pollLive, setPollLive] = useState(false);
@@ -497,9 +542,21 @@ export default function SellFlow({
   // Adopt a server row into local state (content.draft is the ListingDraft).
   const adoptRow = (row: { id: string; content: Record<string, unknown>; revision: number }) => {
     const d = row.content?.draft as ListingDraft | undefined;
-    if (d && typeof d === "object") setDraft({ ...emptyDraft(), ...d });
+    const adopted = d && typeof d === "object" ? { ...emptyDraft(), ...d } : emptyDraft();
+    if (d && typeof d === "object") setDraft(adopted);
+    /* Resume where the seller actually was. readProgress clamps the stored
+       position against what THIS content still supports, so a draft whose
+       photographs were removed cannot drop them back at Details — the flow
+       never manufactures advancement it can no longer justify. */
+    const progress = readProgress(row.content?.progress, supportedStep(adopted));
+    hydrateToRef.current = progress.at;
+    setMaxStep(progress.reached);
+    setStepRaw(progress.at);
     revisionRef.current = row.revision;
     setServerDraftId(row.id);
+    /* Adopted content is not seller typing. Anything outstanding was already
+       flushed by the caller before we got here. */
+    dirtyRef.current = false;
   };
 
   // Mount: resume the newest active server draft (survives refresh/close).
@@ -663,9 +720,13 @@ export default function SellFlow({
   useEffect(() => {
     if (!authed || phoneActive) return;
     if (!userTouchedRef.current) return; // nothing meaningful yet
+    /* An edit is now outstanding. Anything that takes the seller off this
+       draft must flush it rather than clear the timer. */
+    dirtyRef.current = true;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const content = { draft };
+      saveTimerRef.current = null;
+      const content = { draft, progress: { reached: maxStep, at: step } };
       if (!serverDraftId) {
         if (creatingRef.current) return;
         creatingRef.current = true;
@@ -674,12 +735,14 @@ export default function SellFlow({
         if (id) {
           revisionRef.current = 0;
           setServerDraftId(id);
+          dirtyRef.current = false;
         }
         return;
       }
       const res = await saveContent(serverDraftId, content, revisionRef.current, "desktop");
       if (res.state === "SAVED" && typeof res.revision === "number") {
         revisionRef.current = res.revision;
+        dirtyRef.current = false;
       } else if (res.state === "NOT_ACTIVE_EDITOR") {
         // The phone took the baton between polls — pause immediately.
         setPhoneActive(true);
@@ -701,6 +764,7 @@ export default function SellFlow({
           const retry = await saveContent(serverDraftId, content, row.revision, "desktop");
           if (retry.state === "SAVED" && typeof retry.revision === "number") {
             revisionRef.current = retry.revision;
+            dirtyRef.current = false;
           }
         }
       }
@@ -708,7 +772,70 @@ export default function SellFlow({
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [draft, authed, phoneActive, serverDraftId]);
+    /* step and maxStep join the dependencies because progress now rides in
+       the saved envelope: moving through the flow is a change worth
+       persisting, and it debounces exactly like any other edit. */
+  }, [draft, authed, phoneActive, serverDraftId, step, maxStep]);
+
+  /* ── Flush before leaving this draft ──────────────────────────────────
+     The debounce means the newest edit can still be sitting in the timer
+     when the seller switches drafts, sets one aside, or starts a new
+     listing. Each of those used to CLEAR that timer, which silently threw
+     the edit away — the field was on screen, and then it was gone.
+
+     This writes the outstanding edit through the same revision-guarded path
+     the debounce uses, against the OUTGOING draft id and the OUTGOING
+     content, before any state moves. Nothing can therefore land on the
+     destination draft.
+
+     It returns whether the work is safe. A caller that gets false must NOT
+     proceed: losing an edit quietly is the defect, and refusing to move
+     while telling the seller why is the honest failure. */
+  const flushPendingSave = useCallback(async (): Promise<boolean> => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (!dirtyRef.current) return true;
+    /* While the phone holds the baton the desktop is not the editor and has
+       nothing it may write; the phone's own path owns that work. */
+    if (!authed || phoneActive) return true;
+
+    const content = { draft, progress: { reached: maxStep, at: step } };
+    if (!serverDraftId) {
+      if (creatingRef.current) return false;
+      creatingRef.current = true;
+      const id = await createDraft(content);
+      creatingRef.current = false;
+      if (!id) return false;
+      revisionRef.current = 0;
+      setServerDraftId(id);
+      dirtyRef.current = false;
+      return true;
+    }
+
+    const res = await saveContent(serverDraftId, content, revisionRef.current, "desktop");
+    if (res.state === "SAVED" && typeof res.revision === "number") {
+      revisionRef.current = res.revision;
+      dirtyRef.current = false;
+      return true;
+    }
+    /* Same re-anchor the debounce performs: the active editor's live work
+       wins over a newer revision, rather than being discarded by it. */
+    if (res.state === "STALE") {
+      const row = await fetchDraftRow(serverDraftId);
+      if (row) {
+        revisionRef.current = row.revision;
+        const retry = await saveContent(serverDraftId, content, row.revision, "desktop");
+        if (retry.state === "SAVED" && typeof retry.revision === "number") {
+          revisionRef.current = retry.revision;
+          dirtyRef.current = false;
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [authed, phoneActive, draft, maxStep, step, serverDraftId]);
 
   // Status poll — ONLY while a handoff is live (issued/redeemed) or the panel
   // is open. 5s interval; stops on return/expiry/publish/unmount.
@@ -776,9 +903,14 @@ export default function SellFlow({
     setSwitchingDraftId(target.id);
     setSwitchError("");
     try {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
+      /* Save what is on screen BEFORE anything moves. Clearing the debounce
+         here — which is what this used to do — discarded the newest edit. */
+      const safe = await flushPendingSave();
+      if (!safe) {
+        setSwitchError(
+          "Your most recent edit to this listing could not be saved, so I haven't switched — that change would have been lost. Try again in a moment."
+        );
+        return;
       }
       const res = await resumeDraft(target.id);
       if (res.state !== "RESUMED") {
@@ -808,8 +940,11 @@ export default function SellFlow({
       } else if (row.handoff_status === "issued" || row.handoff_status === "redeemed") {
         setPollLive(true);
       }
-      setStepRaw(0);
-      setMaxStep(0);
+      /* The step counters are NOT reset here any more. adoptRow restored this
+         draft's own saved position, and zeroing it afterwards was what made
+         every switch land back at Curation regardless of how far the seller
+         had got. Each draft carries its own progress, so A → B → A returns
+         each one to where it was. */
       setDraftsRefreshKey((k) => k + 1);
       /* Bring the seller to the listing they just chose. The saved-listings
          band sits above the flow, so with a long list the form they opened
@@ -848,6 +983,17 @@ export default function SellFlow({
     setStartingNew(true);
     setStartNewError("");
     try {
+      /* Set-aside PRESERVES, and that promise has to include the edit still
+         sitting in the debounce. Flushing first is what makes "every word and
+         every photograph survive" true of the last thing typed, not just of
+         everything typed more than 1.2 seconds ago. */
+      const safe = await flushPendingSave();
+      if (!safe) {
+        setStartNewError(
+          "Your most recent edit to this listing could not be saved, so nothing was set aside — that change would have been lost. Try again in a moment."
+        );
+        return;
+      }
       if (serverDraftId) {
         const res = await setAsideDraft(serverDraftId);
         if (res.state !== "SET_ASIDE" && res.state !== "ALREADY_SET_ASIDE") {
@@ -859,9 +1005,11 @@ export default function SellFlow({
       setServerDraftId(null);
       revisionRef.current = 0;
       userTouchedRef.current = false;
+      dirtyRef.current = false;
       setPhoneActive(false);
       setPollLive(false);
       setHandoffOpen(false);
+      hydrateToRef.current = 0;
       setStepRaw(0);
       setMaxStep(0);
       /* The draft just set aside is still the seller's work. Re-read so it
