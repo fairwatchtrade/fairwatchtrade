@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/client";
+import {
+  RECOVERABLE_DRAFT_STATUSES,
+} from "@/lib/listingDraftShared";
 import type {
   ActiveEditor, SaveResult, IssueResult, RedeemResult, ReturnResult, StatusResult, PublishCloseResult,
+  RecoverableDraft, ResumeResult,
 } from "@/lib/listingDraftShared";
 
 export * from "@/lib/listingDraftShared";
@@ -105,6 +109,35 @@ export async function fetchDraftRow(draftId: string): Promise<DraftRow | null> {
     .eq("id", draftId)
     .maybeSingle();
   return error ? null : ((data as DraftRow | null) ?? null);
+}
+
+const LIST_COLS = "id, content, revision, active_editor, handoff_status, status, updated_at";
+
+/* A failed read and an empty pool are different answers and must not render
+   the same. "You have no saved listings" is a claim; returning ok:false lets
+   the surface say it could not look instead of asserting absence. */
+export type RecoverableDraftsResult = { ok: boolean; drafts: RecoverableDraft[] };
+
+/** Every draft the seller may legitimately reopen — newest edited first.
+    RLS (listing_drafts_select_own) scopes this to the owner, so it is
+    account-backed and cross-device by construction: the same governed rows
+    the Sell page already resumes from, never a second store. */
+export async function fetchRecoverableDrafts(): Promise<RecoverableDraftsResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("listing_drafts")
+    .select(LIST_COLS)
+    .in("status", [...RECOVERABLE_DRAFT_STATUSES])
+    .order("updated_at", { ascending: false });
+  if (error) return { ok: false, drafts: [] };
+  return { ok: true, drafts: (data as RecoverableDraft[] | null) ?? [] };
+}
+
+/** Return a draft to the resume pool on the seller's explicit choice.
+    Restamps updated_at server-side so the chosen draft is the one that
+    opens — the selection outranks the ordering rule, never the reverse. */
+export function resumeDraft(draftId: string): Promise<ResumeResult> {
+  return call<ResumeResult>("listing_draft_resume", { p_draft_id: draftId });
 }
 
 /** Newest active draft for the signed-in seller — the resume target. */

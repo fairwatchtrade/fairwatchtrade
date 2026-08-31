@@ -39,6 +39,7 @@ import {
   isSupportedCurrency,
 } from "@/lib/supportedCurrencies";
 import ListFromPhoneHandoff from "@/components/ListFromPhoneHandoff";
+import SavedListingDrafts from "@/components/SavedListingDrafts";
 import { resetIdentityBoundState } from "@/lib/sellDraftReset";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -50,9 +51,11 @@ import {
   fetchDraftRow,
   fetchNewestActiveDraft,
   setAsideDraft,
+  resumeDraft,
   handoffIsLive,
   desktopIsPaused,
   type StatusResult,
+  type RecoverableDraft,
 } from "@/lib/listingDraft";
 import {
   requirementProfileFor,
@@ -463,6 +466,12 @@ export default function SellFlow({
   const [serverDraftId, setServerDraftId] = useState<string | null>(null);
   const [startingNew, setStartingNew] = useState(false);
   const [startNewError, setStartNewError] = useState("");
+  /* Saved listings doorway: bumped whenever this flow changes which drafts
+     are recoverable or which one is open, so the list re-reads governed
+     truth rather than holding a stale copy of it. */
+  const [draftsRefreshKey, setDraftsRefreshKey] = useState(0);
+  const [switchingDraftId, setSwitchingDraftId] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState("");
   const revisionRef = useRef(0);
   const userTouchedRef = useRef(false);
   const creatingRef = useRef(false);
@@ -738,6 +747,72 @@ export default function SellFlow({
     }
   }
 
+  /* ── Switching drafts — the seller's explicit choice ───────────────────
+     PRESERVES THE DRAFT BEING LEFT. Nothing is set aside, deleted, or
+     overwritten on the way out: the draft on screen stays exactly as it is,
+     stays active, and stays reachable through this same doorway. The only
+     thing that changes is which draft this page is showing.
+
+     THE PENDING AUTOSAVE IS CANCELLED FIRST. Without that, a debounced write
+     still holding the OUTGOING draft's content could land after
+     serverDraftId has already moved and write one watch's work onto another
+     watch's row — precisely the cross-watch contamination the Sell Flow
+     State Preservation Law forbids, and it would look like a save rather
+     than a defect.
+
+     userTouched resets for the same reason it resets on start-new: adopted
+     content is not seller typing, and leaving the flag set would let the
+     autosave immediately rewrite a row nobody edited.
+
+     Both step counters reset because maxStep is a high-water mark belonging
+     to the draft being left; a different watch must not inherit reachable
+     steps. The step a seller reached is not persisted on the row, so every
+     path into a draft — reload, mount-resume, switch — opens at the start. */
+  async function switchToDraft(target: RecoverableDraft) {
+    if (switchingDraftId || target.id === serverDraftId) return;
+    setSwitchingDraftId(target.id);
+    setSwitchError("");
+    try {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const res = await resumeDraft(target.id);
+      if (res.state !== "RESUMED") {
+        setSwitchError(
+          res.state === "ALREADY_PUBLISHED"
+            ? "That listing has already been published, so it can no longer be edited here."
+            : "That listing could not be opened — nothing was changed."
+        );
+        return;
+      }
+      /* Re-read the row rather than trusting the list's copy: the resume just
+         restamped it, and another device on this account may have saved since
+         the list was loaded. */
+      const row = await fetchDraftRow(target.id);
+      if (!row) {
+        setSwitchError("That listing could not be opened — nothing was changed.");
+        return;
+      }
+      userTouchedRef.current = false;
+      setPhoneActive(false);
+      setPollLive(false);
+      setHandoffOpen(false);
+      adoptRow(row);
+      if (row.active_editor === "phone") {
+        setPhoneActive(true);
+        setPollLive(true);
+      } else if (row.handoff_status === "issued" || row.handoff_status === "redeemed") {
+        setPollLive(true);
+      }
+      setStepRaw(0);
+      setMaxStep(0);
+      setDraftsRefreshKey((k) => k + 1);
+    } finally {
+      setSwitchingDraftId(null);
+    }
+  }
+
   /* ── The door out of a resumed draft ──────────────────────────────────
      The Sell page opens on the newest ACTIVE draft for the account, and a
      draft could only ever leave that pool by being published. So whichever
@@ -778,6 +853,10 @@ export default function SellFlow({
       setHandoffOpen(false);
       setStepRaw(0);
       setMaxStep(0);
+      /* The draft just set aside is still the seller's work. Re-read so it
+         appears in Saved listings immediately — the promise that starting
+         another listing keeps this one has to be visible, not just true. */
+      setDraftsRefreshKey((k) => k + 1);
     } finally {
       setStartingNew(false);
     }
@@ -946,6 +1025,20 @@ export default function SellFlow({
   if (phoneActive) {
     return (
       <div className="space-y-6">
+        {/* Reachable even while the phone holds the baton: this draft being
+            paused is not a reason the seller cannot go to another one. */}
+        <SavedListingDrafts
+          authed={authed}
+          currentDraftId={serverDraftId}
+          refreshKey={draftsRefreshKey}
+          onResume={switchToDraft}
+          busyDraftId={switchingDraftId}
+        />
+        {switchError && (
+          <div className="border border-[var(--danger)] px-4 py-2 text-[12px] leading-[1.6] text-[var(--danger)]">
+            {switchError}
+          </div>
+        )}
         <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
         <div className="border border-[var(--border-subtle)] bg-[var(--surface)] px-8 py-14 text-center">
           <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
@@ -972,6 +1065,23 @@ export default function SellFlow({
 
   return (
     <div className="space-y-6">
+      {/* Saved listings — above the progress bar deliberately. The seller's
+          own unfinished work outranks the furniture of the step they happen
+          to be on, and the previous treatment (a muted italic line at the
+          bottom of step one) was the reason none of it was findable. */}
+      <SavedListingDrafts
+        authed={authed}
+        currentDraftId={serverDraftId}
+        refreshKey={draftsRefreshKey}
+        onResume={switchToDraft}
+        busyDraftId={switchingDraftId}
+      />
+      {switchError && (
+        <div className="border border-[var(--danger)] px-4 py-2 text-[12px] leading-[1.6] text-[var(--danger)]">
+          {switchError}
+        </div>
+      )}
+
       <ProgressBar step={step} maxStep={maxStep} onJump={setStep} />
 
       {/* List From Phone — quiet affordance (signed-in sellers, desktop).
@@ -1164,10 +1274,17 @@ export default function SellFlow({
                 <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
                   Not this watch?
                 </div>
-                <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                {/* The consequence, stated plainly and without alarm. Starting
+                    a new listing destroys nothing, so the copy must not imply
+                    it might — and it names where the work goes, because
+                    "preserved" is only true to a seller who can find it. */}
+                <p className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">
                   This listing was resumed from your account, so it may have been
-                  started on another device. Setting it aside keeps every word and
-                  photograph — it only stops it opening here.
+                  started on another device. Starting a new one keeps this listing
+                  exactly as it is — every word and every photograph — and files it
+                  under <span className="text-[var(--platinum)]">Saved listings</span>{" "}
+                  at the top of this page, where you can return to it whenever you
+                  like.
                 </p>
                 <button
                   type="button"
