@@ -1535,7 +1535,7 @@ export default function BrowseClient({
                 immediately; the weight and casing stay ordinary so it
                 remains a sentence beneath the heading, never a second one. */}
             <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
-              {filtered.length} watches · curated and verified
+              {filtered.length} {filtered.length === 1 ? "watch" : "watches"} · curated and verified
             </p>
           </div>
         </div>
