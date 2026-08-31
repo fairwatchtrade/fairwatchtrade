@@ -970,9 +970,38 @@ const FWA_CSS = `
 /* The log grows with the type so a larger size shows the same amount of
    conversation rather than the same number of pixels. */
 .fwa-log{max-height:calc(340px * var(--fwa-scale,1));overflow-y:auto;padding:12px 16px;display:grid;gap:10px}
-.fwa-line{display:grid;grid-template-columns:calc(72px * var(--fwa-scale,1)) minmax(0,1fr);gap:10px;font-size:calc(13px * var(--fwa-scale,1));line-height:1.6}
-.fwa-who{color:var(--muted);font-size:calc(10px * var(--fwa-scale,1));letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
-.fwa-text{color:var(--platinum-dim);white-space:pre-wrap;overflow-wrap:anywhere}
+/* ── Who said what, at a glance ───────────────────────────────────────────
+   The transcript was a flat wall with a small label in a left gutter, so
+   telling your own words from the Assistant's meant reading rather than
+   glancing. Each turn is now its own quiet card.
+
+   The distinction is carried by ACCENT AND BORDER STYLE, not by two tinted
+   fills: in this panel --chip and --well can both resolve to --surface in
+   the light Marketplace room, so a chip-vs-well treatment would render two
+   identical cards exactly where it matters most. Gold at 6% and a border
+   style survive both palettes.
+
+   Restraint is deliberate — a hairline, a whisper of tint, a small inset.
+   No app bubbles, no tails, no colour blocks. The label stacks above its
+   text instead of sitting in a gutter, which also returns the full width to
+   long messages; the gutter would have grown with the type control.
+
+   Insets are FIXED rather than scaled: they are spatial, not typographic,
+   and scaling them would eat the line at large type on a narrow screen. */
+.fwa-line{display:block;padding:calc(8px * var(--fwa-scale,1)) calc(11px * var(--fwa-scale,1));border:1px solid transparent;font-size:calc(13px * var(--fwa-scale,1));line-height:1.6}
+.fwa-who{display:block;margin-bottom:3px;color:var(--muted);font-size:calc(9.5px * var(--fwa-scale,1));letter-spacing:.12em;text-transform:uppercase}
+.fwa-text{display:block;color:var(--platinum-dim);white-space:pre-wrap;overflow-wrap:anywhere}
+/* YOU — the founder's voice: tinted, gold hairline, thicker left edge, and
+   inset from the left so his turns step forward down the column. */
+.fwa-line.founder{margin-left:16px;background:rgba(201,168,76,.06);border-color:var(--line-gold);border-left-width:2px}
+.fwa-line.founder .fwa-who{color:var(--gold)}
+/* ASSISTANT — the reply: plain ground, neutral hairline, inset the other
+   way, so the two alternate visibly without either shouting. */
+.fwa-line.assistant{margin-right:16px;border-color:var(--field-line)}
+/* ROOM — system narration: the most neutral of the three. Dashed and
+   unfilled, matching the resume and empty notes it belongs with. */
+.fwa-line.room{border-style:dashed;border-color:var(--field-line)}
+.fwa-line.room .fwa-text{color:var(--muted)}
 /* A listing code the room can reach. Reads as part of the sentence and
    behaves like a door — inherits its size from the conversation so it moves
    with the founder's type setting. */

@@ -372,6 +372,26 @@ for (const room of ARCHITECTURE_ROOMS) {
     IMPLEMENTED_ROOMS.some((r) => !ROOM_CONTROLS[r]));
 }
 
+// ── Transcript roles must be visually distinct ───────────────────────────
+{
+  const fa = readFileSync("components/FounderAssistant.tsx", "utf8");
+  for (const role of ["founder", "assistant", "room"]) {
+    ok(`${role} turns have their own treatment`, new RegExp(`\\.fwa-line\\.${role}\\{`).test(fa));
+  }
+  /* The distinction must not rest on --chip vs --well: both can resolve to
+     --surface in the light Marketplace room, which would render the founder
+     and the Assistant identically in the room where it matters most. */
+  ok("the founder's turn is not distinguished by --chip alone",
+    !/\.fwa-line\.founder\{[^}]*background:var\(--chip\)/.test(fa));
+  ok("the founder's turn carries a real accent",
+    /\.fwa-line\.founder\{[^}]*rgba\(201,168,76/.test(fa));
+  ok("the room's turn is the neutral one", /\.fwa-line\.room\{[^}]*border-style:dashed/.test(fa));
+  ok("role labels survive", /className="fwa-who"/.test(fa));
+  ok("insets are fixed, not scaled with type",
+    /\.fwa-line\.founder\{margin-left:16px/.test(fa) &&
+    /\.fwa-line\.assistant\{margin-right:16px/.test(fa));
+}
+
 // ── Reorientation ────────────────────────────────────────────────────────
 {
   const now = Date.parse("2026-08-30T12:00:00Z");

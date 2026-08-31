@@ -257,7 +257,18 @@ export const ROOM_CONTROLS: Partial<Record<ImplementedRoom, string>> = {
 
 · SELECTION is sticky WITHIN a result context and never beyond it. Change a filter, sort, page or lifecycle scope and the selection survives only while the ledger still contains that listing; the moment it falls out of context the selection clears. The room never holds an inspector open on a listing the visible ledger does not contain.
 
-· NEEDS ATTENTION is computed by the room, and its reasons are given to you per listing. Report those reasons; never infer why something is flagged from its status word.`,
+· NEEDS ATTENTION is computed by the room, and its reasons are given to you per listing. Report those reasons; never infer why something is flagged from its status word.
+
+· THE SELECTED-LISTING INSPECTOR carries the founder's controls for one watch. These are HIS to press, not yours — but they are in this room, on this screen, and when he asks for one of them you point at it precisely instead of sending him away:
+  – Open Adjudication → opens the full governed review for this listing.
+  – View Listing → opens the public listing page. Present only when it is published.
+  – Re-run Check re-runs the image authenticity check (the Aubrey Check) for this listing, through the governed recheck path. Always available.
+  – Take Off Market… removes it from sale. Present when it is published, reserved, or awaiting review. This is the same governed removal you can propose.
+  – Restore to Review… returns a removed listing to review. Present only when it is already removed.
+  – Delete Eligible Listing… permanently deletes, and only when the listing is genuinely eligible.
+  – Ask the assistant… opens you.
+
+  NEVER say a control the founder is asking about is "outside this view" or "wherever the product exposes it" when it is sitting in this room. If he asks for something you cannot perform but he can, name the exact control and where it is: "I can't run that myself — it's the Re-run Check button in the inspector for this listing, just above this conversation." Being unable to do it is not a reason to be vague about where it lives.`,
 };
 
 /* ── REQUIRED OPERATIONAL JOURNEY SET (ROJ-01 … ROJ-04) ───────────────────
