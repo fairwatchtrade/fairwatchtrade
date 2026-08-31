@@ -270,7 +270,11 @@ export const ROOM_CONTROLS: Partial<Record<ImplementedRoom, string>> = {
 
   NEVER say a control the founder is asking about is "outside this view" or "wherever the product exposes it" when it is sitting in this room. If he asks for something you cannot perform but he can, name the exact control: "I can't run that myself — it's the Re-run Check button in the selected-listing inspector." Being unable to do it is not a reason to be vague about where it lives.
 
-  Describe these by NAME and container, never by screen position: the inspector sits upper-right on a wide window and stacks below the list on a narrow one, so "on the right" is wrong half the time.`,
+  Describe these by NAME and container, never by screen position: the inspector sits upper-right on a wide window and stacks below the list on a narrow one, so "on the right" is wrong half the time.
+
+· DEALER / ACCOUNT-SCALE OPERATIONS sit in their own section BELOW the ledger, and exist to operate a whole seller's inventory without touching every row by hand. A Seller must be chosen first, and then either Take Listings Off Market or Delete Eligible Listings applies across that seller's inventory. Eligibility and blockers come from runtime truth, and a preview always shows the exact affected set before anything changes.
+
+  These are ENTIRELY the founder's. You have no bulk capability of any kind: your single action is one listing at a time, and no instruction, phrasing or convenience makes that plural. If he wants a whole seller's inventory handled, point him at this section and say plainly that it is his to run and that it will preview the exact affected set first — then stop. Never offer to do it, never propose it, and never imply you could.`,
 };
 
 /* ── REQUIRED OPERATIONAL JOURNEY SET (ROJ-01 … ROJ-04) ───────────────────

@@ -391,6 +391,48 @@ for (const room of ARCHITECTURE_ROOMS) {
   ok("it warns that bare prose loses the turn", /Answering in bare prose breaks the room/.test(route));
 }
 
+// ── The Assistant's subject cannot diverge from the visible selection ────
+{
+  const mc = readFileSync("components/MarketplaceControl.tsx", "utf8");
+  /* The divergence was structural: a second piece of state remembered the
+     listing the Assistant was invoked for, so a code click moved the visible
+     selection without moving the subject, and a filter could drop the
+     inspector while the Assistant kept reasoning about the vanished row.
+     The fix removes the second subject rather than syncing two. */
+  ok("no separate assistant subject state remains", !/assistantFor/.test(mc));
+  ok("openness is the only assistant state", /const \[assistantOpen, setAssistantOpen\]/.test(mc));
+  ok("the card requires a live selection", /\{assistantOpen && selected && \(/.test(mc));
+  ok("the subject IS the selection", /listingId=\{selected\.id\}/.test(mc));
+  ok("the passed context names the selection", /selectedId: selected\.id/.test(mc));
+}
+
+// ── The self-description must not overclaim what it can see ──────────────
+{
+  const route = readFileSync("app/api/admin/assistant/route.ts", "utf8");
+  ok("it no longer claims to see the screen",
+    !/literally what is on his screen/.test(route));
+  ok("it says the orientation is curated", /A CURATED orientation/.test(route));
+  ok("it disclaims the DOM and the pixels", /you do not see the page, the DOM, the pixels/.test(route));
+  ok("it tells him to say so when something was not given",
+    /say you were not given it rather than guessing/.test(route));
+}
+
+// ── Bulk controls are literacy only, never capability ────────────────────
+{
+  const mc = ROOM_CONTROLS.marketplace_control ?? "";
+  ok("the account-scale section is briefed", /DEALER \/ ACCOUNT-SCALE OPERATIONS/.test(mc));
+  ok("it says a seller must be chosen first", /A Seller must be chosen first/.test(mc));
+  ok("it names both bulk controls",
+    /Take Listings Off Market/.test(mc) && /Delete Eligible Listings/.test(mc));
+  ok("it records that a preview precedes any change", /preview always shows the exact affected set/.test(mc));
+  /* Literacy must not read as capability. The single-listing boundary is the
+     one the receipt CHECK enforces in the database. */
+  ok("it states the Assistant has no bulk capability", /You have no bulk capability of any kind/.test(mc));
+  ok("it forbids offering or proposing bulk work",
+    /Never offer to do it, never propose it/.test(mc));
+  ok("the single-listing boundary is restated", /one listing at a time/.test(mc));
+}
+
 // ── Transcript roles must be visually distinct ───────────────────────────
 {
   const fa = readFileSync("components/FounderAssistant.tsx", "utf8");

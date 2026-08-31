@@ -849,10 +849,20 @@ export default function MarketplaceControl({
      selected row, the ledger fully unobstructed. Selection is an explicit
      act and is reversible without resetting any room state. */
   const [selected, setSelected] = useState<McRow | null>(null);
-  /* The Assistant opens on invocation from the inspector and holds the
-     listing it was invoked for, so it keeps its subject even if the ledger
-     re-renders underneath it. Closing it does not disturb the selection. */
-  const [assistantFor, setAssistantFor] = useState<string | null>(null);
+  /* ── The Assistant has NO subject of its own ───────────────────────────
+     It used to hold the listing it was invoked for, so it would keep that
+     subject while the ledger changed underneath it. That was deliberate and
+     it was wrong: clicking a listing code in the Assistant's own answer
+     moved the visible selection without moving its subject, and a filter
+     that dropped the selection left the inspector gone while the Assistant
+     went on reasoning about a listing the founder could no longer see.
+
+     The subject is now the SELECTION — one piece of state, so the two cannot
+     disagree. This is only openness. The room's existing law already says
+     the inspector must never stay open on a listing the visible ledger does
+     not contain; the Assistant lives in that inspector, so it obeys the same
+     law rather than a parallel one. Selection clears, the card closes. */
+  const [assistantOpen, setAssistantOpen] = useState(false);
   /* "Ask the assistant" mounts the card below the ledger, the pagination and
      the dealer operations block. It used to leave the founder exactly where
      he clicked, several screens above the thing he had just opened — a
@@ -860,7 +870,7 @@ export default function MarketplaceControl({
   const assistantRef = useRef<HTMLDivElement | null>(null);
   const assistantWasOpen = useRef(false);
   useEffect(() => {
-    const open = !!assistantFor;
+    const open = assistantOpen && !!selected;
     /* Only on OPEN. Selecting another row while the card is already open must
        not keep yanking the page down as the founder works the list. */
     if (open && !assistantWasOpen.current) {
@@ -869,7 +879,7 @@ export default function MarketplaceControl({
       });
     }
     assistantWasOpen.current = open;
-  }, [assistantFor]);
+  }, [assistantOpen, selected]);
   /* Restore is the governed inverse of Take Off Market. Its result is bound
      to the listing id it belongs to and renders only while that listing is
      the selection — moving on retires it, with no reset-via-effect. */
@@ -1626,12 +1636,10 @@ export default function MarketplaceControl({
                           about one watch. It occupies no space when idle. */}
                       <button
                         type="button"
-                        onClick={() =>
-                          setAssistantFor((cur) => (cur === selected.id ? null : selected.id))
-                        }
+                        onClick={() => setAssistantOpen((open) => !open)}
                         className="border border-[var(--border-mid)] px-3 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--platinum-dim)] hover:text-[var(--platinum)]"
                       >
-                        {assistantFor === selected.id ? "Hide Assistant" : "Ask the Assistant…"}
+                        {assistantOpen ? "Hide Assistant" : "Ask the Assistant…"}
                       </button>
                       <button
                         type="button"
@@ -2788,12 +2796,16 @@ export default function MarketplaceControl({
       {/* Opens on invocation, closes when done — no rail, no orb, no parallel
           workspace. data-mc-keep so a click inside the conversation is aimed
           work and never doubles as putting the selection down. */}
-      {assistantFor && (
+      {/* Requires a SELECTION, not a remembered id. If the selection falls
+          out of the current result context the card goes with it, because
+          an Assistant reasoning about a listing the founder can no longer
+          see is exactly the divergence this room forbids of its inspector. */}
+      {assistantOpen && selected && (
         <div ref={assistantRef} data-mc-keep className="mt-4 scroll-mt-4 border border-[var(--border-mid)]">
           <FounderAssistant
             room="marketplace_control"
-            listingId={assistantFor}
-            onClose={() => setAssistantFor(null)}
+            listingId={selected.id}
+            onClose={() => setAssistantOpen(false)}
             /* Codes this room can actually reach — the rows currently on
                screen. A code the Assistant names from outside this set stays
                plain text rather than becoming a link that goes nowhere. */
@@ -2819,12 +2831,9 @@ export default function MarketplaceControl({
                genuinely changes what the Assistant is looking at. */
             getRoomContext={() => ({
               visibleIds: [
-                ...new Set([
-                  ...payload.rows.map((r) => r.id),
-                  ...(assistantFor ? [assistantFor] : []),
-                ]),
+                ...new Set([...payload.rows.map((r) => r.id), selected.id]),
               ],
-              selectedId: assistantFor,
+              selectedId: selected.id,
               view: view.life,
               subview: view.mode,
               search: view.q || null,
