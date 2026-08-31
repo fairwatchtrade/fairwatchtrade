@@ -8,6 +8,12 @@ import {
   removeRefusalSentence,
   type RemovePreview,
 } from "@/lib/listingRemovePreview";
+import {
+  resolveRoom,
+  roomRefusalStatus,
+  type ImplementedRoom,
+  type RoomResolution,
+} from "@/lib/assistantRooms";
 
 /* ════════════════════════════════════════════════════════════════════════
    FOUNDER ASSISTANT — app/api/admin/assistant/route.ts   (v6.89)
@@ -79,8 +85,10 @@ const MODEL_TURNS_MAX = 20; // conversation shown to the model per turn
 const QUEUE_LIMIT = 50; // pending-review queue slice per re-read
 const LEDGER_LIMIT = 40; // marketplace slice per re-read
 
-const ROOMS = ["founder_review", "marketplace_control"] as const;
-type Room = (typeof ROOMS)[number];
+/* Room identity is resolved by the canonical registry in lib/assistantRooms.
+   This file no longer decides what a room is, and no longer has a code path
+   capable of turning an unrecognized key into Founder Review. */
+type Room = ImplementedRoom;
 
 const OPERATION_FOR_ROOM: Record<Room, "approve_listings" | "remove_listing"> = {
   founder_review: "approve_listings",
@@ -135,10 +143,24 @@ type WorkingEntry = {
   refusal?: string | null;
 };
 
-function roomOf(raw: unknown): Room {
-  return typeof raw === "string" && (ROOMS as readonly string[]).includes(raw)
-    ? (raw as Room)
-    : "founder_review";
+/* The refusal response for a room that did not resolve.
+
+   It is returned BEFORE any session or thread read/write, so a room-key
+   failure cannot create, resume, mutate, or close the founder's work — the
+   preservation the sentence promises is structural, not a claim.
+
+   `room` is deliberately absent from the body: echoing a room the product
+   refused to establish is how a client starts trusting one. */
+function roomRefusal(r: Exclude<RoomResolution, { state: "ok" }>): NextResponse {
+  return NextResponse.json(
+    {
+      error: r.state,
+      detail: r.sentence,
+      received: r.state === "unsupported_room" ? r.room : r.received,
+      work_preserved: true,
+    },
+    { status: roomRefusalStatus(r) }
+  );
 }
 
 /* ── the founder gate, shared by every verb in this file ─────────────── */
@@ -447,7 +469,9 @@ export async function GET(request: NextRequest) {
   const gate = await gateFounder();
   if (!gate.ok) return gate.res;
 
-  const room = roomOf(request.nextUrl.searchParams.get("room"));
+  const resolved = resolveRoom(request.nextUrl.searchParams.get("room"));
+  if (resolved.state !== "ok") return roomRefusal(resolved);
+  const room = resolved.room;
 
   let service;
   try {
@@ -552,7 +576,11 @@ export async function POST(request: NextRequest) {
   }
 
   const action = typeof body.action === "string" ? body.action : "";
-  const room = roomOf(body.room);
+  /* Resolved before the trusted client is even created, so no refusal path
+     can touch a session. */
+  const resolved = resolveRoom(body.room);
+  if (resolved.state !== "ok") return roomRefusal(resolved);
+  const room = resolved.room;
   const sessionId = typeof body.session_id === "string" ? body.session_id : null;
 
   let service: ReturnType<typeof createServiceClient>;
