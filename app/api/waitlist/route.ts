@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
               FairWatchTrade
             </h1>
             <p style="color: #8A8F9E; font-size: 0.8rem; letter-spacing: 0.1em; margin-bottom: 2rem;">
-              GENÈVE — COMING SOON
+              GENÈVE
             </p>
             <p style="line-height: 1.7; margin-bottom: 1rem;">
               You're on the list as a <strong style="color: #C9A84C;">${role}</strong>.
             </p>
             <p style="line-height: 1.7; color: #8A8F9E; margin-bottom: 2rem;">
-              We'll be in touch before we launch — ${isSeller ? "with an invitation to list your watch before we go live." : "with early access to our curated listings."}
+              We'll be in touch — ${isSeller ? "with what you need to list your watch on FairWatchTrade." : "the moment watches worth your attention arrive."}
             </p>
             <p style="font-size: 0.75rem; color: #8A8F9E; border-top: 1px solid rgba(201,168,76,0.2); padding-top: 1rem;">
               FairWatchTrade — Independent & boutique timepieces. Flat 5% fee.

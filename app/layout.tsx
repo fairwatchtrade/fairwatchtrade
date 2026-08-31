@@ -14,7 +14,7 @@ import "./globals.css";
 const ADMIN_EMAIL = "jmynatt74@gmail.com";
 
 export const metadata: Metadata = {
-  title: "FairWatchTrade — Coming Soon",
+  title: "FairWatchTrade — Independent & Boutique Watchmakers",
   description: "A marketplace for independent and boutique watchmakers. One flat 5% fee. No games.",
 };
 

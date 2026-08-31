@@ -20,7 +20,7 @@ export default function SiteFooter({
   // auth-status are two different things, not one list.
   const name = displayName ?? "your account";
   const statusLabel = !authed
-    ? "Authorized test access"
+    ? "Sign in"
     : isAdmin
       ? `Signed in: ${name} · Admin`
       : `Signed in: ${name}`;

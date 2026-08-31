@@ -181,7 +181,7 @@ export default function Home() {
       <div className="relative z-[1] flex flex-col items-center px-6">
 
         <p className="mb-5 text-center text-[11px] uppercase tracking-[2.2px] text-[var(--muted)]">
-          Launching Soon — Get Early Access
+          Get Notified When Watches Arrive
         </p>
 
         <div className="mb-5 flex justify-center gap-6">
