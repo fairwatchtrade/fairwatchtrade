@@ -2,7 +2,6 @@
 
 **Date:** 2026-07-31
 **Mode:** Read-only. No deployment, no production mutation, no strike, no schema change, no activation.
-**Auditor:** Builder Seven
 **Work order:** `FairWatchTrade_Aubrey_Check_Reality_Audit_Work_Order_2026-07-31.md`
 
 ---

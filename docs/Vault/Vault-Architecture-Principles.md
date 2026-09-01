@@ -98,19 +98,20 @@ categorization. Refine later; one home each now.
   (search, interests, exploration) calls regions of the universe into being.
   The relevance/brightness system becomes the primary REVEAL mechanic, not a
   search nicety. [Status: DESIGN PENDING — larger than the camera pass; specify
-  with GPT + 3 + 6 before building. Do not consider Rule #1 fully satisfied by
+  fully before building. Do not consider Rule #1 fully satisfied by
   camera tuning alone.]
 - **Parallax / depth** sells "inside a volume." Near stars sweep faster than
   far stars as you move. (Shipped.)
 
 ## Why this is logged here
 
-Rule #1 was GPT's #1 hard rule. It existed only in his understanding, never
-made it into Ducky 6's brief, so Ducky 7 built faithfully to the brief and the
-POC — both of which exposed the whole field. No duck erred; the rule fell into
-the GAP between ducks. That gap is exactly what this document closes. A rule
-that lives in one duck's head is fragile; written here, it binds every future
-Vault flight and survives any single duck being out of the loop.
+Rule #1 was the hardest rule in the original design intent, and it was never
+written down. It never reached the build brief, so the build followed the
+brief and the POC faithfully — and both of those exposed the whole field.
+Nothing was built wrong; the rule fell into the GAP between intent and brief.
+That gap is exactly what this document closes. A rule that lives only in
+someone's understanding is fragile; written here, it binds every future Vault
+flight and survives anyone being out of the loop.
 
 ## RULE #3 — Travel is to PROXIMITY, never to LOCATION (the navigation law)
 
@@ -163,6 +164,6 @@ Implementation notes:
   star is just a long pan. Sequence: clusters → travel-to-proximity navigation →
   rich destinations (Selene-relief moons + spec card).
 
-The word is PROXIMITY. If a future duck builds travel-to-location, it has killed
+The word is PROXIMITY. If a future build implements travel-to-location, it has killed
 the feature with one word. Proximity keeps you a traveler in a universe.
 Location makes you a cursor at a fact.

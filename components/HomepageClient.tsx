@@ -17,7 +17,7 @@ import { formatMoney } from "@/lib/formatMoney";
    passed in. Card treatment matches BrowseClient (defined locally, not
    imported — that component is a filtering shell, not a card library).
 
-   ANTI-FEATURES (PRODUCT_SOUL.md): never a combined_score, save count, trend
+   ANTI-FEATURES (Product Soul): never a combined_score, save count, trend
    arrow, or urgency signal — anywhere on this page.
    ──────────────────────────────────────────────────────────────────────── */
 

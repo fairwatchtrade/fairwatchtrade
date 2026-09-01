@@ -70,7 +70,7 @@ const SECTION_MAX_W: Record<1 | 2 | 3, string> = {
    hierarchy. Accepted offers are informational only — no buyer checkout /
    transaction destination exists yet, so none is invented here.
 
-   ANTI-FEATURES (PRODUCT_SOUL.md, enforced here): no listing scores or
+   ANTI-FEATURES (Product Soul, enforced here): no listing scores or
    combined_score, no save counts, no trend arrows, no manufactured urgency,
    no social-proof signals — anywhere on this page, ever. The discovery cards
    reuse the /browse visual treatment (defined locally, NOT imported from

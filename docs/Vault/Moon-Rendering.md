@@ -1,13 +1,13 @@
 # Moon Rendering — Approach & Provenance
 
-*Companion to the Moon Principle in PRODUCT_SOUL.md. How Vault moons get made.*
+*Companion to the Moon Principle in the Product Soul. How Vault moons get made.*
 
 ---
 
 ## The principle this serves
 
 **The moon should have detail like the item it represents** (William's principle,
-PRODUCT_SOUL.md). A moon's richness is a faithful function of its watch's actual
+the Product Soul). A moon's richness is a faithful function of its watch's actual
 complexity and character — never inflated, never flattened. The moon *carries*
 the watch's truth; it does not merely depict it.
 
@@ -70,27 +70,27 @@ ORIGIN is checkable and real.
 
 1. **Source:** William's telescope moon photo, orientation-corrected (horizontal
    flip). `moon_corrected_LR.jpg`.
-2. **Stylization pass → GPT** (image-gen better suited for the artistic render).
+2. **Stylization pass → an image model** (better suited for the artistic render).
    Turn the real moon into the engraved rose-gold relief asset. MUST stay
    grounded in the actual photo — never a from-scratch generated moon (provenance
    is the entire point).
-3. **Back to Ducky 7** to wire into the Vault: per-watch fidelity logic (data
+3. **Back into the build** to wire into the Vault: per-watch fidelity logic (data
    drives how much relief — simple watch → simple moon, complex/finely-finished
    piece → relief-rich), rendering at galaxy scale vs. close-zoom reference card,
    moon-as-reference-card integration (shared spec grammar: movement, finishing,
    complications, dial treatment, materials, frequency/Hz).
 
-### Caveat on the GPT pass
-Image models tend to *reinterpret* rather than precisely transform — GPT may
+### Caveat on the stylization pass
+Image models tend to *reinterpret* rather than precisely transform — the model may
 drift toward a GENERIC moon and lose William's exact lunar geography. Watch for
 this; push it to stay faithful to the attached photo. If it can't preserve
 geography while achieving the gold-relief quality, fallback = programmatic
-relief-mapping from the actual photo (Ducky 7), which preserves geography exactly
-even if less painterly. Try GPT first.
+relief-mapping from the actual photo, which preserves geography exactly
+even if less painterly. Try the stylization pass first.
 
 ---
 
-## The GPT prompt (for the stylization pass)
+## The stylization prompt
 
 > I'm attaching a photograph of the real moon that I took through my own
 > telescope (orientation-corrected). Transform THIS photo — keeping its actual

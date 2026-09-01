@@ -1,7 +1,5 @@
 # FairWatchTrade — Three-Rail Transaction Architecture v1
 
-**Owner:** GPT  
-**Partner:** NewFavDuck  
 **Status:** Research architecture only — **not approved for implementation**  
 **Purpose:** Preserve the original FairWatchTrade 5% promise while identifying a viable transaction architecture for peer-to-peer collectors, private sellers, estates, and professional dealers.
 
@@ -745,6 +743,5 @@ Not all are required today.
 
 ## Final Status
 
-**Research architecture owned by GPT with NewFavDuck research support.**  
-**Not approved for Ducky 7 implementation.**  
+**Research architecture — not yet approved for implementation.**  
 **Next milestone: provider reality checks + counsel validation.**

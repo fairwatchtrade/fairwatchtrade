@@ -9,7 +9,7 @@ import { useState, type CSSProperties } from "react";
    The gates before the Galaxy. Two engraved gate panels flank a centered
    invitation; crossing does not open them — the architecture YIELDS.
 
-   Motion & Transition (PRODUCT_SOUL.md): every animation should feel like
+   Motion & Transition (Product Soul): every animation should feel like
    architecture responding, never software reacting. On crossing:
      Phase 1 (0–200ms)  the gold rule beneath the headline brightens (0.5→1).
      Phase 2 (200–600ms) the gate panels fade to 0.06 and the center fades to

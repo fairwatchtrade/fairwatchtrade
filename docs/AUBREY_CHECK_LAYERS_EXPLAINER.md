@@ -110,7 +110,7 @@ A different question, about each photo on its own terms:
 > Does this look like a person photographed their watch, or like a catalogue?
 
 Studio lighting. Seamless background. No hands, no desk, no room, no window
-reflection. Perfect symmetry. That's what Copilot keyed on, and it's what makes
+reflection. Perfect symmetry. That's what the check keys on, and it's what makes
 a fully-stolen set still feel wrong — not because the photos disagree with each
 other, but because *none* of them looks like a private seller's photo, while
 the listing says "my watch."

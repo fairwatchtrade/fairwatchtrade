@@ -41,7 +41,7 @@ the watch being described warms from ghost silver-line to faint gold.
 
 ---
 
-## SCOPE RULING (Ducky 3): this is NOW — it's PART 3 of the sell flow build
+## SCOPE RULING: this is NOW — it's PART 3 of the sell flow build
 
 Not Phase 2. The dead space below ListingScoreMeter in Step 3's right (quiet-
 witness) panel IS the canvas — already there, already the right size, already the
@@ -49,7 +49,7 @@ right context. The ghost SVG sits in that space at ~60-70% of panel width,
 centered, opacity-[0.06] at rest. As the seller moves through each chapter, the
 relevant layer brightens to opacity-[0.35] in gold.
 
-PART 3 BRIEF ADDITION (Ducky 7 — in scope when building the quiet-witness panel):
+PART 3 BRIEF ADDITION (in scope when building the quiet-witness panel):
 "Right panel dead space below ListingScoreMeter — chapter-responsive watch
 anatomy SVG, quartering view, ghost at rest (opacity-[0.06]), gold layer on
 active chapter (opacity-[0.35]). Same chapter state that drives Step 3 drives
@@ -179,13 +179,13 @@ squiggles. The focus-visible fix (double-tab) is KEPT — that one's wanted.
 
 ---
 
-## PROVENANCE TYPO CHECK — Ducky 3's spec (for posterity + the future build)
+## PROVENANCE TYPO CHECK — the spec (for posterity + the future build)
 
-3's framing: the provenance note is the one free-text field where the seller
+The framing: the provenance note is the one free-text field where the seller
 types their own words — where typos live — and going back after Continue is
 friction.
 
-3's KEY INSIGHT (the answer to why squiggles are hated): underline suspects in
+KEY INSIGHT (the answer to why squiggles are hated): underline suspects in
 GOLD, not red. "Red feels like a grade." Gold = assistance, not judgment. This is
 the reframe that makes typo-catching fit the brand.
 

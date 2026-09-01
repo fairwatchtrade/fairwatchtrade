@@ -41,9 +41,13 @@ yarn-error.log*
 next-env.d.ts
 app/api/watch-ship/
 
-# local agent workspace and dev server logs — never staged, never shipped
+# local tooling workspace and dev server logs — never staged, never shipped
 .claude/
 dev*.log
 
 # continuity recovery packets are compiled on demand and are never authority
 continuity/packets/
+
+# Build archives never belong in the repository. A zip slipped past review
+# once and carried an .env.local inside it, where secret scanning cannot look.
+*.zip
