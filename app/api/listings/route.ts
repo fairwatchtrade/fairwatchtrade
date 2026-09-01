@@ -131,6 +131,9 @@ type PublishBody = {
   /** Private Listing V1 — a message thread the caller participates in; the
       server derives the one authorized buyer from it. Never a buyer id. */
   privateThreadId?: string;
+  /* The draft this submission came from. Named so the SERVER can decide
+     whether it is allowed to create — see the refusal in POST. */
+  draftId?: string;
   /** Wanted V1 — answering a demand request. The BUYER IS RE-DERIVED FROM
       THIS ID server-side; the browser never supplies a buyer. */
   wantedRequestId?: string;
@@ -642,6 +645,64 @@ export async function POST(request: NextRequest) {
       { error: "missing_fields", detail: "Brand and reference are required." },
       { status: 400 }
     );
+  }
+
+  /* ── THE DUPLICATE-MINT REFUSAL (v7.98) ──────────────────────────────────
+     THE MISCONCEPTION THIS BLOCK EXISTS TO KILL:
+
+       "Correction mode is a client concern."
+
+     It was, and that is exactly how a second listing appeared on the site for
+     a watch already on it. A founder returns a listing, the draft carries
+     listings.id in listing_drafts.listing_id, and the desktop honours that —
+     but the phone wizard never read the column, so a returned watch finished
+     on a phone went down THIS route. An insert mints a fresh public_code and
+     a fresh physical watch identity, and the object now exists twice.
+
+     The client is not the boundary. Whatever a caller believes about its own
+     mode, a draft already bound to a listing may not create another one. The
+     binding is read here, server-side, through the seller's own session so
+     RLS scopes listing_drafts to its owner — the same posture the resubmit
+     route takes, and for the same reason.
+
+     Scope, stated honestly rather than implied: this refuses every submission
+     that NAMES a draft. A caller that names no draft at all is the genuine
+     draftless create (the phone can publish without ever having handed a
+     draft to the desktop), and it is allowed. Making draftId mandatory would
+     close that too, and is a contract change awaiting a founder ruling. */
+  const submittedDraftId =
+    typeof body.draftId === "string" ? body.draftId.trim() : "";
+  if (submittedDraftId) {
+    const { data: sourceDraft } = await supabase
+      .from("listing_drafts")
+      .select("id, listing_id")
+      .eq("id", submittedDraftId)
+      .maybeSingle();
+
+    /* An unreadable draft id is not a reason to proceed. RLS returns nothing
+       for a draft the caller does not own, and a create that quotes a draft
+       it cannot read is not a create this route should complete. */
+    if (!sourceDraft) {
+      return NextResponse.json(
+        {
+          error: "draft_not_found",
+          detail: "That saved listing could not be read for this account.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (sourceDraft.listing_id) {
+      return NextResponse.json(
+        {
+          error: "draft_bound",
+          detail:
+            "This watch already has a listing and was returned to you for changes. Resubmit it as a correction so it keeps its FWT listing code and its history.",
+          listingId: sourceDraft.listing_id,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   /* ── Private Listing V1 (v5.98) — the conversation-led buyer seam ────────

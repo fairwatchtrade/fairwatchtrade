@@ -142,9 +142,31 @@ const mapper = read("lib/listingWriteColumns.ts");
     "a correcting draft posts to resubmit",
     /correcting \? "\/api\/listings\/resubmit" : "\/api\/listings"/.test(review)
   );
+  /* v7.98 — the draft id now rides BOTH paths, not only when this client
+     believes it is correcting. That is not a weakening of "only the draft id
+     as its claim": the point of that rule was that the client never names a
+     LISTING, and it still never does. What changed is that the create path
+     also names its draft, because the server's duplicate-mint refusal can
+     only check a binding it has been told about — and the case that matters
+     is exactly the one where this client is wrong about its own mode. Both
+     halves are asserted below, so the guarantee is stronger, not looser. */
   ok(
-    "and carries only the draft id as its claim",
-    /\.\.\.\(correcting \? \{ draftId: serverDraftId \} : \{\}\)/.test(review)
+    "the draft id rides both paths, so the server can always check the binding",
+    /^\s*draftId: serverDraftId,\s*$/m.test(review)
+  );
+  /* Scoped to the REQUEST BODY, not the file. A first pass at this asserted
+     over the whole source and tripped on `onPublished?: (listingId: string)`
+     — a type annotation, not a claim. What matters is what is put on the
+     wire. */
+  const requestBody = review.slice(
+    review.indexOf("body: JSON.stringify({"),
+    review.indexOf("credentials:") > 0 ? review.indexOf("credentials:") : review.indexOf("body: JSON.stringify({") + 3000
+  );
+  ok(
+    "and the request body still names no listing — the claim is the draft alone",
+    requestBody.length > 100 &&
+      !/listingId:/.test(requestBody) &&
+      !/listing_id:/.test(requestBody)
   );
   ok(
     "a correcting draft with no id refuses rather than creating a duplicate",

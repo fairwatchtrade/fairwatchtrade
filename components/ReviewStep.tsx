@@ -233,9 +233,16 @@ export default function ReviewStep({
           description: draft.description,
           descriptionPassedAI: draft.descriptionPassedAI,
           scoreState: toScoringState(draft),
-          /* Correcting: the draft id is the whole claim. The server derives
-             the listing from its binding and verifies ownership itself. */
-          ...(correcting ? { draftId: serverDraftId } : {}),
+          /* The draft id travels on BOTH paths now, not only when this
+             client believes it is correcting. Correcting, it is the whole
+             claim — the server derives the listing from the binding and
+             verifies ownership itself. Creating, it is what lets the server
+             REFUSE: a draft already bound to a listing may not mint a second
+             one, and the server can only check that if it is told which
+             draft this is. Sending it when we think we are creating is the
+             point, because the case that matters is the one where this
+             client is wrong. */
+          draftId: serverDraftId,
           // Private Listing V1 — names the CONVERSATION; the server derives
           // and verifies the buyer from its participants.
           ...(privateThreadId ? { privateThreadId } : {}),

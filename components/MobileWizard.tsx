@@ -995,11 +995,39 @@ export default function MobileWizard({
       hasBracelet: saleState === "bracelet",
     };
 
+    /* ── CORRECTION BINDING (v7.98) ────────────────────────────────────
+       This wizard used to publish through the create route unconditionally,
+       and that is where the duplicate came from. A founder returns a listing;
+       the draft carries listings.id in listing_drafts.listing_id; the desktop
+       honours that column and resubmits as a correction. This surface never
+       read it. A returned watch finished on a phone therefore took the create
+       road, which INSERTS — minting a second public code and a second physical
+       watch identity for an object already on the site.
+
+       The binding is read here, at submit, from the row rather than from
+       state. The phone can hold a draft for a long session across a handoff,
+       and a value copied at load could be stale by the time it matters; the
+       column is the truth and this is the moment the answer is used. */
+    let boundListingId: string | null = null;
+    const submittingDraftId = serverIdRef.current;
+    if (submittingDraftId) {
+      const bindingRow = await fetchDraftRow(submittingDraftId);
+      boundListingId = bindingRow?.listing_id ?? null;
+    }
+    const correcting = boundListingId !== null;
+    const endpoint = correcting ? "/api/listings/resubmit" : "/api/listings";
+
     try {
-      const res = await fetch("/api/listings", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          /* Named on BOTH paths. Correcting, the server derives the listing
+             from this draft's binding and verifies ownership itself.
+             Creating, it is what lets the server refuse a draft that is
+             already bound — the check has to be possible even when this
+             client is the thing that is wrong. */
+          draftId: submittingDraftId,
           brand: finalDraft.brand,
           customBrandFlag: finalDraft.customBrandFlag,
           model: finalDraft.model,
