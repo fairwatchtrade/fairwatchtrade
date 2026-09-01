@@ -25,15 +25,13 @@ import {
   ensureExactHashAttempts,
   type ExactHashMediaRow,
 } from "@/lib/aubrey/listingPhotoExactHash";
-import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
 import { sendSubmissionReceivedEmail } from "@/lib/listingDecisionEmail";
-import { isSupportedCurrency } from "@/lib/supportedCurrencies";
 import {
-  isDefaultPresentation,
-  sanitizePhotoPresentation,
-} from "@/lib/photoPresentation";
+  listingWatchColumns,
+  resolveAskingMoney,
+} from "@/lib/listingWriteColumns";
 import {
   requirementProfileFor,
   evaluatePublishAdmission,
@@ -181,31 +179,6 @@ type MediaMetaEntry = {
   privacy_review_requested: boolean;
 };
 
-/* Money Truth Stage B — the local [^0-9.]-strip clone is retired. Amount and
-   currency are parsed together through the governed lib/parsePrice contract,
-   and they are written together or not at all (present-or-absent-together at
-   the application layer; Stage D adds the database constraint). */
-type MoneyTruth =
-  | { ok: true; amount: number | null; raw: string | null; currency: string | null }
-  | { ok: false; detail: string };
-
-function resolveAskingMoney(rawPrice?: string, rawCurrency?: string): MoneyTruth {
-  const priceText = typeof rawPrice === "string" ? rawPrice.trim() : "";
-  if (priceText === "") {
-    // No amount → no currency. An amount-less draft (e.g. price on request)
-    // carries no money fact to protect.
-    return { ok: true, amount: null, raw: null, currency: null };
-  }
-  if (!isSupportedCurrency(rawCurrency)) {
-    return {
-      ok: false,
-      detail: "Choose the currency for your asking price before publishing.",
-    };
-  }
-  const parsed = parsePrice(priceText, rawCurrency);
-  if (!parsed.ok) return { ok: false, detail: parsed.message };
-  return { ok: true, amount: parsed.amount, raw: parsed.raw, currency: rawCurrency };
-}
 
 /* ── v2.2 helpers ─────────────────────────────────────────────────────── */
 
@@ -1122,46 +1095,17 @@ export async function POST(request: NextRequest) {
         can any later status transition. Same row, same object, forever.
 
         A listing is a chapter about an object. This column is the object. */
+  /* Creation owns identity and lifecycle; the watch's own fields come from the
+     one mapping resubmission also uses, so the two writers cannot drift.
+     public_code is assigned by a trigger and physical_watch_id by a column
+     DEFAULT — neither is authored here, and neither re-fires on the UPDATE
+     path, which is exactly how a corrected listing keeps its object identity. */
   const row: Record<string, unknown> = {
     seller_id: user.id,
     status: initialStatus,
-    brand: body.brand,
-    custom_brand_flag: body.customBrandFlag ?? false,
-    model: body.model || null,
-    reference: body.reference,
-    /* Seller-stated text above; determined canonical identity here. Written
-       together, never merged — NULL is an honest value, not a gap. */
-    vault_reference_id: canonical.vaultReferenceId,
-    year: body.year ?? null,
-    condition: body.condition || null,
-    // The governed pair, written together — plus the exact raw text the parser
-    // accepted, so asking_price_raw can never drift from the canonical value
-    // (it is re-derived from the same parse on every create).
-    asking_price: money.amount,
-    asking_price_raw: money.raw,
-    asking_currency: money.currency,
-    provenance_note: body.provenanceNote ?? null,
-    significance_score: body.significanceScore ?? null,
-    score_state: body.scoreState ?? {},
-    photos: body.photos ?? [],
-    has_bracelet: body.hasBracelet ?? false,
-    /* Off unless the seller said yes — an unset posture is not consent. */
-    open_to_trades: body.openToTrades === true,
-    details: body.details ?? {},
-    description: body.description ?? null,
-    description_passed_ai: body.descriptionPassedAI ?? null,
+    ...listingWatchColumns(body, money, canonical.vaultReferenceId),
   };
 
-  /* ── Hero framing ── re-sanitized here rather than trusted: the client value
-        has crossed the network and the DB CHECK will refuse anything out of
-        bounds, so a bad payload must become automatic framing, not a 500 on an
-        otherwise valid publish. Default framing writes NULL instead of a
-        centred object — "the seller chose nothing" and "the seller chose the
-        centre" are the same picture, and NULL keeps that honest in the data. */
-  const presentation = sanitizePhotoPresentation(body.photoPresentation);
-  if (!isDefaultPresentation(presentation)) {
-    row.photo_presentation = presentation;
-  }
 
   // Private Listing V1 — the one authorized buyer rides the row itself; the
   // DB CHECK (private_active ⇒ buyer present) keeps state and relationship
