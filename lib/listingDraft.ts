@@ -96,9 +96,13 @@ export type DraftRow = {
   active_editor: "desktop" | "phone";
   handoff_status: string;
   status: string;
+  /* Non-null when this draft is correcting a listing the founder returned.
+     Read from the column, never from content — see RecoverableDraft. */
+  listing_id: string | null;
 };
 
-const ROW_COLS = "id, content, revision, active_editor, handoff_status, status";
+const ROW_COLS =
+  "id, content, revision, active_editor, handoff_status, status, listing_id";
 
 /** Fetch one draft row by id (null when missing or not owned). */
 export async function fetchDraftRow(draftId: string): Promise<DraftRow | null> {
@@ -111,7 +115,8 @@ export async function fetchDraftRow(draftId: string): Promise<DraftRow | null> {
   return error ? null : ((data as DraftRow | null) ?? null);
 }
 
-const LIST_COLS = "id, content, revision, active_editor, handoff_status, status, updated_at";
+const LIST_COLS =
+  "id, content, revision, active_editor, handoff_status, status, updated_at, listing_id";
 
 /* A failed read and an empty pool are different answers and must not render
    the same. "You have no saved listings" is a claim; returning ok:false lets

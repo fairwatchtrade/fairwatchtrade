@@ -12,6 +12,7 @@ import {
   photoCountOf,
   publicationRefusal,
 } from "@/lib/listingPublicationGate";
+import { ensureRecoveryDraftForListing } from "@/lib/listingDraftRecoveryService";
 
 /* ════════════════════════════════════════════════════════════════════════
    LISTING STATUS TRANSITION — lib/listingStatusTransition.ts   (v6.84)
@@ -491,6 +492,28 @@ export async function executeListingStatusTransition({
       } else {
         await sendReturnedToDraftEmail({ ...facts, sellerMessage: message });
       }
+    }
+  }
+
+  /* ── Handing the work back, not just the verdict ─────────────────────
+     Returning a listing to draft used to change a status word and nothing
+     else. Sell reads `listing_drafts`, so the watch left the only workspace
+     that could edit it and the seller was asked to fix something they had no
+     door to open. This puts their partial work where they will look for it,
+     bound to the listing by `listing_drafts.listing_id` so resubmission
+     corrects that same watch rather than minting a second one.
+
+     Non-fatal by construction: the founder's decision is already written and
+     already told the seller. A failure here leaves exactly today's behaviour
+     — no saved listing — and never unwinds a decision that has been made. */
+  if (data.status === "draft") {
+    try {
+      const recovery = await ensureRecoveryDraftForListing(service, listingId);
+      if (!recovery.ok) {
+        console.error("[return-to-draft] recovery draft not written:", recovery.skipped);
+      }
+    } catch (e) {
+      console.error("[return-to-draft] recovery draft threw:", e);
     }
   }
 

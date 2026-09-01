@@ -39,6 +39,12 @@ export type RecoverableDraft = {
   handoff_status: HandoffStatus;
   status: DraftLifecycle;
   updated_at: string;
+  /* Set when this draft is CORRECTING an existing listing the founder handed
+     back, rather than composing a new one. The authoritative fact lives in
+     this column and is never copied into `content`, so it cannot drift from
+     the binding that also decides whether resubmission updates that listing
+     or creates a second watch. */
+  listing_id: string | null;
 };
 
 export type ResumeResult = {

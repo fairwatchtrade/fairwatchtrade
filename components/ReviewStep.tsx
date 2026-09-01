@@ -89,6 +89,7 @@ export default function ReviewStep({
   wantedPrivate,
   privateBuyerName,
   onPublished,
+  correctsListingId,
   photoRedactions,
   onApplyRedaction,
 }: {
@@ -118,6 +119,13 @@ export default function ReviewStep({
   // List From Phone — lets SellFlow close its server draft (idempotent) once
   // the real listing exists. Additive; publish behavior itself is untouched.
   onPublished?: (listingId: string) => void;
+  /* Set when this draft is CORRECTING a listing the founder returned, rather
+     than composing a new one. Publishing such a draft through the create route
+     would mint a SECOND watch for the same object — which is precisely the
+     duplicate-listing defect this round trip exists to prevent — so the action
+     is refused here until resubmission updates the bound listing instead.
+     Read from listing_drafts.listing_id upstream; never from draft content. */
+  correctsListingId?: string | null;
   // Privacy redaction — draft state + the commit callback, both owned by
   // SellFlow. Optional: absent simply hides the redaction utility.
   photoRedactions?: Record<string, PhotoRedactionRecord>;
@@ -173,6 +181,19 @@ export default function ReviewStep({
 
   async function publish() {
     if (!admissionReady) return;
+    /* A draft correcting a returned listing must never travel this road. The
+       create route mints a listing — and a physical watch identity with it —
+       so publishing here would produce a SECOND watch for an object that is
+       already on the site. That is the duplicate-listing defect the round trip
+       exists to end, and refusing is the only honest state until resubmission
+       updates the bound listing instead. */
+    if (correctsListingId) {
+      setError(
+        "This watch is already listed and was returned to you for changes. " +
+          "Resubmitting a returned listing is not available yet — it would create a second listing for the same watch."
+      );
+      return;
+    }
     setPublishing(true);
     setError(null);
 

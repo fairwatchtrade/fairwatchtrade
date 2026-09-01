@@ -105,9 +105,19 @@ for (const [label, raw] of [
 
   // ── Progress rides in the saved envelope, beside the draft ─────────────
   ok("progress is saved with the draft", /\{ draft, progress: \{ reached: maxStep, at: step \} \}/.test(sf));
-  ok("progress is hydrated on adopt", /readProgress\(row\.content\?\.progress, supportedStep\(adopted\)\)/.test(sf));
+  ok("progress is hydrated on adopt",
+    /readProgress\([\s\S]{0,120}row\.content\?\.progress,[\s\S]{0,120}supportedStep\(adopted, corrects != null\)/.test(sf));
   ok("the supported bound uses the flow's own gates",
     /d\.curationDecision !== "pass"[\s\S]{0,80}mandatoryDone\(d\)/.test(sf));
+  /* A listing the founder handed back is not re-admitted — the binding
+     unlocks curation, and every other gate still applies, so a returned watch
+     missing photographs still clamps to Photos. */
+  ok("a bound draft is not sent back through curation",
+    /!correctsListing && d\.curationDecision !== "pass"/.test(sf));
+  ok("but the photo gate still applies to it",
+    /if \(!mandatoryDone\(d\)\) return 1;/.test(sf));
+  ok("and the binding is read from the column, never from content",
+    /const corrects = row\.listing_id \?\? null;/.test(sf));
   ok("switching no longer zeroes the restored position",
     !/adoptRow\(row\)[\s\S]{0,400}setStepRaw\(0\);\s*\n\s*setMaxStep\(0\);/.test(sf));
 

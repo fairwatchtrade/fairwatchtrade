@@ -61,6 +61,7 @@ import { sendListingLiveEmail } from "@/lib/listingLiveEmail";
 import { sendReturnedToDraftEmail } from "@/lib/listingDecisionEmail";
 import { formatMoney } from "@/lib/formatMoney";
 import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
+import { ensureRecoveryDraftForListing } from "@/lib/listingDraftRecoveryService";
 
 /** The two classifications that make an evidence row founder work. Same pair
     computeAttention() and findingRequiresReview() already use. */
@@ -433,6 +434,21 @@ export async function runReviewTriageForListing(
         publicCode: row.public_code,
         sellerMessage: sellerMessage ?? "",
       });
+    }
+  }
+
+  /* The automatic return hands the work back too. A seller whose listing was
+     returned by policy is in exactly the position of one returned by a person:
+     they were told to change something, and they need the watch in front of
+     them to change it. Same seam, same binding, same non-fatal posture. */
+  if (moved.status === "draft") {
+    try {
+      const recovery = await ensureRecoveryDraftForListing(service, row.id);
+      if (!recovery.ok) {
+        console.error("[triage] recovery draft not written:", recovery.skipped);
+      }
+    } catch (error) {
+      console.error("[triage] recovery draft threw:", error);
     }
   }
 

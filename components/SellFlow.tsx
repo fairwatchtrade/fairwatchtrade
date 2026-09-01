@@ -144,9 +144,20 @@ function mandatoryDone(d: ListingDraft): boolean {
    These are the flow's OWN gates, not a second opinion: leaving Curation
    requires a passing curation decision, and leaving Photos requires
    mandatoryDone — the same two conditions the live Continue button uses.
-   Steps beyond Details carry no further gate, so they clamp together. */
-export function supportedStep(d: ListingDraft): number {
-  if (d.curationDecision !== "pass") return 0;
+   Steps beyond Details carry no further gate, so they clamp together.
+
+   ── CORRECTING AN EXISTING LISTING ─────────────────────────────────────
+   A draft bound to a listing is a watch the founder handed back for changes,
+   not one asking to be admitted. Curation is not re-run on it: that watch is
+   already on the site, and its admission was decided before it was ever
+   published. The binding is the truthful fact that permits this — nobody
+   forges a curation verdict to unlock the flow.
+
+   Every other gate still applies. In particular a returned listing missing
+   photographs still clamps to Photos, which is exactly where a founder who
+   asked for a photograph wants the seller to land. */
+export function supportedStep(d: ListingDraft, correctsListing = false): number {
+  if (!correctsListing && d.curationDecision !== "pass") return 0;
   if (!mandatoryDone(d)) return 1;
   return LAST_STEP;
 }
@@ -508,6 +519,11 @@ export default function SellFlow({
      keep today's in-memory behavior — the handoff itself requires sign-in. */
   const [authed, setAuthed] = useState(false);
   const [serverDraftId, setServerDraftId] = useState<string | null>(null);
+  /* The listing this draft is CORRECTING, when the founder handed one back.
+     Read from listing_drafts.listing_id, never from content, so it cannot
+     drift from the binding that governs what resubmission does. Null means an
+     ordinary new listing. */
+  const [correctsListingId, setCorrectsListingId] = useState<string | null>(null);
   const [startingNew, setStartingNew] = useState(false);
   const [startNewError, setStartNewError] = useState("");
   /* Saved listings doorway: bumped whenever this flow changes which drafts
@@ -540,15 +556,32 @@ export default function SellFlow({
   }, [handoffOpen]);
 
   // Adopt a server row into local state (content.draft is the ListingDraft).
-  const adoptRow = (row: { id: string; content: Record<string, unknown>; revision: number }) => {
+  const adoptRow = (row: {
+    id: string;
+    content: Record<string, unknown>;
+    revision: number;
+    /* Non-null when this draft is correcting a listing the founder handed
+       back. Optional in the parameter so callers that never carried it still
+       compile; absent reads as "a new listing", which is the safe direction. */
+    listing_id?: string | null;
+  }) => {
     const d = row.content?.draft as ListingDraft | undefined;
     const adopted = d && typeof d === "object" ? { ...emptyDraft(), ...d } : emptyDraft();
     if (d && typeof d === "object") setDraft(adopted);
+    const corrects = row.listing_id ?? null;
+    setCorrectsListingId(corrects);
     /* Resume where the seller actually was. readProgress clamps the stored
        position against what THIS content still supports, so a draft whose
        photographs were removed cannot drop them back at Details — the flow
-       never manufactures advancement it can no longer justify. */
-    const progress = readProgress(row.content?.progress, supportedStep(adopted));
+       never manufactures advancement it can no longer justify.
+
+       A returned listing is not re-admitted: the binding unlocks curation, and
+       every other gate still applies, so a watch missing photographs still
+       lands its seller on Photos. */
+    const progress = readProgress(
+      row.content?.progress,
+      supportedStep(adopted, corrects != null)
+    );
     hydrateToRef.current = progress.at;
     setMaxStep(progress.reached);
     setStepRaw(progress.at);
@@ -1321,6 +1354,7 @@ export default function SellFlow({
               )}
               <ReviewStep
                 draft={draft}
+                correctsListingId={correctsListingId}
                 privateThreadId={privateThreadId}
                 privateBuyerName={privateBuyerName}
                 wantedRequestId={wantedRequestId}
