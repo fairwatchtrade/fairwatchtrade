@@ -66,6 +66,28 @@ would lurch mid-inspection. The collector's hand has not changed, so the
 behaviour must not either. The gesture is consumed for as long as the pointer
 is over the photograph, whether or not it still has anywhere to go.
 
+## Why the Fit rectangle is computed in JS, not in CSS
+
+`containRect()` in `lib/media/inspectionZoom.ts` sizes the viewport in explicit
+pixels. That looks like the fussy option; it is the only one that worked, and
+**both CSS attempts failed silently** — no error, no warning, just a viewer
+with no zoom.
+
+- `container-type: size` on the stage, with the viewport sized in `cqw`/`cqh`:
+  size containment makes an element's box independent of its contents, so as a
+  `flex-1` item the stage collapsed to **8×0** and took the photograph with it.
+- `aspect-ratio` with `width: 100%` and `max-height`: width is then DEFINITE,
+  so the ratio only derives height and `max-height` merely clips. The box keeps
+  the full stage width and the aspect is quietly violated — measured live at
+  1120×749 for a 0.75-aspect photograph.
+
+So the stage is measured with a ResizeObserver and the contain rectangle is
+arithmetic. The viewport IS the photograph's Fit rectangle by construction, so
+the interaction boundary and the visible image can never disagree.
+
+Measure the STAGE, not the viewport: sizing an element from its own measured
+size is a loop waiting to happen.
+
 ## The cursor-anchor invariant
 
 The point under the pointer is the thing being inspected, so it must not move:

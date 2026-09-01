@@ -46,6 +46,39 @@ export function nativeDetailCeiling(natural: Size, fit: Size): number {
   return Math.max(1, ratio);
 }
 
+/**
+ * THE FIT RECTANGLE, computed rather than coaxed out of CSS.
+ *
+ * Two CSS attempts failed here and both failed silently, which is why this
+ * is arithmetic now. `container-type: size` on the stage made the stage's
+ * box independent of its contents, so as a flex item it collapsed. And
+ * `aspect-ratio` with `width: 100%` cannot work either: width is then
+ * DEFINITE, so the ratio only derives height, and a max-height merely clips
+ * — the box keeps the full width and the aspect is quietly violated.
+ *
+ * object-contain in one line: take the largest box of this aspect that fits
+ * the stage, then cap it at the source's own pixels so the viewport never
+ * claims more room than the photograph has detail to fill.
+ */
+export function containRect(stage: Size, aspect: number, natural?: Size): Size {
+  if (!(stage.width > 0) || !(stage.height > 0) || !(aspect > 0)) {
+    return { width: 0, height: 0 };
+  }
+  let width = Math.min(stage.width, stage.height * aspect);
+  let height = width / aspect;
+  if (natural && natural.width > 0 && natural.height > 0) {
+    if (width > natural.width) {
+      width = natural.width;
+      height = width / aspect;
+    }
+    if (height > natural.height) {
+      height = natural.height;
+      width = height * aspect;
+    }
+  }
+  return { width, height };
+}
+
 export function clampScale(scale: number, maxScale: number): number {
   if (!Number.isFinite(scale)) return 1;
   return Math.min(Math.max(scale, 1), Math.max(1, maxScale));

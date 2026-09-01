@@ -469,13 +469,14 @@ export default function ListingGallery({
               each side so a control never stands on the watch; narrow widths
               have no such margin to spend, so there the arrows ride the very
               edge and the photograph keeps the width. */}
-          <div
-            className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20"
-            /* The stage becomes a size container so the viewport below can
-               resolve the true contain rectangle in cqw/cqh, exactly as the
-               resting hero already does. */
-            style={{ containerType: "size" }}
-          >
+          {/* NOT a size container. An earlier build made this one so the
+              viewport could size itself in cqw/cqh — and size containment
+              means an element's box stops depending on its contents, so as a
+              flex-1 item it collapsed to 8x0 and took the photograph with it.
+              The viewport sizes itself from aspect-ratio and max constraints
+              instead, which needs nothing from this element but ordinary
+              flex layout. */}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20">
             {/* THE PHOTOGRAPH, and the only thing that accepts inspection
                 gestures. key={heroUrl} is load-bearing rather than tidy: a
                 changed photograph remounts the viewport, which is what

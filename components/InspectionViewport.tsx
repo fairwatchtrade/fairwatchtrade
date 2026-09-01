@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FIT,
   distanceBetween,
   hasInspectableDetail,
   midpointOf,
+  containRect,
   nativeDetailCeiling,
   panBy,
   pinchScale,
@@ -75,29 +76,42 @@ export default function InspectionViewport({
 }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [stored, setTransform] = useState<Transform>(FIT);
-  const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [hintDismissed, setHintDismissed] = useState(false);
 
-  const maxScale = nativeDetailCeiling(
-    { width: natural.w, height: natural.h },
-    { width: viewport.width, height: viewport.height }
-  );
-  const canInspect = hasInspectableDetail(maxScale);
-
-  /* Measure the untransformed Fit rectangle. ResizeObserver on THIS element
-     reports its layout box, which the CSS transform does not affect —
-     getBoundingClientRect() would return the transformed size and would
-     make the ceiling shrink as the collector zoomed in, which is exactly
-     backwards. */
+  /* Measure the STAGE, then compute the Fit rectangle in JS.
+     Two CSS approaches failed here and both failed silently — see
+     containRect. Observing the stage rather than this element also avoids
+     the obvious trap of measuring a box whose size we are about to set from
+     that measurement. clientWidth/clientHeight, never
+     getBoundingClientRect(): the rect reports the TRANSFORMED size, which
+     would shrink the ceiling as the collector zoomed in. */
+  const [stage, setStage] = useState({ width: 0, height: 0 });
   useEffect(() => {
-    const el = viewportRef.current;
+    const el = viewportRef.current?.parentElement;
     if (!el) return;
-    const measure = () => setViewport({ width: el.clientWidth, height: el.clientHeight });
+    const measure = () => setStage({ width: el.clientWidth, height: el.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  const fit = useMemo(
+    () => containRect(stage, aspect, natural.w > 0 ? { width: natural.w, height: natural.h } : undefined),
+    [stage, aspect, natural.w, natural.h]
+  );
+  /* Memoised because it is a dependency of the wheel listener effect: a new
+     object identity every render would tear down and re-add that native
+     listener on every frame of a zoom. */
+  const viewport = useMemo(() => ({ width: fit.width, height: fit.height }), [fit.width, fit.height]);
+
+  /* The ceiling is derived from the SAME rectangle the photograph is drawn
+     in, so the two can never disagree about what Fit means. */
+  const maxScale = nativeDetailCeiling(
+    { width: natural.w, height: natural.h },
+    viewport
+  );
+  const canInspect = hasInspectableDetail(maxScale);
 
   /* Geometry moved under a zoomed photograph — a resize, an orientation
      flip — and the ceiling may now be LOWER than the scale in use.
@@ -250,8 +264,12 @@ export default function InspectionViewport({
          gestures meant for the arrows. */
       className="relative overflow-hidden"
       style={{
-        width: `min(100cqw, ${natural.w > 0 ? `${natural.w}px` : "100cqw"}, calc(100cqh * ${aspect}))`,
-        aspectRatio: aspect,
+        /* Explicit pixels from containRect. The box IS the photograph's
+           Fit rectangle, so the interaction boundary and the visible
+           photograph are the same rectangle by construction rather than by
+           CSS coincidence. */
+        width: fit.width > 0 ? `${fit.width}px` : undefined,
+        height: fit.height > 0 ? `${fit.height}px` : undefined,
         /* Only here. A page-wide touch-action would take pinch-to-zoom away
            from the whole site, which is an accessibility feature and not
            ours to spend. */
