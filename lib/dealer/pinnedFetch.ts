@@ -67,6 +67,118 @@ export function isRetryableFailure(e: PinnedFetchError): boolean {
   return false; // everything else is terminal at first occurrence
 }
 
+/* ── IPv6 classification is BINARY, never textual ───────────────────────
+   The previous implementation compared lowercased strings, and a prefix
+   string is not a range. `startsWith("fe80")` reads as link-local but
+   fe80::/10 spans fe80:: through febf:ffff:…, so fe90::1 and febf::1 were
+   accepted as ordinary public destinations. The same class of hole ran
+   through the rest of it: `=== "::1"` misses the perfectly legal expanded
+   spelling 0:0:0:0:0:0:0:1, and `startsWith("::ffff:")` misses
+   0:0:0:0:0:ffff:127.0.0.1 and ::ffff:7f00:1 — three different ways to
+   write the same loopback destination, two of which walked straight
+   through.
+
+   An address is therefore parsed to its sixteen bytes first, and every
+   decision is a masked prefix comparison against that. Textual form stops
+   mattering, which is the whole point: the attacker picks the spelling. */
+
+/** Parse any textual IPv6 form to its 16 bytes. Null when it is not a
+    valid IPv6 address — callers must treat null as untrustworthy. */
+function parseIpv6(input: string): Uint8Array | null {
+  if (isIP(input) !== 6) return null;
+  let text = input.toLowerCase();
+
+  /* A trailing dotted quad — ::ffff:127.0.0.1 and the deprecated
+     ::127.0.0.1 — is rewritten into the two hex groups it denotes, so the
+     group parser below sees one uniform shape. */
+  if (text.includes(".")) {
+    const cut = text.lastIndexOf(":");
+    if (cut === -1) return null;
+    const quad = text.slice(cut + 1);
+    if (isIP(quad) !== 4) return null;
+    const q = quad.split(".").map(Number);
+    if (q.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    const hi = ((q[0] << 8) | q[1]).toString(16);
+    const lo = ((q[2] << 8) | q[3]).toString(16);
+    text = `${text.slice(0, cut + 1)}${hi}:${lo}`;
+  }
+
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+
+  let groups: string[];
+  if (halves.length === 1) {
+    if (head.length !== 8) return null;
+    groups = head;
+  } else {
+    // "::" must stand for at least one omitted group.
+    if (head.length + tail.length > 7) return null;
+    groups = [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail];
+  }
+  if (groups.length !== 8) return null;
+
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 8; i += 1) {
+    const g = groups[i];
+    if (!/^[0-9a-f]{1,4}$/.test(g)) return null;
+    const v = Number.parseInt(g, 16);
+    bytes[i * 2] = (v >> 8) & 0xff;
+    bytes[i * 2 + 1] = v & 0xff;
+  }
+  return bytes;
+}
+
+/** Masked prefix comparison — the only shape a range test may take here. */
+function withinCidr6(bytes: Uint8Array, prefix: Uint8Array, bits: number): boolean {
+  const whole = bits >> 3;
+  for (let i = 0; i < whole; i += 1) if (bytes[i] !== prefix[i]) return false;
+  const rem = bits & 7;
+  if (rem === 0) return true;
+  const mask = (0xff << (8 - rem)) & 0xff;
+  return (bytes[whole] & mask) === (prefix[whole] & mask);
+}
+
+function cidr6(text: string, bits: number): [Uint8Array, number] {
+  const bytes = parseIpv6(text);
+  if (!bytes) throw new Error(`unparseable blocklist entry: ${text}`);
+  return [bytes, bits];
+}
+
+/* The blocked IPv6 space. Every entry is a range, written as one.
+
+   `::/96` deliberately subsumes the unspecified address, loopback, and the
+   deprecated IPv4-compatible block in a single range — ::0.0.0.0 through
+   ::255.255.255.255 is not a routable destination under any spelling.
+
+   IPv4-mapped is refused OUTRIGHT rather than decoded, preserving the
+   decision the previous implementation already made in its own comment.
+   That is strictly stronger than requiring the embedded address to clear
+   the IPv4 rules, and it means no dotted quad can re-enter through IPv6
+   notation regardless of what it points at.
+
+   The four transition ranges at the end embed an IPv4 address inside an
+   IPv6 one, which is exactly the shape that turns a public-looking address
+   into a private destination: 2002:7f00:1:: is 6to4 for 127.0.0.1, and
+   64:ff9b::7f00:1 is NAT64 for the same. They are blocked as ranges. */
+const BLOCKED_V6: ReadonlyArray<[Uint8Array, number]> = [
+  cidr6("::", 96), // unspecified + loopback + IPv4-compatible (deprecated)
+  cidr6("::ffff:0:0", 96), // IPv4-mapped — refused outright
+  cidr6("fe80::", 10), // link-local, the FULL range: fe80 – febf
+  cidr6("fc00::", 7), // unique local fc00::/7
+  cidr6("ff00::", 8), // multicast
+  cidr6("100::", 64), // discard-only
+  cidr6("2001:db8::", 32), // documentation
+  cidr6("2001:20::", 28), // ORCHIDv2
+  cidr6("2001:10::", 28), // ORCHID (deprecated)
+  cidr6("5f00::", 16), // SRv6 SIDs
+  cidr6("64:ff9b::", 96), // NAT64 — embeds IPv4
+  cidr6("64:ff9b:1::", 48), // local-use NAT64 — embeds IPv4
+  cidr6("2002::", 16), // 6to4 — embeds IPv4
+  cidr6("2001::", 32), // Teredo — embeds IPv4
+];
+
 /** Private / loopback / link-local / reserved blocklist. */
 export function isBlockedAddress(addr: string): boolean {
   if (isIP(addr) === 4) {
@@ -87,16 +199,12 @@ export function isBlockedAddress(addr: string): boolean {
       o[0] >= 224 // multicast + reserved + broadcast
     );
   }
-  const a = addr.toLowerCase();
-  return (
-    a === "::" ||
-    a === "::1" || // loopback
-    a.startsWith("fe80") || // link-local
-    a.startsWith("fc") || // ULA fc00::/7
-    a.startsWith("fd") ||
-    a.startsWith("::ffff:") || // v4-mapped: refuse outright
-    a.startsWith("ff") // multicast
-  );
+  const bytes = parseIpv6(addr);
+  /* Fail closed. An address this function cannot parse is an address it
+     cannot vouch for, and the old textual test returned FALSE — allowed —
+     for anything it did not recognise. */
+  if (!bytes) return true;
+  return BLOCKED_V6.some(([prefix, bits]) => withinCidr6(bytes, prefix, bits));
 }
 
 export interface PinnedResponse {

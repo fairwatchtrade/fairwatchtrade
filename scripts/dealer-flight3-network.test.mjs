@@ -9,26 +9,86 @@
    attempted, which is the rebinding defense's load-bearing step).
 
    Run:
-     tsc lib/dealer/pinnedFetch.ts lib/dealer/originGovernance.ts \
-       --outDir <dir> --module esnext --target es2022 \
-       --moduleResolution bundler --skipLibCheck
-     F3_MODULES=<dir> node --conditions=react-server \
-       scripts/dealer-flight3-network.test.mjs
+     node scripts/dealer-flight3-network.test.mjs
 
-   The compile step is required, not cosmetic: pinnedFetch.ts uses a
+   That is the whole invocation, on any platform. It used to be a two-step
+   ritual — a manual `tsc` into a directory, then node with an explicit
+   condition flag and that directory in an env var — and the ritual did not
+   survive Windows: the emitted path arrived as C:\... , which is a path and
+   not a URL, so the loader refused it with ERR_UNSUPPORTED_ESM_URL_SCHEME
+   before a single assertion ran. A security suite nobody can run is a
+   security suite nobody runs. It now prepares itself.
+
+   The compile step is still required, not cosmetic: pinnedFetch.ts uses a
    TypeScript *parameter property* (`constructor(public readonly code: …)`),
    which Node's strip-only type stripping cannot erase, so — unlike the two
    pure modules — it cannot be loaded from source the way
-   dealer-flight3-preflight.test.mjs loads them. The react-server condition
-   resolves `server-only` to its empty stub. Nothing is stubbed or mocked:
-   these are the real modules, compiled exactly as the app compiles them.
+   dealer-flight3-preflight.test.mjs loads them. So the suite transpiles the
+   two real files itself, into a temp directory, and loads them through
+   pathToFileURL.
+
+   Two things the emitted copy needs, neither of which touches security:
+
+   · relative specifiers gain their `.js` extension, because tsc emits
+     `from "./originGovernance"` and Node ESM does not guess extensions;
+   · the `import "server-only"` side effect is dropped, because it exists to
+     make the Next bundler refuse a client import and has no runtime
+     behaviour to exercise. Dropping it is what the --conditions=react-server
+     flag used to do by resolving it to an empty stub. The guard is not lost:
+     N0 below asserts the SOURCE still carries it, so the suite proves the
+     import is present AND exercises the logic behind it.
+
+   Nothing else is stubbed or mocked. The classifier, the governance and the
+   fetch under test are the real ones the application ships.
    ════════════════════════════════════════════════════════════════════════ */
 
-const BASE = process.env.F3_MODULES ?? "../lib/dealer";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
+
+const SRC_DIR = new URL("../lib/dealer/", import.meta.url);
+const SOURCES = ["originGovernance", "pinnedFetch"];
+const rawSource = Object.fromEntries(
+  SOURCES.map((n) => [n, readFileSync(new URL(`${n}.ts`, SRC_DIR), "utf8")])
+);
+
+/* The emitted copy must live INSIDE the repository, not in the OS temp
+   directory. pinnedFetch imports undici by bare specifier, and bare
+   specifiers resolve by walking parent directories looking for
+   node_modules — from C:\Users\…\Temp there is nothing to find, and the
+   suite dies on `Cannot find package 'undici'` instead of running. Under
+   node_modules/.cache the walk succeeds, and git ignores it already. */
+const outDir =
+  process.env.F3_MODULES ??
+  join(fileURLToPath(new URL("../node_modules/.cache/fwt-flight3/", import.meta.url)));
+mkdirSync(outDir, { recursive: true });
+if (!process.env.F3_MODULES) {
+  for (const name of SOURCES) {
+    const { outputText } = ts.transpileModule(rawSource[name], {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+      },
+      fileName: `${name}.ts`,
+    });
+    const emitted = outputText
+      .replace(/^\s*import\s+["']server-only["'];?\s*$/m, "")
+      .replace(/from\s+["']\.\/([A-Za-z0-9_-]+)["']/g, 'from "./$1.js"');
+    writeFileSync(join(outDir, `${name}.js`), emitted, "utf8");
+  }
+}
+
+/* pathToFileURL is the whole Windows repair: an absolute path is not a
+   module specifier, and file:///C:/... is. */
+const moduleUrl = (name) => pathToFileURL(join(outDir, `${name}.js`)).href;
+
 const { isBlockedAddress, pinnedFetch, PinnedFetchError, isRetryableFailure, MAX_REDIRECTS } =
-  await import(`${BASE}/pinnedFetch.js`);
+  await import(moduleUrl("pinnedFetch"));
 const { isIpLiteral, canonicalizeUrl, pathPrefixMatches, urlMatchesGovernedOrigin } =
-  await import(`${BASE}/originGovernance.js`);
+  await import(moduleUrl("originGovernance"));
 
 let passed = 0;
 const failures = [];
@@ -42,6 +102,9 @@ async function code(name, expected, fn) {
   catch (e) { got = e instanceof PinnedFetchError ? e.code : `${e?.constructor?.name}: ${e?.message}`; }
   eq(name, got, expected);
 }
+
+/* ── N0 · the guard the emitted copy drops is still on the real file ──── */
+eq("N0 pinnedFetch source still declares server-only", /import\s+["']server-only["']/.test(rawSource.pinnedFetch), true);
 
 /* ── N1 · blocklist matrix (every range the contract names) ───────────── */
 for (const a of [
@@ -57,6 +120,76 @@ for (const a of [
   "172.15.255.255", "172.32.0.1", "192.0.1.1", "192.167.255.255", "198.17.255.255",
   "198.20.0.1", "203.0.114.1", "223.255.255.255", "2606:4700::1111", "2001:4860:4860::8888",
 ]) eq(`N1 allowed ${a}`, isBlockedAddress(a), false);
+
+/* ── N1b · IPv6 by RANGE, not by spelling ──────────────────────────────
+   Every case here failed, or could have failed, while the classifier
+   compared strings. They are grouped by the way the old test was fooled. */
+
+// The headline hole: fe80::/10 runs to febf, and only "fe80…" was caught.
+for (const a of [
+  "fe80::1", "fe81::1", "fe8f::1", "fe90::1", "fea0::1", "feb0::1", "febf::1",
+  "febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+]) eq(`N1b link-local blocked ${a}`, isBlockedAddress(a), true);
+
+// The boundary must be exact in both directions — fe7f and fec0 are outside
+// fe80::/10 and must NOT be blocked by an over-wide fix.
+for (const a of ["fe7f::1", "fec0::1", "ff00::1"]) {
+  const expected = a.startsWith("ff"); // ff00::/8 is multicast, still blocked
+  eq(`N1b link-local boundary ${a}`, isBlockedAddress(a), expected);
+}
+
+// One destination, many legal spellings — all must decide identically.
+for (const a of [
+  "::1", "0:0:0:0:0:0:0:1", "0000:0000:0000:0000:0000:0000:0000:0001", "::0.0.0.1",
+]) eq(`N1b loopback spelling blocked ${a}`, isBlockedAddress(a), true);
+
+for (const a of [
+  "::ffff:127.0.0.1", "::ffff:7f00:1", "0:0:0:0:0:ffff:127.0.0.1",
+  "0000:0000:0000:0000:0000:ffff:7f00:0001", "::FFFF:127.0.0.1",
+]) eq(`N1b v4-mapped loopback blocked ${a}`, isBlockedAddress(a), true);
+
+// v4-mapped is refused outright, so a PUBLIC v4 cannot re-enter this way
+// either — the stronger half of the existing policy, kept.
+for (const a of ["::ffff:8.8.8.8", "::ffff:0808:0808", "::ffff:10.0.0.1", "::ffff:169.254.169.254"]) {
+  eq(`N1b v4-mapped refused outright ${a}`, isBlockedAddress(a), true);
+}
+
+// Case must not decide anything.
+for (const a of ["FE80::1", "Fe90::1", "FC00::1", "FD12:3456::1", "FF02::1"]) {
+  eq(`N1b uppercase blocked ${a}`, isBlockedAddress(a), true);
+}
+
+// ULA and multicast across their real spans, not their leading characters.
+for (const a of [
+  "fc00::1", "fcff::1", "fd00::1", "fdff:ffff::1", "ff00::1", "ff02::1", "ff05::2", "ffff::1",
+]) eq(`N1b ULA/multicast blocked ${a}`, isBlockedAddress(a), true);
+
+// Transition ranges that carry an IPv4 destination inside an IPv6 address.
+// 2002:7f00:0001:: is 6to4 for 127.0.0.1; 64:ff9b::7f00:1 is NAT64 for it.
+for (const a of [
+  "2002:7f00:1::", "2002:a00:1::", "2002:c0a8:1::",
+  "64:ff9b::7f00:1", "64:ff9b::127.0.0.1", "64:ff9b:1::1",
+  "2001::1", "2001:0:53aa:64c:8:9:10:11",
+]) eq(`N1b transition range blocked ${a}`, isBlockedAddress(a), true);
+
+// Other non-globally-reachable space.
+for (const a of ["100::1", "2001:db8::1", "2001:20::1", "2001:10::1", "5f00::1", "::"]) {
+  eq(`N1b non-global blocked ${a}`, isBlockedAddress(a), true);
+}
+
+// Real public IPv6 must still pass, including addresses that merely LOOK
+// close to a blocked range. 2001:4860 is not Teredo; 2606 is not 6to4.
+for (const a of [
+  "2606:4700::1111", "2001:4860:4860::8888", "2a00:1450:4001:80e::200e",
+  "2001:4860::1", "2001:db9::1", "2003::1", "fec1::1", "64:ff9c::1",
+]) eq(`N1b public allowed ${a}`, isBlockedAddress(a), false);
+
+// Fail closed: what cannot be parsed cannot be vouched for. The old
+// classifier returned false — allowed — for every one of these.
+for (const a of [
+  "not-an-address", "", "fe80::1%eth0", "12345::1", "1:2:3:4:5:6:7:8:9",
+  "::ffff:999.1.1.1", "gggg::1", "1::2::3",
+]) eq(`N1b unparseable blocked ${JSON.stringify(a)}`, isBlockedAddress(a), true);
 
 /* ── N2 · origin canonicalisation ─────────────────────────────────────── */
 eq("N2 uppercase host lowercased", canonicalizeUrl("https://Fixtures.Fairwatch.Test/a")?.hostname, "fixtures.fairwatch.test");
