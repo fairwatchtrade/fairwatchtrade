@@ -1355,6 +1355,7 @@ export default function SellFlow({
               <ReviewStep
                 draft={draft}
                 correctsListingId={correctsListingId}
+                serverDraftId={serverDraftId}
                 privateThreadId={privateThreadId}
                 privateBuyerName={privateBuyerName}
                 wantedRequestId={wantedRequestId}

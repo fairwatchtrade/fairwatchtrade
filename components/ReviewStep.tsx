@@ -90,6 +90,7 @@ export default function ReviewStep({
   privateBuyerName,
   onPublished,
   correctsListingId,
+  serverDraftId,
   photoRedactions,
   onApplyRedaction,
 }: {
@@ -120,12 +121,16 @@ export default function ReviewStep({
   // the real listing exists. Additive; publish behavior itself is untouched.
   onPublished?: (listingId: string) => void;
   /* Set when this draft is CORRECTING a listing the founder returned, rather
-     than composing a new one. Publishing such a draft through the create route
-     would mint a SECOND watch for the same object — which is precisely the
-     duplicate-listing defect this round trip exists to prevent — so the action
-     is refused here until resubmission updates the bound listing instead.
+     than composing a new one. It sends the final action down the resubmit road
+     instead of the create road: creating would mint a SECOND watch for an
+     object already on the site, which is the duplicate-listing defect this
+     round trip exists to end.
      Read from listing_drafts.listing_id upstream; never from draft content. */
   correctsListingId?: string | null;
+  /* The draft this Review step is showing. Sent as the ONLY identifier when
+     correcting a returned listing: the server reads the bound listing off it,
+     so the browser never names the watch it is about to change. */
+  serverDraftId?: string | null;
   // Privacy redaction — draft state + the commit callback, both owned by
   // SellFlow. Optional: absent simply hides the redaction utility.
   photoRedactions?: Record<string, PhotoRedactionRecord>;
@@ -181,24 +186,25 @@ export default function ReviewStep({
 
   async function publish() {
     if (!admissionReady) return;
-    /* A draft correcting a returned listing must never travel this road. The
-       create route mints a listing — and a physical watch identity with it —
-       so publishing here would produce a SECOND watch for an object that is
-       already on the site. That is the duplicate-listing defect the round trip
-       exists to end, and refusing is the only honest state until resubmission
-       updates the bound listing instead. */
-    if (correctsListingId) {
+    /* A returned listing is CORRECTED, never re-created. The create route
+       inserts, and an insert mints a fresh public code and a fresh physical
+       watch identity — so sending a returned watch down that road would put a
+       SECOND listing on the site for an object already on it. Resubmission
+       updates the row the seller was handed back, and the server reads which
+       row that is from the draft rather than from anything sent here. */
+    const correcting = correctsListingId != null;
+    if (correcting && !serverDraftId) {
       setError(
-        "This watch is already listed and was returned to you for changes. " +
-          "Resubmitting a returned listing is not available yet — it would create a second listing for the same watch."
+        "This watch was returned to you for changes, but its saved listing could not be identified. Reopen it from Sell and try again."
       );
       return;
     }
+    const endpoint = correcting ? "/api/listings/resubmit" : "/api/listings";
     setPublishing(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/listings", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -227,6 +233,9 @@ export default function ReviewStep({
           description: draft.description,
           descriptionPassedAI: draft.descriptionPassedAI,
           scoreState: toScoringState(draft),
+          /* Correcting: the draft id is the whole claim. The server derives
+             the listing from its binding and verifies ownership itself. */
+          ...(correcting ? { draftId: serverDraftId } : {}),
           // Private Listing V1 — names the CONVERSATION; the server derives
           // and verifies the buyer from its participants.
           ...(privateThreadId ? { privateThreadId } : {}),
