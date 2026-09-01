@@ -45,7 +45,31 @@ export type RecoverableDraft = {
      the binding that also decides whether resubmission updates that listing
      or creates a second watch. */
   listing_id: string | null;
+  /* The bound listing's collector-facing code, when this draft is correcting
+     one. Listing Code Law: the number is visible wherever the watch goes, and
+     a returned listing is exactly the watch someone messages you about. A
+     draft that never became a listing has none, and shows none.
+
+     Both shapes are declared because PostgREST types an embedded select as an
+     ARRAY even when the relationship is to-one. Read it through
+     boundListingCode() rather than indexing it at a call site. */
+  listings?:
+    | { public_code: string | null }
+    | { public_code: string | null }[]
+    | null;
 };
+
+/** The bound listing's code, from either shape PostgREST may return, or null
+    when this draft is not correcting a listing. Never guesses. */
+export function boundListingCode(d: {
+  listings?: { public_code: string | null } | { public_code: string | null }[] | null;
+}): string | null {
+  const l = d.listings;
+  if (!l) return null;
+  const row = Array.isArray(l) ? l[0] : l;
+  const code = row?.public_code;
+  return typeof code === "string" && code.trim() !== "" ? code : null;
+}
 
 export type ResumeResult = {
   state: "RESUMED" | "ALREADY_PUBLISHED" | "DENIED" | "AUTH_REQUIRED" | "ERROR";

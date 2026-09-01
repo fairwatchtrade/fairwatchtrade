@@ -18,6 +18,7 @@ import { formatMoney } from "@/lib/formatMoney";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import FwtListingId from "@/components/FwtListingId";
 import { caseDiameterLabel } from "@/lib/caseDiameter";
 import {
   catalogueHeroState,
@@ -90,6 +91,8 @@ type ListingPhoto = { photo: { url: string }; category: string };
 // AccountListing).
 export type ListingRow = {
   id: string;
+  /** Listing Code Law — the collector-facing name of this watch. */
+  public_code?: string | null;
   brand: string;
   model: string | null;
   reference: string;
@@ -418,6 +421,9 @@ function ListingCard({ row }: { row: ListingRow }) {
 
       <div className="mb-[5px] text-[11px] font-medium uppercase tracking-[1.6px] text-[var(--gold)]">
         {row.brand}
+        {/* Listing Code Law — the collector's own name for this watch, on the
+            surface where they keep it. */}
+        <FwtListingId code={row.public_code} />
       </div>
       <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">
         {row.model ?? row.brand}
@@ -615,6 +621,10 @@ function WatchOfferGroup({
                 Ref. {reference}
               </div>
             )}
+            {/* Listing Code Law. Read from the live listing — the snapshot
+                columns carry no code, so a terminal offer whose listing is
+                gone shows none rather than inventing one. */}
+            <FwtListingId code={l?.public_code} className="mt-0.5" />
           </div>
           {/* Current status — the dominant state */}
           <div className="shrink-0 text-right">
@@ -1200,7 +1210,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("purchase_requests")
         .select(
-          "id, listing_id, status, closure_cause, buyer_dismissed_at, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
+          "id, listing_id, status, closure_cause, buyer_dismissed_at, proposed_purchase_price, listing_price, proposed_currency, listing_brand, listing_model, listing_reference, created_at, listings(id, public_code, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
@@ -1273,7 +1283,7 @@ export default function CatalogueClient({
       const { data, error } = await supabase
         .from("saved_watches")
         .select(
-          "listing_id, created_at, listings(id, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
+          "listing_id, created_at, listings(id, public_code, brand, model, reference, condition, asking_price, asking_currency, photos, details, status, created_at, year)"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });

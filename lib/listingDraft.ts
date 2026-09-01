@@ -116,7 +116,7 @@ export async function fetchDraftRow(draftId: string): Promise<DraftRow | null> {
 }
 
 const LIST_COLS =
-  "id, content, revision, active_editor, handoff_status, status, updated_at, listing_id";
+  "id, content, revision, active_editor, handoff_status, status, updated_at, listing_id, listings(public_code)";
 
 /* A failed read and an empty pool are different answers and must not render
    the same. "You have no saved listings" is a claim; returning ok:false lets

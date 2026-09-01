@@ -16,6 +16,7 @@ import type { CommRequest, CommThread } from "@/lib/communications";
 import HelpBubble from "@/components/HelpBubble";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import { formatMoney } from "@/lib/formatMoney";
+import FwtListingId from "@/components/FwtListingId";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -331,6 +332,10 @@ function ListingRow({
       <div className="min-w-0 flex-1">
         <div className="mb-[3px] text-[8.5px] uppercase tracking-[2px] text-[var(--gold-dim)]">
           {row.brand}
+          {/* Listing Code Law: the number is visible wherever the watch goes.
+              This row SELECTED public_code and never printed it, so a seller
+              asked about a code could not find the watch in their own room. */}
+          <FwtListingId code={row.public_code} />
         </div>
         <div className="truncate font-display text-[14px] font-light text-[var(--platinum)]">
           {row.model ?? row.brand}

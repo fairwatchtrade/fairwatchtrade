@@ -6,7 +6,9 @@ import {
   draftIdentity,
   UNTITLED_DRAFT_LABEL,
   type RecoverableDraft,
+  boundListingCode,
 } from "@/lib/listingDraft";
+import FwtListingId from "@/components/FwtListingId";
 
 /* ────────────────────────────────────────────────────────────────────────
    SAVED LISTINGS — the seller's doorway to their own unfinished work.
@@ -181,6 +183,14 @@ export default function SavedListingDrafts({
                     >
                       {id.title === UNTITLED_DRAFT_LABEL ? UNTITLED_DRAFT_LABEL : id.title}
                     </span>
+                    {/* Listing Code Law. THIS is the surface the law was
+                        restated for: a seller asked "how much for j75878"
+                        opened their own saved work and found no codes at all,
+                        so the watch being asked about could not be found by
+                        the only name the buyer had for it. Present only for a
+                        draft correcting a real listing — a new one has no
+                        code yet and shows none. */}
+                    <FwtListingId code={boundListingCode(d)} />
                     {isCurrent && (
                       <span className="text-[10px] uppercase tracking-[1.4px] text-[var(--gold)]">
                         Open now
