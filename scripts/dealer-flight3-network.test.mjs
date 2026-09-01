@@ -228,6 +228,77 @@ eq("N3 encoded traversal refused at the gate", urlMatchesGovernedOrigin("https:/
 eq("N3 trailing-dot host still matches after canonicalisation", urlMatchesGovernedOrigin("https://Fixtures.Fairwatch.Test./dealer/m", ORIGINS, "manifest"), true);
 eq("N3 explicit :443 still matches", urlMatchesGovernedOrigin("https://fixtures.fairwatch.test:443/dealer/m", ORIGINS, "manifest"), true);
 
+/* ── N3b · DUPLICATE SEPARATORS ARE REFUSED, NOT TIDIED UP ─────────────
+   The defect: removeDotSegments drops empty segments, so /tenant//assets/x
+   canonicalised to /tenant/assets/x and passed the prefix check — while
+   pinnedFetch handed the ORIGINAL string to undici, which put the doubled
+   separator on the wire. Governance approved one path; a different one was
+   requested. Same-origin authorised-path-prefix bypass.
+
+   Rejection rather than normalisation, because valid HTTP servers disagree
+   about what /a//b means: preserve, merge, or route differently. A guess is
+   not something a security boundary is entitled to. */
+const TENANT = [
+  { purpose: "manifest", hostname: "fixtures.fairwatch.test", port: 443, pathPrefix: "/tenant/assets", state: "approved" },
+];
+
+// 1 · the exact case from discovery
+eq("N3b /tenant//assets/file is REFUSED for prefix /tenant/assets",
+  urlMatchesGovernedOrigin("https://fixtures.fairwatch.test/tenant//assets/item.jpg", TENANT, "manifest"), false);
+// 2 · a doubled separator at the root
+eq("N3b //tenant/assets/file is REFUSED",
+  urlMatchesGovernedOrigin("https://fixtures.fairwatch.test//tenant/assets/item.jpg", TENANT, "manifest"), false);
+// 3 · the ordinary path is untouched
+eq("N3b ordinary /tenant/assets/file is still APPROVED",
+  urlMatchesGovernedOrigin("https://fixtures.fairwatch.test/tenant/assets/item.jpg", TENANT, "manifest"), true);
+
+// Refused at canonicalisation, so nothing downstream ever sees a path.
+eq("N3b canonicalisation refuses a doubled separator outright",
+  canonicalizeUrl("https://fixtures.fairwatch.test/tenant//assets/item.jpg"), null);
+eq("N3b it does not silently collapse to the approved path",
+  canonicalizeUrl("https://fixtures.fairwatch.test/tenant//assets/item.jpg")?.path, undefined);
+for (const p of ["/a//b", "//a/b", "/a/b//", "/a///b", "//"]) {
+  eq(`N3b refused: ${p}`, canonicalizeUrl(`https://fixtures.fairwatch.test${p}`), null);
+}
+// A trailing single slash and a bare root are ordinary, not ambiguous.
+for (const p of ["/", "/a/", "/a/b", "/tenant/assets/"]) {
+  eq(`N3b still accepted: ${p}`, canonicalizeUrl(`https://fixtures.fairwatch.test${p}`) !== null, true);
+}
+
+/* %2F stays encoded — "/" is reserved, so decodeUnreservedOnly cannot turn
+   it into a separator and this is NOT a duplicate separator to refuse. */
+eq("N3b an encoded slash is not decoded into a separator",
+  canonicalizeUrl("https://fixtures.fairwatch.test/tenant%2F%2Fassets/x")?.path,
+  "/tenant%2F%2Fassets/x");
+
+/* 6 · segment-boundary protection is unchanged */
+eq("N3b sibling prefix still refused", pathPrefixMatches("/tenant/assets", "/tenant/assetsx/y"), false);
+eq("N3b exact prefix still matches", pathPrefixMatches("/tenant/assets", "/tenant/assets/y"), true);
+
+/* THE INVARIANT THE WHOLE REPAIR EXISTS FOR: for every URL governance
+   accepts, the path it approved and the path undici will send are the same
+   string. WHATWG URL already removes dot segments during parsing, so the
+   doubled separator was the last way these two could diverge — with it
+   refused, they cannot. Unreserved percent-escapes are decoded for
+   comparison and are equivalent by RFC 3986 §6.2.2.2, so they are folded the
+   same way here rather than treated as a divergence. */
+const unreserved = (s) => s.replace(/%([0-9a-fA-F]{2})/g, (w, h) => {
+  const ch = String.fromCharCode(parseInt(h, 16));
+  return /[A-Za-z0-9\-._~]/.test(ch) ? ch : w;
+});
+for (const raw of [
+  "https://fixtures.fairwatch.test/tenant/assets/item.jpg",
+  "https://fixtures.fairwatch.test/tenant/assets/",
+  "https://fixtures.fairwatch.test/tenant/assets/a/../item.jpg",
+  "https://fixtures.fairwatch.test/tenant/assets/%7Euser/x",
+  "https://fixtures.fairwatch.test/tenant/assets/%2Fencoded",
+]) {
+  const c = canonicalizeUrl(raw);
+  eq(`N3b governance and the wire agree on ${new URL(raw).pathname}`,
+    c === null ? "REFUSED" : c.path,
+    c === null ? "REFUSED" : unreserved(new URL(raw).pathname));
+}
+
 /* ── N4 · pinnedFetch refusal paths, over the real resolver ───────────── */
 await code("N4 ungoverned url refused before any network", "url_not_governed",
   () => pinnedFetch("https://evil.test/dealer/m.ndjson", ORIGINS, "manifest"));
@@ -239,6 +310,41 @@ await code("N4 IP literal refused even if the address were governed", "url_not_g
   () => pinnedFetch("https://169.254.169.254/dealer/m.ndjson", ORIGINS, "manifest"));
 await code("N4 unresolvable governed host = dns_resolution_failed", "dns_resolution_failed",
   () => pinnedFetch("https://fixtures.fairwatch.test/dealer/m.ndjson", ORIGINS, "manifest"));
+
+/* 4 · A duplicate-separator URL is refused BEFORE DNS, and this proves the
+   ordering rather than asserting it. The line above shows that this exact
+   host, governed and reachable by the gate, gets as far as the resolver and
+   fails there. Give the same host a doubled separator and the answer changes
+   to url_not_governed — the only way that error can be reached is if
+   governance ran and refused first, because the resolver would have produced
+   dns_resolution_failed. Nothing was looked up and no socket was opened. */
+await code("N4 duplicate slash refused BEFORE the DNS lookup", "url_not_governed",
+  () => pinnedFetch("https://fixtures.fairwatch.test/dealer//m.ndjson", ORIGINS, "manifest"));
+await code("N4 leading duplicate slash refused before the DNS lookup", "url_not_governed",
+  () => pinnedFetch("https://fixtures.fairwatch.test//dealer/m.ndjson", ORIGINS, "manifest"));
+
+/* 5 · A redirect target gets the identical treatment, because it is the
+   identical call. pinnedFetch revalidates every hop through
+   urlMatchesGovernedOrigin at the TOP of the loop, before lookup() — so a
+   Location header pointing at a doubled separator is refused before the
+   redirected connection, and reported as redirect_not_governed rather than
+   url_not_governed only because the hop counter has moved.
+
+   Asserted here at the gate and by source ordering rather than against a
+   live 302: this suite deliberately runs no local HTTP server, and standing
+   up one to prove a branch that is literally the same function call would be
+   ceremony, not evidence. */
+eq("N5r a redirect target with a doubled separator fails the same gate",
+  urlMatchesGovernedOrigin("https://fixtures.fairwatch.test/dealer//m.ndjson", ORIGINS, "manifest"), false);
+{
+  const src = rawSource.pinnedFetch;
+  const loop = src.slice(src.indexOf("for (let hop = 0;"), src.indexOf("const agent = new Agent("));
+  eq("N5r governance is re-run on every hop", /urlMatchesGovernedOrigin\(url, origins, purpose\)/.test(loop), true);
+  eq("N5r and it runs BEFORE the resolver, inside the same hop",
+    loop.indexOf("urlMatchesGovernedOrigin") < loop.indexOf("await lookup("), true);
+  eq("N5r a redirect re-enters that same loop rather than fetching directly",
+    /url = new URL\(loc, url\)\.toString\(\);\s*\r?\n\s*continue;/.test(src), true);
+}
 
 // The rebinding defense's load-bearing step, end to end over real DNS:
 // a governed hostname that RESOLVES to a blocked address is refused at

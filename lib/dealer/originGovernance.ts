@@ -96,7 +96,41 @@ export function canonicalizeUrl(raw: string): CanonicalUrl | null {
 
   const port = u.port === "" ? 443 : Number(u.port); // absent → 443; :443 ≡ absent
 
-  const path = removeDotSegments(decodeUnreservedOnly(u.pathname || "/"));
+  /* ── DUPLICATE SEPARATOR — REFUSED, NEVER NORMALISED (v7.99) ────────────
+     THE MISCONCEPTION THIS GUARD EXISTS TO KILL:
+
+       "Collapsing // is just tidying the path up."
+
+     It is not, because only ONE side of this system does the collapsing.
+     removeDotSegments drops empty segments, so /tenant//assets/item.jpg
+     canonicalises to /tenant/assets/item.jpg and is approved against the
+     prefix /tenant/assets — while pinnedFetch hands the ORIGINAL string to
+     undici, which puts /tenant//assets/item.jpg on the wire. Governance
+     approved one path and the fetcher requested a different one. That is a
+     same-origin authorised-path-prefix bypass: the approval was never about
+     the request that actually left the building.
+
+     WHY REFUSE RATHER THAN COLLAPSE. The obvious repair — normalise, then
+     fetch the normalised path — means guessing how the far end reads a
+     doubled separator, and valid HTTP servers disagree: some preserve it,
+     some merge it, some route on it. A reverse proxy, CGI layer or asset
+     fetcher may treat /a//b as a different resource from /a/b. FairWatchTrade
+     is not entitled to a guess on a security boundary, so ambiguity fails
+     closed and the caller gets nothing.
+
+     Checked on the PARSED pathname, before any normalisation, so the
+     ambiguity is caught while it is still visible. It is deliberately not
+     checked after decodeUnreservedOnly, because that cannot introduce one:
+     "/" is reserved, so %2F is left encoded and never becomes a separator.
+
+     This is the shared seam — urlMatchesGovernedOrigin runs it, pinnedFetch
+     revalidates every redirect target through the same call, and both happen
+     before the DNS lookup. So an initial URL and a redirect target are
+     refused identically, and neither reaches a connection. */
+  const rawPath = u.pathname || "/";
+  if (rawPath.includes("//")) return null;
+
+  const path = removeDotSegments(decodeUnreservedOnly(rawPath));
 
   return { hostname: ascii, port, path };
 }
