@@ -170,7 +170,18 @@ export default function ListingSpecs({
   pushTech("Bracelet Wrist Size", details.braceletWristSize);
   pushTech("Included With Watch", joined(details.includedWithWatch));
   pushTech("Service & Case History", joined(details.serviceHistory));
-  pushTech("Documentation", details.documentation, browseLink("docs", details.documentation));
+  /* Deliberately NOT a link (founder ruling 2026-09-01). Documentation is
+     descriptive information about THIS watch, not an identity dimension of it.
+     Case material, movement and dial colour describe the object and are worth
+     navigating by; "No Box or Papers" describes what did not come with it, and
+     linking an absence offers the collector "show me more watches that are
+     missing things" — which is not a path this marketplace should hand anyone.
+
+     It qualified under the §9 rule above because that rule asks only whether a
+     filter consumes the value verbatim. That answers "can this link work",
+     never "should this link exist". The technical test passed and the
+     editorial one was never put. */
+  pushTech("Documentation", details.documentation);
 
   return (
     <>

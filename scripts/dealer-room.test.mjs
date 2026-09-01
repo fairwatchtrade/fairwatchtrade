@@ -256,13 +256,26 @@ test("clickable collector navigation uses only byte-exact filter dimensions", ()
   assert.match(specs, /browseLink\("caseMaterial", details\.caseMaterial\)/);
   assert.match(specs, /browseLink\("dialColor", details\.dialColorType\)/);
   assert.match(specs, /browseLink\("movement", details\.movementType\)/);
-  assert.match(specs, /browseLink\("docs", details\.documentation\)/);
   // Derived/formatted dimensions must NOT link — a reformatted value could
   // land on an empty filter and masquerade as a real path.
   assert.doesNotMatch(specs, /browseLink\("beatRate"/);
   assert.doesNotMatch(specs, /browseLink\("caseSize"/);
   assert.doesNotMatch(specs, /browseLink\("powerReserve"/);
   assert.match(specs, /encodeURIComponent/);
+});
+
+/* Founder ruling 2026-09-01. Documentation once linked because it satisfied the
+   byte-exact test above — which asks whether a filter CAN consume the value,
+   never whether the link SHOULD exist. Documentation describes what came with
+   this watch rather than what the watch is, and "No Box or Papers" is an
+   absence: linking it offers the collector more watches that are missing
+   things. It renders as plain text.
+
+   Scoped deliberately: the identity dimensions above still navigate. This is
+   not a rule against spec links. */
+test("documentation is descriptive text, never navigation", () => {
+  assert.doesNotMatch(specs, /browseLink\("docs"/);
+  assert.match(specs, /pushTech\("Documentation", details\.documentation\)/);
 });
 
 /* ── Recomposition invariants (Build Order 2026-08-17 §3 · §6 · §11 · §16) ──
