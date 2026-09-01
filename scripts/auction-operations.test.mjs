@@ -590,6 +590,24 @@ function fakeDb() {
 
   ok("2 · retirement and activation happen in the same function body",
     /set activation_state = 'retired'/.test(fn) && /set activation_state = 'active'/.test(fn));
+  /* The constraint that let a revision be activated once and never retired.
+     It was asserted for PRESENCE and it was present; only a live retirement
+     showed that what it forbade included the thing the feature must do. The
+     assertion now pins its SHAPE. */
+  const fix = readSourceFile(
+    new URL("../supabase/migrations/20260901213000_packet_revision_activation_attribution_fix.sql", import.meta.url), "utf8");
+  ok("2 · a retired revision may keep its activation attribution",
+    /activation_state <> 'active'\s*or \(activated_by is not null and activated_at is not null\)/.test(fix));
+  ok("2 · the biconditional form is gone from the live shape",
+    !/\(activation_state = 'active'\)\s*=\s*\(/.test(fix));
+  /* The migration NAMES approval_is_attributed to explain why it is left
+     alone, so absence of the string is the wrong test — what matters is that
+     no DDL touches it. */
+  ok("2 · approval attribution is deliberately left alone",
+    !/constraint\s+approval_is_attributed/.test(fix));
+  ok("2 · the corrective migration touches exactly one constraint",
+    (fix.match(/alter table/gi) ?? []).length === 2 &&
+    !/create table|create function|create trigger|grant |revoke /i.test(fix));
   ok("2 · exactly one active revision survives, enforced by the index too",
     /unique index[\s\S]{0,200}where activation_state = 'active'/.test(mig));
   ok("3 · concurrent switches serialize on the packet's own rows",
