@@ -31,6 +31,37 @@ A listing code:
 
 A listing code is a public identifier, not an authentication credential.
 
+## Visibility Law
+
+**Founder ruling, 2026-09-01:**
+
+> **That number follows that watch and is visible wherever it goes.**
+
+The law above made the code permanent, unique and unreusable, and then never
+required anyone to *show* it. So it drifted into being visible only where the
+platform talks to itself, and the omission was invisible precisely because the
+code was still perfectly correct in the database.
+
+The failure this closes is concrete. A collector writes *"how much for j75878,
+and what's your best on x84953?"* — that is the only name they have for those
+watches. The seller then opens the one room that lists their own unfinished
+work and it does not print a single code, so the watch someone is asking about
+cannot be found by the name they asked about it with.
+
+**Requirement.** Any surface that represents a listing to a person shows that
+listing's code. Buyer surfaces, seller surfaces, admin rooms, correspondence,
+offers, trades, saved work, dialogs that name a listing before acting on it.
+If a person can see the watch, they can see its name.
+
+**A listing with no code yet is silent, not blank.** A draft that has never
+become a listing has nothing to show and renders nothing — the component
+already refuses an empty value. Absence of a code is a database question, never
+a display decision.
+
+**One component.** `components/FwtListingId.tsx` states the label and the
+treatment once, so four surfaces cannot end up printing "FWT Listing ID",
+"Listing ID", "FWT Code" and "ID" for the same fact.
+
 ## Search Behavior
 
 Global search must recognize the canonical code and reasonable human input variations while preserving the stored canonical value.
