@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ADAPTER_SCHEMA_VERSIONS,
   PACKET_CATALOG_COLUMNS,
-  assertDescriptorIntegrity,
+  verifiedDescriptor,
   isAllowlistedAdapter,
   isRuntimeRegisterable,
   resolveInlineDescriptor,
@@ -28,6 +28,7 @@ export {
   isRuntimeRegisterable,
   toRegisteredPacket,
   descriptorBytesAndHash,
+  verifiedDescriptor,
 };
 export type { PacketRevisionRow, ResolvedDescriptor };
 
@@ -134,9 +135,11 @@ export async function resolvePacketRevisionById(
  * adapter, so it is the right and only place to insist on that.
  */
 export function loadDescriptors(row: PacketRevisionRow): ResolvedDescriptor[] {
-  assertDescriptorIntegrity(row);
-
-  const descriptor = row.descriptor as { kind?: unknown; manifest_paths?: unknown };
+  /* The verified bytes decide, including which SHAPE this descriptor is.
+     Reading the kind field off the JSONB would have let an unverified projection
+     choose between the legacy-path branch and the inline branch, which is
+     the same trust defect one level up. */
+  const descriptor = verifiedDescriptor(row) as { kind?: unknown; manifest_paths?: unknown };
   if (descriptor?.kind === "legacy_repo_manifest") {
     const paths = Array.isArray(descriptor.manifest_paths)
       ? (descriptor.manifest_paths as unknown[]).filter((p): p is string => typeof p === "string")

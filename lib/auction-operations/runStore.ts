@@ -62,13 +62,21 @@ export async function createRun(
     packetId: string;
     createdBy: string;
     state: RunState;
-    /* Optional only so a caller predating the catalog still compiles; every
-       live caller supplies them, and a run without a revision id can only
-       fall back to the active revision. */
-    packetRevisionId?: string;
-    packetRevision?: number;
-    descriptorSha256?: string;
-    adapterSchemaVersion?: string;
+    /* REQUIRED, deliberately. These were optional for exactly one version,
+       and the uploads route simply did not pass them — which is how a run
+       came to exist naming no revision of its own, leaving planning to fall
+       back to whatever happened to be active later.
+
+       Optional was the defect; the omission was only its symptom. A governed
+       run cannot be created without naming the revision that authorised it,
+       and making that a type error is the only form of this rule that
+       survives the next new caller. Historical rows with null binding
+       already exist and stay readable; what changed is that no new one can
+       be minted. */
+    packetRevisionId: string;
+    packetRevision: number;
+    descriptorSha256: string;
+    adapterSchemaVersion: string;
   }
 ): Promise<AuctionRun> {
   const { data, error } = await db
@@ -78,10 +86,10 @@ export async function createRun(
       packet_id: params.packetId,
       state: params.state,
       created_by: params.createdBy,
-      packet_revision_id: params.packetRevisionId ?? null,
-      packet_revision: params.packetRevision ?? null,
-      descriptor_sha256: params.descriptorSha256 ?? null,
-      adapter_schema_version: params.adapterSchemaVersion ?? null,
+      packet_revision_id: params.packetRevisionId,
+      packet_revision: params.packetRevision,
+      descriptor_sha256: params.descriptorSha256,
+      adapter_schema_version: params.adapterSchemaVersion,
     })
     .select(COLUMNS)
     .single();

@@ -40,6 +40,9 @@ import {
   resolveInlineDescriptor,
   assertDescriptorIntegrity,
   descriptorBytesAndHash,
+  verifiedDescriptor,
+  structurallyEqual,
+  rowIsUsable,
 } from "../lib/auction-operations/packetContract.ts";
 import { readFileSync as readSourceFile } from "node:fs";
 
@@ -471,6 +474,175 @@ function fakeDb() {
   ok("a runtime-registered packet names no repo manifest path", projected.manifestPaths.length === 0);
   ok("the projection carries the row's own identity",
     projected.packetId === "test-packet" && projected.adapter === "monaco-layer2");
+}
+
+/* ── 5b2 · DESCRIPTOR AUTHORITY — THE BYTES DECIDE, AND DIVERGENCE REFUSES
+   The defect: descriptor_sha256 covered descriptor_bytes, while runtime read
+   the separate JSONB descriptor column. Two values, one signature. A valid
+   hash over A could sit beside a JSONB B that the code actually executed,
+   and every integrity check still passed because each half was internally
+   consistent and nothing compared them. */
+{
+  const mkRow = (bytesValue, jsonbValue, opts = {}) => {
+    const bytes = JSON.stringify(bytesValue);
+    return {
+      id: "rX", packet_id: "auth-test", revision: 1, title: "t", description: "",
+      adapter_id: "monaco-layer2", adapter_schema_version: "monaco-layer2-v1",
+      acquisition_mode: "staged_upload",
+      descriptor: jsonbValue,
+      descriptor_bytes: opts.bytes ?? bytes,
+      descriptor_sha256: opts.hash ?? sha(opts.bytes ?? bytes),
+      upload_specs: [], source_urls: [], semantic_gates: {},
+      validation_state: "validated", approval_state: "approved",
+      activation_state: "active", display_order: 1,
+    };
+  };
+
+  const A = { kind: "inline", flight: "flight-A", manifest: { corpus: { sha256: "a".repeat(64) } } };
+  const B = { kind: "inline", flight: "flight-B", manifest: { corpus: { sha256: "b".repeat(64) } } };
+
+  /* 1 · valid bytes + matching hash + equivalent JSONB succeeds */
+  const good = mkRow(A, A);
+  ok("D1 verified bytes with an equivalent projection resolve",
+    verifiedDescriptor(good).flight === "flight-A");
+
+  /* Key order must NOT create a false mismatch. Same content, different
+     order, and a JSON.stringify comparison would have failed this. */
+  const reordered = mkRow(A, { manifest: { corpus: { sha256: "a".repeat(64) } }, flight: "flight-A", kind: "inline" });
+  ok("D1 key order is not divergence",
+    verifiedDescriptor(reordered).flight === "flight-A");
+  ok("D1 structurallyEqual ignores key order",
+    structurallyEqual({ x: 1, y: [1, { p: 2, q: 3 }] }, { y: [1, { q: 3, p: 2 }], x: 1 }));
+  ok("D1 structurallyEqual still catches real difference",
+    !structurallyEqual({ x: 1 }, { x: 2 }) &&
+    !structurallyEqual({ x: 1 }, { x: 1, y: 1 }) &&
+    !structurallyEqual([1, 2], [2, 1]));
+
+  /* 2 · tampered bytes against a stale hash refuse */
+  const tampered = mkRow(A, A, { bytes: JSON.stringify(A) + " ", hash: sha(JSON.stringify(A)) });
+  throws("D2 tampered bytes with a stale hash are refused",
+    () => verifiedDescriptor(tampered), /descriptor_hash_mismatch/);
+
+  /* 3 · THE ADVERSARIAL FIXTURE. Bytes and hash authorise A; the JSONB
+     projection says B. Runtime must never produce anything from B — and
+     must not quietly proceed on A either, because a row whose halves
+     disagree is untrustworthy as a row. */
+  const adversarial = mkRow(A, B);
+  throws("D3 bytes-A + hash(A) + JSONB-B fails CLOSED",
+    () => verifiedDescriptor(adversarial), /descriptor_projection_mismatch/);
+  throws("D3 the inline resolver cannot be reached past that refusal",
+    () => resolveInlineDescriptor(adversarial), /descriptor_projection_mismatch/);
+  throws("D3 the projection cannot be built from a diverged row either",
+    () => toRegisteredPacket(adversarial), /descriptor_projection_mismatch/);
+  ok("D3 a diverged row is not usable, so it never reaches a listing",
+    !rowIsUsable(adversarial));
+
+  /* B must be unreachable by ANY route through the authority. */
+  let leakedB = false;
+  for (const fn of [verifiedDescriptor, resolveInlineDescriptor, toRegisteredPacket]) {
+    try {
+      const out = JSON.stringify(fn(adversarial));
+      if (out.includes("flight-B") || out.includes("b".repeat(64))) leakedB = true;
+    } catch { /* refusal is the expected outcome */ }
+  }
+  ok("D3 no consumer can produce B's values from a diverged row", !leakedB);
+
+  /* 4 · the Layer 2 flight identity comes from the verified bytes */
+  ok("D4 flight identity is read from the verified descriptor",
+    verifiedDescriptor(good).flight === "flight-A");
+  const engineSrc = readSourceFile(new URL("../lib/auction-operations/planEngine.ts", import.meta.url), "utf8");
+  ok("D4 the plan engine reads the authority, never the raw JSONB",
+    /verifiedDescriptor\(revision\)/.test(engineSrc) && !/revision\.descriptor as/.test(engineSrc));
+
+  /* 5 · every runtime consumer goes through the authority */
+  const contractSrc = readSourceFile(new URL("../lib/auction-operations/packetContract.ts", import.meta.url), "utf8");
+  const catalogSrc2 = readSourceFile(new URL("../lib/auction-operations/packetCatalog.ts", import.meta.url), "utf8");
+  const consumers = (contractSrc + catalogSrc2 + engineSrc).match(/row\.descriptor as|revision\.descriptor as/g) ?? [];
+  ok("D5 no runtime consumer reads the unverified JSONB directly", consumers.length === 0);
+  ok("D5 the inline resolver resolves through the authority",
+    /resolveInlineDescriptor[\s\S]{0,200}verifiedDescriptor\(row\)/.test(contractSrc));
+  ok("D5 the legacy manifest_paths branch resolves through the authority too",
+    /loadDescriptors[\s\S]{0,400}verifiedDescriptor\(row\)/.test(catalogSrc2));
+
+  /* 6 · the allowlist is untouched by this hardening */
+  ok("D6 runtime-registerable set is unchanged",
+    RUNTIME_REGISTERABLE_ADAPTERS.length === 1 && isRuntimeRegisterable("monaco-layer2") &&
+    !isRuntimeRegisterable("phillips-sale") && !isRuntimeRegisterable("monaco-legend"));
+}
+
+/* ── 5b3 · RUN BINDING IS NOT OPTIONAL ──────────────────────────────────
+   The staged-upload route resolved the exact active revision and then threw
+   it away: createRun recorded adapter, packet id, creator and state only. A
+   run with no revision id fell back at planning time to whatever was active
+   THEN, so stage under A, activate B, plan → B's mechanics on A's files.
+
+   The repair is the binding AND the contract: optional was the defect, and
+   the omission was only its symptom. */
+{
+  const store = readSourceFile(new URL("../lib/auction-operations/runStore.ts", import.meta.url), "utf8");
+  const uploads = readSourceFile(new URL("../app/api/admin/auctions/results/uploads/route.ts", import.meta.url), "utf8");
+  const planRoute = readSourceFile(new URL("../app/api/admin/auctions/results/plan/route.ts", import.meta.url), "utf8");
+
+  /* R1 · the four fields are REQUIRED — a new caller that forgets them is a
+     type error, not a silently unbound run. */
+  const sig = store.slice(store.indexOf("export async function createRun"), store.indexOf("): Promise<AuctionRun>"));
+  for (const f of ["packetRevisionId: string;", "packetRevision: number;", "descriptorSha256: string;", "adapterSchemaVersion: string;"]) {
+    ok(`R1 createRun requires ${f.split(":")[0]}`, sig.includes(f));
+  }
+  ok("R1 none of the binding inputs is optional any more",
+    !/packetRevisionId\?|packetRevision\?|descriptorSha256\?|adapterSchemaVersion\?/.test(sig));
+  ok("R1 and none is coerced to null on write",
+    !/packet_revision_id: params\.packetRevisionId \?\? null/.test(store));
+
+  /* R2 · the staged-upload run binds at birth, before upload tokens */
+  const uploadCall = uploads.slice(uploads.indexOf("createRun(service, {"), uploads.indexOf("const uploads = []"));
+  ok("R2 the staged run records the revision id", /packetRevisionId: revision\.id/.test(uploadCall));
+  ok("R2 the staged run records the revision number", /packetRevision: revision\.revision/.test(uploadCall));
+  ok("R2 the staged run records the descriptor hash", /descriptorSha256: revision\.descriptor_sha256/.test(uploadCall));
+  ok("R2 the staged run records the schema version", /adapterSchemaVersion: revision\.adapter_schema_version/.test(uploadCall));
+  ok("R2 the binding is written BEFORE any upload token is issued",
+    uploads.indexOf("createRun(service, {") < uploads.indexOf("createSignedUploadUrl"));
+
+  /* R3 · the no-upload entrance still binds exactly as before */
+  ok("R3 the plan route's own run creation is still bound",
+    /packetRevisionId: revision\.id/.test(planRoute));
+
+  /* R4 · planning resolves BY REVISION ID, so a later activation cannot
+     move an existing run; the fallback survives only for pre-catalog rows */
+  ok("R4 planning resolves the run's bound revision by id",
+    /resolvePacketRevisionById\(service, run\.packet_revision_id\)/.test(planRoute));
+  ok("R4 the active-revision fallback is reached only when no binding exists",
+    /run\.packet_revision_id\s*\?[\s\S]{0,200}: await resolveActivePacketRevision/.test(planRoute));
+
+  /* R5 · every live createRun caller supplies the binding */
+  const callers = [uploads, planRoute];
+  ok("R5 both live run-creation paths bind their revision",
+    callers.every((c) => /packetRevisionId: revision\.id/.test(c)));
+
+  /* R6 · the stage-A / activate-B / plan-A sequence, as a state machine.
+     Modelled from what the source above actually does: the run stores A's
+     identity at creation, and planning selects by that stored id rather
+     than by "whatever is active now". */
+  const world = { active: "revA", revisions: { revA: { hash: "aaa", schema: "v1" }, revB: { hash: "bbb", schema: "v1" } } };
+  const stagedRun = {
+    packet_revision_id: world.active,
+    packet_revision: 1,
+    descriptor_sha256: world.revisions[world.active].hash,
+    adapter_schema_version: world.revisions[world.active].schema,
+  };
+  world.active = "revB"; // B is activated between staging and planning
+  const planned = stagedRun.packet_revision_id ? stagedRun.packet_revision_id : world.active;
+  ok("R6 a run staged under A plans under A after B is activated", planned === "revA");
+  ok("R6 B cannot change the staged run's descriptor hash",
+    stagedRun.descriptor_sha256 === "aaa" && stagedRun.descriptor_sha256 !== world.revisions.revB.hash);
+  ok("R6 the run's four binding fields are unchanged by the activation",
+    stagedRun.packet_revision_id === "revA" && stagedRun.packet_revision === 1 &&
+    stagedRun.descriptor_sha256 === "aaa" && stagedRun.adapter_schema_version === "v1");
+
+  /* And the counterfactual: an unbound run is exactly the defect. */
+  const unbound = { packet_revision_id: null };
+  ok("R6 an UNBOUND run would have drifted to B — which is why binding is required",
+    (unbound.packet_revision_id ? unbound.packet_revision_id : world.active) === "revB");
 }
 
 /* ── 5c · THE PLAN-HASH BOUNDARY IS PRESERVED ───────────────────────────

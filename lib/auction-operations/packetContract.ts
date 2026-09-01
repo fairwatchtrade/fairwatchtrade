@@ -86,7 +86,10 @@ export type PacketRevisionRow = {
     just because it is still marked active. */
 export function rowIsUsable(row: PacketRevisionRow): boolean {
   if (!isAllowlistedAdapter(row.adapter_id)) return false;
-  return ADAPTER_SCHEMA_VERSIONS[row.adapter_id].includes(row.adapter_schema_version);
+  if (!ADAPTER_SCHEMA_VERSIONS[row.adapter_id].includes(row.adapter_schema_version)) return false;
+  /* A row whose bytes and projection disagree is not merely suspect, it is
+     unusable: nothing downstream could say which of the two it meant. */
+  return descriptorIsGoverned(row);
 }
 
 /** Canonical descriptor serialization + hash, used by the registration path
@@ -108,13 +111,103 @@ export function assertDescriptorIntegrity(row: PacketRevisionRow): void {
   }
 }
 
+/** Key-order-independent structural equality. JSON.stringify comparison is
+    NOT usable here: two objects with identical content but different key
+    order serialize differently, so it would manufacture disagreement between
+    a descriptor and its own faithful projection. */
+export function structurallyEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (a === null || b === null) return a === b;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => structurallyEqual(v, b[i]));
+  }
+  if (typeof a === "object") {
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    const ak = Object.keys(ao);
+    const bk = Object.keys(bo);
+    if (ak.length !== bk.length) return false;
+    return ak.every((k) => Object.prototype.hasOwnProperty.call(bo, k) && structurallyEqual(ao[k], bo[k]));
+  }
+  return false;
+}
+
+/**
+ * THE DESCRIPTOR AUTHORITY. Every executable decision that depends on a
+ * descriptor resolves through here and nowhere else.
+ *
+ * THE DEFECT THIS FUNCTION EXISTS TO KILL:
+ *
+ *   The hash covered descriptor_bytes, and the runtime read the separate
+ *   JSONB descriptor column. Two values, one signature. A row could carry
+ *   verified bytes describing A while the code executed B, and every
+ *   integrity check in the system would still pass — because each half was
+ *   internally consistent and nothing compared them.
+ *
+ *   A valid hash over A must never authorise the execution of B.
+ *
+ * So the bytes win, always. They are rehashed, then PARSED, and the parsed
+ * value is what callers get.
+ *
+ * ── AND DIVERGENCE FAILS CLOSED ────────────────────────────────────────
+ * Executing A while quietly ignoring a disagreeing B is NOT sufficient, and
+ * the distinction matters. If the two halves disagree, the row itself is
+ * untrustworthy: something wrote one and not the other, and nobody can say
+ * from here which one was intended or what else that writer touched.
+ * Continuing on A would be treating a corrupted row as merely untidy. So
+ * the row is REFUSED — `descriptor_projection_mismatch` — and neither value
+ * executes.
+ *
+ * Key order is not divergence. structurallyEqual compares content, because a
+ * JSON.stringify comparison would manufacture a mismatch between a
+ * descriptor and its own faithful projection purely from key ordering.
+ */
+export function verifiedDescriptor(row: PacketRevisionRow): Record<string, unknown> {
+  assertDescriptorIntegrity(row);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(row.descriptor_bytes);
+  } catch {
+    throw new Error(
+      `descriptor_unparseable: revision ${row.packet_id}@${row.revision} has a verified hash over bytes that are not JSON`
+    );
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(
+      `descriptor_not_an_object: revision ${row.packet_id}@${row.revision}`
+    );
+  }
+
+  if (!structurallyEqual(parsed, row.descriptor)) {
+    throw new Error(
+      `descriptor_projection_mismatch: revision ${row.packet_id}@${row.revision} — the verified bytes and the stored JSONB describe different descriptors; the bytes are authoritative and the row is refused`
+    );
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+/** Non-throwing form, for filtering a catalog listing. One ungoverned row
+    must not take down the whole room, but it must not be selectable either. */
+export function descriptorIsGoverned(row: PacketRevisionRow): boolean {
+  try {
+    verifiedDescriptor(row);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type ResolvedDescriptor = { bytes: Buffer; value: unknown };
 
 /** The inline case: the governed bytes in the row ARE the manifest. This is
     what makes a new same-family packet possible without a deployment,
     because nothing has to exist on disk. */
 export function resolveInlineDescriptor(row: PacketRevisionRow): ResolvedDescriptor[] {
-  const descriptor = row.descriptor as { manifest?: unknown };
+  const descriptor = verifiedDescriptor(row) as { manifest?: unknown };
   if (descriptor?.manifest === undefined) {
     throw new Error(
       `descriptor_unsupported: revision ${row.packet_id}@${row.revision} carries neither manifest_paths nor an inline manifest`
@@ -130,7 +223,10 @@ export function resolveInlineDescriptor(row: PacketRevisionRow): ResolvedDescrip
     empty for a runtime-registered instance whose descriptor travels in the
     row. */
 export function toRegisteredPacket(row: PacketRevisionRow): RegisteredPacket {
-  const descriptor = row.descriptor as { manifest_paths?: unknown };
+  /* Even the projection reads through the authority. manifestPaths is not
+     executable today, but "not executable today" is exactly how a value
+     becomes executable tomorrow without anyone noticing. */
+  const descriptor = verifiedDescriptor(row) as { manifest_paths?: unknown };
   const manifestPaths = Array.isArray(descriptor?.manifest_paths)
     ? (descriptor.manifest_paths as unknown[]).filter((p): p is string => typeof p === "string")
     : [];

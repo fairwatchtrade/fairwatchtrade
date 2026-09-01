@@ -88,11 +88,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* BIND AT BIRTH. This route already resolved the exact active revision
+     above; recording it here is what stops the run drifting. Without it the
+     run carried only a packet id, and planning later fell back to whatever
+     was active THEN — so staging under revision A, activating B, and then
+     planning could quietly plan the staged files under B's mechanics. The
+     binding is written before any upload token is handed out, so a staged
+     file can never belong to a revision its run did not name. */
   const run = await createRun(service, {
     adapter: packet.adapter,
     packetId: packet.packetId,
     createdBy: user.id,
     state: "uploading",
+    packetRevisionId: revision.id,
+    packetRevision: revision.revision,
+    descriptorSha256: revision.descriptor_sha256,
+    adapterSchemaVersion: revision.adapter_schema_version,
   });
 
   const uploads = [];

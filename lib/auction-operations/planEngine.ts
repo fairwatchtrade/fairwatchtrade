@@ -3,6 +3,7 @@ import { STAGING_BUCKET, type UploadSpec } from "@/lib/auction-operations/regist
 import {
   loadDescriptors,
   toRegisteredPacket,
+  verifiedDescriptor,
   type PacketRevisionRow,
 } from "@/lib/auction-operations/packetCatalog";
 import { sha256Hex, type AuctionRun } from "@/lib/auction-operations/runStore";
@@ -95,7 +96,11 @@ export async function generatePlanForRun(
   revision: PacketRevisionRow
 ): Promise<GeneratedPlan> {
   const packet = toRegisteredPacket(revision);
-  const descriptor = revision.descriptor as Record<string, unknown>;
+  /* NOT revision.descriptor. The plan's flight label is executable identity —
+     it is serialized into the hashed plan bytes — so it must come from the
+     bytes the signature actually covers, never from the JSONB projection
+     sitting beside them. */
+  const descriptor = verifiedDescriptor(revision);
 
   if (packet.adapter === "phillips-sale") {
     const [{ bytes: manifestBytes, value: saleManifest }] = loadDescriptors(revision);
