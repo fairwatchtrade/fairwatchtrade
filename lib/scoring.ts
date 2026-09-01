@@ -52,11 +52,28 @@ export type PhotoCategory =
   | "Extra Links"
   | "Other";
 
+/* Every documentation value this engine can be handed. It MUST cover
+   everything the product can emit — the authoritative list is
+   DOCUMENTATION_STATES in lib/listingDocumentation.ts, and
+   scripts/scoring-documentation.test.mjs fails if the two ever drift again.
+
+   ⚠ "No Box or Papers" was missing here while the product offered it, and
+   "Box Only" is here while the product offers it nowhere. Two vocabularies for
+   one fact, drifted. The consequence was not cosmetic: DOC_POINTS returned
+   undefined, undefined poisoned the completeness sum, and the seller was shown
+   NaN — so the meter that exists to reward effort in real time stopped telling
+   them anything at all. Two production listings and every draft that had not
+   yet chosen documentation were in that state.
+
+   "Box Only" is KEPT rather than deleted: no listing carries it, but removing a
+   mapping is a behaviour change to a protected engine, and this repair is not
+   the place to make one. */
 export type DocumentationStatus =
   | "Full Set"
   | "Papers Only"
   | "Box Only"
-  | "Watch Only";
+  | "Watch Only"
+  | "No Box or Papers";
 
 /** How the watch is being sold — the mobile wizard's Screen 0 declaration.
  *  Optional on ListingState: the desktop flow never sets it, so desktop
@@ -110,7 +127,28 @@ const DOC_POINTS: Record<DocumentationStatus, number> = {
   "Papers Only": 3,
   "Box Only": 2,
   "Watch Only": 0,
+  /* Same fact as "Watch Only" in the product's words: no box, no papers.
+     Weight deliberately identical — this repair adds a missing mapping and
+     changes no existing one. */
+  "No Box or Papers": 0,
 };
+
+/** Documentation points, TOTAL by construction.
+ *
+ *  The engine is handed values from `listings.details`, which is jsonb and
+ *  therefore carries whatever any historical writer put there — a retired
+ *  vocabulary, a typo, a null, an absent key. A direct index returns
+ *  `undefined` for all of those, and `undefined` in the completeness sum is
+ *  NaN, which reaches the seller as a meter that has stopped speaking.
+ *
+ *  Unknown earns nothing, which is the honest answer: the engine does not
+ *  know what that documentation is, so it credits none. It never returns a
+ *  value that is not a finite number. */
+export function documentationPoints(value: unknown): number {
+  if (typeof value !== "string") return 0;
+  const earned = (DOC_POINTS as Record<string, number>)[value];
+  return typeof earned === "number" && Number.isFinite(earned) ? earned : 0;
+}
 
 /* ── Mandatory photo set ─────────────────────────────────────────────────
    Required to go live (Dial, Caseback, Clasp/Pin Buckle; full extended shot if on a bracelet). */
@@ -190,7 +228,7 @@ export function scoreCompleteness(s: ListingState): CompletenessResult {
   });
 
   // 4. Documentation (scaled)
-  const docEarned = DOC_POINTS[s.documentation];
+  const docEarned = documentationPoints(s.documentation);
   items.push({
     key: "documentation",
     label: "Documentation",
