@@ -4,15 +4,32 @@
    Run: node --experimental-strip-types scripts/homepage-identity.test.mjs
 
    Guards:
-     · the retired absolute claim can never return to either homepage;
-     · both homepage implementations consume the TWO governed constants
-       from the one shared identity source (they cannot silently diverge);
+     · the retired absolute claim can never return to the homepage;
+     · the homepage consumes the TWO governed constants from the one shared
+       identity source, and hardcodes neither;
      · the primary eyebrow and secondary clarification carry the exact
        approved wording — "select", never "selected";
-     · the retired single-line form is gone everywhere;
+     · the retired single-line form is gone;
      · the italic paragraph carries only the fee promise;
-     · no Rolex/Tudor branding, cards, or acquisition language was added;
-     · the three featured brands and the navigation survive untouched. */
+     · no Rolex/Tudor branding or acquisition language was added.
+
+   ── WHY THIS FILE NOW GUARDS ONE PAGE AND NOT TWO (v7.80) ──────────────
+
+   It used to assert against `app/marketplace-preview/page.tsx` as well, under
+   the name "future homepage". That page was DELETED, and the name was the
+   problem: it was an old prototype carrying three fictional watches, it was
+   publicly routable, and — because it kept receiving copy and legibility work
+   while the real staged homepage sat untouched at the repo root — every
+   signal said it was the live one. It was not.
+
+   The real staged future homepage is `marketplace/page.tsx` (root, outside
+   `app/`, therefore not routed) rendering `components/HomepageClient.tsx`.
+
+   ⚠ It carries NO identity copy at all — no eyebrow, no clarification, no
+   shared constants. So nothing here guards it, because there is nothing there
+   to guard yet. When that page gains its identity block, add it to the loop
+   below. Until then the flip would silently drop the identity statement, and
+   this comment is the only thing that says so. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -27,7 +44,6 @@ const ok = (name, c) => { assert.ok(c, name); pass++; };
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const home = read("../app/page.tsx");
-const preview = read("../app/marketplace-preview/page.tsx");
 
 /* ── the exact approved copy, from the one durable source ── */
 ok("primary eyebrow is exact",
@@ -72,8 +88,8 @@ ok("the phone composition turns at a different point than the wide one",
 ok('"importance" is never stranded alone on a phone line',
   !MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.includes("importance"));
 
-/* ── both implementations consume both governed constants ── */
-for (const [name, src] of [["current homepage", home], ["future homepage", preview]]) {
+/* ── the homepage consumes both governed constants ── */
+for (const [name, src] of [["current homepage", home]]) {
   ok(`${name} no longer claims "Watchmakers Only"`, !/watchmakers only/i.test(src));
   ok(`${name} imports the shared identity source`,
     src.includes("from '@/lib/marketplaceIdentity'"));
@@ -100,19 +116,6 @@ for (const [name, src] of [["current homepage", home], ["future homepage", previ
   ok(`${name} adds no Rolex branding`, !/rolex/i.test(src));
   ok(`${name} adds no Tudor branding`, !/tudor/i.test(src));
 }
-
-/* ── featured brands unchanged on the future homepage ── */
-for (const brand of ["Parmigiani Fleurier", "F.P. Journe", "H. Moser"]) {
-  ok(`future homepage still features ${brand}`, preview.includes(brand));
-}
-ok("future homepage still features the Tonda Métrographe card",
-  preview.includes("Tonda Métrographe") && preview.includes("PFC274"));
-
-/* ── navigation unchanged ── */
-ok("future homepage keeps Browse Watches", preview.includes("Browse Watches"));
-ok("future homepage keeps List a Watch", preview.includes("List a Watch"));
-ok('future homepage keeps its /browse link', preview.includes('href="/browse"'));
-ok('future homepage keeps its /sell link', preview.includes('href="/sell"'));
 
 /* ── current homepage structure unchanged (waitlist remains the page) ── */
 ok("current homepage keeps the waitlist", home.includes("Notify Me"));
