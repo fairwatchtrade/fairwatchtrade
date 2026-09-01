@@ -39,18 +39,37 @@ export type AuctionRun = {
   created_at: string;
   updated_at: string;
   approved_at: string | null;
+  /* THE BINDING. Which exact approved packet revision produced this run —
+     recorded at creation, so planning cannot drift onto a revision that was
+     activated afterwards. Null on runs created before the catalog existed. */
+  packet_revision_id: string | null;
+  packet_revision: number | null;
+  descriptor_sha256: string | null;
+  adapter_schema_version: string | null;
   applied_at: string | null;
 };
 
 const COLUMNS =
-  "id, adapter_id, packet_id, state, input_paths, source_hashes, plan_bytes, plan_sha256, summary, contradictions, progress, last_error_code, last_error_detail, created_by, created_at, updated_at, approved_at, applied_at";
+  "id, adapter_id, packet_id, state, input_paths, source_hashes, plan_bytes, plan_sha256, summary, contradictions, progress, last_error_code, last_error_detail, created_by, created_at, updated_at, approved_at, applied_at, packet_revision_id, packet_revision, descriptor_sha256, adapter_schema_version";
 
 export const sha256Hex = (buf: Buffer | string): string =>
   crypto.createHash("sha256").update(buf).digest("hex");
 
 export async function createRun(
   db: SupabaseClient,
-  params: { adapter: string; packetId: string; createdBy: string; state: RunState }
+  params: {
+    adapter: string;
+    packetId: string;
+    createdBy: string;
+    state: RunState;
+    /* Optional only so a caller predating the catalog still compiles; every
+       live caller supplies them, and a run without a revision id can only
+       fall back to the active revision. */
+    packetRevisionId?: string;
+    packetRevision?: number;
+    descriptorSha256?: string;
+    adapterSchemaVersion?: string;
+  }
 ): Promise<AuctionRun> {
   const { data, error } = await db
     .from("auction_operations_run")
@@ -59,6 +78,10 @@ export async function createRun(
       packet_id: params.packetId,
       state: params.state,
       created_by: params.createdBy,
+      packet_revision_id: params.packetRevisionId ?? null,
+      packet_revision: params.packetRevision ?? null,
+      descriptor_sha256: params.descriptorSha256 ?? null,
+      adapter_schema_version: params.adapterSchemaVersion ?? null,
     })
     .select(COLUMNS)
     .single();

@@ -1,11 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { STAGING_BUCKET, type UploadSpec } from "@/lib/auction-operations/registry";
 import {
-  loadManifests,
-  resolvePacket,
-  STAGING_BUCKET,
-  type RegisteredPacket,
-  type UploadSpec,
-} from "@/lib/auction-operations/registry";
+  loadDescriptors,
+  toRegisteredPacket,
+  type PacketRevisionRow,
+} from "@/lib/auction-operations/packetCatalog";
 import { sha256Hex, type AuctionRun } from "@/lib/auction-operations/runStore";
 // One engine, two entrances: these are the SAME functions the CLIs run.
 import { generatePhillipsSalePlan, planToBytes } from "@/scripts/phillips-sale-import.mjs";
@@ -77,13 +76,29 @@ async function fetchRegistered(url: string): Promise<Buffer> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+/**
+ * Plan a run from the EXACT packet revision it was created against.
+ *
+ * The revision, not a packet id, is the parameter on purpose. A packet id
+ * resolves to whatever is active *now*; a revision is what this run was
+ * bound to when it was created. Planning through the id would reintroduce
+ * the time-of-check/time-of-use gap the catalog exists to close — a
+ * revision activated mid-flight could change the mechanics under a run the
+ * founder had already started reviewing.
+ *
+ * Adapter dispatch below is still a literal switch over code-owned names.
+ * The revision NAMES its adapter; it never supplies one.
+ */
 export async function generatePlanForRun(
   db: SupabaseClient,
   run: AuctionRun,
-  packet: RegisteredPacket
+  revision: PacketRevisionRow
 ): Promise<GeneratedPlan> {
+  const packet = toRegisteredPacket(revision);
+  const descriptor = revision.descriptor as Record<string, unknown>;
+
   if (packet.adapter === "phillips-sale") {
-    const [{ bytes: manifestBytes, value: saleManifest }] = loadManifests(packet);
+    const [{ bytes: manifestBytes, value: saleManifest }] = loadDescriptors(revision);
     const manifest = saleManifest as {
       auctionPageUrl: string;
       resultsPdf: { sha256: string };
@@ -122,7 +137,7 @@ export async function generatePlanForRun(
   }
 
   if (packet.adapter === "monaco-legend") {
-    const manifests = loadManifests(packet);
+    const manifests = loadDescriptors(revision);
     const harvested = [];
     const sourceHashes: Record<string, string> = {};
     for (const { bytes, value } of manifests) {
@@ -158,8 +173,9 @@ export async function generatePlanForRun(
     };
   }
 
-  // monaco-layer2 — the verified historical corpus.
-  const [{ bytes: manifestBytes, value }] = loadManifests(packet);
+  // monaco-layer2 — the verified historical corpus, and the one family
+  // proven runtime-registerable in this flight.
+  const [{ bytes: manifestBytes, value }] = loadDescriptors(revision);
   const manifest = value as { corpus: { sha256: string } };
   const specs = Object.fromEntries(packet.uploads.map((u) => [u.kind, u]));
   const corpusBytes = (await downloadStaged(db, run, specs.corpus_jsonl))!;
@@ -169,7 +185,18 @@ export async function generatePlanForRun(
       `source_hash_mismatch: staged corpus ${corpusSha256} is not the registered Layer 2 corpus`
     );
   const rows = parseLayer2Corpus(corpusBytes.toString("utf8"));
-  const plan = await buildLayer2Plan({ manifest, corpusSha256, rows, db });
+  /* The plan's flight label was the family's ONE instance literal, written
+     into the plan object and therefore into the hashed bytes. It now comes
+     from the descriptor, which is what makes a second Layer 2 sale possible
+     without editing the adapter.
+
+     The migrated ET33/ET35/ET36 descriptor carries the original string
+     verbatim, so this packet's plan bytes stay byte-identical to the
+     pre-catalog output — the plan-hash boundary is not weakened, it is
+     preserved deliberately. An adapter default keeps the CLI path unchanged
+     for the same reason. */
+  const flight = typeof descriptor?.flight === "string" ? descriptor.flight : undefined;
+  const plan = await buildLayer2Plan({ manifest, corpusSha256, rows, db, flight });
   const planBytes = layer2PlanToBytes(plan);
   return {
     plan,
@@ -181,4 +208,6 @@ export async function generatePlanForRun(
   };
 }
 
-export { resolvePacket };
+/* resolvePacket is deliberately NOT re-exported any more. Packet
+   resolution belongs to the catalog; a re-export here was how the old
+   hardcoded list reached the routes. */

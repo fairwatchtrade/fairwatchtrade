@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { resolvePacket, STAGING_BUCKET } from "@/lib/auction-operations/registry";
+import { STAGING_BUCKET } from "@/lib/auction-operations/registry";
+import {
+  resolveActivePacketRevision,
+  toRegisteredPacket,
+} from "@/lib/auction-operations/packetCatalog";
 import { createRun, updateRun } from "@/lib/auction-operations/runStore";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -53,23 +57,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "bad_request", detail: "Could not parse body." }, { status: 400 });
   }
 
-  const packet = resolvePacket(body.adapter, body.packetId);
-  if (!packet) {
-    return NextResponse.json(
-      { error: "unregistered_packet", detail: "Only registered source packets can be staged." },
-      { status: 400 }
-    );
-  }
-  if (packet.uploads.length === 0) {
-    return NextResponse.json(
-      {
-        error: "no_uploads_required",
-        detail: "This packet's sources are fetched from its registered URLs — generate the plan directly.",
-      },
-      { status: 400 }
-    );
-  }
-
   let service;
   try {
     service = createServiceClient();
@@ -78,6 +65,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "server_misconfigured", detail: "Admin write channel unavailable." },
       { status: 500 }
+    );
+  }
+
+  /* Upload slots resolve from the exact active revision, so what may be
+     staged is governed data rather than anything the browser asserted. */
+  const revision = await resolveActivePacketRevision(service, body.packetId);
+  if (!revision) {
+    return NextResponse.json(
+      { error: "unregistered_packet", detail: "Only registered source packets can be staged." },
+      { status: 400 }
+    );
+  }
+  const packet = toRegisteredPacket(revision);
+  if (packet.uploads.length === 0) {
+    return NextResponse.json(
+      {
+        error: "no_uploads_required",
+        detail: "This packet's sources are fetched from its registered URLs — generate the plan directly.",
+      },
+      { status: 400 }
     );
   }
 

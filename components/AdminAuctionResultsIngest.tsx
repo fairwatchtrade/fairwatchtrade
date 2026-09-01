@@ -11,10 +11,16 @@ import { useEffect, useRef, useState } from "react";
      Generate Plan (zero writes) → review the summary + hash →
      Apply (explicit, against that exact hash) → watch truthful progress
 
-   V1 IS THE THREE REGISTERED PACKETS, said plainly on the surface. A new
-   sale or house is a reviewed manifest/adapter registration in the
-   repository, not a form on this page — nothing here accepts an arbitrary
-   URL, file kind, or manifest.
+   THE PACKET LIST IS SERVER TRUTH. This room renders whatever the governed
+   catalogue says is active and holds no list of its own; if the catalogue
+   cannot be read it says so and offers nothing, because a built-in fallback
+   would be authoritative exactly when the server could not be trusted.
+
+   What that did NOT become is an arbitrary-source door. A packet still
+   names an adapter from a finite code allowlist, and only a family proven
+   able to resolve a new instance from descriptor data alone may be
+   registered at runtime at all. A genuinely new source schema still needs a
+   parser, and a parser still needs a commit.
 
    Planning and applying are never visually conflated: Generate Plan is one
    button, and Apply appears only after a contradiction-free plan exists,
@@ -36,39 +42,17 @@ type PacketCard = {
   uploads: { kind: string; label: string; required: boolean }[];
 };
 
-/* The registered packets, mirrored for display. The SERVER registry is the
-   authority — an entry here that the server does not recognize is refused
-   at every route. */
-const PACKETS: PacketCard[] = [
-  {
-    adapter: "monaco-layer2",
-    packetId: "et33-et35-et36",
-    title: "Monaco Legend — Exclusive Timepieces 33 / 35 / 36",
-    description:
-      "821 historically-acquired lots from the verified Layer 2 corpus. Supply the exact corpus JSONL — its hash is pinned. ET36 sold prices stay quarantined: outcomes ingest, prices are withheld pending the semantics ruling.",
-    uploads: [{ kind: "corpus_jsonl", label: "Layer 2 corpus JSONL", required: true }],
-  },
-  {
-    adapter: "monaco-legend",
-    packetId: "sales-38-40-41",
-    title: "Monaco Legend — Exclusive Timepieces 38 / 40 / 41",
-    description:
-      "724 results re-verified from the registered Monaco pages and pinned PDFs. Nothing to upload — the server fetches only the allowlisted registered URLs.",
-    uploads: [],
-  },
-  {
-    adapter: "phillips-sale",
-    packetId: "NY080126",
-    title: "Phillips — The New York Watch Auction: XIV",
-    description:
-      "156 results from the pinned official Results PDF and auction-page PDF you supply. Both hashes must match the registered manifest exactly.",
-    uploads: [
-      { kind: "results_pdf", label: "Official Results PDF", required: true },
-      { kind: "auction_page_pdf", label: "Auction-page / catalogue PDF", required: true },
-      { kind: "sale_page_html", label: "Saved sale-page HTML (optional)", required: false },
-    ],
-  },
-];
+/* THE MIRRORED LIST IS GONE, AND MUST NOT COME BACK.
+
+   This file used to hold its own copy of the three registered packets,
+   while lib/auction-operations/registry.ts held the same three again. Two
+   lists meant a new sale of an already-proven family needed a source edit
+   here, a second edit there, and a deployment — for data, not for a parser.
+
+   Packet instances now come from the governed server catalog. If that read
+   fails, this room says so and offers nothing; it does not fall back to a
+   built-in list. A fallback would be the mirror rebuilding itself, and it
+   would be authoritative exactly when the catalog could not be trusted. */
 
 type RunStatus = {
   runId: string;
@@ -86,6 +70,12 @@ const cardCls =
 
 export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: () => void }) {
   const [packet, setPacket] = useState<PacketCard | null>(null);
+  /* Catalog state. `null` while loading is deliberately distinct from `[]`
+     after a successful empty read: "we have not looked yet" and "there is
+     nothing to select" are different sentences and the room says the right
+     one. */
+  const [catalog, setCatalog] = useState<PacketCard[] | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -93,6 +83,32 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Truthful progress while an apply is running: poll the durable run.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/auctions/packets", { cache: "no-store" });
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (!res.ok) {
+          setCatalogError(
+            data?.detail ?? "The packet catalog could not be read. Nothing can be selected until it can."
+          );
+          setCatalog([]);
+          return;
+        }
+        setCatalog(Array.isArray(data?.packets) ? (data.packets as PacketCard[]) : []);
+      } catch {
+        if (cancelled) return;
+        setCatalogError("The packet catalog could not be reached.");
+        setCatalog([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (!run || run.state !== "applying") {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -243,28 +259,44 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
             Choose the registered sale you are bringing in
           </div>
           <p className="mb-4 text-[12px] text-[var(--muted)]">
-            Results ingestion works from registered, already-proven source packets. A new sale or
-            auction house first gets its own reviewed manifest in the repository — this room never
+            Results ingestion works from approved, already-proven source packets. A new sale of a
+            family that has been proven reusable can be registered, approved and activated here; a
+            genuinely new source schema still needs its own reviewed adapter first. This room never
             accepts an arbitrary source.
           </p>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            {PACKETS.map((p) => (
-              <button
-                key={`${p.adapter}:${p.packetId}`}
-                type="button"
-                className={cardCls}
-                onClick={() => {
-                  setPacket(p);
-                  setRun(null);
-                  setFiles({});
-                  setNote(null);
-                }}
-              >
-                <div className="text-[13px] text-[var(--platinum)]">{p.title}</div>
-                <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">{p.description}</p>
-              </button>
-            ))}
-          </div>
+          {catalogError && (
+            <p className="mb-4 border border-[var(--border-subtle)] px-3 py-2 text-[12px] text-[var(--platinum-dim)]">
+              {catalogError}
+            </p>
+          )}
+          {catalog === null ? (
+            <p className="text-[12px] text-[var(--muted)]">Reading the packet catalogue…</p>
+          ) : catalog.length === 0 ? (
+            /* An empty catalogue is a real answer, not a broken screen. It
+               used to be impossible to see because the list was compiled in. */
+            <p className="text-[12px] text-[var(--muted)]">
+              No packet is currently active in the catalogue.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              {catalog.map((p) => (
+                <button
+                  key={`${p.adapter}:${p.packetId}`}
+                  type="button"
+                  className={cardCls}
+                  onClick={() => {
+                    setPacket(p);
+                    setRun(null);
+                    setFiles({});
+                    setNote(null);
+                  }}
+                >
+                  <div className="text-[13px] text-[var(--platinum)]">{p.title}</div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">{p.description}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div>

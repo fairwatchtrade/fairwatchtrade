@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { resolvePacket } from "@/lib/auction-operations/registry";
+import {
+  resolveActivePacketRevision,
+  resolvePacketRevisionById,
+  toRegisteredPacket,
+} from "@/lib/auction-operations/packetCatalog";
 import { generatePlanForRun } from "@/lib/auction-operations/planEngine";
 import { createRun, getRun, markFailed, updateRun } from "@/lib/auction-operations/runStore";
 
@@ -81,32 +85,52 @@ export async function POST(request: NextRequest) {
       );
     }
   } else {
-    const packet = resolvePacket(body.adapter, body.packetId);
-    if (!packet) {
+    /* The browser names a packet; the SERVER decides what that packet is.
+       Everything trusted below — adapter, uploads, descriptor, hash — comes
+       from the active catalog revision, never from the request. */
+    const revision = await resolveActivePacketRevision(service, body.packetId);
+    if (!revision) {
       return NextResponse.json(
         { error: "unregistered_packet", detail: "Only registered source packets can be planned." },
         { status: 400 }
       );
     }
+    const packet = toRegisteredPacket(revision);
     if (packet.uploads.some((u) => u.required)) {
       return NextResponse.json(
         { error: "missing_source", detail: "This packet requires staged source files — start with the upload step." },
         { status: 400 }
       );
     }
+    /* BIND THE RUN TO THE EXACT REVISION. Without this a run created from
+       revision 1 could be replanned against revision 2 and nothing would
+       record that the mechanics moved underneath it. */
     run = await createRun(service, {
       adapter: packet.adapter,
       packetId: packet.packetId,
       createdBy: user.id,
       state: "planning",
+      packetRevisionId: revision.id,
+      packetRevision: revision.revision,
+      descriptorSha256: revision.descriptor_sha256,
+      adapterSchemaVersion: revision.adapter_schema_version,
     });
   }
 
-  const packet = resolvePacket(run.adapter_id, run.packet_id);
-  if (!packet) {
-    await markFailed(service, run.id, "unregistered_packet", "run references an unknown packet");
+  /* Resolve by REVISION ID, not by packet id. A run planned against the
+     revision that was active when it started must keep planning against
+     that one even if a newer revision has since been activated — otherwise
+     the catalog would be able to change a run the founder is already
+     reviewing. Older runs created before the catalog carry no revision id;
+     they fall back to whatever is active, which is exactly their previous
+     behaviour and no worse. */
+  const revision = run.packet_revision_id
+    ? await resolvePacketRevisionById(service, run.packet_revision_id)
+    : await resolveActivePacketRevision(service, run.packet_id);
+  if (!revision) {
+    await markFailed(service, run.id, "unregistered_packet", "run references an unknown packet revision");
     return NextResponse.json(
-      { error: "unregistered_packet", detail: "This run references a packet that is no longer registered." },
+      { error: "unregistered_packet", detail: "This run references a packet revision that is no longer registered." },
       { status: 409 }
     );
   }
@@ -114,7 +138,7 @@ export async function POST(request: NextRequest) {
   await updateRun(service, run.id, { state: "planning", last_error_code: null, last_error_detail: null });
 
   try {
-    const generated = await generatePlanForRun(service, run, packet);
+    const generated = await generatePlanForRun(service, run, revision);
     await updateRun(service, run.id, {
       state: "planned",
       plan_bytes: generated.planBytes,

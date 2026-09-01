@@ -30,7 +30,18 @@ import {
   sortResultsRows,
   sortUpcomingRows,
 } from "../lib/auction-operations/resultsPresentation.ts";
-import { resolvePacket, listPackets } from "../lib/auction-operations/registry.ts";
+import {
+  ADAPTER_ALLOWLIST,
+  RUNTIME_REGISTERABLE_ADAPTERS,
+  ADAPTER_SCHEMA_VERSIONS,
+  isAllowlistedAdapter,
+  isRuntimeRegisterable,
+  toRegisteredPacket,
+  resolveInlineDescriptor,
+  assertDescriptorIntegrity,
+  descriptorBytesAndHash,
+} from "../lib/auction-operations/packetContract.ts";
+import { readFileSync as readSourceFile } from "node:fs";
 
 let n = 0;
 const ok = (label, cond) => {
@@ -354,17 +365,215 @@ function fakeDb() {
     real.corpus.rights_status_all_rows === "UNRULED_INTERNAL_ONLY");
 }
 
-/* ── 5 · registry allowlist ─────────────────────────────────────────────── */
+/* ── 5 · ADAPTERS ARE CODE, PACKETS ARE DATA ────────────────────────────
+   The three assertions that used to live here counted a hardcoded array and
+   resolved packets out of it. That array WAS the defect: a second one lived
+   in the browser, and a new sale of an already-proven family needed both
+   edited plus a deployment. Counting it again would be pinning the thing
+   this flight removed.
+
+   What survives is the half that genuinely belongs in code — the finite
+   adapter allowlist — plus, below, regression assertions that the packet
+   enumeration has not quietly grown back in either place. */
 {
-  ok("exactly the three registered packets exist", listPackets().length === 3);
-  ok("known packets resolve",
-    !!resolvePacket("phillips-sale", "NY080126") &&
-    !!resolvePacket("monaco-legend", "sales-38-40-41") &&
-    !!resolvePacket("monaco-layer2", "et33-et35-et36"));
-  ok("an unknown adapter does not exist", resolvePacket("sothebys", "any") === null);
-  ok("a known adapter with an unknown packet does not exist",
-    resolvePacket("phillips-sale", "NY999999") === null);
-  ok("nothing arbitrary resolves", resolvePacket({ evil: true }, ["x"]) === null);
+  ok("the adapter allowlist is still finite and code-owned", ADAPTER_ALLOWLIST.length === 3);
+  ok("known adapters are recognised",
+    isAllowlistedAdapter("phillips-sale") &&
+    isAllowlistedAdapter("monaco-legend") &&
+    isAllowlistedAdapter("monaco-layer2"));
+  ok("an unknown adapter is refused", !isAllowlistedAdapter("sothebys"));
+  ok("nothing arbitrary is an adapter",
+    !isAllowlistedAdapter({ evil: true }) && !isAllowlistedAdapter(["x"]) && !isAllowlistedAdapter(null));
+  ok("every allowlisted adapter declares its accepted schema versions",
+    ADAPTER_ALLOWLIST.every((a) => (ADAPTER_SCHEMA_VERSIONS[a] ?? []).length > 0));
+
+  /* Runtime-registerability is a PROVEN subset, never the whole allowlist.
+     If this ever equals ADAPTER_ALLOWLIST without the families having been
+     audited, the claim has outrun the evidence. */
+  ok("runtime-registerable is a strict subset of the allowlist",
+    RUNTIME_REGISTERABLE_ADAPTERS.length >= 1 &&
+    RUNTIME_REGISTERABLE_ADAPTERS.length < ADAPTER_ALLOWLIST.length);
+  ok("every runtime-registerable family is itself allowlisted",
+    RUNTIME_REGISTERABLE_ADAPTERS.every((a) => isAllowlistedAdapter(a)));
+  ok("monaco-layer2 is the family proven reusable in this flight",
+    isRuntimeRegisterable("monaco-layer2"));
+  ok("the two unaudited families are NOT claimed reusable",
+    !isRuntimeRegisterable("phillips-sale") && !isRuntimeRegisterable("monaco-legend"));
+}
+
+/* ── 5a · THE HARDCODED ENUMERATION IS GONE, BOTH SIDES ─────────────────
+   Source assertions, because this is exactly the kind of regression that
+   reintroduces itself as a "temporary fallback" and then becomes load-
+   bearing. Reading the files is the only way to catch it. */
+{
+  const registrySrc = readSourceFile(new URL("../lib/auction-operations/registry.ts", import.meta.url), "utf8");
+  const clientSrc = readSourceFile(new URL("../components/AdminAuctionResultsIngest.tsx", import.meta.url), "utf8");
+  const catalogSrc = readSourceFile(new URL("../lib/auction-operations/packetCatalog.ts", import.meta.url), "utf8");
+
+  ok("the server registry no longer exports a packet list",
+    !/export function listPackets/.test(registrySrc) && !/const PACKETS/.test(registrySrc));
+  ok("the server registry no longer resolves packets",
+    !/export function resolvePacket/.test(registrySrc));
+  ok("no packet instance id is hardcoded in the server registry",
+    !/NY080126|sales-38-40-41|et33-et35-et36/.test(registrySrc));
+  ok("the browser holds no packet array",
+    !/const PACKETS\s*:/.test(clientSrc));
+  ok("no packet instance id is hardcoded in the browser",
+    !/NY080126|sales-38-40-41|et33-et35-et36/.test(clientSrc));
+  ok("the browser reads the catalogue over the wire",
+    /fetch\("\/api\/admin\/auctions\/packets"/.test(clientSrc));
+  ok("the browser has no built-in fallback list when the catalogue fails",
+    /catalogError/.test(clientSrc) && !/PACKETS\.map/.test(clientSrc));
+  ok("the catalogue reads packet instances from the governed table",
+    /from\("auction_operations_packet_revision"\)/.test(catalogSrc));
+  ok("only ACTIVE revisions are selectable",
+    /\.eq\("activation_state", "active"\)/.test(catalogSrc));
+
+  /* No dynamic adapter resolution anywhere near packet data. */
+  ok("no dynamic import is driven by packet data",
+    !/import\s*\(\s*`/.test(catalogSrc) && !/new Function|eval\(/.test(catalogSrc));
+}
+
+/* ── 5b · DESCRIPTOR HANDLING ───────────────────────────────────────────
+   The hash is re-derived from the stored bytes rather than believed. A hash
+   sitting beside its own payload authorises nothing. */
+{
+  const { bytes, sha256 } = descriptorBytesAndHash({ kind: "inline", manifest: { corpus: { sha256: "a".repeat(64) } } });
+  ok("descriptor bytes and hash are produced together", typeof bytes === "string" && /^[0-9a-f]{64}$/.test(sha256));
+
+  const good = {
+    id: "r1", packet_id: "test-packet", revision: 1, title: "t", description: "",
+    adapter_id: "monaco-layer2", adapter_schema_version: "monaco-layer2-v1",
+    acquisition_mode: "staged_upload",
+    descriptor: { kind: "inline", manifest: { corpus: { sha256: "b".repeat(64) } }, flight: "test-flight" },
+    descriptor_bytes: "", descriptor_sha256: "",
+    upload_specs: [], source_urls: [], semantic_gates: {},
+    validation_state: "validated", approval_state: "approved", activation_state: "active", display_order: 1,
+  };
+  const h = descriptorBytesAndHash(good.descriptor);
+  good.descriptor_bytes = h.bytes;
+  good.descriptor_sha256 = h.sha256;
+
+  const loaded = (assertDescriptorIntegrity(good), resolveInlineDescriptor(good));
+  ok("an inline descriptor resolves without touching the filesystem", loaded.length === 1);
+  ok("the inline manifest is the descriptor's own manifest",
+    JSON.stringify(loaded[0].value) === JSON.stringify(good.descriptor.manifest));
+
+  let tamperRefused = false;
+  try {
+    assertDescriptorIntegrity({ ...good, descriptor_bytes: h.bytes + " " });
+  } catch (e) {
+    tamperRefused = /descriptor_hash_mismatch/.test(String(e && e.message));
+  }
+  ok("tampered descriptor bytes are refused against the stored hash", tamperRefused);
+
+  const projected = toRegisteredPacket(good);
+  ok("a runtime-registered packet names no repo manifest path", projected.manifestPaths.length === 0);
+  ok("the projection carries the row's own identity",
+    projected.packetId === "test-packet" && projected.adapter === "monaco-layer2");
+}
+
+/* ── 5c · THE PLAN-HASH BOUNDARY IS PRESERVED ───────────────────────────
+   Making the Layer 2 flight label descriptor-driven could have changed the
+   plan bytes for the already-ingested ET33/ET35/ET36 packet. It does not:
+   the adapter default is the original literal, and the migrated descriptor
+   carries that same string, so this packet's plan bytes stay byte-identical
+   while a new sale supplies its own. */
+{
+  const coreSrc = readSourceFile(new URL("../lib/auction-operations/monaco-layer2-core.mjs", import.meta.url), "utf8");
+  const migrationSrc = readSourceFile(
+    new URL("../supabase/migrations/20260901120000_auction_operations_packet_catalog.sql", import.meta.url), "utf8");
+
+  ok("the flight label is a parameter, not a literal in the plan object",
+    /flight = "monaco-layer2-et33-et35-et36"/.test(coreSrc) && /^\s*flight,\s*$/m.test(coreSrc));
+  ok("the migrated descriptor carries the original flight label verbatim",
+    /'flight','monaco-layer2-et33-et35-et36'/.test(migrationSrc));
+}
+
+/* ── 5d · THE CATALOG'S TRUST BOUNDARY ──────────────────────────────────
+   Migration assertions. The order's requirement is that no client role can
+   write the mechanics that govern ingestion; the repository's way of
+   meeting that is stronger than a SECURITY DEFINER function granted to
+   authenticated — there is no grant at all. */
+{
+  const m = readSourceFile(
+    new URL("../supabase/migrations/20260901120000_auction_operations_packet_catalog.sql", import.meta.url), "utf8");
+
+  ok("client roles are revoked from the catalog outright",
+    /revoke all on public\.auction_operations_packet_revision\s*\n\s*from public, anon, authenticated, service_role;/.test(m));
+  ok("only service_role may write the catalog",
+    /grant select, insert, update on public\.auction_operations_packet_revision to service_role;/.test(m));
+  ok("anon and authenticated receive no grant of any kind",
+    !/grant[^;]*to (anon|authenticated)/i.test(m));
+  ok("row level security is enabled", /enable row level security/.test(m));
+
+  ok("a revision cannot be born approved",
+    /packet_revision_insert_cannot_approve/.test(m));
+  ok("a revision cannot be born active — creation cannot activate",
+    /packet_revision_insert_cannot_activate/.test(m));
+  ok("approval requires prior validation",
+    /check \(approval_state <> 'approved' or validation_state = 'validated'\)/.test(m));
+  ok("activation requires prior approval",
+    /check \(activation_state <> 'active' or approval_state = 'approved'\)/.test(m));
+  ok("approval and activation are separately attributed",
+    /approval_is_attributed/.test(m) && /activation_is_attributed/.test(m));
+  ok("an approved revision's mechanics are immutable",
+    /packet_revision_approved_is_immutable/.test(m));
+  ok("approval cannot be silently revoked",
+    /packet_revision_approval_is_not_revocable/.test(m));
+  ok("at most one revision per packet may be active",
+    /unique index[\s\S]{0,200}where activation_state = 'active'/.test(m));
+  ok("the adapter allowlist is mirrored as a database CHECK",
+    /adapter_id in \('phillips-sale','monaco-legend','monaco-layer2'\)/.test(m));
+  ok("every run is bound to the exact revision that produced it",
+    /add column if not exists packet_revision_id uuid/.test(m) &&
+    /references public\.auction_operations_packet_revision \(id\) on delete restrict/.test(m));
+  ok("the three existing instances are migrated, not re-invented",
+    /'NY080126'/.test(m) && /'sales-38-40-41'/.test(m) && /'et33-et35-et36'/.test(m));
+}
+
+/* ── 5e · REGISTRATION IS NOT INGESTION ─────────────────────────────────
+   The founder door writes one catalog row. It fetches nothing, parses no
+   corpus and produces no plan — and it cannot activate what it creates. */
+{
+  const reg = readSourceFile(new URL("../app/api/admin/auctions/packets/route.ts", import.meta.url), "utf8");
+  const approve = readSourceFile(new URL("../app/api/admin/auctions/packets/[revisionId]/approve/route.ts", import.meta.url), "utf8");
+  const activate = readSourceFile(new URL("../app/api/admin/auctions/packets/[revisionId]/activate/route.ts", import.meta.url), "utf8");
+
+  ok("registration authenticates the founder server-side from the session",
+    /supabase\.auth\.getUser\(\)/.test(reg) && /user\.id !== ADMIN_USER_ID/.test(reg));
+  ok("registration trusts no caller-supplied actor id",
+    !/body\.(actorId|founder|userId|executed_via)/.test(reg));
+  ok("registration refuses an adapter off the allowlist",
+    /unsupported_adapter/.test(reg));
+  ok("registration refuses a family not proven runtime-registerable",
+    /adapter_not_runtime_registerable/.test(reg));
+  ok("registration refuses an unsupported schema version",
+    /unsupported_schema_version/.test(reg));
+  ok("registration refuses a malformed descriptor",
+    /invalid_descriptor/.test(reg));
+  ok("registration refuses a conflicting duplicate identity",
+    /duplicate_packet_revision/.test(reg));
+  ok("registration computes the descriptor hash server-side",
+    /descriptorBytesAndHash\(descriptor\)/.test(reg));
+  ok("registration never activates what it creates",
+    !/activation_state: "active"/.test(reg) && !/approval_state: "approved"/.test(reg));
+  ok("registration ingests nothing",
+    !/generatePlanForRun|auction_evidence_create_or_correct_result|buildLayer2Plan/.test(reg));
+
+  ok("approval is its own act, and requires validation first",
+    /not_validated/.test(approve) && /approval_state: "approved"/.test(approve));
+  ok("approval does not activate", !/activation_state: "active"/.test(approve));
+  ok("activation is its own act, and requires approval first",
+    /not_approved/.test(activate) && /activation_state: "active"/.test(activate));
+  ok("activation retires the incumbent rather than editing it",
+    /activation_state: "retired"/.test(activate));
+
+  const plan = readSourceFile(new URL("../app/api/admin/auctions/results/plan/route.ts", import.meta.url), "utf8");
+  ok("planning resolves by the run's bound revision id, not by packet id",
+    /resolvePacketRevisionById\(service, run\.packet_revision_id\)/.test(plan));
+  ok("a new run records the revision it was created from",
+    /packetRevisionId: revision\.id/.test(plan) && /descriptorSha256: revision\.descriptor_sha256/.test(plan));
 }
 
 /* ── 6 · presentation truth ─────────────────────────────────────────────── */
