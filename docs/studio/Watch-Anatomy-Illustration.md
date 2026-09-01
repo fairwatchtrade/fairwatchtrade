@@ -32,7 +32,7 @@ the watch being described warms from ghost silver-line to faint gold.
 - Needs a PURPOSE-BUILT SVG of a quartering watch with NAMED, individually-
   addressable layer groups: movement, case, crystal, caseback, dial, hands,
   strap, clasp, subdials.
-- Likely path: GPT generates the base technical illustration → hand-tuned into
+- Likely path: an image model generates the base technical illustration → hand-tuned into
   clean layered SVG with id'd groups → each chapter lights its group (ghost→gold
   via fill/stroke transition on chapter focus).
 - Lives in the dead space under the listing-strength card in Step 3.
@@ -56,11 +56,11 @@ active chapter (opacity-[0.35]). Same chapter state that drives Step 3 drives
 which layer is lit. The panel and the illustration are ONE build."
 
 Still needs the purpose-built layered SVG (named groups per chapter region). That
-asset can be drafted (GPT) in parallel; the panel is built to receive it.
+asset can be drafted in parallel; the panel is built to receive it.
 
 ---
 
-## THE SCROLL VERSION (GPT + William) — this is THE build, Part 3
+## THE SCROLL VERSION (William) — this is THE build, Part 3
 
 No buttons. The watch ASSEMBLES ITSELF as the seller scrolls through the chapters.
 
@@ -100,7 +100,7 @@ it lands.
 
 ---
 
-## DEFINITIVE VERSION — "the companion" (William + GPT). Supersedes all above.
+## DEFINITIVE VERSION — "the companion" (William). Supersedes all above.
 
 THE REFRAME (William): the dead space should NOT be dead space filled with an
 illustration. It should BECOME the watch you're building. Not decorative. Not an
@@ -123,7 +123,7 @@ BEHAVIOR — scroll-driven, no buttons (the page already knows where you are):
   thing — an archival tag / papers / document — quietly turns gold. "The story is
   complete." No celebration. Just finished.
 
-GUARDRAILS (GPT, locked):
+GUARDRAILS (locked):
 - DON'T over-detail. Swiss patent drawing / engineering blueprint, NOT a watch
   advertisement. At a glance: "that's beautiful" → then eyes go straight back to
   the form. It must NEVER compete with the form. If it pulls focus, it failed.
@@ -212,12 +212,12 @@ This replaces the pulled browser spellcheck entirely.
 
 ---
 
-## PROVENANCE "FINAL REVIEW" — complete spec (3 + GPT, ready to build)
+## PROVENANCE "FINAL REVIEW" — complete spec (ready to build)
 
 CONSENSUS: AI check on Continue from Step 3, when draft.provenanceNote.trim()
 .length > 0. Replaces browser spellcheck entirely. Uses existing Anthropic stack.
 
-NAMING (GPT — don't call it spell check anywhere in UI):
+NAMING (don't call it spell check anywhere in UI):
 - Call it "Final Review" or "One last look before continuing."
 - Quietly covers spelling, grammar, punctuation, obvious capitalization — without
   feeling like Grammarly. Assistance, not policing.
@@ -241,7 +241,7 @@ WHY AI not LanguageTool/browser: generic checkers false-flag the exact words
 sellers type daily — guilloché, Hesalite, Glashütte, Parmigiani, Chronomètre,
 F.P. Journe, Valjoux, Lemania, El Primero. An LLM understands them.
 
-UI (GPT — no red, no error, no blocking; gold/neutral):
+UI (no red, no error, no blocking; gold/neutral):
 Heading: "One last look"
 Body: "We noticed a few possible wording issues in your provenance note. You can
 apply the suggestions or continue as written."
@@ -250,7 +250,7 @@ Buttons: [Apply suggestions] [Continue as written] [Go back]
 Non-destructive: show original + suggested version, seller chooses, NEVER
 auto-apply silently.
 
-PHILOSOPHY (GPT): tiny in isolation, but across dozens of interactions these
+PHILOSOPHY: tiny in isolation, but across dozens of interactions these
 touches accumulate into a site that feels RESPECTFUL instead of corrective —
 what collectors and dealers notice even without articulating why it feels
 different. That's the whole brand: respectful, not corrective.

@@ -703,7 +703,7 @@ Not all are required today.
 
 ---
 
-# GPT Ruling
+# Ruling
 
 1. **Rail 1 is the strongest currently documented operational path.**
 2. **Rail 2 is not rejected, but provider approval and charge-type risk are blocking.**

@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- LISTING DRAFTS — ACL tightening  (NewFav security audit follow-up)
+-- LISTING DRAFTS — ACL tightening  (security audit follow-up)
 --
 -- The 20260724250000 migration's function grants were narrower on paper than
 -- in live truth: Supabase's default privileges grant EXECUTE to anon /
@@ -8,7 +8,7 @@
 -- call was still rejected internally (AUTH_REQUIRED — defense-in-depth held),
 -- but the ACL should match the intent, not merely be caught by the guard.
 --
--- Ruling implemented (Mr. Layout Duck / NewFav):
+-- Ruling implemented:
 --   · anon loses EXECUTE on all nine functions — the sign-in callback flow
 --     redirects signed-out visitors BEFORE any RPC fires, so no anonymous
 --     caller legitimately needs even the controlled AUTH_REQUIRED response;

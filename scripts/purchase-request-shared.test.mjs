@@ -251,9 +251,20 @@ check("no seat names remain on the listing detail page", () => {
   /* This pattern has to name what it forbids in order to catch it. It lives
      in a test runner that is never bundled, served, or reachable from the
      browser — the only place these words may appear, and the reason the two
-     comments this replaces were a problem in the first place. */
+     comments this replaces were a problem in the first place.
+
+     Bare "duck" is deliberately NOT in this list. Two real watches carry the
+     word — a Donald Duck retrograde, and a dial whose display name is simply
+     "Duck" — so forbidding it outright would fail the build on legitimate
+     product vocabulary. Every term below was checked against lib/brands.ts
+     and lib/brandsModels.ts and appears in neither; "duck" only ever appears
+     here inside a two-word seat name. \bgpt\b is bounded so that ChatGPT,
+     which the agent-discovery surfaces name legitimately, still passes. */
   const src = read("app/listings/[id]/page.tsx");
-  assert.equal(/ducky|design duck|builder seven|codex|clyde/i.test(src), false);
+  assert.equal(
+    /ducky ?\d?|design duck|layout duck|future duck|builder seven|dataman|newfav|bouncer|codex|copilot|\bgpt\b|\bclyde\b/i.test(src),
+    false
+  );
 });
 
 check("the in-page form states the non-payment truth", () => {

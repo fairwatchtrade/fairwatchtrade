@@ -51,3 +51,8 @@ continuity/packets/
 # Build archives never belong in the repository. A zip slipped past review
 # once and carried an .env.local inside it, where secret scanning cannot look.
 *.zip
+
+# The Soul document lives with Jason and nowhere else. It was committed here
+# once and was publicly readable for two months. Ignored so no stub, copy, or
+# absent-minded `git add` can put it back.
+PRODUCT_SOUL.md

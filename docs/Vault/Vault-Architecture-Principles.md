@@ -2,7 +2,7 @@
 **Permanent. Non-negotiable. These are PHILOSOPHY, not features. Forgetting one
 is not "we missed a feature" — it is "we forgot what the product IS." Read
 before any Vault flight. Logged after Rule #1 was nearly lost: it lived only in
-GPT's head, never reached the brief, and the first galaxy render exposed the
+the original design intent, never reached the brief, and the first galaxy render exposed the
 whole database — the opposite of the intended experience.**
 
 ## The principles

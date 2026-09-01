@@ -125,7 +125,7 @@ exactly the "real thing, seen truly" thread that runs through the whole platform
 ---
 
 *Logged the night the cluster-enrichment pipeline went live and the Moon
-Principle was named. Source photo in hand; GPT stylization pass next; build to
+Principle was named. Source photo in hand; stylization pass next; build to
 follow.*
 
 ---

@@ -11,7 +11,7 @@
 -- A write that lands with no visible representation is NOT completion, so the
 -- formatter gate is verified explicitly by scripts/vault-enrichment-facts.test.mjs.
 --
--- APPROVED CONTRACT (DataMan, 2026-07-30):
+-- APPROVED CONTRACT (2026-07-30):
 --   fact_type : movement_dimensions
 --   payload   : { "movement_diameter_mm": 30.0, "evidence": { …unchanged… } }
 --   display   : ⌀ 30.0 mm      (U+2300 DIAMETER SIGN — never Ø U+00D8)

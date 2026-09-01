@@ -3,7 +3,7 @@
 --
 -- Governing inputs (both hash-pinned by the 2026-07-23 authorization):
 --   • Brief-AuctionEvidence-Implementation-FINAL-2026-07-22 (6).md  (impl v6)
---   • Auction_Evidence_Lot_Fact_History_Bounded_Correction_v1.md    (Design Duck)
+--   • Auction_Evidence_Lot_Fact_History_Bounded_Correction_v1.md
 -- Stop checks (function-owner + column-level privileges): PASSED on live
 -- project aqgjcezhdoianqmoknnu, proven transactionally.
 --
@@ -247,7 +247,7 @@ create table public.auction_evidence_source_artifact_events (
 create index auction_evidence_source_artifact_events_artifact_idx on public.auction_evidence_source_artifact_events (source_artifact_id);
 
 -- 2.7 Lot Fact Events (append-only reported-fact correction history — Design
--- Duck's bounded amendment). auction_evidence_lot stays the stable identity and
+-- the bounded amendment). auction_evidence_lot stays the stable identity and
 -- current accepted projection; every protected-fact correction appends the
 -- complete before/after snapshot here. Structural/locator fields (id, sale_id,
 -- lot_number, created_at, updated_at) are NOT corrected through this mechanism.
@@ -566,7 +566,7 @@ revoke all     on function public.auction_evidence_update_artifact_rights_state(
 grant  execute on function public.auction_evidence_update_artifact_rights_state(uuid, boolean, text, boolean, text, boolean, text, boolean, text, boolean, text, boolean, text, text, text, uuid) to   service_role;
 
 -- ── 8. Lot-facts RPC (atomic projection update + append-only event) ──
--- Design Duck's bounded amendment: auction_evidence_lot stays the current
+-- The bounded amendment: auction_evidence_lot stays the current
 -- accepted projection; this is the ONLY application path that corrects the five
 -- protected reported-fact columns, and it cannot do so without appending the
 -- complete before/after evidence in the same transaction.

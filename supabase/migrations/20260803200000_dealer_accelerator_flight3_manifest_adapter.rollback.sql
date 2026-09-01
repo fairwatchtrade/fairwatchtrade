@@ -25,7 +25,7 @@ begin;
 do $do$
 declare v int;
 begin
-  -- Double-revert idempotence (NewFav3 bench correction): a second run of
+  -- Double-revert idempotence (bench correction): a second run of
   -- this rollback is a deliberate no-op notice, never a raw
   -- missing-relation error. The captures table is the sentinel — it exists
   -- iff Flight 3 is applied.
