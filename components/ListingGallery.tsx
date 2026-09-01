@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import DialReveal from "@/components/DialReveal";
 import FwtListingId from "@/components/FwtListingId";
+import InspectionViewport, { type InspectionControls } from "@/components/InspectionViewport";
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
@@ -93,6 +94,11 @@ export default function ListingGallery({
      explicit Inspect control. Dial Reveal is a resting-hero instrument
      and deliberately does not follow into the overlay. */
   const [inspecting, setInspecting] = useState(false);
+  /* The zoom controls live in the viewer header, not on the watch — so the
+     viewport hands up an imperative handle rather than the header reaching
+     into its geometry. */
+  const zoomControlsRef = useRef<InspectionControls | null>(null);
+  const [zoomState, setZoomState] = useState({ scale: 1, maxScale: 1 });
 
   /* Focus return (new this round — it did not exist before, and closing the
      viewer dropped focus to the top of the document). The Inspect control is
@@ -162,6 +168,12 @@ export default function ListingGallery({
 
   if (photos.length === 0) return null;
 
+  /* Truthful alt identity from the listing itself. It names WHICH photograph
+     of which watch, and claims nothing about what is visible in it — a
+     description of the image content would be a visual claim nobody here is
+     in a position to make. */
+  const inspectionAlt = `${brandLabel} — photograph ${active + 1} of ${photos.length}`;
+
   const hasPrev = active > 0;
   const hasNext = active < photos.length - 1;
 
@@ -184,6 +196,15 @@ export default function ListingGallery({
      shaped for sitting over an image, and on a near-white wall it all but
      disappears. Same geometry and same 44px target as the resting hero's
      arrows; the ink is the room's own. */
+  /* Quiet, but a control rather than metadata: --platinum-dim on a real
+     border, a visible focus ring, and a 32px target. The readability floor
+     applies to functional text however small the button is. */
+  const zoomBtn =
+    "grid h-8 w-8 place-items-center border border-[var(--border-mid)] text-[13px] " +
+    "text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] " +
+    "disabled:cursor-not-allowed disabled:opacity-40 " +
+    "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]";
+
   const roomArrowClass =
     "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
     "text-[var(--platinum-dim)] transition hover:text-[var(--gold)] " +
@@ -386,6 +407,53 @@ export default function ListingGallery({
                 Photo {active + 1} of {photos.length}
               </div>
             </div>
+            {/* ACCESSIBLE EQUIVALENT, not a toolbar. Wheel and pinch cannot
+                be the only way to operate zoom, but the answer to that is not
+                a permanent instrument panel standing between a collector and
+                a watch. Three small controls, in the header where the room's
+                other controls already live, rendered only when the source
+                actually holds more detail — offering Zoom In on a photograph
+                that cannot zoom would be a button that lies. */}
+            <div className="ml-auto flex items-center gap-2">
+              {zoomState.maxScale > 1.01 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => zoomControlsRef.current?.zoomOut()}
+                    disabled={zoomState.scale <= 1}
+                    aria-label="Zoom out"
+                    className={zoomBtn}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => zoomControlsRef.current?.zoomIn()}
+                    disabled={zoomState.scale >= zoomState.maxScale - 0.001}
+                    aria-label="Zoom in"
+                    className={zoomBtn}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => zoomControlsRef.current?.fit()}
+                    disabled={zoomState.scale <= 1}
+                    aria-label="Fit photograph to the viewer"
+                    className={`${zoomBtn} w-auto px-2 text-[10px] uppercase tracking-[1.2px]`}
+                  >
+                    Fit
+                  </button>
+                  {/* Truthful, and announced only when it is saying
+                      something: at Fit there is no zoom level worth reading
+                      aloud. */}
+                  <span aria-live="polite" className="sr-only">
+                    {zoomState.scale > 1
+                      ? `Zoomed ${zoomState.scale.toFixed(1)} times`
+                      : "Photograph fitted to the viewer"}
+                  </span>
+                </div>
+              )}
             <button
               type="button"
               autoFocus
@@ -394,32 +462,40 @@ export default function ListingGallery({
             >
               Close ✕
             </button>
+            </div>
           </div>
 
           {/* The photograph takes the room. Desktop reserves an arrow lane on
               each side so a control never stands on the watch; narrow widths
               have no such margin to spend, so there the arrows ride the very
               edge and the photograph keeps the width. */}
-          <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div
+            className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20"
+            /* The stage becomes a size container so the viewport below can
+               resolve the true contain rectangle in cqw/cqh, exactly as the
+               resting hero already does. */
+            style={{ containerType: "size" }}
+          >
+            {/* THE PHOTOGRAPH, and the only thing that accepts inspection
+                gestures. key={heroUrl} is load-bearing rather than tidy: a
+                changed photograph remounts the viewport, which is what
+                guarantees scale, translation, drag records AND the previous
+                source's measured dimensions all go at once. Resetting state
+                by hand would leave the old naturals alive for a frame, and
+                for that frame photograph B could be zoomed on the authority
+                of photograph A's pixels.
+
+                IMAGE-QUALITY FLOOR, unchanged in spirit and now enforceable:
+                the viewport is capped at the source's own pixel width, and
+                the zoom ceiling inside it is derived from the same truth. */}
+            <InspectionViewport
+              key={heroUrl}
               src={heroUrl}
-              alt=""
-              className="max-h-full max-w-full object-contain"
-              /* IMAGE-QUALITY FLOOR. A larger room is not permission to
-                 invent detail: the ceiling is the source's own pixel
-                 dimensions, so a modest photograph is shown at its real size
-                 rather than smeared across a 4K viewport. Until the probe
-                 answers, no ceiling is applied and the old behaviour
-                 stands. */
-              style={
-                heroNatural.w > 0
-                  ? {
-                      maxWidth: `min(100%, ${heroNatural.w}px)`,
-                      maxHeight: `min(100%, ${heroNatural.h}px)`,
-                    }
-                  : undefined
-              }
+              alt={inspectionAlt}
+              natural={heroNatural}
+              aspect={heroAspect}
+              controlsRef={zoomControlsRef}
+              onZoomStateChange={setZoomState}
             />
             {hasPrev && (
               <button
