@@ -39,6 +39,15 @@
                                 not_available_for_submission, and the
                                 publication law refuses not_available. The
                                 remedy belongs entirely to the seller.
+     founder_decision_          listing_decision_events already records a
+       outstanding              founder's returned_to_draft / rejected /
+                                clarification_requested as an adverse decision
+                                with actor_kind='founder'. That decision is a
+                                standing instruction to the seller. Triage may
+                                inspect the resubmission; it may not publish
+                                over a person's outstanding decision. Cleared
+                                only by a later founder approval.
+
      no_open_objection          The integrity gate returning clean, with
                                 coverage satisfied, was the product's own
                                 governed condition for a listing to go live
@@ -64,6 +73,7 @@ export const TRIAGE_OUTCOMES = ["pass", "fail", "escalate"] as const;
 export type TriageOutcome = (typeof TRIAGE_OUTCOMES)[number];
 
 export const TRIAGE_REASONS = [
+  "founder_decision_outstanding",
   "evidence_incomplete",
   "finding_requires_founder",
   "authenticity_evidence_flagged",
@@ -78,6 +88,11 @@ export type TriageReason = (typeof TRIAGE_REASONS)[number];
 /** The facts triage reads. Every one is an existing runtime truth — nothing
     here is derived from a model, and nothing is a guess. */
 export type TriageFacts = {
+  /** True when the most recent FOUNDER decision on this listing was adverse
+      (returned_to_draft / rejected / clarification_requested) and no founder
+      approval has followed it. A machine may not overrule a standing human
+      decision — it may only hand the listing back to the person who made it. */
+  founderDecisionOutstanding: boolean;
   /** listings.integrity_hold_reason as the gate just computed it. */
   holdReason: string | null;
   /** Rows in listing_integrity_evidence classified review-worthy. */
@@ -125,6 +140,19 @@ export const TRIAGE_FAIL_SELLER_MESSAGE: Record<string, string> = {
    rather than being handed back automatically. PASS is last and requires
    everything above it to have declined to fire. */
 export function evaluateTriage(facts: TriageFacts): TriageDecision {
+  /* Checked before anything else. A founder who returned this watch for
+     changes is not overruled by a resubmission, and no amount of clean
+     evidence may publish over them. The listing goes back to the person
+     whose decision is still standing. */
+  if (facts.founderDecisionOutstanding) {
+    return {
+      outcome: "escalate",
+      reason: "founder_decision_outstanding",
+      detail:
+        "A founder returned, rejected, or requested clarification on this listing and has not approved it since. Triage may inspect the resubmission but may not publish over a standing founder decision.",
+    };
+  }
+
   const hold = facts.holdReason;
 
   if (hold !== null) {

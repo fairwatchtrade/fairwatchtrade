@@ -45,7 +45,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
 import { aggregateIntegrityForListing } from "@/lib/integrity";
 import { aubreyEnforcementEnabled } from "@/lib/imageAuthenticity";
-import { availabilityOf, publicationRefusal } from "@/lib/listingPublicationGate";
+import {
+  availabilityOf,
+  photoCountOf,
+  publicationRefusal,
+} from "@/lib/listingPublicationGate";
 import {
   TRIAGE_POLICY_VERSION,
   evaluateTriage,
@@ -142,8 +146,26 @@ async function gatherFacts(
 
   const flaggedEvidenceCount = (flagged ?? []).length;
 
+  /* The founder's own last word on this listing. A resubmission does not
+     clear it — only a later founder approval does. Read newest-first and
+     scoped to actor_kind='founder', so a machine disposition can never look
+     like the person who returned the watch. */
+  const { data: lastFounder, error: decisionErr } = await service
+    .from("listing_decision_events")
+    .select("decision")
+    .eq("listing_id", listing.id)
+    .eq("actor_kind", "founder")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (decisionErr) return { error: `decision_read_failed: ${decisionErr.message}` };
+
+  const founderDecisionOutstanding =
+    lastFounder != null && lastFounder.decision !== "approved";
+
   return {
     facts: {
+      founderDecisionOutstanding,
       holdReason,
       flaggedEvidenceCount,
       hasPrivateBuyer: listing.private_buyer_id != null,
@@ -151,6 +173,8 @@ async function gatherFacts(
       availability: availabilityOf(listing.details),
     },
     summary: {
+      founder_decision_outstanding: founderDecisionOutstanding,
+      last_founder_decision: lastFounder?.decision ?? null,
       hold_reason: holdReason,
       flagged_evidence: flaggedEvidenceCount,
       distinct_cause_count: distinctCauseCount,
@@ -303,6 +327,7 @@ export async function runReviewTriageForListing(
       priorStatus: row.status,
       approvalRecorded: true,
       availability: availabilityOf(row.details),
+      photoCount: photoCountOf(row.photos),
     });
     if (refusal) {
       decision = {

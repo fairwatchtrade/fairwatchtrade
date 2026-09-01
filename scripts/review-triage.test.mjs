@@ -32,6 +32,7 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 /** A listing with nothing wrong with it. Each test spoils exactly one fact. */
 const clean = {
+  founderDecisionOutstanding: false,
   holdReason: null,
   flaggedEvidenceCount: 0,
   hasPrivateBuyer: false,
@@ -88,7 +89,40 @@ const clean = {
       { ...clean, flaggedEvidenceCount: 3 },
       { ...clean, hasPrivateBuyer: true },
       { ...clean, customBrandFlag: true },
+      { ...clean, founderDecisionOutstanding: true },
     ].every((f) => TRIAGE_REASONS.includes(evaluateTriage(f).reason))
+  );
+}
+
+/* ── 1a · A machine may not overrule a standing founder decision ────────
+   The defect this pins: a founder returned a watch saying "please add a
+   photograph", the seller resubmitted it unchanged, and triage published it
+   because none of the facts it read had anything to say about either the
+   photograph or the founder. Publishing over a person is the one thing the
+   automatic path must never do. */
+{
+  const outstanding = { ...clean, founderDecisionOutstanding: true };
+  const d = evaluateTriage(outstanding);
+  ok("a standing founder decision escalates", d.outcome === "escalate");
+  ok(
+    "and names itself as the reason",
+    d.reason === "founder_decision_outstanding"
+  );
+  ok(
+    "it outranks an otherwise perfectly clean listing",
+    evaluateTriage(clean).outcome === "pass" && d.outcome === "escalate"
+  );
+  ok(
+    "it outranks the one adverse rule too, so the founder sees it rather than the seller",
+    evaluateTriage({
+      ...outstanding,
+      availability: AVAILABILITY_BLOCKED,
+    }).reason === "founder_decision_outstanding"
+  );
+  ok(
+    "and it is never an automatic disposition",
+    evaluateTriage(outstanding).outcome !== "pass" &&
+      evaluateTriage(outstanding).outcome !== "fail"
   );
 }
 

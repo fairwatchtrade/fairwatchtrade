@@ -107,6 +107,27 @@ const status = read("lib/listingStatus.ts");
     "the availability gate is part of the same law",
     /AVAILABILITY_NOT_IN_STOCK/.test(gate) && /not_available/.test(gate)
   );
+  /* The floor added after two zero-photo listings reached Browse: one
+     auto-approved by triage, one published on a resubmission the founder had
+     already returned asking for photographs. Stated in the law, so every
+     caller inherits it and no caller can be the one that forgot. */
+  ok(
+    "a listing with no photographs cannot be published",
+    /photoCount < 1/.test(gate) && /no_photographs/.test(gate)
+  );
+  ok(
+    "and the count is read defensively, so a non-array is zero not a pass",
+    gate.includes("Array.isArray(photos) ? photos.length : 0")
+  );
+  ok(
+    "both publication writers supply the photograph count",
+    admin.includes("photoCount: photoCountOf(") &&
+      triageSeam.includes("photoCount: photoCountOf(")
+  );
+  ok(
+    "the founder route actually reads the column it counts",
+    admin.includes("details, photos, status")
+  );
   ok(
     "the founder route reaches published only through that law",
     /publicationRefusal\(\{/.test(admin) &&

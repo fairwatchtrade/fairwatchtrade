@@ -7,7 +7,11 @@ import {
 } from "@/lib/listingDecisionEmail";
 import { formatMoney } from "@/lib/formatMoney";
 import { ensureCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
-import { availabilityOf, publicationRefusal } from "@/lib/listingPublicationGate";
+import {
+  availabilityOf,
+  photoCountOf,
+  publicationRefusal,
+} from "@/lib/listingPublicationGate";
 
 /* ════════════════════════════════════════════════════════════════════════
    LISTING STATUS TRANSITION — lib/listingStatusTransition.ts   (v6.84)
@@ -277,7 +281,7 @@ export async function executeListingStatusTransition({
   const { data: current, error: readErr } = await service
     .from("listings")
     .select(
-      "details, status, seller_id, brand, model, reference, asking_price, asking_currency, public_code, private_buyer_id"
+      "details, photos, status, seller_id, brand, model, reference, asking_price, asking_currency, public_code, private_buyer_id"
     )
     .eq("id", listingId)
     .maybeSingle();
@@ -323,6 +327,7 @@ export async function executeListingStatusTransition({
       priorStatus,
       approvalRecorded: reviewAction === "approve",
       availability: availabilityOf(current.details),
+      photoCount: photoCountOf(current.photos),
     });
     if (refusal) {
       return { httpStatus: 409, body: { error: refusal.error, detail: refusal.detail } };

@@ -20,6 +20,14 @@
         system's objection is not the same act as approving a listing.
      3. A listing whose availability is 'Not Currently Available' cannot be
         published (v2.21 dealer gate) — it waits for In Stock.
+     4. A listing with NO photographs cannot be published. FairWatchTrade's
+        first principle is that the photograph is of the actual watch; a
+        listing with none of them cannot satisfy it, and the authenticity
+        machinery has nothing to examine — absence of evidence read as
+        absence of objection is how two zero-photo listings reached Browse.
+        This is deliberately the FLOOR and not a photo policy: it says only
+        that zero is impossible. Any richer required-photo set belongs to
+        the wizard, where the seller can act on it.
 
    WHAT THIS MODULE IS NOT. It does not authorize anybody. Callers pass their
    own already-established facts and enforce their own authorization first;
@@ -30,7 +38,7 @@
 
 export type PublicationRefusal = {
   /** Stable machine code. Callers map it to their own transport. */
-  error: "not_in_review" | "approval_required" | "not_available";
+  error: "not_in_review" | "approval_required" | "not_available" | "no_photographs";
   /** The sentence a founder reads. */
   detail: string;
 };
@@ -42,6 +50,8 @@ export type PublicationRequest = {
   approvalRecorded: boolean;
   /** listings.details.availability, whatever shape it arrived in. */
   availability: unknown;
+  /** How many photographs the listing actually carries. */
+  photoCount: number;
 };
 
 export const AVAILABILITY_NOT_IN_STOCK = "Not Currently Available";
@@ -70,7 +80,21 @@ export function publicationRefusal(req: PublicationRequest): PublicationRefusal 
         "This listing's availability is 'Not Currently Available'. It cannot be published until the dealer marks it In Stock.",
     };
   }
+  if (!Number.isFinite(req.photoCount) || req.photoCount < 1) {
+    return {
+      error: "no_photographs",
+      detail:
+        "This listing has no photographs, so it cannot be published. Add at least one photograph of the watch and submit it again.",
+    };
+  }
   return null;
+}
+
+/** Counts listings.photos without assuming the column's shape. A non-array,
+    null, or absent value is zero — the safe reading, because this figure can
+    only ever refuse a publication, never permit one. */
+export function photoCountOf(photos: unknown): number {
+  return Array.isArray(photos) ? photos.length : 0;
 }
 
 /** Reads listings.details.availability without assuming the column's shape. */
