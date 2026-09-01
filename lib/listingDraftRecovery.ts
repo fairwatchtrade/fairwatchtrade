@@ -75,7 +75,7 @@
    evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
-import type { ListingDraft } from "@/lib/listing";
+import type { ListingDraft } from "./listing.ts";
 
 /** The listing columns this mapping reads. Named explicitly so a caller
     cannot pass a partial row and quietly produce an empty draft. */
@@ -113,16 +113,24 @@ export type DraftContent = {
    (v7.76: advancing lands on the work.) */
 const REVIEW_STEP = 4;
 
-/** The identity context a canonical reference id was resolved against.
-    Recomputed rather than carried, so it always describes the text beside it —
-    which is the entire point of the key existing. */
-export function vaultReferenceKeyFor(
-  brand: string,
-  model: string,
-  reference: string
-): string {
-  return [brand, model, reference].join("|");
-}
+/* ── WHY NO vaultReferenceKey IS EMITTED ───────────────────────────────
+   v7.82 emitted one, built as a raw `brand|model|reference` join. That looks
+   right and is not: the wizard's key normalises all three first
+   (canonicalIdentityKey → normalizeBrand | normalizeModelText |
+   referenceCompareKey). So the emitted key never matched what SellFlow
+   recomputes, and the carried canonical id was discarded as stale every time.
+
+   Emitting nothing is strictly better than emitting a wrong context. The type
+   says an absent key "reads as stale, which is the safe direction", the wizard
+   recomputes one the moment the seller touches the identity fields, and
+   resubmission re-resolves canonical identity server-side regardless — so no
+   real answer is lost, and the code stops asserting a context it never had.
+
+   ⚠ The carried vaultReferenceId is therefore still dropped on load. Making it
+   survive means calling the wizard's own key function, and that module reaches
+   for the "@/" alias which node's strip-types runner cannot resolve — so it
+   needs canonicalIdentity's imports made node-safe first. That is identity
+   work and it is parked. Recorded here rather than bodged. */
 
 function priorDraftOf(priorContent: unknown): Partial<ListingDraft> {
   if (!priorContent || typeof priorContent !== "object") return {};
@@ -172,7 +180,7 @@ export function draftContentFromListing(
     askingConfirmed: askingPrice !== "" && askingCurrency !== "",
     provenanceNote: listing.provenance_note ?? "",
     vaultReferenceId: listing.vault_reference_id ?? null,
-    vaultReferenceKey: vaultReferenceKeyFor(brand, model, reference),
+    // vaultReferenceKey deliberately absent — see WHY NO vaultReferenceKey above.
     // tudorAdmission deliberately omitted — see header.
     significanceScore: listing.significance_score ?? null,
     /* The real verdict when one survives; "pending" when nothing knows. Never

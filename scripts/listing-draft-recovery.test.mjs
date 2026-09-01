@@ -20,10 +20,7 @@
      · and a field added to ListingDraft later cannot be silently forgotten. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import {
-  draftContentFromListing,
-  vaultReferenceKeyFor,
-} from "../lib/listingDraftRecovery.ts";
+import { draftContentFromListing } from "../lib/listingDraftRecovery.ts";
 
 let pass = 0;
 const ok = (label, cond) => {
@@ -80,10 +77,15 @@ const full = {
     JSON.stringify(draft.photoPresentation) === JSON.stringify(full.photo_presentation)
   );
   ok("the canonical identity link survives", draft.vaultReferenceId === full.vault_reference_id);
+  /* v7.82 emitted a raw brand|model|reference join here and this test asserted
+     it against the very function that produced it — which passes for any
+     format, including a wrong one. The wizard normalises all three parts, so
+     the emitted key never matched and the canonical link was discarded every
+     time. Emitting nothing is honest; emitting a context that never matches is
+     not. A self-referential assertion is not a test. */
   ok(
-    "and its identity key describes the text beside it",
-    draft.vaultReferenceKey ===
-      vaultReferenceKeyFor(full.brand, full.model, full.reference)
+    "no identity key is emitted, because a wrong one is worse than none",
+    draft.vaultReferenceKey === undefined
   );
   ok("the score is copied, never recomputed", draft.significanceScore === 62);
 }
@@ -206,7 +208,7 @@ const full = {
     askingPrice: "11,111", askingCurrency: "USD",
     provenanceNote: full.provenance_note,
     vaultReferenceId: full.vault_reference_id,
-    vaultReferenceKey: vaultReferenceKeyFor(full.brand, full.model, full.reference),
+
     significanceScore: 62, hasBracelet: true, openToTrades: true,
     description: full.description, descriptionPassedAI: true,
   };
@@ -286,8 +288,10 @@ const full = {
 
   /* Present only when their source has them — asserted individually above. */
   const conditional = ["photoPresentation", "photoRedactions"];
-  /* Deliberately never reconstructed — see section 6. */
-  const omitted = ["tudorAdmission"];
+  /* Deliberately never reconstructed. tudorAdmission because rebuilding it
+     would assert a summary nobody recomputed; vaultReferenceKey because a
+     context that never matches the wizard's is worse than none at all. */
+  const omitted = ["tudorAdmission", "vaultReferenceKey"];
 
   const { draft } = draftContentFromListing(full, null);
   const missing = declared.filter(
