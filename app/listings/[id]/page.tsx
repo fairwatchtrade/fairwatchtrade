@@ -727,6 +727,8 @@ export default async function ListingDetailPage({
                 /* Hero CHOICE only — see ListingGallery for why focal framing
                    is deliberately not applied to an uncropped hero. */
                 brandLabel={listing.brand}
+                /* The identifier follows the watch into inspection. */
+                publicCode={listing.public_code ?? null}
                 modelLabel={listing.model}
                 desktopDrawer={
                   <CollectorsDrawer

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import DialReveal from "@/components/DialReveal";
+import FwtListingId from "@/components/FwtListingId";
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
@@ -45,6 +46,7 @@ export default function ListingGallery({
   photos,
   initialIndex = 0,
   brandLabel,
+  publicCode,
   dialUrl,
   desktopDrawer,
 }: {
@@ -52,6 +54,10 @@ export default function ListingGallery({
   initialIndex?: number;
   brandLabel: string;
   modelLabel: string | null;
+  /* listings.public_code. The identifier follows the watch into inspection —
+     a collector looking closely is exactly the collector about to write the
+     code down. Null renders nothing; FwtListingId is not an authority. */
+  publicCode?: string | null;
   dialUrl?: string | null;
   desktopDrawer?: ReactNode;
 }) {
@@ -87,6 +93,27 @@ export default function ListingGallery({
      explicit Inspect control. Dial Reveal is a resting-hero instrument
      and deliberately does not follow into the overlay. */
   const [inspecting, setInspecting] = useState(false);
+
+  /* Focus return (new this round — it did not exist before, and closing the
+     viewer dropped focus to the top of the document). The Inspect control is
+     the ONE invoker, so the ref is a single element rather than a registry.
+     Restoring on the falling edge, guarded by a flag, is the proven pattern
+     from the handoff panel: restoring inside the close handler races the
+     unmount, and restoring on every render would steal focus from a
+     collector who has since tabbed elsewhere. */
+  const inspectOpenerRef = useRef<HTMLButtonElement | null>(null);
+  const restoreOpenerFocusRef = useRef(false);
+  useEffect(() => {
+    if (inspecting) {
+      restoreOpenerFocusRef.current = true;
+      return;
+    }
+    if (restoreOpenerFocusRef.current) {
+      restoreOpenerFocusRef.current = false;
+      inspectOpenerRef.current?.focus();
+    }
+  }, [inspecting]);
+
   useEffect(() => {
     if (!inspecting) return;
     const onKey = (e: KeyboardEvent) => {
@@ -112,6 +139,11 @@ export default function ListingGallery({
      fixed, so discovering the ratio never moves the listing below it. */
   const heroUrl = photos[active] ?? photos[0] ?? "";
   const [heroAspect, setHeroAspect] = useState(1);
+  /* The same probe already knows the source's real pixel size; the viewer
+     uses it as a ceiling so a generous room can never enlarge a photograph
+     past the detail it actually contains. Zero until known, which reads as
+     "no ceiling yet" below. */
+  const [heroNatural, setHeroNatural] = useState({ w: 0, h: 0 });
   useEffect(() => {
     if (!heroUrl) return;
     let cancelled = false;
@@ -119,6 +151,7 @@ export default function ListingGallery({
     probe.onload = () => {
       if (!cancelled && probe.naturalWidth > 0 && probe.naturalHeight > 0) {
         setHeroAspect(probe.naturalWidth / probe.naturalHeight);
+        setHeroNatural({ w: probe.naturalWidth, h: probe.naturalHeight });
       }
     };
     probe.src = heroUrl;
@@ -146,6 +179,17 @@ export default function ListingGallery({
      short photograph the vertically-centred right arrow can fall inside the
      fader's column, and DialReveal must keep both the paint and the click
      there. Removing the disc does not change that ordering. */
+  /* The light room's arrows stand in the MARGIN, not on the photograph, so
+     they cannot borrow --on-photo-text: that token is a cream (#D9D2BF)
+     shaped for sitting over an image, and on a near-white wall it all but
+     disappears. Same geometry and same 44px target as the resting hero's
+     arrows; the ink is the room's own. */
+  const roomArrowClass =
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
+    "text-[var(--platinum-dim)] transition hover:text-[var(--gold)] " +
+    "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
+    "focus-visible:outline-[var(--gold)]";
+
   const arrowClass =
     "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
     "text-[var(--on-photo-text)] transition hover:text-[var(--on-photo-gold)] " +
@@ -279,6 +323,7 @@ export default function ListingGallery({
               invisible 36px button preserves a usable target without drawing
               a box around the mark. */}
           <button
+            ref={inspectOpenerRef}
             type="button"
             aria-label="Inspect photo"
             title="Inspect photo"
@@ -294,49 +339,94 @@ export default function ListingGallery({
           with the icon-only trigger. */}
       <div aria-hidden="true" className="h-9" />
 
-      {/* ── Inspection overlay ── */}
+      {/* ── Inspection overlay — the collector's light room ────────────────
+          What this replaced: a black field carrying data-immersive-dark. The
+          lesson that survived the swap is OPAQUE, not DARK. An earlier 97%
+          wash let the page's own text bleed through and compete with the
+          photograph, the desktop SEE-it caught it, and the fill has been
+          solid ever since. It still is. Only the colour moved.
+
+          Do not restore black on the strength of that old comment. ── */}
       {inspecting && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Photo inspection"
-          /* Opaque, deliberately: the desktop SEE-it showed page text bleeding
-             through a 97% wash and competing with the photograph. In the
-             inspection state the image is the only interface.
-             data-immersive-dark — full-screen photo inspection is the second
-             authorized immersive-dark surface (appearance order §18): the
-             room around a photograph under inspection is always night, so
-             the overlay's tokens resolve dark in every page appearance. */
-          data-immersive-dark=""
-          className="fixed inset-0 z-[70] flex flex-col bg-[#05060A]"
+          /* data-inspection-light — the room a watch is inspected in is a
+             silvered gallery wall, not a cinema.
+
+             This attribute is doing TWO jobs and the second is the one that
+             bites. It pins color-scheme: light for the subtree, and it is a
+             DECLARING SCOPE for the token block in globals.css. light-dark()
+             inside a custom property resolves against the scope where the
+             property is declared, not where var() reads it — so merely
+             deleting the old dark attribute would have left this near-white
+             room drawing dark-arm tokens: pale cream text on pale slate.
+             Removing an attribute is not the fix. Declaring the right scope
+             is. */
+          data-inspection-light=""
+          className="fixed inset-0 z-[70] flex flex-col bg-[#E8EBEF]"
         >
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
-              {brandLabel} · Photo {active + 1} of {photos.length}
-            </span>
+          {/* Identity upper-left, close upper-right. The identity block is
+              deliberately NOT the old 11px 2px-tracked --muted line: against a
+              near-white field that read as disabled metadata, and it is the
+              one thing in the room that names the watch. Quiet means low
+              emphasis, not low contrast. */}
+          <div className="flex items-start justify-between gap-4 px-4 py-3 sm:px-6">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-[12px] uppercase tracking-[1.4px] text-[var(--platinum-dim)]">
+                  {brandLabel}
+                </span>
+                {/* The public code follows the watch in. A collector looking
+                    this closely is the collector about to write it down. */}
+                <FwtListingId code={publicCode} />
+              </div>
+              <div className="mt-1 text-[12px] text-[var(--muted)]">
+                Photo {active + 1} of {photos.length}
+              </div>
+            </div>
             <button
               type="button"
               autoFocus
               onClick={() => setInspecting(false)}
-              className="inline-flex min-h-[44px] items-center gap-2 border border-[var(--border-subtle)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)]"
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
             >
               Close ✕
             </button>
           </div>
 
-          <div className="relative flex min-h-0 flex-1 items-center justify-center px-2">
+          {/* The photograph takes the room. Desktop reserves an arrow lane on
+              each side so a control never stands on the watch; narrow widths
+              have no such margin to spend, so there the arrows ride the very
+              edge and the photograph keeps the width. */}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={heroUrl}
               alt=""
               className="max-h-full max-w-full object-contain"
+              /* IMAGE-QUALITY FLOOR. A larger room is not permission to
+                 invent detail: the ceiling is the source's own pixel
+                 dimensions, so a modest photograph is shown at its real size
+                 rather than smeared across a 4K viewport. Until the probe
+                 answers, no ceiling is applied and the old behaviour
+                 stands. */
+              style={
+                heroNatural.w > 0
+                  ? {
+                      maxWidth: `min(100%, ${heroNatural.w}px)`,
+                      maxHeight: `min(100%, ${heroNatural.h}px)`,
+                    }
+                  : undefined
+              }
             />
             {hasPrev && (
               <button
                 type="button"
                 aria-label="Previous photo"
                 onClick={() => setActive((i) => Math.max(0, i - 1))}
-                className={`${arrowClass} left-4`}
+                className={`${roomArrowClass} left-0 sm:left-4`}
               >
                 <NavArrowMark flip />
               </button>
@@ -346,7 +436,7 @@ export default function ListingGallery({
                 type="button"
                 aria-label="Next photo"
                 onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
-                className={`${arrowClass} right-4`}
+                className={`${roomArrowClass} right-0 sm:right-4`}
               >
                 <NavArrowMark />
               </button>
@@ -354,23 +444,32 @@ export default function ListingGallery({
           </div>
 
           {photos.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto px-4 py-3">
+            <div className="flex justify-center gap-2 overflow-x-auto px-4 py-3 sm:px-6">
               {photos.map((url, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setActive(i)}
                   aria-label={`View photo ${i + 1}`}
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border transition ${
-                    i === active ? "border-[var(--gold)]" : "border-[var(--border-mid)] hover:border-[var(--gold)]"
+                  aria-current={i === active ? "true" : undefined}
+                  /* Selection has to survive a light field, where a single
+                     hairline border is not enough to say "this one". Three
+                     signals agree: a gold border, a gold ring standing off
+                     the slate, and full opacity against slightly held-back
+                     siblings. The held-back state is 75%, not a wash — these
+                     are photographs a collector is choosing between. */
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] ${
+                    i === active
+                      ? "border-[var(--gold)] opacity-100 ring-1 ring-[var(--gold)] ring-offset-2 ring-offset-[#E8EBEF]"
+                      : "border-transparent opacity-75 hover:border-[var(--border-mid)] hover:opacity-100"
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                src={cardImageSrc(url, { width: 240 })}
-                alt=""
-                className="h-full w-full object-cover"
-              />
+                    src={cardImageSrc(url, { width: 240 })}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 </button>
               ))}
             </div>
