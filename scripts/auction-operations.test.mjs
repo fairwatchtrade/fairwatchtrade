@@ -565,9 +565,53 @@ function fakeDb() {
     /not_validated/.test(approve) && /approval_state: "approved"/.test(approve));
   ok("approval does not activate", !/activation_state: "active"/.test(approve));
   ok("activation is its own act, and requires approval first",
-    /not_approved/.test(activate) && /activation_state: "active"/.test(activate));
-  ok("activation retires the incumbent rather than editing it",
-    /activation_state: "retired"/.test(activate));
+    /not_approved/.test(activate));
+
+  /* ── ATOMIC REVISION SWITCH ────────────────────────────────────────────
+     The route used to retire the incumbent and activate the successor in
+     two independent requests. Between them the packet had NO active
+     revision — a dropped connection in that window made a packet vanish
+     from the room. These pin the repair rather than the intention. */
+  ok("1 · the route no longer sequences the two writes itself",
+    !/activation_state: "retired"/.test(activate) &&
+    (activate.match(/\.from\("auction_operations_packet_revision"\)/g) ?? []).length === 0);
+  ok("1 · the switch is one call into one transaction",
+    /\.rpc\("auction_operations_activate_packet_revision"/.test(activate));
+  ok("1 · a failed switch is reported as unchanged, not half-applied",
+    /rolled the whole switch back/.test(activate));
+  ok("the actor is the session uid, never a request field",
+    /p_actor: user\.id/.test(activate) && !/body\.(actor|actorId|founder)/.test(activate));
+
+  const mig = readSourceFile(
+    new URL("../supabase/migrations/20260901120000_auction_operations_packet_catalog.sql", import.meta.url), "utf8");
+  const fn = mig.slice(
+    mig.indexOf("create or replace function public.auction_operations_activate_packet_revision"),
+    mig.indexOf("revoke all on function public.auction_operations_activate_packet_revision"));
+
+  ok("2 · retirement and activation happen in the same function body",
+    /set activation_state = 'retired'/.test(fn) && /set activation_state = 'active'/.test(fn));
+  ok("2 · exactly one active revision survives, enforced by the index too",
+    /unique index[\s\S]{0,200}where activation_state = 'active'/.test(mig));
+  ok("3 · concurrent switches serialize on the packet's own rows",
+    /for update/.test(fn) && /where packet_id = v_packet_id/.test(fn));
+  ok("3 · the lock is taken in a deterministic order, so two switches cannot deadlock",
+    /order by id\s+for update/.test(fn));
+  ok("3 · eligibility is re-read UNDER the lock, not before it",
+    fn.indexOf("for update") < fn.indexOf("v_row.approval_state <> 'approved'"));
+  ok("3 · an already-active target is refused inside the transaction",
+    /v_row\.activation_state = 'active'/.test(fn) && /already_active/.test(fn));
+
+  ok("4 · EXECUTE is revoked from every client role",
+    /revoke all on function public\.auction_operations_activate_packet_revision\(uuid, uuid\)\s+from public, anon, authenticated;/.test(mig));
+  ok("4 · EXECUTE is granted only to the trusted server role",
+    /grant execute on function public\.auction_operations_activate_packet_revision\(uuid, uuid\)\s+to service_role;/.test(mig));
+  ok("4 · the definer function pins its search_path",
+    /security definer\s+set search_path = public, pg_catalog/.test(fn));
+  ok("4 · founder auth still resolved by the route from the session",
+    /supabase\.auth\.getUser\(\)/.test(activate) && /user\.id !== ADMIN_USER_ID/.test(activate));
+  ok("4 · the table's own grants are untouched by this repair",
+    /grant select, insert, update on public\.auction_operations_packet_revision to service_role;/.test(mig) &&
+    !/grant[^;]*auction_operations_packet_revision[^;]*to (anon|authenticated)/i.test(mig));
 
   const plan = readSourceFile(new URL("../app/api/admin/auctions/results/plan/route.ts", import.meta.url), "utf8");
   ok("planning resolves by the run's bound revision id, not by packet id",

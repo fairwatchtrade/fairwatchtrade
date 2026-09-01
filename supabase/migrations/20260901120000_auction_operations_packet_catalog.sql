@@ -217,6 +217,102 @@ create trigger auction_operations_packet_revision_freeze_trg
   before update on public.auction_operations_packet_revision
   for each row execute function public.auction_operations_packet_revision_freeze();
 
+-- ── 3b · The revision switch is ONE transaction ─────────────────────────
+-- THE DEFECT THIS FUNCTION EXISTS TO KILL:
+--
+--   Retiring the incumbent and activating the successor as two independent
+--   requests. Between them there is a window where the first has committed
+--   and the second has not, and in that window the packet has NO active
+--   revision — it silently disappears from the room. A crash, a dropped
+--   connection or a constraint error at the wrong instant is enough.
+--
+-- Either the whole switch commits or nothing changes.
+--
+-- ── LOCK ORDER, DELIBERATELY ───────────────────────────────────────────
+-- The family is locked FIRST, in id order, before the target is re-read.
+-- Locking the target and then the family would let two concurrent switches
+-- on the same packet grab rows in opposite orders and deadlock. Reading
+-- packet_id without a lock, then locking the whole family deterministically,
+-- then re-reading and re-checking the target UNDER that lock, is what makes
+-- the one-active-revision invariant hold under concurrency rather than only
+-- under politeness.
+--
+-- ── WHY SECURITY DEFINER IS SAFE HERE ──────────────────────────────────
+-- Because it is not a door. EXECUTE is revoked from public, anon and
+-- authenticated and granted only to service_role — the same role that
+-- already holds the table's write grants — so this adds no reachability
+-- that did not exist. Founder authority is still established by the server
+-- route from the session; the actor arrives as a function argument the
+-- route resolved, never as a request field.
+create or replace function public.auction_operations_activate_packet_revision(
+  p_revision_id uuid,
+  p_actor       uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  v_packet_id text;
+  v_row       public.auction_operations_packet_revision%rowtype;
+  v_retired   uuid;
+begin
+  select packet_id into v_packet_id
+    from public.auction_operations_packet_revision
+   where id = p_revision_id;
+  if v_packet_id is null then
+    raise exception 'unknown_revision' using errcode = 'no_data_found';
+  end if;
+
+  -- Serialize every concurrent switch on this packet, in a fixed order.
+  perform 1
+     from public.auction_operations_packet_revision
+    where packet_id = v_packet_id
+    order by id
+      for update;
+
+  -- Re-read under the lock: what was true before it is not evidence.
+  select * into v_row
+    from public.auction_operations_packet_revision
+   where id = p_revision_id;
+
+  if v_row.approval_state <> 'approved' then
+    raise exception 'not_approved' using errcode = 'check_violation';
+  end if;
+  if v_row.activation_state = 'active' then
+    raise exception 'already_active' using errcode = 'unique_violation';
+  end if;
+
+  update public.auction_operations_packet_revision
+     set activation_state = 'retired',
+         retired_at       = now()
+   where packet_id = v_packet_id
+     and activation_state = 'active'
+  returning id into v_retired;
+
+  update public.auction_operations_packet_revision
+     set activation_state = 'active',
+         activated_by     = p_actor,
+         activated_at     = now()
+   where id = p_revision_id;
+
+  return jsonb_build_object(
+    'activated', p_revision_id,
+    'retired',   v_retired,
+    'packet_id', v_packet_id
+  );
+end;
+$$;
+
+revoke all on function public.auction_operations_activate_packet_revision(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.auction_operations_activate_packet_revision(uuid, uuid)
+  to service_role;
+
+comment on function public.auction_operations_activate_packet_revision(uuid, uuid) is
+  'Atomic packet revision switch: retires the incumbent and activates the target in ONE transaction, under a deterministic family lock. Never leaves a packet with zero or two active revisions.';
+
 -- ── 4 · Grants — the trust boundary ─────────────────────────────────────
 -- Identical posture to auction_operations_run. No browser role has any
 -- route to this table, read or write. The founder reaches it only through

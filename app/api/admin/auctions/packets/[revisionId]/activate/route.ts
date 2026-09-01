@@ -8,6 +8,19 @@ import { createServiceClient } from "@/lib/supabase/service";
    The third and last act. Only an approved revision may be activated, and
    activation is what finally makes a packet selectable in the room.
 
+   ── THE SWITCH IS ONE TRANSACTION, NOT TWO REQUESTS ────────────────────
+   This route first retired the incumbent and then activated the target as
+   two independent database calls. Between them lay a window in which the
+   retirement had committed and the activation had not, and in that window
+   the packet had NO active revision — it vanished from the room. A dropped
+   connection at the wrong instant was enough.
+
+   Both writes now happen inside one function, under a deterministic lock
+   over the packet's revisions, so either the whole switch commits or
+   nothing changes. This route resolves the founder and calls it; it no
+   longer sequences the writes itself, because sequencing them from here is
+   what created the window.
+
    ── WHY ACTIVATION RETIRES ITS PREDECESSOR RATHER THAN EDITING IT ──────
    A packet may have exactly one active revision (a partial unique index
    enforces it). Activating revision 2 therefore retires revision 1 rather
@@ -44,41 +57,41 @@ export async function POST(
     return NextResponse.json({ error: "server_misconfigured", detail: "Admin write channel unavailable." }, { status: 500 });
   }
 
-  const { data: row } = await service
-    .from("auction_operations_packet_revision")
-    .select("id, packet_id, revision, approval_state, activation_state")
-    .eq("id", revisionId)
-    .maybeSingle();
-  if (!row) return NextResponse.json({ error: "unknown_revision", detail: "No such packet revision." }, { status: 404 });
+  /* One call, one transaction. The eligibility checks live INSIDE the
+     function, re-read under its lock — checking them here first and acting
+     afterwards would just be a smaller version of the same window.
 
-  const r = row as { packet_id: string; approval_state: string; activation_state: string };
-  if (r.approval_state !== "approved") {
-    return NextResponse.json(
-      { error: "not_approved", detail: "Only an explicitly approved revision can be activated." },
-      { status: 409 }
-    );
+     The actor is the session-resolved founder uid, passed as an argument.
+     It is never read from the request body: a caller-supplied actor would
+     make the attribution a claim rather than a fact. */
+  const { data, error } = await service.rpc("auction_operations_activate_packet_revision", {
+    p_revision_id: revisionId,
+    p_actor: user.id,
+  });
+
+  if (error) {
+    const message = error.message ?? "";
+    if (/unknown_revision/.test(message)) {
+      return NextResponse.json({ error: "unknown_revision", detail: "No such packet revision." }, { status: 404 });
+    }
+    if (/not_approved/.test(message)) {
+      return NextResponse.json(
+        { error: "not_approved", detail: "Only an explicitly approved revision can be activated." },
+        { status: 409 }
+      );
+    }
+    if (/already_active/.test(message)) {
+      return NextResponse.json({ error: "already_active", detail: "That revision is already active." }, { status: 409 });
+    }
+    /* Anything else rolled the whole switch back. The previously active
+       revision is still active, which is the correct failure: unchanged. */
+    return NextResponse.json({ error: "activation_failed", detail: message }, { status: 500 });
   }
-  if (r.activation_state === "active") {
-    return NextResponse.json({ error: "already_active", detail: "That revision is already active." }, { status: 409 });
-  }
 
-  /* Retire the incumbent first. Two statements rather than one because the
-     unique index would otherwise reject the pair, and because retiring is a
-     real transition worth recording rather than a side effect. */
-  const { error: retireErr } = await service
-    .from("auction_operations_packet_revision")
-    .update({ activation_state: "retired", retired_at: new Date().toISOString() })
-    .eq("packet_id", r.packet_id)
-    .eq("activation_state", "active");
-  if (retireErr) {
-    return NextResponse.json({ error: "activation_failed", detail: retireErr.message }, { status: 500 });
-  }
-
-  const { error } = await service
-    .from("auction_operations_packet_revision")
-    .update({ activation_state: "active", activated_by: user.id, activated_at: new Date().toISOString() })
-    .eq("id", revisionId);
-  if (error) return NextResponse.json({ error: "activation_failed", detail: error.message }, { status: 500 });
-
-  return NextResponse.json({ activated: revisionId, packetId: r.packet_id });
+  const result = (data ?? {}) as { activated?: string; retired?: string | null; packet_id?: string };
+  return NextResponse.json({
+    activated: result.activated ?? revisionId,
+    retired: result.retired ?? null,
+    packetId: result.packet_id ?? null,
+  });
 }
