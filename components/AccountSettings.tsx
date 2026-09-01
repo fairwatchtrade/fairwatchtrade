@@ -10,8 +10,8 @@ import { SUPPORTED_CURRENCIES, isSupportedCurrency } from "@/lib/supportedCurren
    Client component. Receives the authenticated user's id/email/createdAt from
    the server wrapper (which already guarded auth), and owns all form state:
    Profile (display_name), Security (password), Notification Preferences
-   (v2.6 — notify_email / notify_sms / phone_number; SMS is preference-capture
-   only, Twilio not wired), Account info (read-only).
+   (v2.6 — notify_email; v7.91 the SMS row is reserved and inert), Account
+   info (read-only).
    Readability floors per Readability-Floor-Governance.md — labels & copy at
    --muted minimum.
    ──────────────────────────────────────────────────────────────────────── */
@@ -68,13 +68,16 @@ export default function AccountSettings({
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // v2.6 — Notification preferences (Correspondence). Email ON by default,
-  // SMS OFF by default, mirroring the column defaults. SMS is a captured
-  // preference only — Twilio is NOT wired (Phase 2); the toggle and phone
-  // number save so the wiring can turn on later without another ask.
+  // v2.6 — Notification preferences (Correspondence). Email ON by default.
+  //
+  // v7.91 — SMS is reserved, not offered. The row keeps its home because SMS
+  // is intended later; no provider is wired and none is being bought, so the
+  // control is inert and reads that way. There is deliberately NO local
+  // notify_sms / phone_number state: this surface no longer renders from
+  // those columns and never writes them. Whatever a collector stored earlier
+  // stays exactly as it is in the database — the reader returns with the
+  // provider, not before.
   const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifySms, setNotifySms] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
 
   // Money Truth Stage B — Selling section. THIS is the only surface that
@@ -148,15 +151,13 @@ export default function AccountSettings({
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "display_name, notify_email, notify_sms, phone_number, preferred_listing_currency, appearance, greeting_identity"
+          "display_name, notify_email, preferred_listing_currency, appearance, greeting_identity"
         )
         .eq("id", userId)
         .single();
       if (active && profile) {
         if (profile.display_name) setDisplayName(profile.display_name);
         setNotifyEmail(profile.notify_email !== false); // default true
-        setNotifySms(profile.notify_sms === true);
-        if (profile.phone_number) setPhoneNumber(profile.phone_number);
         setPrefCurrency(
           isSupportedCurrency(profile.preferred_listing_currency)
             ? profile.preferred_listing_currency
@@ -599,51 +600,44 @@ export default function AccountSettings({
             </button>
           </div>
 
-          {/* SMS — OFF by default; Twilio not wired (preference capture only) */}
+          {/* SMS — v7.91, a reserved home rather than an offer.
+              Founder ruling: keep the row, because SMS is intended later and
+              the provider work is deliberately parked rather than abandoned.
+              What changed is only the honesty of the room — the control is a
+              disabled button, so it cannot be clicked, focused or reached by
+              keyboard, and the phone-number field cannot surface from this
+              state at all. Nothing here reads or writes notify_sms /
+              phone_number; an earlier stored preference is left untouched.
+              Colour: the toggle is a disabled control, which is one of the
+              three uses --void is permitted for. The three pieces of TEXT are
+              not — a title, a helper line and a "Coming soon" pill are all
+              text a collector reads, so Readability-Floor-Governance holds
+              them at --muted and no dimmer. The row reads unavailable through
+              demotion from --platinum-dim, the pill, and an obviously dead
+              control; never by making words hard to see. */}
           <div className="flex items-start justify-between gap-6 py-4">
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] text-[var(--platinum-dim)]">
-                SMS / Text notifications
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <span className="text-[13px] text-[var(--muted)]">
+                  SMS / Text notifications
+                </span>
+                <span className="border border-[var(--border-subtle)] px-1.5 py-[1px] text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">
+                  Coming soon
+                </span>
               </div>
               <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
-                Receive a text for new correspondence. Standard carrier rates may apply.
+                Receive a text for new correspondence. Not yet available.
               </p>
-              {notifySms && (
-                <div className="mt-3 max-w-[240px]">
-                  <div className="mb-2 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-                    Phone number
-                  </div>
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    onBlur={() => savePrefs({ phone_number: phoneNumber.trim() })}
-                    placeholder="+1 ___-___-____"
-                    className="fw-input"
-                  />
-                </div>
-              )}
             </div>
             <button
               type="button"
               role="switch"
-              aria-checked={notifySms}
-              onClick={() => {
-                const next = !notifySms;
-                setNotifySms(next);
-                savePrefs({ notify_sms: next });
-              }}
-              className={`relative mt-1 h-5 w-10 shrink-0 border transition ${
-                notifySms
-                  ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
-                  : "border-[var(--border-subtle)] bg-transparent"
-              }`}
+              aria-checked={false}
+              aria-label="SMS / Text notifications — coming soon"
+              disabled
+              className="relative mt-1 h-5 w-10 shrink-0 cursor-not-allowed border border-[var(--border-faint)] bg-transparent"
             >
-              <span
-                className={`absolute top-[3px] h-3 w-3 transition-all ${
-                  notifySms ? "left-[22px] bg-[var(--gold-fill)]" : "left-[3px] bg-[var(--ghost)]"
-                }`}
-              />
+              <span className="absolute left-[3px] top-[3px] h-3 w-3 bg-[var(--void)]" />
             </button>
           </div>
         </section>
