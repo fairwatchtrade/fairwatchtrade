@@ -652,12 +652,44 @@ export default function SellFlow({
 
      Cleared, never recomputed. The seller re-runs curation, exactly as they
      did the first time; nothing here silently re-evaluates on their behalf. */
-  function patch(p: Partial<ListingDraft>) {
-    userTouchedRef.current = true;
+  function applyPatch(p: Partial<ListingDraft>) {
     setDraft((d) => {
       const next = { ...d, ...p };
       return resetIdentityBoundState(d, next);
     });
+  }
+
+  /* Two doors into that one seam. They differ in exactly one thing: whether
+     a person did it.
+
+     patch() is the seller's door. It records intent, and intent is what the
+     autosave below waits for before it will mint a row.
+
+     patchSystem() is the product's own door. Same transform, same reset law,
+     no claim that anyone decided anything.
+
+     It exists because a default the product chose was being read as work the
+     seller did. The currency prefill runs on every fresh open and went
+     through patch(), so userTouchedRef flipped true before the page had even
+     settled, the autosave gate opened, and a listing_drafts row appeared for
+     someone who had done nothing but arrive at /sell. Every visit left a
+     shell behind, which is also why purging drafts never stayed purged.
+
+     Nothing is lost by routing it here. The prefilled currency lives in
+     draft state either way and rides into the first real save, so the
+     seller still sees their preference selected and still gets it persisted
+     the moment they actually begin. What changes is only whether ARRIVING
+     counts as WORKING.
+
+     The rule for anything added later: if the seller did not do it, it goes
+     through patchSystem. */
+  function patch(p: Partial<ListingDraft>) {
+    userTouchedRef.current = true;
+    applyPatch(p);
+  }
+
+  function patchSystem(p: Partial<ListingDraft>) {
+    applyPatch(p);
   }
 
   /* ── Privacy redaction commit (the one owner of the swap) ───────────────
@@ -1315,6 +1347,7 @@ export default function SellFlow({
             <CurationStep
               draft={draft}
               patch={patch}
+              patchSystem={patchSystem}
               onPass={() => setStep(1)}
               advisory={refAdvisory}
               setAdvisory={setRefAdvisory}
@@ -1694,12 +1727,16 @@ export type RefAdvisory = {
 function CurationStep({
   draft,
   patch,
+  patchSystem,
   onPass,
   advisory,
   setAdvisory,
 }: {
   draft: ListingDraft;
   patch: (p: Partial<ListingDraft>) => void;
+  /* The system door. Only the currency prefill uses it, and only because a
+     default the product picked must not be filed as seller intent. */
+  patchSystem: (p: Partial<ListingDraft>) => void;
   onPass: () => void;
   advisory: RefAdvisory | null;
   setAdvisory: (a: RefAdvisory | null) => void;
@@ -1742,7 +1779,10 @@ function CurationStep({
       // Prefill ONLY a draft that has no currency yet — a resumed draft's
       // chosen (or confirmed) currency is never overwritten by the preference.
       if (!isSupportedCurrency(draft.askingCurrency)) {
-        patch({ askingCurrency: pref ?? RECOMMENDED_CURRENCY });
+        /* The system door, deliberately: the product choosing a sensible
+           default is not the seller making a decision, and reading it as one
+           is what minted a draft for every untouched visit. */
+        patchSystem({ askingCurrency: pref ?? RECOMMENDED_CURRENCY });
       }
     })();
     return () => {
