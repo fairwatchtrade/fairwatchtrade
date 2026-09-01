@@ -83,6 +83,28 @@ export async function POST(
     if (/already_active/.test(message)) {
       return NextResponse.json({ error: "already_active", detail: "That revision is already active." }, { status: 409 });
     }
+    /* Retired is terminal. A revision row carries one activated_by, one
+       activated_at and one retired_at, so bringing a retired row back would
+       overwrite the record of when it governed — and every run bound to it
+       depends on that record. The way back is a NEW revision carrying the
+       same mechanics, which keeps the old lifecycle intact and gives the
+       restored mechanics their own attribution. */
+    if (/retired_is_terminal/.test(message)) {
+      return NextResponse.json(
+        {
+          error: "retired_is_terminal",
+          detail:
+            "That revision has been retired and cannot be activated again. Register a new revision with the same mechanics, approve it, and activate that.",
+        },
+        { status: 409 }
+      );
+    }
+    if (/not_activatable/.test(message)) {
+      return NextResponse.json(
+        { error: "not_activatable", detail: "Only an approved, inactive revision can be activated." },
+        { status: 409 }
+      );
+    }
     /* Anything else rolled the whole switch back. The previously active
        revision is still active, which is the correct failure: unchanged. */
     return NextResponse.json({ error: "activation_failed", detail: message }, { status: 500 });

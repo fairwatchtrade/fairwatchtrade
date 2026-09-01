@@ -616,6 +616,26 @@ function fakeDb() {
     /order by id\s+for update/.test(fn));
   ok("3 · eligibility is re-read UNDER the lock, not before it",
     fn.indexOf("for update") < fn.indexOf("v_row.approval_state <> 'approved'"));
+  /* RETIRED IS TERMINAL. The rule is written as an allowlist, not as a
+     "not retired" exclusion: an exclusion list is one new state away from
+     being wrong again, while a positive rule refuses anything it has not
+     been taught to permit. */
+  const term = readSourceFile(
+    new URL("../supabase/migrations/20260901220000_packet_revision_retired_is_terminal.sql", import.meta.url), "utf8");
+  ok("5 · a retired revision can never be activated again",
+    /activation_state = 'retired'[\s\S]{0,120}retired_is_terminal/.test(term));
+  ok("5 · the rule is positive — only 'inactive' may proceed",
+    /activation_state <> 'inactive'[\s\S]{0,120}not_activatable/.test(term));
+  ok("5 · the approval and already-active refusals are preserved",
+    /not_approved/.test(term) && /already_active/.test(term));
+  ok("5 · the atomic switch and its lock order are preserved",
+    /order by id\s+for update/.test(term) &&
+    /set activation_state = 'retired'/.test(term) && /set activation_state = 'active'/.test(term));
+  ok("5 · the corrective migration replaces ONLY the function",
+    !/create table|alter table|create index|grant |revoke |insert into|delete from/i.test(term));
+  ok("5 · the route surfaces the terminal refusal to the founder",
+    /retired_is_terminal/.test(activate) && /not_activatable/.test(activate));
+
   ok("3 · an already-active target is refused inside the transaction",
     /v_row\.activation_state = 'active'/.test(fn) && /already_active/.test(fn));
 
