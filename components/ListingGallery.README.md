@@ -257,6 +257,24 @@ The mat is desktop-only. On a phone the stage padding is 4px, so a mat would be
 a hairline of tone around the photograph and read as an artifact rather than a
 surface.
 
+**The mat is also what absorbs the room's slack, and that is deliberate.** The
+rail is a FIXED width (`RAIL_WIDTH`) so thumbnail scale cannot drift with the
+browser window — tile height in a justified row is the row's width divided by
+however many fit, so a rail sized by leftover space renders different thumbnail
+sizes in different windows, and no percentage can describe a change to them.
+That leaves the room wider than the watch and the rail need. Two things were
+tried with that leftover before this:
+
+- **Centring the pair.** It pushed the rail inward and left an orphaned channel
+  of slate between it and the room's right edge.
+- **Splitting it between stage and rail.** That is the original sprawl.
+
+Giving it to the mat keeps the rail against the right edge and leaves no gap
+anywhere. The mat simply carries more margin; the STAGE inside it is still
+bounded to the listing, which is why the arrows still do not move. Note where
+the bound lives: on the stage element, never on the column — a bound on the
+column would widen the arrows along with it.
+
 ## The rail follows the selection without chasing it
 
 

@@ -12,12 +12,21 @@ import { cardImageSrc } from "@/lib/media/cardImage";
 /* Geometry the inspection room shares with its own Tailwind classes. Kept
    here so the arithmetic and the paint cannot drift: STAGE_GUTTERS is the
    sm:pl-[4.5rem] + sm:pr-[4.5rem] that holds the arrows, ROOM_GAP is the
-   min-[56rem]:gap-6 between stage and rail, RAIL_MIN is the rail column's
-   own min-width, and WIDE_ROOM is the min-[56rem] breakpoint at which the
-   rail becomes a column instead of a band. */
+   min-[56rem]:gap-6 between stage and rail, RAIL_WIDTH is the rail column's
+   own width, and WIDE_ROOM is the min-[56rem] breakpoint at which the rail
+   becomes a column instead of a band.
+
+   RAIL_WIDTH is FIXED, and that is the point. It used to be flex-1 between a
+   min and a max, so the rail took whatever the stage left behind — which
+   made a thumbnail's size depend on the browser window. Tile height in a
+   justified layout is row width divided by however many fit, so a rail that
+   changes width changes every thumbnail with it: the same listing rendered
+   260px tiles in one window and 367px in another, and "make the thumbnails
+   20% smaller" had no single meaning. Fixed width, fixed thumbnail scale,
+   everywhere. The room centres whatever is left over. */
 const STAGE_GUTTERS = 144;
 const ROOM_GAP = 24;
-const RAIL_MIN = 200;
+const RAIL_WIDTH = 336;
 const WIDE_ROOM = "56rem";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -200,10 +209,9 @@ export default function ListingGallery({
 
   const stageWidth = useMemo(() => {
     if (!wideRoom || !(room.width > 0) || !(room.height > 0)) return 0;
-    /* Reserved against the rail's MINIMUM, never its rendered width — the
-       rail grows into whatever this leaves behind, so reading its actual
-       width here would be reading a number this line is about to decide. */
-    const available = room.width - RAIL_MIN - ROOM_GAP - STAGE_GUTTERS;
+    /* The rail's width is a constant now, so the stage can simply reserve it
+       — no feedback loop to avoid, and the two can no longer disagree. */
+    const available = room.width - RAIL_WIDTH - ROOM_GAP - STAGE_GUTTERS;
     if (!(available > 0)) return 0;
     const measured = photos.map((_, i) => naturals[i]);
     /* Until every photograph has reported, the stage stays as wide as the
@@ -630,16 +638,16 @@ export default function ListingGallery({
               is looking. */}
           <div
             ref={roomRef}
-            className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:justify-center min-[56rem]:gap-6"
+            className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:gap-6"
           >
-            <div
-              className="flex min-h-0 min-w-0 flex-1 flex-col"
-              /* Explicit width once the listing has been measured; flex-1
-                 until then, and on a phone forever — flex-1 resolves its main
-                 size from the basis and would ignore a width, so the override
-                 has to say flex: none too. */
-              style={stageWidth > 0 ? { flex: "0 0 auto", width: stageWidth + STAGE_GUTTERS } : undefined}
-            >
+            {/* THE MAT TAKES THE SLACK. The room is wider than the watch and
+                the rail need, and that leftover has to go somewhere. Giving
+                it to this column — rather than splitting it outside the pair —
+                keeps the rail against the room's right edge where it belongs
+                and leaves no orphaned channel beside it. The mat simply has
+                more margin; the STAGE inside it is still bounded to the
+                listing, so the arrows do not move. */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {/* This padding is the ARROWS' room. The stage inside it carries
                   none, and that is load-bearing rather than tidy: the Fit
                   rectangle is measured from clientWidth, clientWidth INCLUDES
@@ -655,15 +663,27 @@ export default function ListingGallery({
                   are warm creams (#F1EDE3, #FAF7F0) built for the parchment
                   pages and would go muddy against this cool slate.
 
-                  Square corners: rounding in this product is reserved, and a
-                  rounded panel this size would announce itself. Desktop only
-                  — on a phone the padding is 4px, so a mat would be a hairline
-                  of tone around the photograph and would read as an artifact. */}
+                  A SMALL radius, per the founder's standing ruling on this:
+                  a tiny rounded corner does not announce itself, it reads as
+                  finished — the corner of a window rather than a decorated
+                  card. Square was the wrong call here, and "rounding is
+                  reserved" was too blunt a reading of that rule.
+
+                  Desktop only — on a phone the stage padding is 4px, so a mat
+                  would be a hairline of tone around the photograph and would
+                  read as an artifact rather than a surface. */}
               <div
                 ref={stageAreaRef}
-                className="relative flex min-h-0 flex-1 items-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem] min-[56rem]:bg-[#F1F4F8]"
+                className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem] min-[56rem]:rounded-lg min-[56rem]:bg-[#F1F4F8]"
               >
-                <div className="relative flex h-full min-w-0 flex-1 items-center justify-center [--arrow-gutter:0px] sm:[--arrow-gutter:4rem]">
+                <div
+                  className="relative flex h-full min-w-0 flex-1 items-center justify-center [--arrow-gutter:0px] sm:[--arrow-gutter:4rem]"
+                  /* The bounded stage lives HERE now, not on the column, so
+                     the column can widen without the arrows widening with it.
+                     flex-1 resolves its main size from the basis and would
+                     ignore a width, so the override has to say flex: none. */
+                  style={stageWidth > 0 ? { flex: "0 0 auto", width: stageWidth } : undefined}
+                >
                   {/* THE PHOTOGRAPH, and the only thing that accepts
                       inspection gestures. key={heroUrl} is load-bearing rather
                       than tidy: a changed photograph remounts the viewport,
@@ -737,7 +757,17 @@ export default function ListingGallery({
                 photographs sit in the room beside it. An earlier pass put a
                 hairline here as well; with the mat doing the work it was one
                 boundary too many, so only the channel remains. */}
-            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:min-w-[200px] min-[56rem]:max-w-[480px] min-[56rem]:flex-1 min-[56rem]:pl-6">
+            <div
+              className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:shrink-0 min-[56rem]:pl-6"
+              /* The width is the CONSTANT, not a Tailwind class. The stage
+                 reserves RAIL_WIDTH and the rail occupies it, so a class here
+                 would be a second copy of one number that has to be kept in
+                 step by hand — and an arbitrary-value class is also a new
+                 class name every time the number is tuned, which the dev
+                 server's CSS scan does not always pick up. Driving it from
+                 the constant makes them the same number by construction. */
+              style={wideRoom ? { width: RAIL_WIDTH } : undefined}
+            >
               <InspectionPhotoRail
                 photos={photos}
                 active={active}

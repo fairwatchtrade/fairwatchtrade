@@ -200,8 +200,8 @@ const rowWidth = (row, gap = 6) =>
 
   ok("C1 the stage is bounded by each source's OWN pixels, not by aspect alone",
     /Math\.min\(room\.height \* \(n\.w \/ n\.h\), n\.w\)/.test(gallery));
-  ok("C1 it reserves against the rail's MINIMUM, never the rail's rendered width",
-    /room\.width - RAIL_MIN - ROOM_GAP - STAGE_GUTTERS/.test(gallery));
+  ok("C1 it reserves the rail's actual width, which is now a constant",
+    /room\.width - RAIL_WIDTH - ROOM_GAP - STAGE_GUTTERS/.test(gallery));
   ok("C1 and stays full width until every photograph has reported",
     /measured\.some\(\(n\) => !n\)\) return available/.test(gallery));
 
@@ -210,7 +210,11 @@ const rowWidth = (row, gap = 6) =>
   ok("C2 the measured room width excludes its own padding",
     /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(gallery));
   ok("C2 an explicit stage width overrides flex, which would otherwise ignore it",
-    /flex: "0 0 auto", width: stageWidth \+ STAGE_GUTTERS/.test(gallery));
+    /flex: "0 0 auto", width: stageWidth/.test(gallery));
+  ok("C2 the bound is on the STAGE, not the column — so the column can widen alone",
+    !/width: stageWidth \+ STAGE_GUTTERS/.test(gallery));
+  ok("C2 and the column takes the room's slack, keeping the rail at the edge",
+    !/min-\[56rem\]:justify-center/.test(gallery));
 
   ok("C3 BOTH arrows are pinned to the stage, in plain CSS",
     /left: "calc\(-1 \* var\(--arrow-gutter\)\)"/.test(gallery) &&
@@ -223,8 +227,16 @@ const rowWidth = (row, gap = 6) =>
 
   ok("C5 the rail fills the column the room hands it",
     /flex w-full shrink-0 flex-col/.test(rail));
-  ok("C5 bounded at both ends, so it can neither vanish nor rival the watch",
-    /min-\[56rem\]:min-w-\[\d+px\]/.test(gallery) && /min-\[56rem\]:max-w-\[\d+px\]/.test(gallery));
+  /* A FIXED width, and that is what makes "20% narrower" mean anything. The
+     rail used to be flex-1 between a min and a max, so it took whatever the
+     stage left behind — and tile height in a justified row is the row's
+     width divided by however many fit, so a rail that changed width changed
+     every thumbnail with it. The same listing rendered different thumbnail
+     sizes in different windows, and no single percentage could describe a
+     change to them. */
+  ok("C5 the rail is a FIXED width, so thumbnail scale cannot follow the window",
+    /style=\{wideRoom \? \{ width: RAIL_WIDTH \} : undefined\}/.test(gallery) &&
+    /min-\[56rem\]:shrink-0/.test(gallery) && !/min-\[56rem\]:flex-1/.test(gallery));
   ok("C5 tile height is derived from that width rather than typed",
     /targetHeight: \(width - GAP\) \/ 2/.test(rail));
 
@@ -234,13 +246,19 @@ const rowWidth = (row, gap = 6) =>
      padding class without its constant leaves a stage that reserves the
      wrong width and looks merely a little off. */
   const numOf = (re) => { const m = gallery.match(re); return m ? parseFloat(m[1]) : NaN; };
-  const RAIL_MIN = numOf(/const RAIL_MIN = (\d+)/);
+  const RAIL_WIDTH = numOf(/const RAIL_WIDTH = (\d+)/);
   const ROOM_GAP = numOf(/const ROOM_GAP = (\d+)/);
   const STAGE_GUTTERS = numOf(/const STAGE_GUTTERS = (\d+)/);
   const WIDE = gallery.match(/const WIDE_ROOM = "([^"]+)"/)?.[1];
 
-  ok("C6 RAIL_MIN matches the rail column's own min-width class",
-    gallery.includes("min-[56rem]:min-w-[" + RAIL_MIN + "px]"));
+  /* No drift guard needed for the width any more: the rail is sized FROM the
+     constant rather than from a class repeating it, so the stage's
+     reservation and the rail's occupation are the same number by
+     construction. This asserts they stay that way — and that no class
+     quietly reintroduces a second copy of the number. */
+  ok("C6 the rail is sized from RAIL_WIDTH itself, with no class repeating it",
+    Number.isFinite(RAIL_WIDTH) && /width: RAIL_WIDTH/.test(gallery) &&
+    !/min-\[56rem\]:w-\[\d+px\]/.test(gallery));
   ok("C6 ROOM_GAP matches the gap class between stage and rail",
     Number.isFinite(ROOM_GAP) && gallery.includes("min-[56rem]:gap-" + ROOM_GAP / 4 + '"'));
   ok("C6 STAGE_GUTTERS matches the padding that holds the arrows",
@@ -279,8 +297,20 @@ const rowWidth = (row, gap = 6) =>
 
   ok("P1 the rail measures its own content, not its padding",
     /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(rail));
-  ok("P1 which it must, now that it carries right-side breathing room",
-    /overflow-y-auto pr-3/.test(rail));
+  ok("P1 which it must, now that it carries padding on every side",
+    /overflow-y-auto py-1\.5 pl-1\.5 pr-3/.test(rail));
+  ok("P1 and that padding clears the selection ring, which the scroller clips",
+    (() => {
+      /* A scroll container clips on BOTH axes once either is not visible, and
+         a ring is a box-shadow drawn outside the tile. Every justified row
+         fills the content width exactly, so without clearance the ring on a
+         row-edge tile is sliced — the "partly broken" gold outline. A 2px
+         ring at 2px offset reaches 4px. */
+      const m = rail.match(/overflow-y-auto py-([\d.]+) pl-([\d.]+) pr-([\d.]+)/);
+      if (!m) return false;
+      const px = (v) => parseFloat(v) * 4;
+      return px(m[1]) > 4 && px(m[2]) > 4 && px(m[3]) > 4;
+    })());
 
   ok("P2 auto-follow reveals only when the tile is out of view",
     /if \(top < rail\.scrollTop\)/.test(rail) &&
@@ -314,6 +344,8 @@ const rowWidth = (row, gap = 6) =>
 
   ok("P4 the hero sits on a MAT, bounded to the stage rather than the page",
     /min-\[56rem\]:bg-\[#F1F4F8\]/.test(gallery));
+  ok("P4 the mat has a small radius — finished, not announced",
+    /min-\[56rem\]:rounded-lg/.test(gallery));
   ok("P4 the rail stays on the room's own tone, outside that mat",
     /min-\[56rem\]:pl-6/.test(gallery) && !/min-\[56rem\]:border-l/.test(gallery));
   ok("P4 the mat is desktop-only, so a phone keeps its bare room",
@@ -323,8 +355,9 @@ const rowWidth = (row, gap = 6) =>
     />\s*Reset\s*<\/button>/.test(gallery) &&
     /aria-label="Reset the photograph to fit the viewer"/.test(gallery));
 
-  ok("P6 the room centres what it no longer needs, rather than stranding the rail",
-    /min-\[56rem\]:justify-center/.test(gallery));
+  ok("P6 the MAT takes the room's slack, so the rail stays against the edge",
+    /flex min-h-0 min-w-0 flex-1 flex-col/.test(gallery) &&
+    /flex: "0 0 auto", width: stageWidth/.test(gallery));
 }
 
 console.log(`justified-rows: ${n} assertions passed`);

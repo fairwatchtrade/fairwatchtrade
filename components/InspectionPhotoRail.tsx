@@ -94,10 +94,12 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
       orientation === "column"
         ? /* TWO ACROSS, derived rather than typed. A row of two square tiles
              plus the gap between them IS the column, so the target height
-             falls out of the width — which means widening the rail enlarges
-             the photographs instead of packing more of them in. The old 78
-             was this same rule at the old 168, written down as a number and
-             therefore silently wrong the moment the column changed. */
+             falls out of the width.
+
+             A target row height in ABSOLUTE pixels was tried here and
+             reverted: it packed three and four photographs into a row, which
+             is not this rail. The column's width is the dial — narrow the
+             column and the photographs come down with it, still two across. */
           { targetHeight: (width - GAP) / 2, gap: GAP, maxRowHeight: width * 0.79 }
         : /* A horizontal band has one row and unlimited width, so the target
              height IS the height and justification has nothing to solve. The
@@ -151,8 +153,16 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
              and because tile height is derived from that width, a wider room
              enlarges the supporting photographs rather than stacking more of
              them. */
-          ? "relative flex w-full shrink-0 flex-col gap-2.5 overflow-y-auto pr-3"
-          : "relative flex w-full gap-2.5 overflow-x-auto"
+          /* THE PADDING IS NOT DECORATION. A ring is a box-shadow, drawn
+             OUTSIDE the tile — and a scroll container clips on both axes the
+             moment either one is not `visible`. Because every justified row
+             fills the content width exactly, the selection ring on any tile
+             at a row's edge was being sliced off by the scroller: the "partly
+             broken" gold outline. The ring reaches 4px, so there has to be
+             more than that of clearance on every side. pr is larger because
+             it also holds the thumbnails off the scrollbar. */
+          ? "relative flex w-full shrink-0 flex-col gap-2.5 overflow-y-auto py-1.5 pl-1.5 pr-3"
+          : "relative flex w-full gap-2.5 overflow-x-auto p-1.5"
       }
       aria-label="Other photographs of this watch"
     >
