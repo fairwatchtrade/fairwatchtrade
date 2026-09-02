@@ -235,7 +235,30 @@ the smallest screen. Both rails exist in the DOM and CSS hides one — the hidde
 one is `display: none`, so it is out of the accessibility tree and unfocusable
 rather than a duplicate set of controls.
 
+## The room has three layers, and the middle one is the mat
+
+The room, the stage and the photograph were one undivided field of slate, so
+the hero and the rail dissolved into the same atmosphere. There is now a middle
+layer: a panel a shade lighter than the room, bounded to the stage and its
+arrow gutters, that reads as a lit surface the watch is laid on. The rail stays
+on the room's own tone, outside the mat — that contrast IS the separation, so
+the hairline divider an earlier pass added became one boundary too many and was
+removed.
+
+Two traps in choosing that tone:
+
+- `--image-well` and `--card-surface` look like the obvious tokens and are the
+  wrong ones. Both are warm creams (`#F1EDE3`, `#FAF7F0`) built for the
+  parchment pages, and they go muddy against this cool slate room.
+- Square corners. Rounding is reserved in this product, and a rounded panel at
+  this size announces itself.
+
+The mat is desktop-only. On a phone the stage padding is 4px, so a mat would be
+a hairline of tone around the photograph and read as an artifact rather than a
+surface.
+
 ## The rail follows the selection without chasing it
+
 
 Cycling with the arrows must not leave the selected thumbnail somewhere off
 the rail. But a rail that **recentres** on every step is worse than one that

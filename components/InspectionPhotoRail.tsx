@@ -31,7 +31,7 @@ import { cardImageSrc } from "@/lib/media/cardImage";
 /** Kept in one place: the layout solves rows against it and the flex
     container has to draw the same distance, or the arithmetic and the paint
     disagree by a pixel per gap. */
-const GAP = 6;
+const GAP = 10;
 
 type Props = {
   photos: string[];
@@ -151,14 +151,14 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
              and because tile height is derived from that width, a wider room
              enlarges the supporting photographs rather than stacking more of
              them. */
-          ? "relative flex w-full shrink-0 flex-col gap-1.5 overflow-y-auto pr-3"
-          : "relative flex w-full gap-1.5 overflow-x-auto"
+          ? "relative flex w-full shrink-0 flex-col gap-2.5 overflow-y-auto pr-3"
+          : "relative flex w-full gap-2.5 overflow-x-auto"
       }
       aria-label="Other photographs of this watch"
     >
       {orientation === "column"
         ? [...byRow.keys()].sort((a, b) => a - b).map((row) => (
-            <div key={row} className="flex gap-1.5">
+            <div key={row} className="flex gap-2.5">
               {byRow.get(row)!.map((t) => (
                 <Tile
                   key={t.index}
@@ -225,10 +225,16 @@ function Tile({
 
          Focus is deliberately NOT gold. Gold means "this is the photograph
          you are looking at"; a keyboard ring in the same colour made the two
-         indistinguishable. Focus is ink, and stands outside the tile. */
+         indistinguishable. Focus is ink, and stands outside the tile.
+
+         The ring stands OFF the tile rather than inside it, which is what
+         makes the selection read as deliberate rather than as a line drawn
+         on a photograph. That costs clearance: a 2px ring at 2px offset
+         reaches 4px, so the rail gap had to widen to GAP before this was
+         safe — at the old 6px the rings of adjacent tiles collided. */
       className={`shrink-0 overflow-hidden rounded-sm border border-[var(--border-subtle)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--ink)] ${
         active
-          ? "opacity-100 ring-2 ring-inset ring-[var(--gold)]"
+          ? "opacity-100 ring-2 ring-[var(--gold)] ring-offset-2 ring-offset-[#E8EBEF]"
           : "opacity-75 hover:border-[var(--border-mid)] hover:opacity-100"
       }`}
     >

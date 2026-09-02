@@ -228,12 +228,19 @@ const VP = { width: 800, height: 600 };
   const gallery = read("components/ListingGallery.tsx");
   ok("P1 the viewport is keyed by the photograph itself",
     /<InspectionViewport\s+key=\{heroUrl\}/.test(gallery));
+  /* The resting hero still clamps at the ends; the inspection room cycles.
+     Both drive the same active photo state, which is the invariant here —
+     an earlier version of these two assertions pinned the clamping FORM
+     rather than the state, and went stale the moment the room learned to
+     cycle. */
   ok("P1 every navigation path drives that same active photo state",
     /setActive\(\(i\) => Math\.max\(0, i - 1\)\)/.test(gallery) &&
     /setActive\(\(i\) => Math\.min\(photos\.length - 1, i \+ 1\)\)/.test(gallery) &&
-    /onClick=\{\(\) => setActive\(i\)\}/.test(gallery));
+    /onClick=\{\(\) => setActive\(i\)\}/.test(gallery) &&
+    /setActive\(\(i\) => \(photos\.length \? \(i \+ step \+ photos\.length\) % photos\.length : 0\)\)/.test(gallery));
   ok("P1 keyboard photo navigation drives it too",
-    /if \(e\.key === "ArrowLeft"\) setActive/.test(gallery));
+    /if \(e\.key === "ArrowLeft"\) cycle\(-1\);/.test(gallery) &&
+    /if \(e\.key === "ArrowRight"\) cycle\(1\);/.test(gallery));
   ok("P1 the transform state starts at Fit", /useState<Transform>\(FIT\)/.test(read("components/InspectionViewport.tsx")));
 }
 
@@ -242,9 +249,11 @@ const VP = { width: 800, height: 600 };
   const vp = read("components/InspectionViewport.tsx");
   const gallery = read("components/ListingGallery.tsx");
 
-  ok("A1 Zoom In, Zoom Out and Fit exist as real buttons",
+  ok("A1 Zoom In, Zoom Out and Reset exist as real buttons",
     /aria-label="Zoom in"/.test(gallery) && /aria-label="Zoom out"/.test(gallery) &&
-    /aria-label="Fit photograph to the viewer"/.test(gallery));
+    /aria-label="Reset the photograph to fit the viewer"/.test(gallery));
+  ok("A1 the reset control says the same word to the eye and to a screen reader",
+    />\s*Reset\s*<\/button>/.test(gallery) && !/>\s*Fit\s*<\/button>/.test(gallery));
   ok("A1 they are <button>, so they are keyboard operable for free",
     /type="button"[\s\S]{0,200}aria-label="Zoom in"/.test(gallery));
   ok("A1 they carry a visible focus state",

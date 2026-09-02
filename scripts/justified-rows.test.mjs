@@ -290,16 +290,34 @@ const rowWidth = (row, gap = 6) =>
   ok("P2 and the rail is positioned, or offsetTop would measure the wrong box",
     /"relative flex w-full shrink-0 flex-col/.test(rail));
 
-  ok("P3 selection is ONE inset line, so it cannot bleed into the 6px gap",
-    /ring-2 ring-inset ring-\[var\(--gold\)\]/.test(rail));
-  ok("P3 the doubled border-plus-offset-ring is gone",
-    !/ring-offset-\[#E8EBEF\]/.test(rail));
+  ok("P3 selection is ONE decisive ring, standing off the tile",
+    /ring-2 ring-\[var\(--gold\)\] ring-offset-2/.test(rail));
+  ok("P3 the second gold edge underneath it is gone",
+    !/border-\[var\(--gold\)\]/.test(rail));
+  ok("P3 the gap is wide enough that adjacent rings cannot collide",
+    (() => {
+      /* A 2px ring at 2px offset reaches 4px past the tile on every side, so
+         neighbours need more than 8px between them or the selection touches
+         the tile beside it. This is why the rail gap widened. */
+      const gap = parseFloat((rail.match(/const GAP = (\d+)/) ?? [])[1]);
+      return Number.isFinite(gap) && gap > 8;
+    })());
+  ok("P3 and the flex gap class matches the GAP the layout solves against",
+    (() => {
+      const gap = parseFloat((rail.match(/const GAP = (\d+)/) ?? [])[1]);
+      const cls = "gap-" + gap / 4;
+      return rail.includes(cls + " ") || rail.includes(cls + '"');
+    })());
   ok("P3 focus stays visible and is NOT gold, so it cannot read as selection",
     /focus-visible:outline-\[var\(--ink\)\]/.test(rail) &&
     !/focus-visible:outline-\[var\(--gold\)\]/.test(rail));
 
-  ok("P4 the stage and the rail are separated by a gutter, not a repaint",
-    /min-\[56rem\]:border-l/.test(gallery) && /min-\[56rem\]:pl-6/.test(gallery));
+  ok("P4 the hero sits on a MAT, bounded to the stage rather than the page",
+    /min-\[56rem\]:bg-\[#F1F4F8\]/.test(gallery));
+  ok("P4 the rail stays on the room's own tone, outside that mat",
+    /min-\[56rem\]:pl-6/.test(gallery) && !/min-\[56rem\]:border-l/.test(gallery));
+  ok("P4 the mat is desktop-only, so a phone keeps its bare room",
+    !/ sm:bg-\[#F1F4F8\]/.test(gallery) && !/ bg-\[#F1F4F8\]/.test(gallery));
 
   ok("P5 the control says RESET, and says the same thing to a screen reader",
     />\s*Reset\s*<\/button>/.test(gallery) &&

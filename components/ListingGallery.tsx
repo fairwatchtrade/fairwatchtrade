@@ -646,9 +646,22 @@ export default function ListingGallery({
                   padding, so a padded stage would let a wide photograph
                   compute itself larger than the box it is laid out in and
                   slide under both arrows. */}
+              {/* THE MAT. The room, the stage and the photograph were one
+                  undivided field of slate, so the hero and the rail dissolved
+                  into the same atmosphere. This is the middle layer: a panel
+                  a shade lighter than the room, bounded to the stage and its
+                  arrow gutters, that reads as a lit surface the watch is laid
+                  on. Deliberately NOT --image-well or --card-surface, which
+                  are warm creams (#F1EDE3, #FAF7F0) built for the parchment
+                  pages and would go muddy against this cool slate.
+
+                  Square corners: rounding in this product is reserved, and a
+                  rounded panel this size would announce itself. Desktop only
+                  — on a phone the padding is 4px, so a mat would be a hairline
+                  of tone around the photograph and would read as an artifact. */}
               <div
                 ref={stageAreaRef}
-                className="relative flex min-h-0 flex-1 items-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem]"
+                className="relative flex min-h-0 flex-1 items-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem] min-[56rem]:bg-[#F1F4F8]"
               >
                 <div className="relative flex h-full min-w-0 flex-1 items-center justify-center [--arrow-gutter:0px] sm:[--arrow-gutter:4rem]">
                   {/* THE PHOTOGRAPH, and the only thing that accepts
@@ -719,11 +732,12 @@ export default function ListingGallery({
                 what the bounding was FOR. Bounded at both ends: never narrower
                 than the width the stage reserved for it, never so wide that
                 supporting photographs start competing with the watch. */}
-            {/* A GUTTER, not a redesign. The stage and the rail were two sets
-                of photographs sharing one undivided field, which read as one
-                crowded surface. A hairline and a wider channel separate them
-                without introducing a panel colour the room does not have. */}
-            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:min-w-[200px] min-[56rem]:max-w-[480px] min-[56rem]:flex-1 min-[56rem]:border-l min-[56rem]:border-[var(--border-subtle)] min-[56rem]:pl-6">
+            {/* The rail stays on the ROOM's tone, outside the mat. That is
+                the separation — the hero sits on a lit panel, the supporting
+                photographs sit in the room beside it. An earlier pass put a
+                hairline here as well; with the mat doing the work it was one
+                boundary too many, so only the channel remains. */}
+            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:min-w-[200px] min-[56rem]:max-w-[480px] min-[56rem]:flex-1 min-[56rem]:pl-6">
               <InspectionPhotoRail
                 photos={photos}
                 active={active}
