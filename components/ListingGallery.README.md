@@ -235,6 +235,33 @@ the smallest screen. Both rails exist in the DOM and CSS hides one — the hidde
 one is `display: none`, so it is out of the accessibility tree and unfocusable
 rather than a duplicate set of controls.
 
+## The rail follows the selection without chasing it
+
+Cycling with the arrows must not leave the selected thumbnail somewhere off
+the rail. But a rail that **recentres** on every step is worse than one that
+never moves, because the entire set slides under the reader's eye at each
+press. The rule is: already visible, do nothing at all; not visible, scroll
+exactly far enough to bring it in, plus one gap so it does not sit flush.
+
+`scrollIntoView` is deliberately not used — its centring behaviour is the
+thing being avoided, and it can scroll ancestors as well. The rail is
+`position: relative` because `offsetTop` would otherwise measure against
+whatever positioned box happened to be above it.
+
+Selection is **one inset gold ring**. It was a gold border *and* an offset
+gold ring — two gold edges with a gap between, reading as a smudge at rail
+size. The ring is inset rather than offset for a second reason: an offset ring
+reaches 4px into a 6px gap and collides with its neighbour.
+
+Focus is **ink, not gold**, and stands outside the tile. Gold means "this is
+the photograph you are looking at"; a keyboard ring in the same colour made
+selection and focus indistinguishable.
+
+The rail carries right-hand padding so thumbnails are not shoved against the
+scrollbar — which is why it must measure its own *content* width. `clientWidth`
+includes padding, and justifying rows against a padded width makes every row
+too wide by exactly that padding, clipping the last tile in each.
+
 ## The stage is bounded to the listing, not to the room
 
 The stage used to be "whatever width is left over", which is how a 598px

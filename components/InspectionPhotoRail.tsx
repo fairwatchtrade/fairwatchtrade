@@ -51,7 +51,15 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
   useEffect(() => {
     const el = railRef.current;
     if (!el) return;
-    const measure = () => setWidth(el.clientWidth);
+    const measure = () => {
+      /* clientWidth INCLUDES padding, and the rail now carries some so the
+         thumbnails are not shoved against the scrollbar. Justifying rows
+         against a padded width would make every row too wide by exactly that
+         padding, and the last tile in each row would clip. */
+      const cs = getComputedStyle(el);
+      const num = (v: string) => parseFloat(v) || 0;
+      setWidth(Math.max(0, el.clientWidth - num(cs.paddingLeft) - num(cs.paddingRight)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -98,6 +106,35 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
     );
   }, [photos, aspects, width, orientation]);
 
+  /* AUTO-FOLLOW, minimally. Cycling with the arrows must not leave the
+     selected thumbnail somewhere off the rail — but a rail that RECENTRES on
+     every step is worse than one that never moves, because the whole set
+     slides under the collector's eye at each press. So: if the tile is
+     already visible, do nothing at all; if it is not, scroll exactly far
+     enough to bring it in, plus one gap so it does not sit flush against the
+     edge. offsetTop is why the rail is positioned. */
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const rail = railRef.current;
+    const el = activeRef.current;
+    if (!rail || !el) return;
+    if (orientation === "column") {
+      const top = el.offsetTop;
+      const bottom = top + el.offsetHeight;
+      if (top < rail.scrollTop) rail.scrollTop = Math.max(0, top - GAP);
+      else if (bottom > rail.scrollTop + rail.clientHeight) {
+        rail.scrollTop = bottom - rail.clientHeight + GAP;
+      }
+      return;
+    }
+    const left = el.offsetLeft;
+    const right = left + el.offsetWidth;
+    if (left < rail.scrollLeft) rail.scrollLeft = Math.max(0, left - GAP);
+    else if (right > rail.scrollLeft + rail.clientWidth) {
+      rail.scrollLeft = right - rail.clientWidth + GAP;
+    }
+  }, [active, orientation, tiles]);
+
   if (photos.length <= 1) return null;
 
   const byRow = new Map<number, typeof tiles>();
@@ -114,8 +151,8 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
              and because tile height is derived from that width, a wider room
              enlarges the supporting photographs rather than stacking more of
              them. */
-          ? "flex w-full shrink-0 flex-col gap-1.5 overflow-y-auto pr-1"
-          : "flex w-full gap-1.5 overflow-x-auto"
+          ? "relative flex w-full shrink-0 flex-col gap-1.5 overflow-y-auto pr-3"
+          : "relative flex w-full gap-1.5 overflow-x-auto"
       }
       aria-label="Other photographs of this watch"
     >
@@ -128,6 +165,7 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
                   url={photos[t.index]}
                   index={t.index}
                   active={t.index === active}
+                  innerRef={t.index === active ? activeRef : undefined}
                   width={t.width}
                   height={t.height}
                   onSelect={onSelect}
@@ -141,6 +179,7 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
               url={url}
               index={i}
               active={i === active}
+              innerRef={i === active ? activeRef : undefined}
               width={64 * (aspects[i] ?? 1)}
               height={64}
               onSelect={onSelect}
@@ -154,6 +193,7 @@ function Tile({
   url,
   index,
   active,
+  innerRef,
   width,
   height,
   onSelect,
@@ -161,25 +201,35 @@ function Tile({
   url: string;
   index: number;
   active: boolean;
+  innerRef?: React.RefObject<HTMLButtonElement | null>;
   width: number;
   height: number;
   onSelect: (i: number) => void;
 }) {
   return (
     <button
+      ref={innerRef}
       type="button"
       onClick={() => onSelect(index)}
       aria-label={`View photograph ${index + 1}`}
       aria-current={active ? "true" : undefined}
       style={{ width: `${width}px`, height: `${height}px` }}
-      /* Selection carries on a light field the same way it did before —
-         gold border, a ring standing off the slate, full opacity against
-         held-back siblings. Held back at 75%, not washed out: these are
-         photographs a collector is choosing between. */
-      className={`shrink-0 overflow-hidden rounded-sm border transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] ${
+      /* ONE selection line. This was a gold border AND an offset gold ring —
+         two gold edges with a gap between them, which at rail size read as a
+         smudge rather than a selection. The ring is INSET, which matters at
+         more than one level: an offset ring would reach 4px into a 6px gap
+         and collide with its neighbours. The neutral border stays on every
+         tile so unselected ones keep their definition, held back at 75%
+         rather than washed out — these are photographs a collector is
+         choosing between, not disabled controls.
+
+         Focus is deliberately NOT gold. Gold means "this is the photograph
+         you are looking at"; a keyboard ring in the same colour made the two
+         indistinguishable. Focus is ink, and stands outside the tile. */
+      className={`shrink-0 overflow-hidden rounded-sm border border-[var(--border-subtle)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--ink)] ${
         active
-          ? "border-[var(--gold)] opacity-100 ring-1 ring-[var(--gold)] ring-offset-2 ring-offset-[#E8EBEF]"
-          : "border-[var(--border-subtle)] opacity-75 hover:border-[var(--border-mid)] hover:opacity-100"
+          ? "opacity-100 ring-2 ring-inset ring-[var(--gold)]"
+          : "opacity-75 hover:border-[var(--border-mid)] hover:opacity-100"
       }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

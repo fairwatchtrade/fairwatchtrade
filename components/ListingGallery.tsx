@@ -17,7 +17,7 @@ import { cardImageSrc } from "@/lib/media/cardImage";
    rail becomes a column instead of a band. */
 const STAGE_GUTTERS = 144;
 const ROOM_GAP = 24;
-const RAIL_MIN = 240;
+const RAIL_MIN = 200;
 const WIDE_ROOM = "56rem";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -580,10 +580,10 @@ export default function ListingGallery({
                     type="button"
                     onClick={() => zoomControlsRef.current?.fit()}
                     disabled={zoomState.scale <= 1}
-                    aria-label="Fit photograph to the viewer"
+                    aria-label="Reset the photograph to fit the viewer"
                     className={`${zoomBtn} w-auto px-2 text-[10px] uppercase tracking-[1.2px]`}
                   >
-                    Fit
+                    Reset
                   </button>
                   {/* Truthful, and announced only when it is saying
                       something: at Fit there is no zoom level worth reading
@@ -630,7 +630,7 @@ export default function ListingGallery({
               is looking. */}
           <div
             ref={roomRef}
-            className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:gap-6"
+            className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:justify-center min-[56rem]:gap-6"
           >
             <div
               className="flex min-h-0 min-w-0 flex-1 flex-col"
@@ -719,7 +719,11 @@ export default function ListingGallery({
                 what the bounding was FOR. Bounded at both ends: never narrower
                 than the width the stage reserved for it, never so wide that
                 supporting photographs start competing with the watch. */}
-            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:min-w-[240px] min-[56rem]:max-w-[560px] min-[56rem]:flex-1">
+            {/* A GUTTER, not a redesign. The stage and the rail were two sets
+                of photographs sharing one undivided field, which read as one
+                crowded surface. A hairline and a wider channel separate them
+                without introducing a panel colour the room does not have. */}
+            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0 min-[56rem]:min-w-[200px] min-[56rem]:max-w-[480px] min-[56rem]:flex-1 min-[56rem]:border-l min-[56rem]:border-[var(--border-subtle)] min-[56rem]:pl-6">
               <InspectionPhotoRail
                 photos={photos}
                 active={active}

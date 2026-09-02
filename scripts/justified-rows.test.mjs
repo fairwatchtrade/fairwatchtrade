@@ -270,4 +270,43 @@ const rowWidth = (row, gap = 6) =>
     (gallery.match(/max-w-\[1900px\]/g) ?? []).length >= 2);
 }
 
+/* ── 10 · THE POLISH PASS ──────────────────────────────────────────────
+   Six small requests, each of which fails quietly and looks merely a bit
+   wrong rather than broken — which is exactly why they are pinned here. */
+{
+  const gallery = read("components/ListingGallery.tsx");
+  const rail = read("components/InspectionPhotoRail.tsx");
+
+  ok("P1 the rail measures its own content, not its padding",
+    /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(rail));
+  ok("P1 which it must, now that it carries right-side breathing room",
+    /overflow-y-auto pr-3/.test(rail));
+
+  ok("P2 auto-follow reveals only when the tile is out of view",
+    /if \(top < rail\.scrollTop\)/.test(rail) &&
+    /bottom > rail\.scrollTop \+ rail\.clientHeight/.test(rail));
+  ok("P2 it never recentres, which would slide the whole set on every press",
+    !/scrollIntoView/.test(rail) && !/block: "center"/.test(rail));
+  ok("P2 and the rail is positioned, or offsetTop would measure the wrong box",
+    /"relative flex w-full shrink-0 flex-col/.test(rail));
+
+  ok("P3 selection is ONE inset line, so it cannot bleed into the 6px gap",
+    /ring-2 ring-inset ring-\[var\(--gold\)\]/.test(rail));
+  ok("P3 the doubled border-plus-offset-ring is gone",
+    !/ring-offset-\[#E8EBEF\]/.test(rail));
+  ok("P3 focus stays visible and is NOT gold, so it cannot read as selection",
+    /focus-visible:outline-\[var\(--ink\)\]/.test(rail) &&
+    !/focus-visible:outline-\[var\(--gold\)\]/.test(rail));
+
+  ok("P4 the stage and the rail are separated by a gutter, not a repaint",
+    /min-\[56rem\]:border-l/.test(gallery) && /min-\[56rem\]:pl-6/.test(gallery));
+
+  ok("P5 the control says RESET, and says the same thing to a screen reader",
+    />\s*Reset\s*<\/button>/.test(gallery) &&
+    /aria-label="Reset the photograph to fit the viewer"/.test(gallery));
+
+  ok("P6 the room centres what it no longer needs, rather than stranding the rail",
+    /min-\[56rem\]:justify-center/.test(gallery));
+}
+
 console.log(`justified-rows: ${n} assertions passed`);
