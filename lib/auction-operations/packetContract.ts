@@ -55,18 +55,31 @@ export function isApplyWithheld(v: unknown): boolean {
   return typeof v === "string" && (APPLY_WITHHELD_ADAPTERS as readonly string[]).includes(v);
 }
 
-export type ApplyDispatch = "withheld" | "phillips" | "monaco";
+export type ApplyDispatch = "withheld" | "phillips" | "monaco" | "unsupported";
 
-/** THE dispatch decision, pure and testable. Withheld is evaluated before
-    every other branch so a withheld family can never reach a writer — the
-    Monaco writer is the fall-through, which is precisely why it is last. */
+/** THE dispatch decision, pure and testable, and explicit BY FAMILY.
+
+    Withheld is evaluated first so a withheld family can never reach a
+    writer. After that, every writer branch names the families it serves.
+    There is no fall-through: a name that is neither withheld nor a proven
+    writer family is `unsupported`, and the slice refuses it before any
+    engine. v8.18 closed the fourth-adapter hazard by withholding
+    monaco-portable first; this closes the general one — a future fifth
+    name cannot inherit the Monaco writer by elimination.
+
+    When a later, separately authorised release removes monaco-portable from
+    the withheld set, that release must add its explicit `portable` branch
+    here at the same time. Absent that branch it lands on `unsupported`,
+    which is the correct failure. */
 export function applyDispatchFor(adapterId: unknown): ApplyDispatch {
   if (isApplyWithheld(adapterId)) return "withheld";
   if (adapterId === "phillips-sale") return "phillips";
-  return "monaco";
+  if (adapterId === "monaco-legend" || adapterId === "monaco-layer2") return "monaco";
+  return "unsupported";
 }
 
 export const APPLY_WITHHELD_ERROR = "apply_withheld_plan_only_family";
+export const APPLY_UNSUPPORTED_ERROR = "apply_unsupported_adapter";
 
 /** Families whose executable path was INSPECTED and proven able to resolve
     a new packet instance from governed descriptor data alone — no packet

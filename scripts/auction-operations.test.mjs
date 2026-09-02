@@ -57,7 +57,14 @@ import {
   evidenceCompletenessDelta,
   buildPortablePlan,
   portablePlanToBytes,
+  PRIVATE_KEEPER_BUCKET,
+  PRIVATE_KEEPER_RIGHTS,
+  keeperObjectPath,
 } from "../lib/auction-operations/monaco-portable-core.mjs";
+import {
+  applyPortablePlanSlice,
+  ensureKeeperRetained,
+} from "../lib/auction-operations/monaco-portable-writer.mjs";
 import { readFileSync as readSourceFile, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -257,6 +264,9 @@ function fakeDb() {
       const chain = {
         select() { return chain; },
         eq(k, v) { filters.push((r) => r[k] === v); return chain; },
+        /* `.is(col, null)` is how Supabase matches NULL; `.eq(col, null)` does
+           not. The portable writer resolves the URL-less keeper row this way. */
+        is(k, v) { filters.push((r) => (v === null ? r[k] === null || r[k] === undefined : r[k] === v)); return chain; },
         in(k, vs) { filters.push((r) => vs.includes(r[k])); return chain; },
         then(resolve) {
           const rows = (tables[table] ?? []).filter((r) => filters.every((f) => f(r)));
@@ -1142,17 +1152,31 @@ const synthManifest = {
   ok("every gate is recorded with expected/actual/pass, and all pass",
     p1.gates_reconciliation.length >= 10 && p1.gates_reconciliation.every((g) => g.pass && "expected" in g && "actual" in g));
 
-  /* §17 — the keeper's hash describes the keeper, never an official page. */
+  /* §17 — the keeper's hash describes the keeper, never an official page.
+     v8.21: two distinct artifact specs. The sale page stays URL-backed and
+     hashless; the keeper is URL-less and carries the keeper hash. */
+  const salePage = p1.sales[0].artifact_specs.find((a) => a.key === "sale_page");
+  const keeperSpec = p1.sales[0].artifact_specs.find((a) => a.key === "portable_keeper");
+  ok("sale_page and portable_keeper are distinct specs",
+    p1.sales[0].artifact_specs.length === 2 && salePage && keeperSpec && salePage !== keeperSpec);
   ok("the sale-page artifact carries the official URL with NO hash, because this flight never fetched that page",
-    p1.sales[0].artifact_specs.length === 1 && p1.sales[0].artifact_specs[0].source_url === synthManifest.sale.canonical_auction_url &&
-    p1.sales[0].artifact_specs[0].content_hash === null);
-  ok("the keeper hash appears on the keeper block and on no artifact row",
-    p1.keeper.sha256 === synthSha && p1.sales[0].artifact_specs.every((a) => a.content_hash !== synthSha));
-  ok("the artifact takes the most conservative governed rights posture",
-    p1.sales[0].artifact_specs[0].permission_status === "unresolved" && p1.sales[0].artifact_specs[0].publication_status === "internal_only" &&
-    p1.sales[0].artifact_specs[0].public_use_scope === "none" && p1.sales[0].artifact_specs[0].artifact_retention_scope === "metadata_only");
-  ok("the plan states plainly that retention and source-artifact identity are unresolved",
-    /STAGING_ONLY/.test(p1.keeper.retention) && /UNRESOLVED/.test(p1.keeper.source_artifact_representation));
+    salePage.source_url === synthManifest.sale.canonical_auction_url && salePage.content_hash === null &&
+    salePage.artifact_retention_scope === "metadata_only" && salePage.full_artifact_storage_path === null);
+  ok("the keeper hash sits on the keeper block and on the URL-less keeper spec only — never on a URL-backed artifact",
+    p1.keeper.sha256 === synthSha && keeperSpec.content_hash === synthSha && keeperSpec.source_url === null &&
+    p1.sales[0].artifact_specs.filter((a) => a.source_url !== null).every((a) => a.content_hash !== synthSha));
+  ok("the keeper spec carries the ruled rights/retention values and a content-addressed path",
+    keeperSpec.intake_method === "founder_supplied_file" && keeperSpec.permission_status === "unresolved" &&
+    keeperSpec.publication_status === "internal_only" && keeperSpec.public_use_scope === "normalized_facts_only" &&
+    keeperSpec.artifact_retention_scope === "full_artifact_private" && keeperSpec.automation_status === "not_applicable" &&
+    keeperSpec.full_artifact_storage_path === `sha256/${synthSha}.json`);
+  ok("no timestamp is written into deterministic plan bytes",
+    !("retrieved_at" in keeperSpec) && !("retrieved_at" in salePage) && !/"retrieved_at"/.test(portablePlanToBytes(p1)));
+  ok("the sale-page artifact keeps the most conservative posture; the keeper's normalized facts join the governed lane",
+    salePage.public_use_scope === "none" && keeperSpec.public_use_scope === "normalized_facts_only");
+  ok("the plan names the keeper's retention destination and still says Apply is withheld",
+    /PRIVATE_KEEPER_ARTIFACT/.test(p1.keeper.retention) && /withheld/i.test(p1.keeper.retention) &&
+    /portable_keeper artifact spec/.test(p1.keeper.source_artifact_representation));
 
   /* §15 — evidence completeness delta */
   const delta = evidenceCompletenessDelta(k.keeper);
@@ -1312,6 +1336,202 @@ const synthManifest = {
     et37Manifest.keeper.sha256 === "49f9c197b0c51e3a609e060142ad112b4702a05516900e750fc4fc8661350d38" &&
     et37Manifest.gates.lot_count === 166 && et37Manifest.gates.sold_total.amount === 8029125 &&
     !("lots" in et37Manifest) && !("reconciliation_manifest" in et37Manifest));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   9 · MONACO PORTABLE — APPLY FOUNDATION (v8.21), release gate WITHHELD
+
+   The writer beneath the plan, proven behind the gate. Storage and Postgres
+   do not share a transaction, so the invariant under test is ORDER:
+   verified durable keeper object first, DB row referencing it second, and
+   no lot or result before either. The writer is reachable here by direct
+   call only; applyDispatchFor still says `withheld` and the route/room
+   never reach it.
+   ════════════════════════════════════════════════════════════════════════ */
+
+function fakeStorage(seed = {}) {
+  const objects = new Map(Object.entries(seed));
+  return {
+    objects,
+    uploads: 0, downloads: 0,
+    async download(path) { this.downloads += 1; return objects.has(path) ? Buffer.from(objects.get(path)) : null; },
+    async upload(path, bytes) { this.uploads += 1; objects.set(path, Buffer.from(bytes)); },
+  };
+}
+
+/* ── 9a · durable retention: order, verification, refusal ──────────────── */
+{
+  const db = fakeDb();
+  const bytes = synthBytes();
+  const k = verifyKeeperBytes(bytes, synthSha);
+  const plan = await buildPortablePlan({ manifest: synthManifest, keeper: k.keeper, keeperSha256: k.sha256, keeperByteLength: k.byteLength, db, packetId: "zz99-portable" });
+  const path = keeperObjectPath(synthSha);
+  ok("the private bucket and path convention are content-addressed by keeper SHA-256",
+    PRIVATE_KEEPER_BUCKET === "auction-evidence-private-keepers" && path === `sha256/${synthSha}.json`);
+
+  const s1 = fakeStorage();
+  const r1 = await ensureKeeperRetained({ plan, keeperBytes: bytes, storage: s1 });
+  ok("an absent hash-path object is created, then read back and verified", r1.created === true && r1.path === path && s1.uploads === 1 && s1.downloads === 2);
+  const s2 = fakeStorage({ [path]: bytes });
+  const r2 = await ensureKeeperRetained({ plan, keeperBytes: bytes, storage: s2 });
+  ok("an exact existing object is reused — nothing uploaded", r2.created === false && s2.uploads === 0);
+
+  const tampered = Buffer.from(bytes); tampered[tampered.length - 5] ^= 0x01;
+  n += 1; await assert.rejects(ensureKeeperRetained({ plan, keeperBytes: tampered, storage: fakeStorage() }), /keeper_hash_mismatch/, "staged bytes are rehashed and a mismatch refuses before any storage write");
+  const s3 = fakeStorage({ [path]: tampered });
+  n += 1; await assert.rejects(ensureKeeperRetained({ plan, keeperBytes: bytes, storage: s3 }), /keeper_object_conflict/, "conflicting bytes already at the deterministic path refuse — never overwritten");
+  ok("…and the conflicting object was left untouched", s3.uploads === 0 && sha(s3.objects.get(path)) === sha(tampered));
+  n += 1; await assert.rejects(ensureKeeperRetained({ plan, keeperBytes: Buffer.alloc(0), storage: fakeStorage() }), /keeper_bytes_required/, "no keeper bytes refuses");
+}
+
+/* ── 9b · the writer, real ET37 plan shape when the keeper is present ──── */
+{
+  const candidates = [process.env.FWT_ET37_KEEPER, path.join(os.homedir(), "Downloads", et37Manifest.keeper.preferred_filename)].filter(Boolean);
+  const keeperPath = candidates.find((p) => existsSync(p));
+  if (!keeperPath) {
+    console.log("  CANARY: real ET37 keeper not present — 9b writer proof ran on the synthetic fixture only");
+  }
+  const bytes = keeperPath ? readFileSync(keeperPath) : synthBytes();
+  const manifest = keeperPath ? et37Manifest : synthManifest;
+  const expectSha = keeperPath ? et37Manifest.keeper.sha256 : synthSha;
+  const v = verifyKeeperBytes(bytes, expectSha);
+  const db = fakeDb();
+  const plan = await buildPortablePlan({ manifest, keeper: v.keeper, keeperSha256: v.sha256, keeperByteLength: v.byteLength, db, packetId: keeperPath ? "et37-portable" : "zz99-portable" });
+  const storage = fakeStorage();
+  const lotsExpected = keeperPath ? 166 : 5, soldExpected = keeperPath ? 156 : 3, sumExpected = keeperPath ? 8029125 : 6500;
+
+  const out = await applyPortablePlanSlice(plan, db, { keeperBytes: bytes, storage });
+  ok(`writer: full flight completes (${lotsExpected} rows)`, out.done === true && out.counts.lots_created === lotsExpected && out.counts.results_created === lotsExpected);
+  ok("writer: house and sale created once", db.tables.auction_evidence_house.length === 1 && db.tables.auction_evidence_sale.length === 1);
+  const arts = db.tables.auction_evidence_source_artifact;
+  const keeperRow = arts.find((a) => a.source_url === null);
+  const pageRow = arts.find((a) => a.source_url !== null);
+  ok("writer: exactly two artifact rows — the URL-backed sale page and the URL-less private keeper",
+    arts.length === 2 && keeperRow && pageRow && keeperRow.content_hash === v.sha256 && pageRow.content_hash === null);
+  ok("writer: the keeper row carries the ruled rights, the content-addressed path, and a retrieved_at assigned by the writer",
+    Object.entries(PRIVATE_KEEPER_RIGHTS).every(([c, val]) => keeperRow[c] === val) &&
+      keeperRow.full_artifact_storage_path === keeperObjectPath(v.sha256) && typeof keeperRow.retrieved_at === "string");
+  ok("writer: the exact keeper bytes are durably retained at their hash path", storage.objects.has(keeperObjectPath(v.sha256)) && sha(storage.objects.get(keeperObjectPath(v.sha256))) === v.sha256 && out.counts.keeper_object_created === 1);
+  ok("writer: every lot's provenance is the private keeper artifact, never the sale page",
+    db.tables.auction_evidence_lot.length === lotsExpected && db.tables.auction_evidence_lot.every((l) => l.source_artifact_id === keeperRow.id));
+  const results = db.tables.auction_evidence_result;
+  const priced = results.filter((r) => r.price_realized !== null);
+  ok(`writer: ${soldExpected} priced sold results summing exactly to ${sumExpected}, all hammer_plus_premium, non-sold unpriced`,
+    results.length === lotsExpected && priced.length === soldExpected && priced.reduce((a, r) => a + r.price_realized, 0) === sumExpected &&
+      priced.every((r) => r.price_basis === "hammer_plus_premium" && r.currency === "CHF") &&
+      results.filter((r) => r.price_realized === null).every((r) => r.currency === null && r.price_basis === null));
+  ok("writer: every result travelled through the protected RPC — zero direct inserts", db.rpcCalls === lotsExpected && db.directResultInserts === 0);
+  ok("writer: the RPC was handed the keeper artifact as source", db.tables.auction_evidence_result.every((r) => r.source_artifact_id === undefined || r.source_artifact_id === keeperRow.id));
+
+  /* replay: zero duplicates, everything reused, nothing uploaded */
+  const uploadsBefore = storage.uploads;
+  const again = await applyPortablePlanSlice(plan, db, { keeperBytes: bytes, storage });
+  ok("writer: exact replay reuses house, sale, both artifacts, every lot and every result — zero duplicates",
+    again.done && again.counts.lots_created === 0 && again.counts.results_created === 0 && again.counts.lots_reused === lotsExpected && again.counts.results_reused === lotsExpected &&
+      again.counts.keeper_artifact_reused === 1 && again.counts.keeper_object_reused === 1 && storage.uploads === uploadsBefore &&
+      db.tables.auction_evidence_lot.length === lotsExpected && arts.length === 2 && db.rpcCalls === lotsExpected);
+
+  /* bounded slices resume from the cursor */
+  const db2 = fakeDb(); const st2 = fakeStorage();
+  const s1 = await applyPortablePlanSlice(plan, db2, { keeperBytes: bytes, storage: st2, maxRows: 3 });
+  const s2 = await applyPortablePlanSlice(plan, db2, { keeperBytes: bytes, storage: st2, cursor: s1.cursor });
+  ok("writer: a bounded slice stops at its budget and the next resumes from the cursor to completion",
+    s1.done === false && s1.counts.lots_created === 3 && s2.done === true && db2.tables.auction_evidence_lot.length === lotsExpected);
+
+  /* contradictions refuse, never overwrite */
+  db.tables.auction_evidence_lot[0].brand_text = "Nobody";
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, db, { keeperBytes: bytes, storage }), /lot_contradiction/, "writer: a live lot that disagrees with the plan refuses");
+  const db3 = fakeDb();
+  db3.tables.auction_evidence_house.push({ id: "h1", name: "Someone Else", slug: plan.house.slug, website_url: plan.house.website_url });
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, db3, { keeperBytes: bytes, storage: fakeStorage() }), /house_contradiction/, "writer: a disagreeing house refuses");
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, fakeDb(), { keeperBytes: bytes, storage: fakeStorage({ [keeperObjectPath(v.sha256)]: Buffer.from("not the keeper") }) }), /keeper_object_conflict/, "writer: a foreign object at the keeper's path refuses");
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, fakeDb(), { keeperBytes: bytes }), /storage_boundary_required/, "writer: no storage boundary, no write");
+  n += 1; await assert.rejects(applyPortablePlanSlice({ ...plan, adapter: "monaco-layer2" }, fakeDb(), { keeperBytes: bytes, storage: fakeStorage() }), /wrong_adapter/, "writer: refuses a plan that is not monaco-portable");
+  n += 1; await assert.rejects(applyPortablePlanSlice({ ...plan, contradictions: ["x"] }, fakeDb(), { keeperBytes: bytes, storage: fakeStorage() }), /plan_has_contradictions/, "writer: refuses a plan carrying contradictions");
+
+  /* storage-before-DB ordering: tampered bytes → nothing in the DB at all */
+  const db4 = fakeDb(); const st4 = fakeStorage();
+  const tampered = Buffer.from(bytes); tampered[10] ^= 0x01;
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, db4, { keeperBytes: tampered, storage: st4 }), /keeper_hash_mismatch/, "writer: a hash mismatch refuses");
+  ok("…and no keeper artifact, lot or result was attempted before retention verified (house/sale/page may exist; nothing depends on the keeper)",
+    st4.uploads === 0 && db4.tables.auction_evidence_source_artifact.every((a) => a.source_url !== null) &&
+      db4.tables.auction_evidence_lot.length === 0 && db4.tables.auction_evidence_result.length === 0 && db4.rpcCalls === 0);
+
+  /* storage succeeds, DB refuses: the object stays (acceptable), no row claims it */
+  const db5 = fakeDb(); const st5 = fakeStorage();
+  const origFrom = db5.from.bind(db5);
+  let armed = true;
+  db5.from = (table) => {
+    const chain = origFrom(table);
+    if (table === "auction_evidence_source_artifact" && armed) {
+      const origInsert = chain.insert.bind(chain);
+      chain.insert = (values) => {
+        if (values.source_url === null) { armed = false; return { select: () => ({ then: (res) => res({ data: null, error: { message: "forced keeper row refusal" } }) }) }; }
+        return origInsert(values);
+      };
+    }
+    return chain;
+  };
+  n += 1; await assert.rejects(applyPortablePlanSlice(plan, db5, { keeperBytes: bytes, storage: st5 }), /forced keeper row refusal/, "writer: DB refusal after storage success surfaces as a refusal");
+  ok("…the verified object remains as acceptable orphan storage and no row points at it",
+    st5.objects.has(keeperObjectPath(v.sha256)) && db5.tables.auction_evidence_source_artifact.every((a) => a.source_url !== null) && db5.tables.auction_evidence_lot.length === 0);
+  const resumed = await applyPortablePlanSlice(plan, db5, { keeperBytes: bytes, storage: st5 });
+  ok("…and a later run verifies and reuses that orphan object instead of re-uploading", resumed.done && resumed.counts.keeper_object_reused === 1 && resumed.counts.keeper_artifact_created === 1 && st5.uploads === 1);
+  if (keeperPath) console.log(`  real ET37 keeper (writer): ${keeperPath}`);
+}
+
+/* ── 9c · the release gate is intact, and refusal is selective ─────────── */
+{
+  ok("monaco-portable is STILL Apply-withheld after the writer exists", isApplyWithheld("monaco-portable") && applyDispatchFor("monaco-portable") === "withheld");
+  ok("the refusal is selective: phillips-sale → Phillips writer", applyDispatchFor("phillips-sale") === "phillips");
+  ok("the refusal is selective: monaco-legend and monaco-layer2 → Monaco writer", applyDispatchFor("monaco-legend") === "monaco" && applyDispatchFor("monaco-layer2") === "monaco");
+  ok("an unknown family is unsupported — it never inherits the Monaco writer by elimination",
+    applyDispatchFor("sothebys-sale") === "unsupported" && applyDispatchFor("monaco-layer3") === "unsupported" && applyDispatchFor(undefined) === "unsupported" && applyDispatchFor({}) === "unsupported");
+  ok("exactly one family is withheld", APPLY_WITHHELD_ADAPTERS.length === 1);
+
+  const contract = strip(read("lib/auction-operations/packetContract.ts"));
+  ok("dispatch names its Monaco families explicitly and ends in unsupported, not monaco",
+    /if \(adapterId === "monaco-legend" \|\| adapterId === "monaco-layer2"\) return "monaco";/.test(contract) &&
+      /return "unsupported";\s*\}/.test(contract) && !/^\s*return "monaco";\s*\}/m.test(contract));
+  const slice = strip(read("lib/auction-operations/applySlice.ts"));
+  const unsupportedAt = slice.indexOf('dispatch === "unsupported"');
+  ok("the slice refuses an unsupported family by name before any engine",
+    unsupportedAt >= 0 && unsupportedAt < slice.indexOf("applySalePlan(") && unsupportedAt < slice.indexOf("applyMonacoPlanSlice(") &&
+      /if \(dispatch === "unsupported"\) \{\s*throw new Error\(\s*`\$\{APPLY_UNSUPPORTED_ERROR\}/.test(slice));
+  ok("the portable writer is not wired into the slice — unreachable from the normal Apply route",
+    !/monaco-portable-writer/.test(slice) && !/applyPortablePlanSlice/.test(slice) &&
+      !/applyPortablePlanSlice/.test(read("app/api/admin/auctions/results/apply/route.ts")));
+  const room = strip(read("components/AdminAuctionResultsIngest.tsx"));
+  ok("the room still draws no Apply button for a withheld family", /Plan-only family — Apply is not yet enabled/.test(room) && /!applyIsWithheld/.test(room));
+  const apply = read("app/api/admin/auctions/results/apply/route.ts");
+  ok("the route still refuses a withheld family before the run's state moves", /isApplyWithheld\(run\.adapter_id\)/.test(apply) && apply.indexOf("isApplyWithheld(run.adapter_id)") < apply.indexOf('state: "applying", approved_at'));
+  const writer = strip(read("lib/auction-operations/monaco-portable-writer.mjs"));
+  ok("the writer's only result path is the protected RPC", /rpc\("auction_evidence_create_or_correct_result"/.test(writer) && !/from\("auction_evidence_result"\)\.insert/.test(writer));
+  ok("the writer retains the keeper before it inserts the keeper row, and the keeper row before any lot",
+    writer.indexOf("ensureKeeperRetained({ plan, keeperBytes") < writer.indexOf("keeper artifact insert") &&
+      writer.indexOf("keeper artifact insert") < writer.indexOf('from("auction_evidence_lot").insert'));
+
+  /* the migration: narrow, unapplied, and it preserves what it must */
+  const m = read("supabase/migrations/20260902200000_auction_evidence_private_keeper_artifacts.sql");
+  const mSql = m.replace(/^\s*--.*$/gm, "");
+  ok("the migration is labelled NOT applied and names its application order", /NOT APPLIED TO PRODUCTION/.test(m) && /20260902140000_auction_operations_monaco_portable_adapter\.sql/.test(m));
+  ok("source_url loses only its unconditional NOT NULL", /alter column source_url drop not null/.test(mSql));
+  ok("the new CHECK is the narrow private-file invariant and does NOT restate the storage-path rule",
+    /source_url is not null\s*or \(\s*source_url is null\s*and artifact_retention_scope = 'full_artifact_private'\s*and intake_method = 'founder_supplied_file'\s*and content_hash is not null\s*\)/.test(mSql) &&
+      !/full_artifact_storage_path/.test(mSql));
+  /* The migration's COMMENT literal may NAME the preserved constraint (it
+     says the path rule lives there); what must not exist is any DDL that
+     drops, adds or alters it. */
+  ok("asa_retention_path_check and asa_content_hash_check are not dropped, re-added or altered",
+    !/(drop|add|alter) constraint (if exists )?asa_retention_path_check/i.test(mSql) &&
+      !/(drop|add|alter) constraint (if exists )?asa_content_hash_check/i.test(mSql) &&
+      (mSql.match(/(drop|add) constraint/gi) ?? []).length === 2 && /asa_source_identity_check/.test(mSql));
+  ok("the partial unique identity is (sale_id, content_hash) in the URL-less private state, created AFTER the presence CHECK",
+    /create unique index if not exists asa_private_keeper_identity_uniq\s*on public\.auction_evidence_source_artifact \(sale_id, content_hash\)\s*where source_url is null and artifact_retention_scope = 'full_artifact_private'/.test(mSql) &&
+      mSql.indexOf("asa_source_identity_check check") < mSql.indexOf("create unique index if not exists asa_private_keeper_identity_uniq"));
+  ok("the private bucket is created private with the portable size bound and no client policy",
+    /insert into storage\.buckets \(id, name, public, file_size_limit\)\s*values \('auction-evidence-private-keepers', 'auction-evidence-private-keepers', false, 20971520\)/.test(mSql) &&
+      !/create policy/i.test(mSql) && !/grant /i.test(mSql));
 }
 
 console.log(`auction-operations: ${n} assertions passed`);

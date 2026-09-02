@@ -141,10 +141,58 @@ The ET37 packet descriptor is `scripts/monaco-legend/portable-et37.descriptor.js
 (166 / 156 / 9 / 1, CHF 8,029,125, `hammer_plus_premium`). The keeper itself is
 private evidence and is **not in this repository**.
 
-**Open before any first portable Apply:** a durable private retention
-mechanism for the keeper (staging is not it); a truthful source-artifact
-representation for a private object; the rights/publication posture for that
-object; and the production migration below.
+**The Apply foundation (v8.21) — built and proven behind the gate, still
+withheld.** The three blockers above are now answered in code:
+
+- **Durable private retention** — bucket `auction-evidence-private-keepers`
+  (private, 20 MB, no client policy), object path `sha256/<hash>.json`. The
+  object identity *is* the keeper hash. `ensureKeeperRetained()` rehashes the
+  staged bytes, compares to the plan **and** the artifact spec, then: object
+  present → rehash, must match, never overwrite; absent → upload, read back,
+  verify. Only then may a row point at it.
+- **A truthful row for a private file** — migration
+  `20260902200000_auction_evidence_private_keeper_artifacts.sql` (**unapplied**):
+  `source_url` loses its unconditional NOT NULL and gains
+  `asa_source_identity_check` — a URL-less artifact must be
+  `full_artifact_private` + `founder_supplied_file` + non-null `content_hash`.
+  `asa_retention_path_check` (storage path presence) and
+  `asa_content_hash_check` (hash format) are **preserved unchanged** and not
+  restated. Partial unique `asa_private_keeper_identity_uniq (sale_id,
+  content_hash) WHERE source_url IS NULL AND full_artifact_private` — null-safe
+  only because the CHECK forbids a null hash in that state, so the two are one
+  unit and the CHECK comes first. No grant changes: `service_role` keeps the
+  INSERT it had; `anon`/`authenticated` still have none.
+- **Rights posture for the keeper row** — `permission_status unresolved ·
+  publication_status internal_only · public_use_scope normalized_facts_only ·
+  artifact_retention_scope full_artifact_private · automation_status
+  not_applicable · intake_method founder_supplied_file`. Bytes stay private;
+  normalized facts may join the governed Monaco factual lane; nothing raw
+  becomes public through this row.
+- **The plan now carries two artifact specs:** `sale_page` (URL-backed,
+  `content_hash` NULL, `metadata_only`) and `portable_keeper` (URL-less, the
+  keeper hash, the ruled posture, the content-addressed path). Lot and result
+  rows point at `portable_keeper` — the byte artifact the adapter parsed —
+  never at the sale page.
+- **An explicit writer** — `lib/auction-operations/monaco-portable-writer.mjs`,
+  `applyPortablePlanSlice()`: house → sale → sale-page artifact → **retain
+  keeper object** → keeper artifact row (resolved by `(sale_id, content_hash,
+  URL-less, private)`, reused if it agrees, refused if it disagrees) → lots →
+  results through the protected RPC. Same cursor/slice contract as the Monaco
+  writer. Idempotent replay, contradiction refusal, storage-before-row ordering
+  all pinned. **It is not wired into `applySlice.ts`** and the route/room
+  cannot reach it.
+- **Dispatch is explicit by family:** withheld → `withheld`; `phillips-sale`
+  → Phillips; `monaco-legend` / `monaco-layer2` → Monaco; **anything else →
+  `unsupported`**, refused by the slice before any engine. No family inherits
+  a writer by elimination any more. The release that lifts `monaco-portable`
+  from the withheld set must add its `portable` branch at the same time.
+
+**Production application order, when the founder walks the gate:**
+1. `20260902140000_auction_operations_monaco_portable_adapter.sql`
+2. `20260902200000_auction_evidence_private_keeper_artifacts.sql`
+
+then register → approve → activate ET37 → stage the keeper → Generate Plan →
+founder SEE-it. Apply stays withheld until a separate explicit release.
 
 ### The ET36 price quarantine (do not "fix" this)
 

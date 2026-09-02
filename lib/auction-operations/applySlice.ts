@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyMonacoPlanSlice } from "@/scripts/monaco-legend-import.mjs";
 import { applySalePlan } from "@/scripts/phillips-sale-import.mjs";
 import type { AuctionRun } from "@/lib/auction-operations/runStore";
-import { applyDispatchFor, APPLY_WITHHELD_ERROR } from "@/lib/auction-operations/packetContract";
+import { applyDispatchFor, APPLY_WITHHELD_ERROR, APPLY_UNSUPPORTED_ERROR } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    AUCTION OPERATIONS — APPLY SLICE — lib/auction-operations/applySlice.ts
@@ -52,6 +52,14 @@ export async function applyOneSlice(
     );
   }
 
+  if (dispatch === "unsupported") {
+    /* A name that is neither withheld nor a proven writer family. Nothing is
+       inherited by elimination; the door is closed by name before any engine. */
+    throw new Error(
+      `${APPLY_UNSUPPORTED_ERROR}: ${run.adapter_id} has no writer wired for Apply`
+    );
+  }
+
   if (dispatch === "phillips") {
     /* applySalePlan walks the plan from the top each call; already-applied
        rows are cheap idempotent reuses, so a growing stopAfter budget is a
@@ -74,9 +82,11 @@ export async function applyOneSlice(
     };
   }
 
-  // dispatch === "monaco": the shared cursor-resumable engine for the two
-  // proven Monaco writing families. Reached only when applyDispatchFor said
-  // so — never by a new name falling through.
+  // dispatch === "monaco": the shared cursor-resumable engine for exactly the
+  // two proven Monaco writing families, monaco-legend and monaco-layer2 —
+  // reached only when applyDispatchFor named them. The portable writer
+  // (monaco-portable-writer.mjs) is NOT wired here: its family is withheld,
+  // and the release that lifts that must add its explicit branch.
   const prior = run.progress as {
     cursor?: { sale_index: number; row_index: number };
     counts?: Record<string, number>;
