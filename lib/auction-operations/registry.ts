@@ -33,9 +33,16 @@
    CHECK constraint in the catalog migration.
    ════════════════════════════════════════════════════════════════════════ */
 
-export type AdapterId = "phillips-sale" | "monaco-legend" | "monaco-layer2";
+export type AdapterId = "phillips-sale" | "monaco-legend" | "monaco-layer2" | "monaco-portable";
 
-export type UploadKind = "results_pdf" | "auction_page_pdf" | "sale_page_html" | "corpus_jsonl";
+export type UploadKind =
+  | "results_pdf"
+  | "auction_page_pdf"
+  | "sale_page_html"
+  | "corpus_jsonl"
+  /* The accepted, reconciled portable keeper — one JSON file whose exact
+     bytes are pinned by sha256 in the packet descriptor. */
+  | "portable_json";
 
 export type UploadSpec = {
   kind: UploadKind;

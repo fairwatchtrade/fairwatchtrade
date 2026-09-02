@@ -86,6 +86,66 @@ stage sources → Generate Plan (ZERO writes) → founder reviews summary+hash
   was to keep them where their 50 existing test assertions already point and
   export the seams. If you move them later, move the tests with them.
 
+### `monaco-portable` — plan-only, Apply deliberately withheld (v8.18)
+
+The fourth code-owned family, for the accepted, reconciled Monaco keeper
+artifacts. **It has no writer.** Its plan is generated, hashed and reviewed
+through the normal room; Apply is refused for it by name, server-side, and the
+room draws no Apply button for it.
+
+The misconception to kill here: *"this is the ET37 importer."* It is a
+**profile** — `monaco-portable-reconciled-sale-v1`, the artifact shape the
+accepted ET37 keeper proved — and the profile does not know what ET37 is.
+`lib/auction-operations/monaco-portable-core.mjs` reads no sale code, no lot
+count and no total; those are **packet gates** in the catalog descriptor. The
+suite carries a synthetic non-ET37 keeper that passes the profile and is
+refused by the ET37 gates, which is the evidence the adapter is reusable rather
+than a one-sale importer wearing a family name.
+
+Where each rule lives:
+
+- **Byte authority** — `verifyKeeperBytes()`: the descriptor pins the keeper's
+  SHA-256; the exact staged bytes are downloaded, hashed, compared, and only
+  the verified bytes are parsed. Byte-different JSON that parses identically
+  is refused.
+- **Profile vs packet** — `validatePortableProfile()` (structural, reusable)
+  and `reconcilePortableGates()` (sale-specific, from the descriptor). A
+  keeper whose own summary counts disagree with its own lots is refused by
+  the profile before any gate is consulted.
+- **The refusal, and why it comes first** — `applyDispatchFor()` in
+  `packetContract.ts`. `applySlice.ts` used to route "everything that is not
+  Phillips" into the Monaco writer, so a new adapter id inherited a writer by
+  existing. Dispatch is now by name, withheld is evaluated first, and the
+  Monaco writer is the last branch. `APPLY_WITHHELD_ADAPTERS` is declared
+  before `RUNTIME_REGISTERABLE_ADAPTERS` because the refusal is the
+  **precondition** of registering the family, not a sibling task. The apply
+  route refuses earlier still, so a withheld run stays truthfully `planned`.
+- **Staging kind** — `portable_json`, magic `{`, bounded; same v8.04 laws
+  (server paths, run bound to the exact revision before any token).
+- **Evidence completeness** — `evidenceCompletenessDelta()`: every keeper
+  category is classified *carried / retained privately / not carried with
+  reason* in the plan, so nothing accepted can vanish silently between
+  validation and planning. Estimates, year, specs, session and per-lot
+  canonical URLs have **no Auction Evidence column today**; they ride in the
+  plan rows and are retained in the private keeper. Do not add columns merely
+  to empty the delta.
+- **Source-artifact identity** — the keeper's hash describes the keeper. The
+  plan's one artifact spec is the official sale page with `content_hash: null`
+  (never fetched here). The keeper hash sits on the plan's `keeper` block and
+  on no artifact row. A private keeper has no truthful `source_url`, and that
+  column is NOT NULL — representing it honestly needs a schema decision, which
+  is an Apply blocker, not something to fake with a scheme.
+
+The ET37 packet descriptor is `scripts/monaco-legend/portable-et37.descriptor.json`
+— the exact registration body, pinning the keeper hash and the gates
+(166 / 156 / 9 / 1, CHF 8,029,125, `hammer_plus_premium`). The keeper itself is
+private evidence and is **not in this repository**.
+
+**Open before any first portable Apply:** a durable private retention
+mechanism for the keeper (staging is not it); a truthful source-artifact
+representation for a private object; the rights/publication posture for that
+object; and the production migration below.
+
 ### The ET36 price quarantine (do not "fix" this)
 
 ET36 has no official result sheet. Its prices are current-website
@@ -138,6 +198,10 @@ Enforcement lives in `wantedLayer2Result()` in the layer2 core.
 - No completed-sale ingestion status column.
 - No standing worker cron (see Apply above).
 - No retention of staged source bytes as evidence.
+- No writer for `monaco-portable`. No ET37 sale/lot/result rows. Its
+  production adapter-CHECK migration
+  (`20260902140000_auction_operations_monaco_portable_adapter.sql`) ships in
+  the repo **unapplied** — applying it is a separately authorised act.
 
 ## Verify current state
 
@@ -158,6 +222,14 @@ select count(*) from auction_evidence_result r
  where s.sale_name = 'Exclusive Timepieces 36'
    and r.is_current and r.sale_outcome = 'sold' and r.price_realized is not null;
 -- must be 0 until the founder semantics ruling releases them
+
+-- the adapter CHECK: three names until the v8.18 migration is applied, four after
+select pg_get_constraintdef(oid) from pg_constraint
+ where conrelid = 'public.auction_operations_packet_revision'::regclass
+   and pg_get_constraintdef(oid) ilike '%adapter_id%';
+
+-- ET37 must remain absent from Auction Evidence until a writer is authorised
+select count(*) from auction_evidence_sale where source_url ilike '%exclusive-timepieces-37%';
 ```
 
 ```bash

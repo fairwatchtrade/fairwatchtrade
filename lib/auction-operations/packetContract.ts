@@ -28,18 +28,64 @@ import type { RegisteredPacket, UploadSpec, AdapterId } from "@/lib/auction-oper
 /** THE ADAPTER ALLOWLIST. Finite, code-owned, and mirrored by a CHECK
     constraint in the catalog migration so a compromised route still cannot
     introduce a fourth name. */
-export const ADAPTER_ALLOWLIST = ["phillips-sale", "monaco-legend", "monaco-layer2"] as const;
+export const ADAPTER_ALLOWLIST = ["phillips-sale", "monaco-legend", "monaco-layer2", "monaco-portable"] as const;
+
+/* ── APPLY IS WITHHELD BY NAME, AND THAT COMES FIRST ───────────────────────
+
+   The dispatcher in applySlice.ts historically read:
+
+       phillips-sale  → the Phillips writer
+       everything else → the Monaco writer
+
+   so a NEW adapter id, merely by existing, inherited applyMonacoPlanSlice.
+   That is how a plan-only family would have become a writing family without
+   anyone deciding it should.
+
+   This set is the precondition of runtime registration for such a family,
+   not a sibling of it: monaco-portable appears in RUNTIME_REGISTERABLE_ADAPTERS
+   below ONLY because it appears here first, and applyDispatchFor() consults
+   this set before it consults anything else. UI hiding is not the boundary;
+   the server-side dispatch fails closed.
+
+   A family leaves this set when a writer for it has been built, proven, and
+   separately authorised — never by editing this line alone. */
+export const APPLY_WITHHELD_ADAPTERS = ["monaco-portable"] as const;
+
+export function isApplyWithheld(v: unknown): boolean {
+  return typeof v === "string" && (APPLY_WITHHELD_ADAPTERS as readonly string[]).includes(v);
+}
+
+export type ApplyDispatch = "withheld" | "phillips" | "monaco";
+
+/** THE dispatch decision, pure and testable. Withheld is evaluated before
+    every other branch so a withheld family can never reach a writer — the
+    Monaco writer is the fall-through, which is precisely why it is last. */
+export function applyDispatchFor(adapterId: unknown): ApplyDispatch {
+  if (isApplyWithheld(adapterId)) return "withheld";
+  if (adapterId === "phillips-sale") return "phillips";
+  return "monaco";
+}
+
+export const APPLY_WITHHELD_ERROR = "apply_withheld_plan_only_family";
 
 /** Families whose executable path was INSPECTED and proven able to resolve
     a new packet instance from governed descriptor data alone — no packet
     id, sale id, manifest path or corpus identity baked into source.
 
-    monaco-layer2 qualifies after this flight: its one instance literal (the
-    plan's `flight` label) now comes from the descriptor. The other two are
-    deliberately absent. Their executable paths are manifest-driven, but
-    neither was proven end to end here, and listing them would claim a
-    reusability nobody demonstrated. Absence is a finding, not an oversight. */
-export const RUNTIME_REGISTERABLE_ADAPTERS = ["monaco-layer2"] as const;
+    monaco-layer2 qualifies after v8.0: its one instance literal (the plan's
+    `flight` label) comes from the descriptor.
+
+    monaco-portable qualifies for PLAN-ONLY registration after v8.18: its
+    profile validator reads no sale code, its packet gates live in the
+    descriptor, and — the precondition — Apply is refused for it by name
+    above. Registering an instance produces a reviewable plan and nothing
+    else.
+
+    phillips-sale and monaco-legend are deliberately absent. Their
+    executable paths are manifest-driven, but neither was proven end to end,
+    and listing them would claim a reusability nobody demonstrated. Absence
+    is a finding, not an oversight. */
+export const RUNTIME_REGISTERABLE_ADAPTERS = ["monaco-layer2", "monaco-portable"] as const;
 
 export type RuntimeRegisterableAdapter = (typeof RUNTIME_REGISTERABLE_ADAPTERS)[number];
 
@@ -52,11 +98,16 @@ export function isRuntimeRegisterable(v: unknown): v is RuntimeRegisterableAdapt
 }
 
 /** Schema versions each family will accept. A descriptor whose version is
-    not listed is refused rather than parsed hopefully. */
+    not listed is refused rather than parsed hopefully.
+
+    monaco-portable's version IS its profile name: profiles are additive and
+    named, and a second portable keeper shape earns a second entry here with
+    its own validator, never a widening of the first. */
 export const ADAPTER_SCHEMA_VERSIONS: Record<AdapterId, readonly string[]> = {
   "phillips-sale": ["phillips-sale-manifest-v1"],
   "monaco-legend": ["monaco-landing-semantic-v1"],
   "monaco-layer2": ["monaco-layer2-v1"],
+  "monaco-portable": ["monaco-portable-reconciled-sale-v1"],
 };
 
 export type PacketRevisionRow = {

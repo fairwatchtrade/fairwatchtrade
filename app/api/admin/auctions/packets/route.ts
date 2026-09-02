@@ -10,6 +10,7 @@ import {
   ADAPTER_SCHEMA_VERSIONS,
   RUNTIME_REGISTERABLE_ADAPTERS,
 } from "@/lib/auction-operations/packetCatalog";
+import { APPLY_WITHHELD_ADAPTERS } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    AUCTION OPERATIONS — PACKET CATALOG — /api/admin/auctions/packets
@@ -87,6 +88,10 @@ export async function GET() {
         };
       }),
       runtimeRegisterableAdapters: RUNTIME_REGISTERABLE_ADAPTERS,
+      /* Families the room may plan but must never offer to apply. The
+         server refuses regardless; this is so the room can say so honestly
+         instead of drawing a button that would be refused. */
+      applyWithheldAdapters: APPLY_WITHHELD_ADAPTERS,
     });
   } catch (e) {
     console.error("[auction-ops] packet catalog read failed:", e);
@@ -193,6 +198,31 @@ export async function POST(request: NextRequest) {
         { error: "invalid_descriptor", detail: "A Layer 2 packet must name its own flight label — it is written into the deterministic plan." },
         { status: 400 }
       );
+    }
+  }
+  if (adapterId === "monaco-portable") {
+    /* The descriptor governs the PACKET: which keeper, exactly, and what it
+       must reconcile to. It does not mirror the keeper. The profile name is
+       the schema version already validated above; the keeper's structure is
+       validated at plan time from the verified bytes, not here. */
+    const m = d.manifest as Record<string, unknown>;
+    const keeper = m.keeper as { sha256?: unknown } | undefined;
+    if (!keeper || typeof keeper.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(keeper.sha256)) {
+      return NextResponse.json({ error: "invalid_descriptor", detail: "A portable packet must pin keeper.sha256 — the exact accepted keeper bytes." }, { status: 400 });
+    }
+    const gates = m.gates as Record<string, unknown> | undefined;
+    if (!gates || typeof gates !== "object") {
+      return NextResponse.json({ error: "invalid_descriptor", detail: "A portable packet must carry its reconciliation gates." }, { status: 400 });
+    }
+    for (const k of ["sale_code", "canonical_auction_url", "lot_count", "sold", "unsold", "withdrawn", "sold_total", "currency", "price_basis"]) {
+      if (gates[k] === undefined || gates[k] === null) {
+        return NextResponse.json({ error: "invalid_descriptor", detail: `A portable packet's gates must pin ${k}.` }, { status: 400 });
+      }
+    }
+    const house = m.house as Record<string, unknown> | undefined;
+    const sale = m.sale as Record<string, unknown> | undefined;
+    if (!house || typeof house.slug !== "string" || typeof house.name !== "string" || !sale || typeof sale.code !== "string") {
+      return NextResponse.json({ error: "invalid_descriptor", detail: "A portable packet must name its house (slug, name) and sale (code)." }, { status: 400 });
     }
   }
 

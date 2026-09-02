@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyMonacoPlanSlice } from "@/scripts/monaco-legend-import.mjs";
 import { applySalePlan } from "@/scripts/phillips-sale-import.mjs";
 import type { AuctionRun } from "@/lib/auction-operations/runStore";
+import { applyDispatchFor, APPLY_WITHHELD_ERROR } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    AUCTION OPERATIONS — APPLY SLICE — lib/auction-operations/applySlice.ts
@@ -15,6 +16,14 @@ import type { AuctionRun } from "@/lib/auction-operations/runStore";
    through auction_evidence_create_or_correct_result inside the shared
    engines — this module only decides how big one bite is and reports
    truthful durable progress.
+
+   ── THE FALL-THROUGH IS THE HAZARD ─────────────────────────────────────
+   "Everything that is not Phillips is Monaco" was true when three adapters
+   existed. It stops being true the moment a fourth appears, and it fails in
+   the worst direction: a family with no writer would be handed the Monaco
+   writer by default. So the decision is no longer made here by elimination.
+   applyDispatchFor() in packetContract.ts decides, withheld comes first,
+   and a withheld family throws by name before any engine is reached.
    ════════════════════════════════════════════════════════════════════════ */
 
 export type SliceOutcome = {
@@ -32,7 +41,18 @@ export async function applyOneSlice(
   plan: unknown,
   deadlineMs: number
 ): Promise<SliceOutcome> {
-  if (run.adapter_id === "phillips-sale") {
+  const dispatch = applyDispatchFor(run.adapter_id);
+
+  if (dispatch === "withheld") {
+    /* Server-side, fail-closed, before any engine and before any write.
+       The route refuses this earlier as well so the run never flips to
+       'applying'; this is the backstop for any caller that is not the route. */
+    throw new Error(
+      `${APPLY_WITHHELD_ERROR}: ${run.adapter_id} is a plan-only family — no writer exists and Apply is deliberately withheld`
+    );
+  }
+
+  if (dispatch === "phillips") {
     /* applySalePlan walks the plan from the top each call; already-applied
        rows are cheap idempotent reuses, so a growing stopAfter budget is a
        correct cursor for its 156-row scale. */
@@ -54,7 +74,9 @@ export async function applyOneSlice(
     };
   }
 
-  // Both Monaco packets: the shared cursor-resumable engine.
+  // dispatch === "monaco": the shared cursor-resumable engine for the two
+  // proven Monaco writing families. Reached only when applyDispatchFor said
+  // so — never by a new name falling through.
   const prior = run.progress as {
     cursor?: { sale_index: number; row_index: number };
     counts?: Record<string, number>;

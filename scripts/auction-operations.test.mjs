@@ -43,8 +43,24 @@ import {
   verifiedDescriptor,
   structurallyEqual,
   rowIsUsable,
+  APPLY_WITHHELD_ADAPTERS,
+  APPLY_WITHHELD_ERROR,
+  isApplyWithheld,
+  applyDispatchFor,
 } from "../lib/auction-operations/packetContract.ts";
-import { readFileSync as readSourceFile } from "node:fs";
+import {
+  PORTABLE_PROFILE_V1,
+  verifyKeeperBytes,
+  validatePortableProfile,
+  reconcilePortableGates,
+  normalizePortableRows,
+  evidenceCompletenessDelta,
+  buildPortablePlan,
+  portablePlanToBytes,
+} from "../lib/auction-operations/monaco-portable-core.mjs";
+import { readFileSync as readSourceFile, existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 let n = 0;
 const ok = (label, cond) => {
@@ -379,11 +395,14 @@ function fakeDb() {
    adapter allowlist — plus, below, regression assertions that the packet
    enumeration has not quietly grown back in either place. */
 {
-  ok("the adapter allowlist is still finite and code-owned", ADAPTER_ALLOWLIST.length === 3);
+  /* Four, after v8.18 added monaco-portable. Still finite, still code-owned;
+     the number is pinned so growth is a deliberate edit here, never drift. */
+  ok("the adapter allowlist is still finite and code-owned", ADAPTER_ALLOWLIST.length === 4);
   ok("known adapters are recognised",
     isAllowlistedAdapter("phillips-sale") &&
     isAllowlistedAdapter("monaco-legend") &&
-    isAllowlistedAdapter("monaco-layer2"));
+    isAllowlistedAdapter("monaco-layer2") &&
+    isAllowlistedAdapter("monaco-portable"));
   ok("an unknown adapter is refused", !isAllowlistedAdapter("sothebys"));
   ok("nothing arbitrary is an adapter",
     !isAllowlistedAdapter({ evil: true }) && !isAllowlistedAdapter(["x"]) && !isAllowlistedAdapter(null));
@@ -400,6 +419,8 @@ function fakeDb() {
     RUNTIME_REGISTERABLE_ADAPTERS.every((a) => isAllowlistedAdapter(a)));
   ok("monaco-layer2 is the family proven reusable in this flight",
     isRuntimeRegisterable("monaco-layer2"));
+  ok("monaco-portable is registerable for PLAN-ONLY use — and only because Apply is withheld for it",
+    isRuntimeRegisterable("monaco-portable") && isApplyWithheld("monaco-portable"));
   ok("the two unaudited families are NOT claimed reusable",
     !isRuntimeRegisterable("phillips-sale") && !isRuntimeRegisterable("monaco-legend"));
 }
@@ -564,9 +585,12 @@ function fakeDb() {
   ok("D5 the legacy manifest_paths branch resolves through the authority too",
     /loadDescriptors[\s\S]{0,400}verifiedDescriptor\(row\)/.test(catalogSrc2));
 
-  /* 6 · the allowlist is untouched by this hardening */
-  ok("D6 runtime-registerable set is unchanged",
-    RUNTIME_REGISTERABLE_ADAPTERS.length === 1 && isRuntimeRegisterable("monaco-layer2") &&
+  /* 6 · the two unaudited families are still not registerable after this
+     hardening; the registerable set is layer2 plus the plan-only portable
+     family added in v8.18 */
+  ok("D6 runtime-registerable set is exactly the proven pair",
+    RUNTIME_REGISTERABLE_ADAPTERS.length === 2 && isRuntimeRegisterable("monaco-layer2") &&
+    isRuntimeRegisterable("monaco-portable") &&
     !isRuntimeRegisterable("phillips-sale") && !isRuntimeRegisterable("monaco-legend"));
 }
 
@@ -697,6 +721,16 @@ function fakeDb() {
     /unique index[\s\S]{0,200}where activation_state = 'active'/.test(m));
   ok("the adapter allowlist is mirrored as a database CHECK",
     /adapter_id in \('phillips-sale','monaco-legend','monaco-layer2'\)/.test(m));
+  /* v8.18 widened the CHECK in a NEW migration; the v8.0 file above is
+     history and is not edited. The new file is the exact production gate. */
+  const m2 = read("supabase/migrations/20260902140000_auction_operations_monaco_portable_adapter.sql");
+  ok("the portable adapter is admitted by a new migration that supersedes the CHECK",
+    /drop constraint if exists auction_operations_packet_revision_adapter_id_check/.test(m2) &&
+    /adapter_id in \('phillips-sale','monaco-legend','monaco-layer2','monaco-portable'\)/.test(m2));
+  ok("that migration is labelled as NOT applied by the flight that wrote it",
+    /NOT APPLIED TO PRODUCTION/.test(m2));
+  ok("the new migration does not register ET37, stage a keeper, or touch Auction Evidence",
+    !/insert into/i.test(m2.replace(/--.*$/gm, "")) && !/auction_evidence/.test(m2.replace(/--.*$/gm, "")));
   ok("every run is bound to the exact revision that produced it",
     /add column if not exists packet_revision_id uuid/.test(m) &&
     /references public\.auction_operations_packet_revision \(id\) on delete restrict/.test(m));
@@ -932,6 +966,352 @@ function fakeDb() {
   ok("the room says plainly that only registered packets exist",
     /registered/.test(roomClient) &&
     /never\s+accepts an arbitrary\s+source/.test(roomClient.replace(/\s+/g, " ")));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   8 · MONACO PORTABLE — ET37 plan-only pilot (v8.18)
+
+   Four claims, each with its own proof:
+     · the PROFILE is structural — a non-ET37 keeper of the same shape passes
+       it, and the ET37 packet gates are what reject that keeper;
+     · the KEEPER's bytes are authority — hash, compare, then parse, and
+       nothing else;
+     · the PLAN is deterministic, writes nothing, and carries an explicit
+       evidence-completeness delta;
+     · APPLY is refused for the family by name, before any engine, and that
+       refusal exists before the family is registerable.
+
+   The real ET37 keeper is PRIVATE evidence and is not in this repository.
+   When it is present on disk (Downloads, or FWT_ET37_KEEPER), the real
+   proofs run. When it is absent the suite says so LOUDLY as a CANARY and
+   proves the profile on the synthetic fixture only — it never pretends.
+   ════════════════════════════════════════════════════════════════════════ */
+
+const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const et37Descriptor = JSON.parse(read("scripts/monaco-legend/portable-et37.descriptor.json"));
+const et37Manifest = et37Descriptor.manifest;
+
+/* A structurally valid keeper of a DIFFERENT sale: different code, counts
+   and total, identical profile. Its only job is to prove the profile does
+   not read a sale name. */
+function syntheticKeeper(overrides = {}) {
+  const lot = (id, outcome, brand, amount, extra = {}) => ({
+    lot_id: id, lot_identifier_raw: id, session: "I",
+    offered: outcome !== "withdrawn", outcome, brand,
+    model: outcome === "withdrawn" ? null : "Model " + id,
+    reference: "REF-" + id, year: outcome === "withdrawn" ? null : "Circa 2000",
+    estimate: outcome === "withdrawn" ? null : { currency: "CHF", low: 100, high: 200, raw: "Fr. 100 – 200", qualifier_raw: null, unusual_estimate_wording_raw: null },
+    result: outcome === "sold"
+      ? { amount, currency: "CHF", house_result_wording: "Result (Premium)", raw: `Result (Premium) Fr. ${amount}` }
+      : { amount: null, currency: null, house_result_wording: outcome === "unsold" ? "Result Passed" : "WITHDRAWN", raw: outcome === "unsold" ? "Result Passed" : "WITHDRAWN" },
+    fwt_price_basis: outcome === "sold" ? "hammer_plus_premium" : null,
+    specs_source_stated: outcome === "withdrawn" ? {} : { case_material: "Steel" },
+    canonical_url: `https://www.example-house.test/auction/zz99/lot-${id}`,
+    detail_capture_provenance: "synthetic canonical lot page",
+    ...extra,
+  });
+  const lots = [
+    lot("1", "sold", "Alpha", 1000),
+    lot("2", "sold", "Beta", 2000),
+    lot("3", "unsold", "Gamma", null),
+    lot("4", "sold", "Delta", 3500),
+    lot("5", "withdrawn", "Epsilon", null),
+  ];
+  return {
+    artifact: {
+      artifact_type: "auction_sale_reconciliation", artifact_version: "v1",
+      preferred_filename: "synthetic_ZZ99_reconciled_v1.json", scope: "ZZ99 only",
+      source_lock: { allowed_domain: "example-house.test", official_house_sources_only: true, third_party_sources_used: false },
+      hard_boundaries: { ingestion_performed: false }, generated_utc: "2026-09-02",
+    },
+    sale: {
+      house: "Synthetic House", house_stated_sale_title: "Synthetic Sale", governed_sale_label: "Synthetic Sale 99",
+      sale_code: "ZZ99", date: "2026-01-15", date_raw: "15 January 2026", venue: "Nowhere", city: "Nowhere",
+      location_raw: "Nowhere Hall, Nowhere", auction_url: "https://www.example-house.test/auction/zz99",
+      currency: "CHF", sessions: [], house_published_total: { amount: 6500, currency: "CHF", raw: "Fr. 6'500" },
+      house_published_sold_rate: { percent: 75, raw: "75% Sold" }, house_published_catalogue_lot_count: 5,
+    },
+    price_basis_governance: {
+      et37_house_result_labels_observed: [], sold_result_basis_evidence: "synthetic",
+      sold_fwt_price_basis: "hammer_plus_premium", unsold_fwt_price_basis: null, withdrawn_fwt_price_basis: null,
+      basis_inference_from_other_sales: false, forbidden_other_basis_emitted: false,
+    },
+    counts: { catalogue_records: 5, offered: 4, sold: 3, unsold: 1, withdrawn: 1, unsold_lot_ids: ["3"], withdrawn_lot_ids: ["5"], numeric_lot_identifier_gaps: [] },
+    reconciliation: { sold_result_sum: { amount: 6500, currency: "CHF" }, house_published_total: { amount: 6500, currency: "CHF" }, result_sum_delta: 0, result_sum_reconciles_exactly: true },
+    source_anomalies: [],
+    lots,
+    source_manifest: { sale_page: { url: "https://www.example-house.test/auction/zz99", roles: [] }, canonical_lot_pages: [], official_domain_only: true, third_party_sources: [], source_count: { sale_pages: 1, canonical_lot_pages: 5 } },
+    reconciliation_manifest: [],
+    ...overrides,
+  };
+}
+const synthBytes = () => Buffer.from(JSON.stringify(syntheticKeeper()), "utf8");
+const synthSha = sha(synthBytes());
+const synthManifest = {
+  house: { name: "Synthetic House", slug: "synthetic-house", website_url: "https://www.example-house.test" },
+  sale: { code: "ZZ99", name: "Synthetic Sale 99", date: "2026-01-15", location: "Nowhere Hall, Nowhere", currency: "CHF", canonical_auction_url: "https://www.example-house.test/auction/zz99" },
+  keeper: { sha256: synthSha, byte_length: synthBytes().length, preferred_filename: "synthetic_ZZ99_reconciled_v1.json" },
+  gates: { sale_code: "ZZ99", canonical_auction_url: "https://www.example-house.test/auction/zz99", lot_count: 5, sold: 3, unsold: 1, withdrawn: 1, sold_total: { amount: 6500, currency: "CHF" }, currency: "CHF", price_basis: "hammer_plus_premium", canonical_urls_unique: true },
+};
+
+/* ── 8a · the profile is structural, not ET37-hardcoded ────────────────── */
+{
+  const view = validatePortableProfile(syntheticKeeper());
+  ok("a non-ET37 keeper of the same shape passes PROFILE validation",
+    view.profile === PORTABLE_PROFILE_V1 && view.sale.code === "ZZ99" &&
+    view.computed.catalogue_records === 5 && view.computed.sold === 3 && view.computed.sold_total === 6500);
+  throws("…and the ET37 PACKET gates reject that same keeper by sale, counts and total",
+    () => reconcilePortableGates(view, et37Manifest.gates), /portable_gate_mismatch:.*sale_code.*lot_count.*sold_total/s);
+  ok("…while its own packet gates accept it — profile acceptance is structural, packet acceptance is sale-specific",
+    reconcilePortableGates(view, synthManifest.gates).every((c) => c.pass));
+
+  const coreSrc = strip(read("lib/auction-operations/monaco-portable-core.mjs"));
+  ok("no hidden ET37 sale-code branch governs schema support in the core",
+    !/ET37/.test(coreSrc) && !/sale_code\s*===/.test(coreSrc) && !/166|8029125/.test(coreSrc));
+
+  throws("wrong artifact_version refuses",
+    () => validatePortableProfile(syntheticKeeper({ artifact: { ...syntheticKeeper().artifact, artifact_version: "v2" } })), /portable_profile_refused:.*artifact_version/);
+  throws("a malformed envelope (no sale block) refuses",
+    () => validatePortableProfile({ ...syntheticKeeper(), sale: undefined }), /portable_profile_refused:.*sale block/);
+  throws("an unsupported outcome refuses — 'passed' is not in the vocabulary",
+    () => { const k = syntheticKeeper(); k.lots[2].outcome = "passed"; validatePortableProfile(k); }, /outcome "passed" is not supported/);
+  throws("a duplicate lot id refuses",
+    () => { const k = syntheticKeeper(); k.lots[1].lot_id = "1"; validatePortableProfile(k); }, /duplicate lot_id/);
+  throws("a duplicate canonical URL refuses",
+    () => { const k = syntheticKeeper(); k.lots[1].canonical_url = k.lots[0].canonical_url; validatePortableProfile(k); }, /duplicate canonical_url/);
+  throws("a sold row in the wrong currency refuses",
+    () => { const k = syntheticKeeper(); k.lots[0].result.currency = "EUR"; validatePortableProfile(k); }, /currency EUR is not the sale currency/);
+  throws("a sold row off the governed basis refuses — no transform, no other basis",
+    () => { const k = syntheticKeeper(); k.lots[0].fwt_price_basis = "hammer"; validatePortableProfile(k); }, /basis hammer is not the governed/);
+  throws("an unsold row carrying a price refuses — no invented triplet",
+    () => { const k = syntheticKeeper(); k.lots[2].result.amount = 1; validatePortableProfile(k); }, /unsold lot 3 carries a result amount/);
+  throws("a keeper whose own counts disagree with its lots refuses before any packet gate",
+    () => { const k = syntheticKeeper(); k.counts.sold = 2; validatePortableProfile(k); }, /counts\.sold=2 but its lots compute 3/);
+  throws("a keeper whose declared sold sum disagrees with its lots refuses",
+    () => { const k = syntheticKeeper(); k.reconciliation.sold_result_sum.amount = 1; validatePortableProfile(k); }, /sold_result_sum 1 CHF but lots compute 6500/);
+  throws("a withdrawn lot marked offered refuses",
+    () => { const k = syntheticKeeper(); k.lots[4].offered = true; validatePortableProfile(k); }, /withdrawn lot 5 is marked offered/);
+}
+
+/* ── 8b · keeper byte authority ────────────────────────────────────────── */
+{
+  const bytes = synthBytes();
+  const v = verifyKeeperBytes(bytes, synthSha);
+  ok("exact bytes hash to the pinned sha and parse", v.sha256 === synthSha && v.byteLength === bytes.length && v.keeper.lots.length === 5);
+  const tampered = Buffer.from(bytes);
+  tampered[tampered.length - 5] ^= 0x01;
+  throws("tampered bytes refuse", () => verifyKeeperBytes(tampered, synthSha), /keeper_hash_mismatch/);
+  const pretty = Buffer.from(JSON.stringify(JSON.parse(bytes.toString("utf8")), null, 2), "utf8");
+  ok("a byte-different serialization parses to the same value…", JSON.stringify(JSON.parse(pretty.toString())) === bytes.toString());
+  throws("…and is REFUSED anyway when the exact hash is pinned", () => verifyKeeperBytes(pretty, synthSha), /keeper_hash_mismatch/);
+  throws("an unpinned hash refuses", () => verifyKeeperBytes(bytes, undefined), /keeper_hash_unpinned/);
+  throws("verified-but-not-JSON refuses", () => verifyKeeperBytes(Buffer.from("nope"), sha("nope")), /keeper_unparseable/);
+  const coreSrc = strip(read("lib/auction-operations/monaco-portable-core.mjs"));
+  const compareAt = coreSrc.indexOf("actual !== expectedSha256");
+  ok("the parsed value comes from the verified bytes and nothing else — one JSON.parse, on the hashed buffer, after the compare",
+    (coreSrc.match(/JSON\.parse\(/g) ?? []).length === 1 &&
+    compareAt >= 0 && compareAt < coreSrc.indexOf("JSON.parse(bytes.toString"));
+}
+
+/* ── 8c · deterministic plan, zero writes, evidence delta ──────────────── */
+{
+  const db = fakeDb();
+  const k = verifyKeeperBytes(synthBytes(), synthSha);
+  const args = { manifest: synthManifest, keeper: k.keeper, keeperSha256: k.sha256, keeperByteLength: k.byteLength, db, packetId: "zz99-portable" };
+  const p1 = await buildPortablePlan(args);
+  const p2 = await buildPortablePlan(args);
+  ok("plan generation is deterministic — identical bytes, identical hash",
+    sha(portablePlanToBytes(p1)) === sha(portablePlanToBytes(p2)));
+  ok("planning wrote NOTHING — no rows, no RPC calls",
+    db.tables.auction_evidence_lot.length === 0 && db.tables.auction_evidence_sale.length === 0 &&
+    db.tables.auction_evidence_house.length === 0 && db.rpcCalls === 0);
+  ok("the plan names its family, profile, keeper hash and withheld state",
+    p1.adapter === "monaco-portable" && p1.profile === PORTABLE_PROFILE_V1 && p1.keeper.sha256 === synthSha &&
+    p1.apply.enabled === false && /WITHHELD/.test(p1.summary.apply_state));
+  ok("every summary value is a primitive the room can render",
+    Object.values(p1.summary).every((v) => ["string", "number", "boolean"].includes(typeof v)));
+  ok("the review summary carries what founder judgment needs",
+    ["adapter","profile","sale","sale_code","keeper_sha256","lot_count","sold","unsold","withdrawn","sold_total","currency","price_basis","contradictions","apply_state"]
+      .every((key) => key in p1.summary));
+  ok("rows are in the shared vocabulary, sorted, and result triplets are honest",
+    p1.sales[0].rows.length === 5 && p1.sales[0].rows[0].lot_number === "1" &&
+    p1.sales[0].rows[0].result.price_basis === "hammer_plus_premium" &&
+    p1.sales[0].rows[4].result.price_realized === null && p1.sales[0].rows[4].result.currency === null && p1.sales[0].rows[4].result.price_basis === null);
+  ok("no description is invented for a keeper that carries none",
+    p1.sales[0].rows.every((r) => r.description === null));
+  ok("every gate is recorded with expected/actual/pass, and all pass",
+    p1.gates_reconciliation.length >= 10 && p1.gates_reconciliation.every((g) => g.pass && "expected" in g && "actual" in g));
+
+  /* §17 — the keeper's hash describes the keeper, never an official page. */
+  ok("the sale-page artifact carries the official URL with NO hash, because this flight never fetched that page",
+    p1.sales[0].artifact_specs.length === 1 && p1.sales[0].artifact_specs[0].source_url === synthManifest.sale.canonical_auction_url &&
+    p1.sales[0].artifact_specs[0].content_hash === null);
+  ok("the keeper hash appears on the keeper block and on no artifact row",
+    p1.keeper.sha256 === synthSha && p1.sales[0].artifact_specs.every((a) => a.content_hash !== synthSha));
+  ok("the artifact takes the most conservative governed rights posture",
+    p1.sales[0].artifact_specs[0].permission_status === "unresolved" && p1.sales[0].artifact_specs[0].publication_status === "internal_only" &&
+    p1.sales[0].artifact_specs[0].public_use_scope === "none" && p1.sales[0].artifact_specs[0].artifact_retention_scope === "metadata_only");
+  ok("the plan states plainly that retention and source-artifact identity are unresolved",
+    /STAGING_ONLY/.test(p1.keeper.retention) && /UNRESOLVED/.test(p1.keeper.source_artifact_representation));
+
+  /* §15 — evidence completeness delta */
+  const delta = evidenceCompletenessDelta(k.keeper);
+  ok("an evidence completeness delta is generated and every category is classified with a reason",
+    delta.length >= 15 && delta.every((d) => typeof d.category === "string" && typeof d.plan_carries === "string" && typeof d.destination === "string" && typeof d.reason === "string"));
+  ok("nothing accepted disappears silently: every category is carried, retained-with-path, or not-carried-with-reason",
+    delta.every((d) => /^(carried|retained|not carried)/.test(d.reason)));
+  ok("the plan embeds the same delta it summarises",
+    p1.evidence_completeness_delta.length === delta.length &&
+    p1.summary.evidence_categories_carried + p1.summary.evidence_categories_retained_only + p1.summary.evidence_categories_not_carried === delta.length);
+
+  /* a live collision is a contradiction on the plan, never a repair */
+  const db2 = fakeDb();
+  db2.tables.auction_evidence_house.push({ id: "h1", name: "Synthetic House", slug: "synthetic-house", website_url: "https://www.example-house.test" });
+  db2.tables.auction_evidence_sale.push({ id: "s1", house_id: "h1", sale_name: "Synthetic Sale 99", source_url: "https://www.example-house.test/auction/zz99" });
+  const p3 = await buildPortablePlan({ ...args, db: db2 });
+  ok("an existing sale is a recorded contradiction, and the plan still builds for review",
+    p3.contradictions.length === 1 && /already exists/.test(p3.contradictions[0]) && p3.summary.sale_row === "CONFLICT" && p3.summary.house_row === "reuse");
+  n += 1;
+  await assert.rejects(
+    buildPortablePlan({ ...args, keeperSha256: "0".repeat(64) }),
+    /keeper_hash_mismatch/,
+    "a plan for a keeper the packet does not pin is refused"
+  );
+}
+
+/* ── 8d · the REAL ET37 keeper, when present ───────────────────────────── */
+{
+  const candidates = [
+    process.env.FWT_ET37_KEEPER,
+    path.join(os.homedir(), "Downloads", et37Manifest.keeper.preferred_filename),
+  ].filter(Boolean);
+  const keeperPath = candidates.find((p) => existsSync(p));
+  if (!keeperPath) {
+    console.log("  CANARY: real ET37 keeper not present on this machine — 8d ran on the synthetic fixture only; the ET37 reconciliation proof is NOT claimed here");
+    ok("CANARY surfaced: ET37 real-keeper proofs skipped and said so", true);
+  } else {
+    const bytes = readFileSync(keeperPath);
+    const v = verifyKeeperBytes(bytes, et37Manifest.keeper.sha256);
+    ok("the real ET37 keeper hashes to the descriptor's pinned sha256 and byte length",
+      v.sha256 === et37Manifest.keeper.sha256 && v.byteLength === et37Manifest.keeper.byte_length);
+    const view = validatePortableProfile(v.keeper);
+    ok("the real ET37 keeper passes profile v1",
+      view.profile === PORTABLE_PROFILE_V1 && view.sale.code === "ET37");
+    ok("ET37 reconciles: 166 lots, 156 sold, 9 unsold, 1 withdrawn, CHF 8,029,125, hammer_plus_premium",
+      view.computed.catalogue_records === 166 && view.computed.sold === 156 && view.computed.unsold === 9 &&
+      view.computed.withdrawn === 1 && view.computed.sold_total === 8029125 && view.sale.currency === "CHF" &&
+      view.price_basis === "hammer_plus_premium" && view.canonical_urls_unique);
+    ok("every ET37 packet gate passes against the real keeper",
+      reconcilePortableGates(view, et37Manifest.gates).every((c) => c.pass));
+    throws("the synthetic ZZ99 keeper presented as the ET37 packet is refused by the gates",
+      () => reconcilePortableGates(validatePortableProfile(syntheticKeeper()), et37Manifest.gates), /portable_gate_mismatch/);
+
+    const db = fakeDb();
+    const args = { manifest: et37Manifest, keeper: v.keeper, keeperSha256: v.sha256, keeperByteLength: v.byteLength, db, packetId: "et37-portable" };
+    const p1 = await buildPortablePlan(args);
+    const p2 = await buildPortablePlan(args);
+    ok("the real ET37 plan is deterministic and writes nothing",
+      sha(portablePlanToBytes(p1)) === sha(portablePlanToBytes(p2)) && db.rpcCalls === 0 && db.tables.auction_evidence_lot.length === 0);
+    ok("the ET37 plan carries 166 rows, lot 129 withdrawn with no price triplet, and 156 priced sold rows",
+      p1.sales[0].rows.length === 166 &&
+      p1.sales[0].rows.find((r) => r.lot_number === "129").result.sale_outcome === "withdrawn" &&
+      p1.sales[0].rows.find((r) => r.lot_number === "129").result.price_realized === null &&
+      p1.sales[0].rows.filter((r) => r.result.price_realized !== null).length === 156 &&
+      p1.sales[0].rows.filter((r) => r.result.price_realized !== null).reduce((a, r) => a + r.result.price_realized, 0) === 8029125);
+    ok("the ET37 plan preserves the nine source anomalies verbatim and the NO RESERVE wording on lot 100",
+      p1.provenance.source_anomalies.length === 9 &&
+      p1.sales[0].rows.find((r) => r.lot_number === "100").source_identity.estimate.unusual_estimate_wording_raw === "NO RESERVE");
+    ok("the ET37 summary is founder-legible and says Apply is withheld",
+      p1.summary.sale === "Exclusive Timepieces 37" && p1.summary.keeper_sha256 === et37Manifest.keeper.sha256 &&
+      p1.summary.lot_count === 166 && p1.summary.sold_total === 8029125 && /WITHHELD/.test(p1.summary.apply_state) && p1.summary.contradictions === 0);
+    const rows = normalizePortableRows(v.keeper, view);
+    ok("normalization keeps the 26 reference-less lots as null, never invented",
+      rows.filter((r) => r.reference_text === null).length === 26);
+    console.log(`  real ET37 keeper: ${keeperPath}`);
+  }
+}
+
+/* ── 8e · APPLY IS REFUSED BY NAME, AND BEFORE REGISTRATION ────────────── */
+{
+  ok("monaco-portable dispatches to WITHHELD, never to a writer",
+    applyDispatchFor("monaco-portable") === "withheld");
+  ok("the proven writing families still dispatch to their engines",
+    applyDispatchFor("phillips-sale") === "phillips" && applyDispatchFor("monaco-layer2") === "monaco" && applyDispatchFor("monaco-legend") === "monaco");
+  ok("withheld is a named set, and the portable family is in it",
+    APPLY_WITHHELD_ADAPTERS.length === 1 && APPLY_WITHHELD_ADAPTERS[0] === "monaco-portable" && APPLY_WITHHELD_ERROR === "apply_withheld_plan_only_family");
+  ok("PRECONDITION: every plan-only registerable family is withheld — registration cannot outrun the refusal",
+    RUNTIME_REGISTERABLE_ADAPTERS.filter((a) => a === "monaco-portable").every((a) => isApplyWithheld(a)));
+
+  const contract = read("lib/auction-operations/packetContract.ts");
+  const contractCode = strip(contract);
+  const withheldDecl = contract.indexOf("APPLY_WITHHELD_ADAPTERS = [");
+  ok("in the contract source, the withheld set is declared BEFORE the registerable set",
+    withheldDecl >= 0 && withheldDecl < contract.indexOf("RUNTIME_REGISTERABLE_ADAPTERS = ["));
+  const withheldBranch = contractCode.indexOf('if (isApplyWithheld(adapterId)) return "withheld"');
+  const phillipsBranch = contractCode.indexOf('if (adapterId === "phillips-sale") return "phillips"');
+  ok("applyDispatchFor evaluates withheld first and the Monaco writer is the LAST branch",
+    withheldBranch >= 0 && phillipsBranch >= 0 &&
+    withheldBranch < phillipsBranch &&
+    phillipsBranch < contractCode.indexOf('return "monaco"'));
+
+  const slice = read("lib/auction-operations/applySlice.ts");
+  const sliceCode = strip(slice);
+  /* indexOf returns -1 for an absent string and -1 < anything is TRUE, so an
+     ordering pin alone is blind to deletion — found by mutation. Presence is
+     asserted first, and the guard must DIRECTLY wrap the throw so `if (false)`
+     around a still-present throw cannot pass. */
+  const withheldAt = sliceCode.indexOf('if (dispatch === "withheld")');
+  ok("the dispatcher decides by applyDispatchFor, and throws the named refusal before any engine",
+    /const dispatch = applyDispatchFor\(run\.adapter_id\)/.test(sliceCode) &&
+    withheldAt >= 0 &&
+    withheldAt < sliceCode.indexOf("applySalePlan(") &&
+    withheldAt < sliceCode.indexOf("applyMonacoPlanSlice(") &&
+    /if \(dispatch === "withheld"\) \{\s*throw new Error\(\s*`\$\{APPLY_WITHHELD_ERROR\}/.test(sliceCode));
+  ok("monaco-portable cannot fall through to applyMonacoPlanSlice — the Monaco branch is no longer 'everything else'",
+    !/run\.adapter_id === "phillips-sale"/.test(sliceCode) && /dispatch === "phillips"/.test(sliceCode));
+
+  const apply = read("app/api/admin/auctions/results/apply/route.ts");
+  /* Anchor on POST's own state flip (unique by approved_at) — runSlices()
+     above it also writes 'applying', and that occurrence is not the gate. */
+  ok("the apply route refuses a withheld family BEFORE the run's state moves to applying",
+    /isApplyWithheld\(run\.adapter_id\)/.test(apply) &&
+    apply.indexOf("isApplyWithheld(run.adapter_id)") < apply.indexOf('state: "applying", approved_at') &&
+    apply.indexOf("isApplyWithheld(run.adapter_id)") < apply.indexOf("verifyStoredPlan(run)") &&
+    apply.indexOf("isApplyWithheld(run.adapter_id)") < apply.indexOf("run.plan_sha256 !== approvedSha"));
+
+  const engine = read("lib/auction-operations/planEngine.ts");
+  const engineCode = strip(engine);
+  ok("the plan engine has an explicit monaco-portable branch and no bare fall-through to Layer 2",
+    /packet\.adapter === "monaco-portable"/.test(engineCode) && /unsupported_adapter/.test(engineCode) &&
+    /packet\.adapter !== "monaco-layer2"/.test(engineCode));
+  const verifyAt = engineCode.indexOf("verifyKeeperBytes(keeperBytes");
+  ok("the portable branch verifies keeper bytes BEFORE building the plan, from the portable_json slot",
+    verifyAt >= 0 && verifyAt < engineCode.indexOf("buildPortablePlan({") &&
+    /specs\.portable_json/.test(engineCode));
+  ok("planning still writes no Auction Evidence with the new branch present",
+    !/auction_evidence/.test(engineCode));
+
+  const registry = read("lib/auction-operations/registry.ts");
+  ok("portable_json is a declared staging kind and monaco-portable a declared adapter id",
+    /"portable_json"/.test(registry) && /"monaco-portable"/.test(registry));
+
+  const packets = read("app/api/admin/auctions/packets/route.ts");
+  ok("registration validates a portable descriptor's keeper.sha256 and gates, and exposes the withheld set to the room",
+    /adapterId === "monaco-portable"/.test(packets) && /keeper\.sha256/.test(packets) && /gates/.test(packets) &&
+    /applyWithheldAdapters: APPLY_WITHHELD_ADAPTERS/.test(packets));
+
+  const room = strip(read("components/AdminAuctionResultsIngest.tsx"));
+  ok("the room hides Apply for a withheld family and says so in words — not a disabled button",
+    /Plan-only family — Apply is not yet enabled/.test(room) &&
+    /run\.state === "planned" && run\.contradictions\.length === 0 && !applyIsWithheld/.test(room) &&
+    /applyWithheldAdapters/.test(room));
+  ok("the room takes withheld truth from the server, holding no list of its own",
+    /setApplyWithheld\(Array\.isArray\(data\?\.applyWithheldAdapters\)/.test(room) && !/"monaco-portable"/.test(room));
+
+  ok("the ET37 descriptor pins the keeper hash and the exact packet gates, and mirrors nothing else from the keeper",
+    et37Manifest.keeper.sha256 === "49f9c197b0c51e3a609e060142ad112b4702a05516900e750fc4fc8661350d38" &&
+    et37Manifest.gates.lot_count === 166 && et37Manifest.gates.sold_total.amount === 8029125 &&
+    !("lots" in et37Manifest) && !("reconciliation_manifest" in et37Manifest));
 }
 
 console.log(`auction-operations: ${n} assertions passed`);

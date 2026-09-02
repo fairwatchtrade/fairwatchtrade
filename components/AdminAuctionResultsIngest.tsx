@@ -56,6 +56,10 @@ type PacketCard = {
 
 type RunStatus = {
   runId: string;
+  /* The family this run belongs to — the plan and runs routes both return
+     it. The room uses it for exactly one thing: not drawing an Apply button
+     the server would refuse. */
+  adapter?: string;
   state: string;
   planSha256: string | null;
   summary: Record<string, unknown>;
@@ -76,6 +80,9 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
      one. */
   const [catalog, setCatalog] = useState<PacketCard[] | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  /* Server truth about which families are plan-only. The room never decides
+     this; it only repeats what the catalog route said. */
+  const [applyWithheld, setApplyWithheld] = useState<string[]>([]);
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -98,6 +105,7 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
           return;
         }
         setCatalog(Array.isArray(data?.packets) ? (data.packets as PacketCard[]) : []);
+        setApplyWithheld(Array.isArray(data?.applyWithheldAdapters) ? (data.applyWithheldAdapters as string[]) : []);
       } catch {
         if (cancelled) return;
         setCatalogError("The packet catalog could not be reached.");
@@ -250,6 +258,10 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
   }
 
   const summaryEntries = run ? Object.entries(run.summary ?? {}) : [];
+  /* Withheld is decided by the adapter the SERVER put on the run, falling
+     back to the packet the founder chose. Either way it is server truth. */
+  const runAdapter = run?.adapter ?? packet?.adapter ?? null;
+  const applyIsWithheld = runAdapter !== null && applyWithheld.includes(runAdapter);
 
   return (
     <div className="border border-[var(--border-subtle)] p-4">
@@ -406,7 +418,23 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
                 </p>
               )}
 
-              {run.state === "planned" && run.contradictions.length === 0 && (
+              {run.state === "planned" && applyIsWithheld && (
+                /* Not a disabled button. A plan-only family has no Apply to
+                   offer, and the honest surface says so in words rather than
+                   drawing a control the server would refuse. */
+                <div className="mt-4 border border-[var(--border-gold)] p-3">
+                  <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                    Plan-only family — Apply is not yet enabled
+                  </div>
+                  <p className="mt-1 text-[12px] text-[var(--platinum-dim)]">
+                    This plan can be reviewed. No writer exists for {runAdapter} and the server refuses Apply
+                    for it by name. Nothing has been written to Auction Evidence and nothing will be from
+                    this room until that family is separately authorised.
+                  </p>
+                </div>
+              )}
+
+              {run.state === "planned" && run.contradictions.length === 0 && !applyIsWithheld && (
                 <button
                   type="button"
                   className="fw-btn-primary mt-4 disabled:opacity-40"

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { applyOneSlice } from "@/lib/auction-operations/applySlice";
 import { getRun, updateRun, verifyStoredPlan, type AuctionRun } from "@/lib/auction-operations/runStore";
+import { isApplyWithheld, APPLY_WITHHELD_ERROR } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/auctions/results/apply — explicit, bounded, resumable
@@ -123,6 +124,20 @@ export async function POST(request: NextRequest) {
   if (run.state !== "planned" && run.state !== "applying") {
     return NextResponse.json(
       { error: "invalid_state", detail: `A ${run.state} run cannot be applied.` },
+      { status: 409 }
+    );
+  }
+  /* A plan-only family is refused HERE, before the run's state moves and
+     before the hash is even compared. The dispatcher refuses it again
+     underneath; this earlier refusal keeps the run truthfully 'planned'
+     rather than leaving a 'failed' scar for asking a question the room
+     should not have offered. */
+  if (isApplyWithheld(run.adapter_id)) {
+    return NextResponse.json(
+      {
+        error: APPLY_WITHHELD_ERROR,
+        detail: `${run.adapter_id} is a plan-only family. Its plan may be reviewed; no writer exists and Apply is deliberately withheld.`,
+      },
       { status: 409 }
     );
   }

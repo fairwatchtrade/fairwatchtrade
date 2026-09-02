@@ -15,6 +15,11 @@ import {
   layer2PlanToBytes,
   parseLayer2Corpus,
 } from "@/lib/auction-operations/monaco-layer2-core.mjs";
+import {
+  buildPortablePlan,
+  portablePlanToBytes,
+  verifyKeeperBytes,
+} from "@/lib/auction-operations/monaco-portable-core.mjs";
 
 /* ════════════════════════════════════════════════════════════════════════
    AUCTION OPERATIONS — PLAN ENGINE — lib/auction-operations/planEngine.ts
@@ -178,8 +183,50 @@ export async function generatePlanForRun(
     };
   }
 
-  // monaco-layer2 — the verified historical corpus, and the one family
-  // proven runtime-registerable in this flight.
+  if (packet.adapter === "monaco-portable") {
+    /* The accepted, reconciled portable keeper. PLAN-ONLY: this family has
+       no writer and Apply refuses it by name; what is produced here is a
+       reviewable plan and the proof that nothing in the keeper was weakened
+       on the way to it.
+
+       Byte authority: the descriptor pins the keeper's sha256; the exact
+       staged bytes are downloaded, hashed, compared, and ONLY the verified
+       bytes are parsed. downloadStaged has already applied the size ceiling
+       and the JSON magic check. */
+    const [{ bytes: manifestBytes, value }] = loadDescriptors(revision);
+    const manifest = value as { keeper: { sha256: string } };
+    const specs = Object.fromEntries(packet.uploads.map((u) => [u.kind, u]));
+    if (!specs.portable_json)
+      throw new Error("missing_source: this portable packet declares no portable_json upload");
+    const keeperBytes = (await downloadStaged(db, run, specs.portable_json))!;
+    const verified = verifyKeeperBytes(keeperBytes, manifest.keeper.sha256);
+    const plan = await buildPortablePlan({
+      manifest,
+      keeper: verified.keeper,
+      keeperSha256: verified.sha256,
+      keeperByteLength: verified.byteLength,
+      db,
+      packetId: packet.packetId,
+    });
+    const planBytes = portablePlanToBytes(plan);
+    return {
+      plan,
+      planBytes,
+      planSha256: sha256Hex(Buffer.from(planBytes)),
+      summary: (plan as { summary: Record<string, unknown> }).summary,
+      contradictions: (plan as { contradictions: string[] }).contradictions,
+      sourceHashes: { manifest: sha256Hex(manifestBytes), portable_json: verified.sha256 },
+    };
+  }
+
+  if (packet.adapter !== "monaco-layer2") {
+    /* Dispatch is by name, never by elimination. A fifth family that lands
+       here has not been wired, and "not wired" must not mean "Layer 2". */
+    throw new Error(`unsupported_adapter: ${String(packet.adapter)} has no plan path`);
+  }
+
+  // monaco-layer2 — the verified historical corpus, the first family proven
+  // runtime-registerable.
   const [{ bytes: manifestBytes, value }] = loadDescriptors(revision);
   const manifest = value as { corpus: { sha256: string } };
   const specs = Object.fromEntries(packet.uploads.map((u) => [u.kind, u]));

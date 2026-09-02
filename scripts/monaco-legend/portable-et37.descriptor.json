@@ -1,0 +1,37 @@
+{
+  "kind": "inline",
+  "profile": "monaco-portable-reconciled-sale-v1",
+  "note": "The ET37 packet descriptor for the monaco-portable family. This is the EXACT body of `descriptor` in the POST /api/admin/auctions/packets registration; it governs the packet and does not mirror the keeper. The keeper itself is private evidence and is NOT in this repository — only its sha256 and byte length are. Plan-only: Apply is refused for this family by name.",
+  "manifest": {
+    "house": {
+      "name": "Monaco Legend Auctions",
+      "slug": "monaco-legend-auctions",
+      "website_url": "https://www.monacolegendauctions.com"
+    },
+    "sale": {
+      "code": "ET37",
+      "name": "Exclusive Timepieces 37",
+      "date": "2025-06-05",
+      "location": "Villa Principe Leopoldo, Lugano",
+      "currency": "CHF",
+      "canonical_auction_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-37"
+    },
+    "keeper": {
+      "sha256": "49f9c197b0c51e3a609e060142ad112b4702a05516900e750fc4fc8661350d38",
+      "byte_length": 251931,
+      "preferred_filename": "Monaco_Legend_Exclusive_Timepieces_37_ET37_Lugano_reconciled_v1.json"
+    },
+    "gates": {
+      "sale_code": "ET37",
+      "canonical_auction_url": "https://www.monacolegendauctions.com/auction/exclusive-timepieces-37",
+      "lot_count": 166,
+      "sold": 156,
+      "unsold": 9,
+      "withdrawn": 1,
+      "sold_total": { "amount": 8029125, "currency": "CHF" },
+      "currency": "CHF",
+      "price_basis": "hammer_plus_premium",
+      "canonical_urls_unique": true
+    }
+  }
+}
