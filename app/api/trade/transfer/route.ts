@@ -33,6 +33,12 @@ import { createServiceClient } from "@/lib/supabase/service";
    No carrier webhook, no tracking poll, no delivery presumption, no timer.
    A transfer exists because a person with standing said it happened.
 
+   ── WHY THE ORDER OF CHECKS INSIDE THE FUNCTION IS LOAD-BEARING ────────
+   The producer takes its actor as an ARGUMENT, so it must authorize before
+   it does anything else with a client-supplied value — including the
+   idempotency key. That rule, and what a replay is allowed to mean, are
+   written up in app/api/trade-offers/README.md.
+
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
@@ -57,6 +63,11 @@ const KNOWN_REASONS = new Set([
   "retraction_target_inconsistent",
   "not_authorized_to_retract",
   "idempotency_key_required",
+  /* A key that already exists under a DIFFERENT (leg, actor, event type) is
+     a collision, never a replay. The producer refuses rather than returning
+     the other event, so its id is never disclosed to a caller with no
+     standing to see it. */
+  "idempotency_key_conflict",
   "not_authenticated",
   "not_found",
   "deal_cancelled",

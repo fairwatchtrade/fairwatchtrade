@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { buildCashTerms, isTradeable } from "@/lib/trade";
+import { buildCashTerms } from "@/lib/trade";
 
 /* ════════════════════════════════════════════════════════════════════════
    /api/trade-offers — propose a trade, and read your own
@@ -9,12 +9,18 @@ import { buildCashTerms, isTradeable } from "@/lib/trade";
    GET   every trade offer the caller is party to (proposer or recipient)
    POST  propose: target listing + one governed watch the caller controls
 
-   ── BOTH WATCHES ARE VERIFIED SERVER-SIDE, EVERY TIME ─────────────────
-   The browser names two listing ids and nothing else. This route proves,
-   with the trusted client, that: the target exists, is acquirable, is
-   open_to_trades, and is NOT the caller's; and that the offered watch is
-   acquirable and IS the caller's. Neither the proposer nor the recipient
-   is taken from the request body — both are derived.
+   ── BOTH WATCHES ARE VERIFIED IN THE DATABASE, EVERY TIME ─────────────
+   The browser names two listing ids and nothing else. Admission is decided
+   by propose_trade_offer(), inside one transaction with both listings
+   locked: the target must exist, be acquirable, be open_to_trades, not be
+   the caller's, and — if it is `private_active` — admit the caller as its
+   designated `private_buyer_id`. The offered watch must be acquirable and
+   the caller's own. Neither the proposer nor the recipient is taken from
+   the request body; both are derived inside the function from auth.uid()
+   and the locked rows.
+
+   This route validates shape and renders errors. It is not the security
+   boundary and must never become one again — see the note at the call.
 
    ── WHY A GOVERNED WATCH, NOT A PHOTO AND A PARAGRAPH ─────────────────
    The offered object must carry the same identity, ownership, lifecycle
@@ -32,19 +38,9 @@ import { buildCashTerms, isTradeable } from "@/lib/trade";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ListingRow = {
-  id: string;
-  seller_id: string;
-  status: string;
-  brand: string;
-  model: string | null;
-  reference: string | null;
-  public_code: string | null;
-  open_to_trades: boolean | null;
-};
-
-const LISTING_COLUMNS =
-  "id, seller_id, status, brand, model, reference, public_code, open_to_trades";
+/* The listing shape this route used to read and judge for itself is gone
+   with the checks that needed it. propose_trade_offer() reads the rows it
+   validates, under lock, and nothing here needs a copy of them. */
 
 export async function GET() {
   const supabase = await createClient();
@@ -144,94 +140,92 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "bad_cash_terms", detail: cash.error }, { status: 400 });
   }
 
-  let service;
-  try {
-    service = createServiceClient();
-  } catch {
-    return NextResponse.json({ error: "server_misconfigured", detail: "Unavailable." }, { status: 500 });
-  }
+  /* ── THE MUTATION IS THE BOUNDARY, NOT THIS ROUTE ────────────────────
+     Every admission rule below used to live here, in TypeScript, over rows
+     this route had read with the SERVICE client moments earlier. Two things
+     were wrong with that and only one of them was visible.
 
-  const { data: listings } = await service
-    .from("listings")
-    .select(LISTING_COLUMNS)
-    .in("id", [targetId, offeredId]);
-  const rows = (listings ?? []) as ListingRow[];
-  const target = rows.find((l) => l.id === targetId);
-  const offered = rows.find((l) => l.id === offeredId);
+     The visible one: nothing compared the caller to `private_buyer_id`. A
+     `private_active` listing is offered to ONE authorized buyer, and any
+     signed-in collector holding its id could propose against it.
 
-  if (!target) {
-    return NextResponse.json({ error: "target_not_found", detail: "That listing does not exist." }, { status: 404 });
-  }
-  if (!offered) {
-    return NextResponse.json({ error: "offered_not_found", detail: "That watch does not exist." }, { status: 404 });
-  }
+     The invisible one: read-then-write. Between the check and the insert the
+     listing could change, and the insert would land against a row nobody had
+     validated. There were no locks because a route cannot take one.
 
-  // The target: someone else's, acquirable, and explicitly open to trades.
-  if (target.seller_id === user.id) {
-    return NextResponse.json(
-      { error: "own_listing", detail: "This is your own listing." },
-      { status: 409 }
-    );
-  }
-  if (target.open_to_trades !== true) {
-    return NextResponse.json(
-      { error: "not_open_to_trades", detail: "This seller is not accepting trade offers on this watch." },
-      { status: 409 }
-    );
-  }
-  if (!isTradeable(target.status)) {
-    return NextResponse.json(
-      { error: "target_not_available", detail: `This listing is ${target.status} and cannot be traded for.` },
-      { status: 409 }
-    );
-  }
+     propose_trade_offer() now does all of it inside a single transaction with
+     both listings locked in deterministic id order — and authors the
+     authoritative trade_offer_events row in that same transaction, which the
+     two separate statements below could never guarantee.
 
-  // The offered watch: the caller's own, and equally acquirable.
-  if (offered.seller_id !== user.id) {
-    return NextResponse.json(
-      { error: "offered_not_yours", detail: "You can only offer a watch you control on FairWatchTrade." },
-      { status: 403 }
-    );
-  }
-  if (!isTradeable(offered.status)) {
-    return NextResponse.json(
-      {
-        error: "offered_not_available",
-        detail: `The watch you're offering is ${offered.status}. It must be live to take part in a trade.`,
-      },
-      { status: 409 }
-    );
-  }
-
-  const { data: offer, error } = await service
-    .from("trade_offers")
-    .insert({
-      target_listing_id: target.id,
-      offered_listing_id: offered.id,
-      proposer_id: user.id,
-      // Derived from the listing, never from the request body.
-      recipient_id: target.seller_id,
-      status: "pending",
-      ...cash.terms,
-      note: typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null,
-      target_brand: target.brand,
-      target_model: target.model,
-      target_reference: target.reference,
-      offered_brand: offered.brand,
-      offered_model: offered.model,
-      offered_reference: offered.reference,
-      /* Durable identity, captured at write time exactly as trade_deal_legs
-         captures listing_public_code — so a terminal offer stays legible
-         after its listing references detach (v6.93). */
-      target_public_code: target.public_code,
-      offered_public_code: offered.public_code,
-    })
-    .select("*")
-    .maybeSingle();
+     It runs on the SESSION client, not the service client: the function reads
+     auth.uid() to decide who is proposing, and the service role carries no
+     such identity. Same reason confirm_trade_leg_receipt is called that way. */
+  const { data: created, error } = await supabase.rpc("propose_trade_offer", {
+    p_target_listing_id: targetId,
+    p_offered_listing_id: offeredId,
+    p_cash_direction: cash.terms.cash_direction,
+    p_cash_amount: cash.terms.cash_amount,
+    p_cash_currency: cash.terms.cash_currency,
+    p_note: typeof body.note === "string" ? body.note : null,
+  });
 
   if (error) {
-    // The one-pending-per-proposer index doing its job.
-    if (error.code === "23505") {
+    const m = error.message;
+    const says = (code: string) => m.includes(code);
+
+    /* A non-designated caller must not be able to tell a private listing
+       they may not touch from a listing that does not exist. They cannot
+       read the row either (RLS), so "not found" is the answer that stays
+       consistent with everything else the platform tells them. */
+    if (says("target_private_not_designated") || says("target_not_found")) {
+      return NextResponse.json(
+        { error: "target_not_found", detail: "That listing does not exist." },
+        { status: 404 }
+      );
+    }
+    if (says("offered_not_found")) {
+      return NextResponse.json({ error: "offered_not_found", detail: "That watch does not exist." }, { status: 404 });
+    }
+    if (says("not_authenticated")) {
+      return NextResponse.json({ error: "not_authenticated", detail: "Sign in required." }, { status: 401 });
+    }
+    if (says("same_watch")) {
+      return NextResponse.json({ error: "same_watch", detail: "A watch cannot be traded for itself." }, { status: 400 });
+    }
+    if (says("own_listing")) {
+      return NextResponse.json({ error: "own_listing", detail: "This is your own listing." }, { status: 409 });
+    }
+    if (says("not_open_to_trades")) {
+      return NextResponse.json(
+        { error: "not_open_to_trades", detail: "This seller is not accepting trade offers on this watch." },
+        { status: 409 }
+      );
+    }
+    if (says("target_not_available")) {
+      const state = m.split("target_not_available:")[1]?.split(/[^a-z_]/)[0] ?? "unavailable";
+      return NextResponse.json(
+        { error: "target_not_available", detail: `This listing is ${state} and cannot be traded for.` },
+        { status: 409 }
+      );
+    }
+    if (says("offered_not_yours")) {
+      return NextResponse.json(
+        { error: "offered_not_yours", detail: "You can only offer a watch you control on FairWatchTrade." },
+        { status: 403 }
+      );
+    }
+    if (says("offered_not_available")) {
+      const state = m.split("offered_not_available:")[1]?.split(/[^a-z_]/)[0] ?? "unavailable";
+      return NextResponse.json(
+        {
+          error: "offered_not_available",
+          detail: `The watch you're offering is ${state}. It must be live to take part in a trade.`,
+        },
+        { status: 409 }
+      );
+    }
+    if (says("already_proposed")) {
       return NextResponse.json(
         {
           error: "already_proposed",
@@ -240,34 +234,49 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    console.error("[trade] propose failed:", error.message);
-    return NextResponse.json({ error: "propose_failed", detail: error.message }, { status: 500 });
+    console.error("[trade] propose failed:", m);
+    return NextResponse.json({ error: "propose_failed", detail: "That proposal could not be sent." }, { status: 500 });
   }
 
-  await service.from("trade_offer_events").insert({
-    trade_offer_id: offer!.id,
-    event_type: "proposed",
-    actor_user_id: user.id,
-    prior_status: null,
-    resulting_status: "pending",
-    metadata: {
-      target_listing_id: target.id,
-      offered_listing_id: offered.id,
-      ...cash.terms,
-    },
-  });
+  const result = created as {
+    trade_offer_id: string;
+    recipient_id: string;
+    target_listing_id: string;
+  } | null;
+  if (!result?.trade_offer_id) {
+    return NextResponse.json({ error: "propose_failed", detail: "That proposal could not be sent." }, { status: 500 });
+  }
 
-  /* The recipient's bell. Names both watches and the direction of cash,
-     never a formula — and is deduped on the offer itself. */
+  let service;
+  try {
+    service = createServiceClient();
+  } catch {
+    /* The proposal is already committed and authoritative. A missing service
+       client costs the bell, never the offer. */
+    return NextResponse.json({ offer: { id: result.trade_offer_id } }, { status: 201 });
+  }
+
+  /* Read back the row the function wrote — its denormalised identity came
+     from the LOCKED listings, so this is the authoritative copy rather than
+     anything this route assembled. */
+  const { data: offer } = await service
+    .from("trade_offers")
+    .select("*")
+    .eq("id", result.trade_offer_id)
+    .maybeSingle();
+
+  /* The recipient's bell. Names the watch and is deduped on the offer
+     itself. The lifecycle event is NOT written here any more — the function
+     authored it in the same transaction as the offer. */
   await service.from("notifications").insert({
-    user_id: target.seller_id,
+    user_id: result.recipient_id,
     type: "trade_offer",
-    message: `A collector proposed a trade for your ${[target.brand, target.model]
+    message: `A collector proposed a trade for your ${[offer?.target_brand, offer?.target_model]
       .filter(Boolean)
       .join(" ")}.`,
-    listing_id: target.id,
-    dedupe_key: `trade_offer:${offer!.id}`,
+    listing_id: result.target_listing_id,
+    dedupe_key: `trade_offer:${result.trade_offer_id}`,
   });
 
-  return NextResponse.json({ offer }, { status: 201 });
+  return NextResponse.json({ offer: offer ?? { id: result.trade_offer_id } }, { status: 201 });
 }

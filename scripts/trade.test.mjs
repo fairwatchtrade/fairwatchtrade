@@ -187,6 +187,15 @@ const migrationSql = migration
   .replace(/^\s*--.*$/gm, "");
 const proposeRoute = read("app/api/trade-offers/route.ts");
 const actRoute = read("app/api/trade-offers/[id]/route.ts");
+const transferRoute = read("app/api/trade/transfer/route.ts");
+
+/* The Slice 1 authority repair. Same discipline as `migrationSql` above and
+   for the same reason, doubled: this file EXPLAINS the two defects it closes,
+   naming every error code in prose. Counting or ordering against the raw text
+   would let a comment satisfy a pin about executable SQL. */
+const authoritySql = read("supabase/migrations/20260902120000_trade_authority_repair_slice_1.sql")
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*--.*$/gm, "");
 
 /* ── 5 · purchase machinery stays frozen ────────────────────────────────── */
 {
@@ -353,26 +362,103 @@ const actRoute = read("app/api/trade-offers/[id]/route.ts");
   );
 }
 
-/* ── 11 · the routes verify both watches server-side ────────────────────── */
+/* ── 11 · admission is verified INSIDE the governed mutation ─────────────
+   These assertions used to read the route, because the route was where the
+   rules lived. v8.17 moved them into propose_trade_offer(), so they are
+   pinned against the migration now — the boundary, not a caller of it.
+   Behavioural proof of these rules is not source text and does not live
+   here; it is recorded in app/api/trade-offers/README.md. ───────────────── */
 {
   ok(
-    "the recipient is DERIVED from the target listing, never sent by the browser",
-    /recipient_id: target\.seller_id/.test(proposeRoute) &&
+    "the recipient is DERIVED from the locked target listing, never sent by the browser",
+    /v_caller, v_target\.seller_id, 'pending'/.test(authoritySql) &&
       !/body\.recipientId|body\.proposerId/.test(proposeRoute)
   );
-  ok("the target must be open to trades", /not_open_to_trades/.test(proposeRoute));
-  ok("the target cannot be the caller's own", /own_listing/.test(proposeRoute));
+  ok("the target must be open to trades", /not_open_to_trades/.test(authoritySql));
+  ok("the target cannot be the caller's own", /own_listing/.test(authoritySql));
   ok(
     "the offered watch must be the caller's",
-    /offered\.seller_id !== user\.id/.test(proposeRoute) && /offered_not_yours/.test(proposeRoute)
+    /v_offered\.seller_id <> v_caller/.test(authoritySql) &&
+      /offered_not_yours/.test(authoritySql)
   );
   ok(
     "both watches must be in a tradeable status",
-    /isTradeable\(target\.status\)/.test(proposeRoute) && /isTradeable\(offered\.status\)/.test(proposeRoute)
+    (
+      authoritySql.match(/status not in \('published', 'private_active'\)/g) ?? []
+    ).length === 2
+  );
+
+  /* THE SLICE 1 REPAIR. A private_active TARGET admits only its designated
+     buyer; the caller's own private_active watch may still be offered as
+     consideration. Two different rules, and collapsing them in either
+     direction is a defect - so the gate must appear exactly once, and it
+     must be `is distinct from` (a NULL private_buyer_id designates nobody,
+     and `<>` against NULL falls through the guard). */
+  ok(
+    "a private_active TARGET admits only its designated buyer",
+    /v_target\.status = 'private_active'[\s\S]{0,120}v_target\.private_buyer_id is distinct from v_caller/.test(
+      authoritySql
+    ) && /target_private_not_designated/.test(authoritySql)
+  );
+  ok(
+    "the designated-buyer gate is NOT applied to the offered watch",
+    (authoritySql.match(/private_buyer_id is distinct from v_caller/g) ?? []).length === 1 &&
+      !/v_offered\.private_buyer_id/.test(authoritySql)
+  );
+  ok(
+    "both listings are locked in deterministic id order before anything is judged",
+    /if p_target_listing_id < p_offered_listing_id/.test(authoritySql) &&
+      /where id = v_first {2}for update/.test(authoritySql) &&
+      /where id = v_second for update/.test(authoritySql)
+  );
+  ok(
+    "the proposal and its authoritative lifecycle event are one transaction",
+    /insert into public\.trade_offer_events[\s\S]{0,400}'proposed'/.test(authoritySql) &&
+      /* Stripped: the route's comment explains that it no longer writes the
+         event, and the word appearing in that explanation must not satisfy
+         an absence pin about what the route executes. */
+      !/trade_offer_events/.test(strip(proposeRoute))
   );
   ok(
     "a duplicate live proposal is refused by the index, surfaced as 409",
-    /error\.code === "23505"/.test(proposeRoute) && /already_proposed/.test(proposeRoute)
+    /unique_violation/.test(authoritySql) &&
+      /already_proposed/.test(authoritySql) &&
+      /already_proposed/.test(proposeRoute)
+  );
+
+  /* The route is no longer the boundary and must not drift back into being
+     one: it calls the function and renders errors, and it must not reach
+     for the service client to decide admission for itself. */
+  ok(
+    "the route calls the governed mutation on the SESSION client",
+    /supabase\.rpc\("propose_trade_offer"/.test(proposeRoute)
+  );
+  ok(
+    "a non-designated caller cannot tell a private listing from a missing one",
+    /target_private_not_designated"\) \|\| says\("target_not_found/.test(proposeRoute)
+  );
+
+  /* ── the transfer producer: authorization before replay ──────────────── */
+  ok(
+    "authorization is evaluated BEFORE the idempotency lookup",
+    authoritySql.indexOf("only_the_recipient_may_confirm_receipt") <
+      authoritySql.indexOf("where idempotency_key = p_idempotency_key")
+  );
+  ok(
+    "a replay is the tuple (leg, actor, event type, key) — never the raw string",
+    /v_existing\.trade_deal_leg_id {2}= v_leg\.id[\s\S]{0,200}asserted_by_user_id = p_actor_user_id[\s\S]{0,200}event_type {5}= p_event_type/.test(
+      authoritySql
+    )
+  );
+  ok(
+    "a key under a different tuple is refused, never returned as a replay",
+    /idempotency_key_conflict/.test(authoritySql) &&
+      /idempotency_key_conflict/.test(transferRoute)
+  );
+  ok(
+    "retraction authority is decided before any state answer about the transfer",
+    authoritySql.indexOf("not_authorized_to_retract") <
+      authoritySql.indexOf("superseded_event_not_found")
   );
   ok(
     "acceptance is ONE atomic RPC call — the route assembles nothing",
@@ -406,7 +492,8 @@ const actRoute = read("app/api/trade-offers/[id]/route.ts");
   );
   ok(
     "the exchange itself is directed to the existing listing conversation",
-    /listing conversation/.test(offersModule)
+    // The copy wraps in source, so match across the line break.
+    /listing\s+conversation/.test(offersModule)
   );
   ok(
     "and the proposal surface avoids exchange-styling theatre",
