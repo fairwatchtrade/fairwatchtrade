@@ -138,7 +138,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true, ...(data as object) }, { status: 200 });
   }
 
-  // ── DECLINE / WITHDRAW — single-object state moves, no listings touched ──
+  // ── DECLINE / WITHDRAW — one governed mutation, like accept ──
   if (action !== "decline" && action !== "withdraw") {
     return NextResponse.json(
       { error: "unknown_action", detail: "action must be accept, decline, or withdraw." },
@@ -146,78 +146,66 @@ export async function PATCH(
     );
   }
 
-  let service;
-  try {
-    service = createServiceClient();
-  } catch {
-    return NextResponse.json({ error: "server_misconfigured", detail: "Unavailable." }, { status: 500 });
-  }
-
-  const { data: offer } = await service
-    .from("trade_offers")
-    .select("id, proposer_id, recipient_id, status")
-    .eq("id", id)
-    .maybeSingle();
-  if (!offer) {
-    return NextResponse.json({ error: "not_found", detail: "No such trade offer." }, { status: 404 });
-  }
-
-  /* Decline belongs to the recipient; withdraw belongs to the proposer.
-     Neither party can perform the other's act. */
-  const actorOk =
-    action === "decline" ? offer.recipient_id === user.id : offer.proposer_id === user.id;
-  if (!actorOk) {
-    return NextResponse.json(
-      {
-        error: "not_allowed",
-        detail:
-          action === "decline"
-            ? "Only the collector who received this offer can decline it."
-            : "Only the collector who made this offer can withdraw it.",
-      },
-      { status: 403 }
-    );
-  }
-  if (offer.status !== "pending") {
-    return NextResponse.json(
-      { error: "already_resolved", detail: "This trade offer has already been answered." },
-      { status: 409 }
-    );
-  }
-
-  const next = action === "decline" ? "declined" : "withdrawn";
-  const { data: updated, error } = await service
-    .from("trade_offers")
-    .update({ status: next })
-    .eq("id", id)
-    .eq("status", "pending")
-    .select("id, status")
-    .maybeSingle();
-  if (error || !updated) {
+  /* These used to be a service-role UPDATE from here followed by a separate
+     event insert whose error was discarded - a status change could exist
+     with no history, which the founder's authoritative-history ruling
+     forbids. resolve_trade_offer() now does both in one transaction and
+     decides who may act from auth.uid(); the route calls it on the SESSION
+     client and turns refusals into sentences. Decline belongs to the
+     recipient; withdraw belongs to the proposer. Neither party can perform
+     the other's act - the function enforces that, not this file. */
+  const { data, error } = await supabase.rpc("resolve_trade_offer", {
+    p_offer_id: id,
+    p_action: action,
+  });
+  if (error) {
+    const msg = error.message || "";
+    if (/not_found/.test(msg)) {
+      return NextResponse.json({ error: "not_found", detail: "No such trade offer." }, { status: 404 });
+    }
+    if (/not_allowed/.test(msg)) {
+      return NextResponse.json(
+        {
+          error: "not_allowed",
+          detail:
+            action === "decline"
+              ? "Only the collector who received this offer can decline it."
+              : "Only the collector who made this offer can withdraw it.",
+        },
+        { status: 403 }
+      );
+    }
+    if (/already_resolved/.test(msg)) {
+      return NextResponse.json(
+        { error: "already_resolved", detail: "This trade offer has already been answered." },
+        { status: 409 }
+      );
+    }
+    console.error("[trade] resolve failed:", msg);
     return NextResponse.json(
       { error: "update_failed", detail: "That did not go through. Nothing was changed." },
       { status: 500 }
     );
   }
 
-  await service.from("trade_offer_events").insert({
-    trade_offer_id: id,
-    event_type: next,
-    actor_user_id: user.id,
-    prior_status: "pending",
-    resulting_status: next,
-    metadata: {},
-  });
+  const result = data as { status: string; proposer_id: string } | null;
+  const next = result?.status ?? (action === "decline" ? "declined" : "withdrawn");
 
-  /* Only a decline needs to reach the other party — a withdrawal is the
-     proposer taking back their own offer. */
-  if (action === "decline") {
-    await service.from("notifications").insert({
-      user_id: offer.proposer_id,
-      type: "trade_declined",
-      message: "Your trade proposal was declined.",
-      dedupe_key: `trade_declined:${id}`,
-    });
+  /* Only a decline needs to reach the other party - a withdrawal is the
+     proposer taking back their own offer. The bell is non-fatal by
+     construction: the decline is already committed and authoritative. */
+  if (action === "decline" && result?.proposer_id) {
+    try {
+      const service = createServiceClient();
+      await service.from("notifications").insert({
+        user_id: result.proposer_id,
+        type: "trade_declined",
+        message: "Your trade proposal was declined.",
+        dedupe_key: `trade_declined:${id}`,
+      });
+    } catch (e) {
+      console.error("[trade] decline notification failed:", e);
+    }
   }
 
   return NextResponse.json({ ok: true, status: next }, { status: 200 });

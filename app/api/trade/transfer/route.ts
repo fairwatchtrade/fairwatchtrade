@@ -62,6 +62,10 @@ const KNOWN_REASONS = new Set([
   "target_transfer_is_not_live",
   "retraction_target_inconsistent",
   "not_authorized_to_retract",
+  /* Once both confirmations have closed the trade they are the completed
+     transaction record. Recipient and founder alike are refused here; the
+     refusal is decided before replay so a stale key cannot fake success. */
+  "deal_completed_retraction_refused",
   "idempotency_key_required",
   /* A key that already exists under a DIFFERENT (leg, actor, event type) is
      a collision, never a replay. The producer refuses rather than returning

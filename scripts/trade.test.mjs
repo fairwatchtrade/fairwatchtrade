@@ -197,6 +197,12 @@ const authoritySql = read("supabase/migrations/20260902120000_trade_authority_re
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^\s*--.*$/gm, "");
 
+/* Step 2 of 2 (v8.19): lifecycle truth and authoritative event history.
+   Comment-stripped for the same reason - the file names every refusal and
+   every writer in prose before it declares them in SQL. */
+const step2Raw = read("supabase/migrations/20260902160000_trade_lifecycle_truth_step_2.sql");
+const step2Sql = step2Raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm, "");
+
 /* ── 5 · purchase machinery stays frozen ────────────────────────────────── */
 {
   /* SQL comments are stripped: the header explains WHY purchase_requests
@@ -466,16 +472,141 @@ const authoritySql = read("supabase/migrations/20260902120000_trade_authority_re
       !/insert[\s\S]{0,60}trade_deal_legs/.test(actRoute) &&
       !/update[\s\S]{0,60}listings/.test(actRoute)
   );
+  /* v8.19 moved decline/withdraw into resolve_trade_offer(). The actor rule
+     is now decided in SQL from auth.uid(); the route only calls it. */
   ok(
-    "decline belongs to the recipient and withdraw to the proposer",
-    /action === "decline" \? offer\.recipient_id === user\.id : offer\.proposer_id === user\.id/.test(
-      actRoute
-    )
+    "decline belongs to the recipient and withdraw to the proposer - decided in the governed function",
+    /p_action = 'decline' and v_offer\.recipient_id <> v_caller/.test(step2Sql) &&
+      /p_action = 'withdraw' and v_offer\.proposer_id <> v_caller/.test(step2Sql) &&
+      /rpc\("resolve_trade_offer"/.test(actRoute)
   );
   ok(
     "every refusal says nothing was changed",
     /Nothing was changed/.test(actRoute)
   );
+}
+
+/* ── 11b · STEP 2 OF 2 — lifecycle truth and authoritative event history ──
+   Structural pins on the migration and routes. The behavioural proofs for
+   this step are database proofs run against production inside rolled-back
+   transactions and are recorded in app/api/trade-offers/README.md; nothing
+   here claims them. What this section guards is that the SHAPE cannot
+   regress: every writer authors its event in the same function, the
+   history table is structurally append-only, and the completion boundary
+   is decided before replay. ─────────────────────────────────────────────── */
+{
+  /* every trade_offers.status writer is a governed function that also inserts its event */
+  ok("decline/withdraw: status and event in one function",
+    /create or replace function public\.resolve_trade_offer\(p_offer_id uuid, p_action text\)/.test(step2Sql) &&
+      /update public\.trade_offers[\s\S]{0,120}set status = v_next[\s\S]{0,400}insert into public\.trade_offer_events[\s\S]{0,200}v_next/.test(step2Sql));
+  ok("acceptance authors one superseded event PER losing trade offer, from the exact RETURNING set",
+    /returning id\s*\)\s*select coalesce\(array_agg\(id\), '\{\}'\) into v_superseded_offers/.test(step2Sql) &&
+      /select unnest\(v_superseded_offers\), 'superseded', v_caller, 'pending', 'superseded'/.test(step2Sql) &&
+      /'cause', 'trade_offer_accepted'/.test(step2Sql));
+  /* The phrase appears in the LOCK statement too, so a presence test alone
+     was satisfied by the lock while the UPDATE had lost a direction - found
+     by mutation. The pin now reads the UPDATE itself. */
+  ok("purchase-request acceptance retires pending trade offers as TARGET or as OFFERED consideration, one event each",
+    /with losers as \(\s*update public\.trade_offers\s*set status = 'superseded', updated_at = now\(\)\s*where status = 'pending'\s*and \(target_listing_id = v_listing_id or offered_listing_id = v_listing_id\)\s*returning id/.test(step2Sql) &&
+      /'cause', 'purchase_request_accepted'/.test(step2Sql) &&
+      (step2Sql.match(/select unnest\(v_superseded_offers\), 'superseded'/g) ?? []).length === 2);
+  ok("purchase-request acceptance keeps its own product semantics - transaction row, reserve, sibling requests",
+    /insert into public\.transactions/.test(step2Sql) &&
+      /set status = 'superseded', updated_at = now\(\)\s*where listing_id = v_listing_id\s*and id <> p_request_id/.test(step2Sql));
+  ok("no superseded vocabulary is invented for purchase_request_events",
+    !/purchase_request_events/.test(step2Sql));
+
+  /* the route no longer writes status or history for decline/withdraw */
+  const actCode2 = strip(actRoute);
+  ok("the [id] route calls resolve_trade_offer on the session client and touches no trade_offers row itself",
+    /supabase\.rpc\("resolve_trade_offer"/.test(actCode2) &&
+      !/\.update\(\{ status/.test(actCode2) &&
+      !/trade_offer_events/.test(actCode2));
+
+  /* lock discipline: listing rows first in BOTH mechanisms, sorted in Trade */
+  ok("trade acceptance keeps the sorted listing-row lock order",
+    /if v_offer\.target_listing_id < v_offer\.offered_listing_id then/.test(step2Sql) &&
+      step2Sql.indexOf("perform 1 from public.listings where id = v_first  for update") <
+        step2Sql.indexOf("update public.trade_offers\n     set status = 'accepted'"));
+  ok("purchase-request acceptance locks the listing before any sibling row of either mechanism",
+    step2Sql.indexOf("from public.listings\n  where id = v_listing_id\n  for update") <
+      step2Sql.indexOf("from public.purchase_requests\n  where listing_id = v_listing_id\n  for update") &&
+    step2Sql.indexOf("from public.purchase_requests\n  where listing_id = v_listing_id\n  for update") <
+      step2Sql.indexOf("from public.trade_offers\n  where status = 'pending'\n    and (target_listing_id = v_listing_id or offered_listing_id = v_listing_id)\n  for update"));
+
+  /* private commitment closure: capture BEFORE clear, clear WITH reserve, notify through notifications */
+  const captureAt = step2Sql.indexOf("v_target_private_buyer  := case when v_target.status  = 'private_active'");
+  const clearAt = step2Sql.indexOf("set status = 'reserved', private_buyer_id = null");
+  ok("the pre-commit private_buyer_id is captured from the locked row BEFORE the closure clears it",
+    captureAt >= 0 && clearAt >= 0 && captureAt < clearAt);
+  ok("closure and reservation are one statement, and the named buyer is notified through the existing notifications seam in the same transaction",
+    /set status = 'reserved', private_buyer_id = null, updated_at = now\(\)/.test(step2Sql) &&
+      /insert into public\.notifications \(user_id, type, message, listing_id, dedupe_key\)/.test(step2Sql) &&
+      /'private_listing_closed'/.test(step2Sql) &&
+      !/create table[\s\S]{0,80}notif/.test(step2Sql));
+  ok("the acquirer of each watch is derived from the offer, never from the request",
+    /\(v_target\.id,  v_target_private_buyer,  v_offer\.proposer_id/.test(step2Sql) &&
+      /\(v_offered\.id, v_offered_private_buyer, v_offer\.recipient_id/.test(step2Sql));
+  ok("acceptance honours Slice 1 private admission at the second door",
+    /target_private_not_designated/.test(step2Sql));
+
+  /* completion: the trigger authors the event; the wrapper no longer does */
+  ok("completion authors its own event from a trigger on trade_deals, whichever path completed it",
+    /create trigger trade_deals_completed_event/.test(step2Sql) &&
+      /when \(new\.status = 'completed' and old\.status is distinct from 'completed'\)/.test(step2Sql) &&
+      /'authored_by', 'trade_deals_completed_event'/.test(step2Sql));
+  ok("the completion event is idempotent by construction",
+    /not exists \(\s*select 1 from public\.trade_offer_events\s*where trade_offer_id = NEW\.trade_offer_id and event_type = 'completed'/.test(step2Sql));
+  const wrapperStart = step2Sql.indexOf("create or replace function public.confirm_trade_leg_receipt");
+  const wrapperEnd = step2Sql.indexOf("$function$;", wrapperStart);
+  ok("confirm_trade_leg_receipt no longer inserts the completed event itself",
+    wrapperStart >= 0 && !/trade_offer_events/.test(step2Sql.slice(wrapperStart, wrapperEnd)));
+  ok("the producer names the actor for the completion trigger before it recomputes",
+    step2Sql.indexOf("set_config('fwt.transfer_actor', p_actor_user_id::text, true)") >= 0 &&
+      step2Sql.indexOf("set_config('fwt.transfer_actor', p_actor_user_id::text, true)") <
+        step2Sql.indexOf("perform public.recompute_trade_transfer_status(v_deal.id)"));
+
+  /* post-completion retraction: authorization < completion refusal < replay */
+  /* Ordering alone cannot see a guard that was neutered in place (found by
+     mutation), so the exact guard must sit INSIDE the retraction branch:
+     after retraction_must_supersede, before the branch's else. */
+  const authAt = step2Sql.indexOf("raise exception 'not_authorized_to_retract'");
+  const replayAt = step2Sql.indexOf("where idempotency_key = p_idempotency_key");
+  const guard = /raise exception 'retraction_must_supersede'; end if;\s*if v_deal\.status = 'completed' then\s*raise exception 'deal_completed_retraction_refused'; end if;\s*else\s*raise exception 'unsupported_event_type';/;
+  const guardAt = step2Sql.search(guard);
+  ok("a completed deal refuses retraction inside the retraction branch, after authorization and BEFORE the replay lookup",
+    authAt >= 0 && guardAt >= 0 && replayAt >= 0 && authAt < guardAt && guardAt < replayAt &&
+      (step2Sql.match(/deal_completed_retraction_refused/g) ?? []).length === 1);
+  const transferRoute2 = read("app/api/trade/transfer/route.ts");
+  ok("the transfer route can surface the completion refusal truthfully",
+    /"deal_completed_retraction_refused"/.test(transferRoute2));
+
+  /* Slice 1 invariants survive verbatim in the re-issued producer */
+  ok("Slice 1 replay tuple and conflict refusal are preserved",
+    /v_existing\.trade_deal_leg_id {2}= v_leg\.id[\s\S]{0,200}asserted_by_user_id = p_actor_user_id[\s\S]{0,200}event_type {5}= p_event_type/.test(step2Sql) &&
+      /idempotency_key_conflict/.test(step2Sql) &&
+      step2Sql.indexOf("only_the_recipient_may_confirm_receipt") < replayAt);
+  ok("propose_trade_offer is not re-issued by this step",
+    !/create or replace function public\.propose_trade_offer/.test(step2Sql));
+
+  /* append-only structure */
+  ok("UPDATE and DELETE are refused by a row trigger, TRUNCATE by a statement trigger",
+    /create trigger trade_offer_events_no_update_delete\s*before update or delete on public\.trade_offer_events\s*for each row/.test(step2Sql) &&
+      /create trigger trade_offer_events_no_truncate\s*before truncate on public\.trade_offer_events\s*for each statement/.test(step2Sql));
+  ok("INSERT/UPDATE/DELETE/TRUNCATE are revoked from anon, authenticated AND service_role - privilege is not permission",
+    /revoke insert, update, delete, truncate, references, trigger\s*on public\.trade_offer_events from anon, authenticated, service_role/.test(step2Sql));
+  ok("the FK to trade_offers no longer cascades a delete into history",
+    /foreign key \(trade_offer_id\) references public\.trade_offers\(id\) on delete restrict/.test(step2Sql));
+  ok("the append-only structure is installed BEFORE any function in this file can write",
+    step2Sql.indexOf("create trigger trade_offer_events_no_update_delete") <
+      step2Sql.indexOf("create or replace function public.accept_trade_offer"));
+
+  /* historical reconciliation: one evidenced row, idempotent, self-labelled */
+  ok("the only historical reconciliation is a proposed event derived from the offer row's own columns, idempotently",
+    /select o\.id, 'proposed', o\.proposer_id, null, 'pending', o\.created_at/.test(step2Sql) &&
+      /'reconciled',\s+true/.test(step2Sql) &&
+      /not exists \(\s*select 1 from public\.trade_offer_events e\s*where e\.trade_offer_id = o\.id and e\.event_type = 'proposed'/.test(step2Sql) &&
+      (step2Sql.match(/insert into public\.trade_offer_events/g) ?? []).length >= 6);
 }
 
 /* ── 12 · no second messaging product ───────────────────────────────────── */

@@ -158,6 +158,130 @@ the same reason: an unauthorized caller must not be able to distinguish
 `superseded_event_not_found` from `target_transfer_is_not_live`. Those answers
 describe someone else's transfer.
 
+## Step 2 of 2 — lifecycle truth and authoritative history (v8.19)
+
+Migration: `supabase/migrations/20260902160000_trade_lifecycle_truth_step_2.sql`
+
+**The founder ruling, verbatim, and it is not a logging policy:**
+
+> `trade_offer_events` is the authoritative, append-only history of Trade
+> offer lifecycle transitions. Every governed lifecycle transition must
+> atomically author its corresponding event. Event history may not be
+> silently skipped, edited, or deleted. Historical reconciliation must
+> preserve supported truth and must never fabricate events that cannot be
+> evidenced.
+
+### Trade and Purchase Requests are siblings, and the winner is authoritative
+
+The two mechanisms stay separate. When either commits a watch, competing
+pending offers in the *other* become truthfully superseded **in the same
+transaction**:
+
+- **Trade wins** — `accept_trade_offer()` retires pending Purchase Requests
+  on both committed listings (it already did) and now also authors one
+  `superseded` event for **each** Trade offer it retires, from the exact
+  `RETURNING` set. Bulk supersession is never one anonymous event.
+- **Purchase Request wins** — `accept_purchase_request()` gains exactly one
+  additive write: it retires pending Trade offers on its listing whether the
+  listing is the **target** or the **offered consideration**, one event each.
+  Its own semantics (transaction row, reserve, sibling requests) are
+  reproduced verbatim. It is not generalised and the mechanisms are not merged.
+
+Purchase Requests keep their own history contract: `purchase_request_events`
+is a cancellation ledger whose CHECK admits only `resulting_status =
+'cancelled'`. No `superseded` vocabulary is invented for it; the status write
+is the whole of its governed truth for this transition, exactly as it always
+was for its own siblings.
+
+### Lock discipline across the two mechanisms
+
+Trade acceptance locks **both** listings in ascending id order, then sibling
+rows. Purchase Request acceptance locks its **one** listing, then its sibling
+requests, then the competing pending Trade offers. Both lock the listing
+before any sibling row, so neither can hold a sibling lock while waiting on a
+listing the other holds — no cycle is possible. No second lock convention was
+created. A true two-session race was not executed (no `dblink`, and none was
+installed); revalidation against locked state is proven behaviourally.
+
+### Private commitment closure
+
+If an owner's `private_active` watch commits through another Trade before its
+named private buyer commits it, **the private opportunity closes with that
+commitment and the named buyer is told.** In `accept_trade_offer()`:
+
+1. the pre-commit `private_buyer_id` of each committed listing is **captured
+   from the locked row** before anything clears it;
+2. the acquirer of each watch is derived from the offer — target → proposer,
+   offered → recipient — never from the request;
+3. if the watch was privately offered to someone **other than its acquirer**,
+   the designation is cleared in the same statement that reserves the row,
+   and a `private_listing_closed` notification is inserted for the captured
+   buyer through the **existing governed seam** — the `notifications` table,
+   exactly as `notify_on_private_listing_activation()` writes — inside the
+   acceptance transaction. If the insert fails, the acceptance rolls back;
+4. if the acquirer *is* the named buyer, the opportunity is being fulfilled,
+   not closed — nothing is cleared and nobody is warned.
+
+The bell renders any notification `type` and deep-links on `listing_id`, so
+no UI changed. A consequence worth knowing: `cancel_trade_deal()` restores a
+listing as `private_active` only if `private_buyer_id` is still set, so a
+watch whose private opportunity closed returns to `published` if that trade
+is later cancelled. That is the truthful reconstruction — the designation is
+gone by ruling.
+
+### Completed trades cannot be unilaterally reopened
+
+Before completion a collector may retract their own receipt confirmation as a
+correction, under the actor rules Slice 1 governs. Once
+`trade_deals.status = 'completed'`, `TRANSFER_RETRACTED` refuses —
+`deal_completed_retraction_refused` — for recipient and founder alike through
+this unilateral seam. The refusal sits **with authorization and before the
+replay lookup**, so a stale idempotency key cannot turn a refused request into
+apparent success. The dispute/correction path is a future product.
+
+### Every writer, enumerated
+
+| Path | Moves `trade_offers.status`? | Event | Where |
+|---|---|---|---|
+| `propose_trade_offer()` | insert `pending` | `proposed` | same function (v8.17) |
+| `resolve_trade_offer()` | `pending → declined / withdrawn` | one each | same function (**new**) |
+| `accept_trade_offer()` | `pending → accepted`; competitors `→ superseded` | `accepted` + one `superseded` **per** loser | same function |
+| `accept_purchase_request()` | competitors `→ superseded` | one `superseded` per loser | same function |
+| `trade_deals_completed_event` trigger | no — the **deal** completes | `completed` | AFTER UPDATE on `trade_deals`, whichever path completed it |
+| `cancel_trade_deal()` | no — the deal cancels | `cancelled` | same function |
+
+Removed producers: the `[id]` route no longer updates status or inserts
+events; `confirm_trade_leg_receipt()` no longer authors `completed` (the
+trigger owns it, so the founder-asserted path is covered identically). The
+producer names its actor for the trigger via `set_config('fwt.transfer_actor')`
+— the same local-setting mechanism as `fwt.transfer_seam`.
+
+### Append-only, structurally
+
+Producers are SECURITY DEFINER functions owned by the table owner and need no
+grant. So `INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER` are
+**revoked from `anon`, `authenticated` and `service_role`**, and two triggers
+refuse `UPDATE`/`DELETE` (row) and `TRUNCATE` (statement) for whoever still
+could — including the owner running SQL by hand. The FK to `trade_offers` is
+now `ON DELETE RESTRICT`: a cascade is a DELETE path, and history outlives the
+row it describes. `SELECT` is unchanged; parties read their own history
+through RLS.
+
+**The only path around the triggers** is the table owner disabling them
+(`ALTER TABLE … DISABLE TRIGGER`) from outside the application. `service_role`
+is not the owner and cannot; it also cannot set `session_replication_role`.
+No new destructive seam was created.
+
+### Historical reconciliation — one row, fully evidenced
+
+The one real production offer predates v8.17 and had `accepted` and
+`completed` events but no `proposed`. Every fact the rule requires is a
+column on that offer row — identity, `proposer_id`, prior `null`, resulting
+`pending`, `created_at`. The migration inserts it idempotently with
+`metadata.reconciled = true` and `reconciled_from` naming the columns, so it
+can never be mistaken for a live-authored event. Nothing else was missing and
+nothing else was inserted. Never fabricate an event because a row implies one.
+
 ## What is deliberately NOT built here
 
 - **No change to who may do what.** `TRANSFERRED` remains recipient-only.
