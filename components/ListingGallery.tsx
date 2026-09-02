@@ -141,10 +141,17 @@ export default function ListingGallery({
      listing actually occupies, which is what lets the arrows sit on the
      stage's own edges and be both close to the watch and perfectly still.
 
-     "ACTUALLY OCCUPIES" is doing the work. A photograph's rectangle is
-     bounded by the room's height AND by the source's own pixels. Sizing from
-     aspect ratio alone builds a stage that a low-resolution photograph
-     cannot fill — which is the same sprawl, in a smaller box. */
+     TWO CEILINGS, AND THEY ARE NOT THE SAME JOB. The listing-level stage
+     represents the photographic SHAPES in the set, and is therefore sized
+     from aspect against the room's height. A photograph's own pixel count is
+     a separate ceiling, and it governs only how large THAT source may
+     truthfully render and zoom — see nativeDetailCeiling.
+
+     Mixing the two collapsed the room. When each photograph's contribution
+     was capped by its own pixels first, four 160x160 placeholders in a
+     five-photo listing outvoted an 1800x2400 photograph and the median came
+     out at 160px: the real watch rendered 160px wide inside a 1032px mat.
+     One low-resolution source in any real listing would have done the same. */
   const roomRef = useRef<HTMLDivElement | null>(null);
   const stageAreaRef = useRef<HTMLDivElement | null>(null);
   const [room, setRoom] = useState({ width: 0, height: 0 });
@@ -230,8 +237,11 @@ export default function ListingGallery({
        width-bound and renders shorter than the room could technically show
        it. It is not cropped, and inspection zoom reaches the detail. The
        majority fill the stage exactly and the arrows sit against them. */
+    /* SHAPES, not pixel counts. Capping each contribution by its own source
+       width here is what let low-resolution photographs drag the stage down;
+       the native ceiling still limits what each one renders to. */
     const fits = measured
-      .map((n) => Math.min(room.height * (n.w / n.h), n.w))
+      .map((n) => room.height * (n.w / n.h))
       .sort((a, b) => a - b);
     const typical = fits[Math.floor(fits.length / 2)];
     return Math.min(available, Math.max(1, Math.round(typical)));

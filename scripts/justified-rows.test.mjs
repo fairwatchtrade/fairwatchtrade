@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { justifyRows, justifiedHeight } from "../lib/media/justifiedRows.ts";
+import { containRect } from "../lib/media/inspectionZoom.ts";
 
 let n = 0;
 const ok = (label, cond) => { n += 1; assert.ok(cond, label); };
@@ -198,8 +199,9 @@ const rowWidth = (row, gap = 6) =>
   const viewport = read("components/InspectionViewport.tsx");
   const rail = read("components/InspectionPhotoRail.tsx");
 
-  ok("C1 the stage is bounded by each source's OWN pixels, not by aspect alone",
-    /Math\.min\(room\.height \* \(n\.w \/ n\.h\), n\.w\)/.test(gallery));
+  ok("C1 the stage is sized from photographic SHAPE, never from pixel counts",
+    /\.map\(\(n\) => room\.height \* \(n\.w \/ n\.h\)\)/.test(gallery) &&
+    !/Math\.min\(room\.height \* \(n\.w \/ n\.h\), n\.w\)/.test(gallery));
   ok("C1 it reserves the rail's actual width, which is now a constant",
     /room\.width - RAIL_WIDTH - ROOM_GAP - STAGE_GUTTERS/.test(gallery));
   ok("C1 and stays full width until every photograph has reported",
@@ -358,6 +360,54 @@ const rowWidth = (row, gap = 6) =>
   ok("P6 the MAT takes the room's slack, so the rail stays against the edge",
     /flex min-h-0 min-w-0 flex-1 flex-col/.test(gallery) &&
     /flex: "0 0 auto", width: stageWidth/.test(gallery));
+}
+
+/* ── 11 · TWO CEILINGS, AND THEY ARE NOT THE SAME JOB ──────────────────
+   The listing-level stage represents the SHAPES in the set. A photograph's
+   own pixel count is a separate ceiling governing only how large that one
+   source may truthfully render.
+
+   Mixing them collapsed the room in production: capping each contribution by
+   its own width first let four 160x160 placeholders outvote an 1800x2400
+   photograph, and the real watch rendered 160px wide inside a 1032px mat. */
+{
+  const ROOM_H = 797;
+  const AVAILABLE = 888;
+  const stageWidth = (naturals, { capByOwnPixels }) => {
+    const fits = naturals
+      .map((n) => (capByOwnPixels ? Math.min(ROOM_H * (n.w / n.h), n.w) : ROOM_H * (n.w / n.h)))
+      .sort((a, b) => a - b);
+    return Math.min(AVAILABLE, Math.max(1, Math.round(fits[Math.floor(fits.length / 2)])));
+  };
+
+  /* The real listing, measured live: one photograph and four placeholders. */
+  const BREITLING = [
+    { w: 1800, h: 2400 },
+    { w: 160, h: 160 }, { w: 160, h: 160 }, { w: 160, h: 160 }, { w: 160, h: 160 },
+  ];
+
+  ok("T1 four 160x160 placeholders cannot collapse the stage",
+    stageWidth(BREITLING, { capByOwnPixels: false }) === 797);
+  ok("T1 and the defect is pinned: capping by own pixels DID collapse it to 160",
+    stageWidth(BREITLING, { capByOwnPixels: true }) === 160);
+
+  /* The per-photograph ceiling must still bite INSIDE that correct stage. */
+  const stage = { width: 797, height: ROOM_H };
+  const real = containRect(stage, 1800 / 2400, { width: 1800, height: 2400 });
+  const placeholder = containRect(stage, 1, { width: 160, height: 160 });
+  ok("T2 the real photograph fills the stage's height, limited by shape not pixels",
+    Math.round(real.height) === ROOM_H && Math.round(real.width) === 598);
+  ok("T2 a low-resolution source is still held to its own native detail",
+    Math.round(placeholder.width) === 160 && Math.round(placeholder.height) === 160);
+
+  /* Rolex: eleven photographs, all high resolution. Removing the cap must
+     move nothing, because no source was being clipped by it. */
+  const ROLEX = [0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.55, 1.32, 1.33, 1.78]
+    .map((a) => ({ w: Math.round(3000 * a), h: 3000 }));
+  ok("T3 Rolex is unchanged with the cap removed",
+    stageWidth(ROLEX, { capByOwnPixels: false }) === stageWidth(ROLEX, { capByOwnPixels: true }));
+  ok("T3 and still sizes to the typical portrait rather than to the 16:9 outlier",
+    stageWidth(ROLEX, { capByOwnPixels: false }) === 598);
 }
 
 console.log(`justified-rows: ${n} assertions passed`);
