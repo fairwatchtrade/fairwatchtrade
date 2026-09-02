@@ -217,7 +217,7 @@ export default function AuctionLotIdentity({ lots }: { lots: LotSummary[] }) {
                 onClick={() => toggle(c, from)}
                 aria-pressed={on}
                 disabled={outcome === "unresolved"}
-                className={`w-full border px-2 py-1.5 text-left text-[12px] transition disabled:opacity-40 ${
+                className={`w-full cursor-pointer border px-2 py-1.5 text-left text-[12px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   on
                     ? "border-[var(--border-gold)] bg-[var(--gold-whisper)] text-[var(--platinum)]"
                     : "border-[var(--border-subtle)] text-[var(--platinum-dim)] hover:border-[var(--border-mid)]"
@@ -337,7 +337,7 @@ export default function AuctionLotIdentity({ lots }: { lots: LotSummary[] }) {
                     setSaved(null);
                     if (o.key === "unresolved") setChosen([]);
                   }}
-                  className={`border px-2 py-2 text-left transition ${
+                  className={`cursor-pointer border px-2 py-2 text-left transition ${
                     outcome === o.key
                       ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
                       : "border-[var(--border-subtle)] hover:border-[var(--border-mid)]"
@@ -377,7 +377,7 @@ export default function AuctionLotIdentity({ lots }: { lots: LotSummary[] }) {
                   <button
                     type="button"
                     onClick={() => void load(state.lot.id, q)}
-                    className="shrink-0 border border-[var(--border-mid)] px-3 text-[11px] uppercase tracking-[1.2px] text-[var(--platinum-dim)]"
+                    className="shrink-0 cursor-pointer border border-[var(--border-mid)] px-3 text-[11px] uppercase tracking-[1.2px] text-[var(--platinum-dim)]"
                   >
                     Search
                   </button>
@@ -429,7 +429,7 @@ export default function AuctionLotIdentity({ lots }: { lots: LotSummary[] }) {
               type="button"
               disabled={busy || !outcome || !reason.trim()}
               onClick={() => void submit()}
-              className="mt-2 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 text-[11px] uppercase tracking-[1.4px] text-[var(--platinum)] transition hover:border-[var(--gold-dim)] disabled:opacity-40"
+              className="mt-2 cursor-pointer border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-2 text-[11px] uppercase tracking-[1.4px] text-[var(--platinum)] transition hover:border-[var(--gold-dim)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {state.decision ? "Record correction" : "Record decision"}
             </button>

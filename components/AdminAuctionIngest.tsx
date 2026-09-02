@@ -322,7 +322,7 @@ export default function AdminAuctionIngest({
             </button>
             <button type="button"
               onClick={() => { setDraft(null); setConflict(null); setNote(null); if (editing) onDoneEditing?.(); }}
-              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
+              className="cursor-pointer border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
               Discard
             </button>
           </div>
@@ -368,7 +368,7 @@ export default function AdminAuctionIngest({
               Update existing row
             </button>
             <button type="button" onClick={() => setConflict(null)}
-              className="border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
+              className="cursor-pointer border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
               Keep both cancelled — go back
             </button>
           </div>

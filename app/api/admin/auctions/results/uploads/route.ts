@@ -6,7 +6,7 @@ import {
   resolveActivePacketRevision,
   toRegisteredPacket,
 } from "@/lib/auction-operations/packetCatalog";
-import { createRun, updateRun } from "@/lib/auction-operations/runStore";
+import { createRun, markFailed, updateRun } from "@/lib/auction-operations/runStore";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/auctions/results/uploads — signed staging uploads
@@ -113,9 +113,16 @@ export async function POST(request: NextRequest) {
       .from(STAGING_BUCKET)
       .createSignedUploadUrl(path);
     if (error || !data) {
-      console.error("[auction-ops] signed upload url failed:", error?.message);
+      /* THE RUN ALREADY EXISTS. A refusal the server can identify after
+         birth must be written against that same durable run before this
+         returns — otherwise the row sits 'uploading' forever with nothing
+         to say why, and the room has a run id it cannot explain. Same
+         failed/markFailed semantics as planning; no second run is minted. */
+      const detail = `The staging bucket refused a signed upload for ${spec.kind}: ${error?.message ?? "no token returned"}`;
+      console.error("[auction-ops] signed upload url failed:", detail);
+      await markFailed(service, run.id, "staging_unavailable", detail);
       return NextResponse.json(
-        { error: "staging_unavailable", detail: "The staging bucket refused a signed upload." },
+        { runId: run.id, state: "failed", error: "staging_unavailable", detail: "The staging bucket refused a signed upload. The run has been recorded as failed." },
         { status: 500 }
       );
     }

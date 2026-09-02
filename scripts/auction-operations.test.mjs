@@ -1534,4 +1534,155 @@ function fakeStorage(seed = {}) {
       !/create policy/i.test(mSql) && !/grant /i.test(mSql));
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   10 · HUMAN START SEAM + RUN RECOVERY (v8.22)
+
+   The engine already births durable runs; the defect was a room that hid
+   birth behind a spinner and lost the doorway on reload. What this section
+   guards: birth is early and bound; the one-live-run guard is the DATABASE
+   (partial unique index) with the route recovering the winner; Apply maps
+   the same guard to a bounded refusal; recovery is a strict projection with
+   server-derived revisionBound and catalog-owned packetLabel; legacy runs
+   are inspection-only; the false room copy is gone; pointer affordance is
+   truthful. Database behaviour is proven against production inside
+   rolled-back transactions and recorded in the README.
+   ════════════════════════════════════════════════════════════════════════ */
+import { birthOrReuseRun, isOneLiveRunConflict, ONE_LIVE_RUN_INDEX, LIVE_RUN_STATES } from "../lib/auction-operations/runStore.ts";
+
+/* ── 10a · R1 birth algorithm under a fake that behaves like the index ── */
+{
+  function runsDb({ conflictOnce = false, winnerVanishes = false } = {}) {
+    const rows = [];
+    let conflicts = 0;
+    const db = {
+      rows,
+      inserts: 0,
+      from(table) {
+        if (table !== "auction_operations_run") throw new Error("unexpected table " + table);
+        const filters = [];
+        const chain = {
+          select() { return chain; },
+          eq(k, v) { filters.push((r) => r[k] === v); return chain; },
+          in(k, vs) { filters.push((r) => vs.includes(r[k])); return chain; },
+          order() { return chain; },
+          limit() { return chain; },
+          then(res) { res({ data: rows.filter((r) => filters.every((f) => f(r))).map((r) => ({ ...r })), error: null }); },
+          insert(values) {
+            db.inserts += 1;
+            const live = rows.find((r) => r.packet_revision_id === values.packet_revision_id && LIVE_RUN_STATES.includes(r.state));
+            const shouldConflict = live || (conflictOnce && conflicts === 0);
+            if (shouldConflict) {
+              conflicts += 1;
+              if (winnerVanishes && live) live.state = "planned"; // the winner terminates before the loser re-reads
+              return { select: () => ({ single: () => Promise.resolve({ data: null, error: { message: `duplicate key value violates unique constraint "${ONE_LIVE_RUN_INDEX}"` } }) }) };
+            }
+            const rec = { id: `run-${rows.length + 1}`, created_at: new Date(2026, 8, 2, 0, 0, rows.length).toISOString(), ...values };
+            rows.push(rec);
+            return { select: () => ({ single: () => Promise.resolve({ data: rec, error: null }) }) };
+          },
+        };
+        return chain;
+      },
+    };
+    return db;
+  }
+  const params = { adapter: "monaco-layer2", packetId: "p", createdBy: "u", packetRevisionId: "rev-1", packetRevision: 1, descriptorSha256: "a".repeat(64), adapterSchemaVersion: "monaco-layer2-v1" };
+
+  const d1 = runsDb();
+  const b1 = await birthOrReuseRun(d1, params);
+  ok("birth: first START mints one planning run bound to the exact revision", b1.reusedExisting === false && b1.run.state === "planning" && b1.run.packet_revision_id === "rev-1" && b1.run.descriptor_sha256 === params.descriptorSha256 && d1.rows.length === 1);
+  const b2 = await birthOrReuseRun(d1, params);
+  ok("birth: a second START returns the existing live run, mints nothing", b2.reusedExisting === true && b2.run.id === b1.run.id && d1.rows.length === 1);
+
+  /* the race: the read saw nothing, the insert was refused by the index, the winner is recovered */
+  const d2 = runsDb({ conflictOnce: true });
+  d2.rows.push({ id: "winner", state: "planning", packet_revision_id: "rev-1", created_at: "2026-09-02T00:00:00Z" });
+  const origFrom = d2.from.bind(d2);
+  let hideOnce = true;
+  d2.from = (t) => { const c = origFrom(t); const then = c.then; c.then = (res) => { if (hideOnce) { hideOnce = false; return res({ data: [], error: null }); } return then(res); }; return c; };
+  const b3 = await birthOrReuseRun(d2, params);
+  ok("birth: when the pre-read misses and the index refuses the insert, the loser recovers the winner", b3.reusedExisting === true && b3.run.id === "winner" && d2.rows.length === 1);
+
+  /* the phantom: the index refuses, but the winner terminated before the re-read → retry once, mint */
+  const d3 = runsDb({ conflictOnce: true, winnerVanishes: true });
+  d3.rows.push({ id: "winner", state: "planning", packet_revision_id: "rev-1", created_at: "2026-09-02T00:00:00Z" });
+  let hide3 = true;
+  const origFrom3 = d3.from.bind(d3);
+  d3.from = (t) => { const c = origFrom3(t); const then = c.then; c.then = (res) => { if (hide3) { hide3 = false; return res({ data: [], error: null }); } return then(res); }; return c; };
+  const b4 = await birthOrReuseRun(d3, params);
+  ok("birth: if the winner leaves the live states before the re-read, the decision retries once and mints — no phantom conflict", b4.reusedExisting === false && b4.run.id !== "winner" && d3.rows.filter((r) => LIVE_RUN_STATES.includes(r.state)).length === 1);
+
+  ok("the conflict is recognised by the index's name and nothing else", isOneLiveRunConflict(new Error(`duplicate key value violates unique constraint "${ONE_LIVE_RUN_INDEX}"`)) && !isOneLiveRunConflict(new Error("duplicate key value violates unique constraint \"auction_operations_run_pkey\"")));
+  ok("the live states are exactly the three mid-flight states", JSON.stringify([...LIVE_RUN_STATES]) === JSON.stringify(["uploading", "planning", "applying"]));
+}
+
+/* ── 10b · structural pins on routes, room, migration ──────────────────── */
+{
+  const runs = read("app/api/admin/auctions/results/runs/route.ts");
+  const uploads = read("app/api/admin/auctions/results/uploads/route.ts");
+  const apply = read("app/api/admin/auctions/results/apply/route.ts");
+  const store = strip(read("lib/auction-operations/runStore.ts"));
+  const room = read("components/AdminAuctionResultsIngest.tsx");
+  const roomCode = strip(room);
+  const m = read("supabase/migrations/20260902220000_auction_operations_one_live_run_per_revision.sql").replace(/^\s*--.*$/gm, "");
+
+  ok("birth route gates on its own hardcoded founder literal and creates the trusted client only after the gate",
+    /const ADMIN_USER_ID = "/.test(runs) && /user\.id !== ADMIN_USER_ID/.test(runs) && runs.indexOf("createServiceClient()") > runs.indexOf("user.id !== ADMIN_USER_ID"));
+  ok("birth route resolves the exact active revision from the packet id and refuses staged packets by name",
+    /resolveActivePacketRevision\(service, body\.packetId\)/.test(runs) && /staged_packet_use_uploads/.test(runs) && /packet\.uploads\.some\(\(u\) => u\.required\)/.test(runs));
+  ok("birth route binds exact revision/hash/schema and returns the exact birth fields",
+    /packetRevisionId: revision\.id,\s*packetRevision: revision\.revision,\s*descriptorSha256: revision\.descriptor_sha256,\s*adapterSchemaVersion: revision\.adapter_schema_version/.test(runs) &&
+      /runId: run\.id,\s*adapter: run\.adapter_id,\s*packetId: run\.packet_id,\s*state: run\.state,\s*createdAt: run\.created_at,\s*reusedExisting/.test(runs));
+  ok("the browser authors nothing but packetId", !/body\.adapter|body\.revision|body\.descriptor|body\.state|body\.sourceUrl|body\.path/.test(runs));
+  ok("recovery projection is bounded, newest-first, and carries no plan bytes, paths or hashes",
+    /RECENT_RUNS_LIMIT = 20/.test(store) && /order\("created_at", \{ ascending: false \}\)\s*\.limit\(RECENT_RUNS_LIMIT\)/.test(store) &&
+      /RECENT_COLUMNS =\s*"id, adapter_id, packet_id, state, last_error_code, last_error_detail, created_at, approved_at, applied_at, packet_revision_id"/.test(store) &&
+      !/plan_bytes|input_paths|source_hashes/.test(store.slice(store.indexOf("RECENT_COLUMNS"), store.indexOf("export async function getRun"))));
+  /* The precise claims: the browser never SEES packet_revision_id (so it
+     cannot derive revisionBound) and never transforms a slug into a label
+     (so packetLabel can only come from the server). */
+  ok("revisionBound is derived server-side from packet_revision_id IS NOT NULL — the room never sees that column",
+    /const revisionBound = r\.packet_revision_id !== null/.test(store) && !/packet_revision_id/.test(roomCode));
+  ok("packetLabel is catalog-owned: bound revision title, else the active title for that packet id, else the bare packet id — the room never invents one from the slug",
+    /titleByRevision\.get\(r\.packet_revision_id as string\) \?\? r\.packet_id/.test(store) && /titleByActivePacket\.get\(r\.packet_id\) \?\? r\.packet_id/.test(store) &&
+      /\.eq\("activation_state", "active"\)/.test(store) && /\{r\.packetLabel\}/.test(roomCode) &&
+      !/packetId\.(replace|replaceAll|split|toUpperCase|toLowerCase)|packet_id/.test(roomCode));
+  ok("uploads route marks the SAME run failed when a signed token cannot be issued after birth, and returns the run id",
+    /markFailed\(service, run\.id, "staging_unavailable"/.test(uploads) && /runId: run\.id, state: "failed", error: "staging_unavailable"/.test(uploads));
+  ok("apply route maps the one-live-run refusal on planned → applying to a bounded 409 and leaves the plan unchanged",
+    /isOneLiveRunConflict\(e\)/.test(apply) && /error: "active_run_conflict"/.test(apply) && /status: 409/.test(apply.slice(apply.indexOf("active_run_conflict"), apply.indexOf("active_run_conflict") + 600)));
+
+  /* the room */
+  ok("the room's primary act is START PLANNING with the adjacent truth", /START PLANNING/.test(room) && /Creates a governed run and generates a zero-write plan\. Nothing is applied until you choose\s+Apply\./.test(room.replace(/\s+/g, " ")));
+  ok("packet readiness wording is honest", /Eligible to begin governed planning/.test(room));
+  ok("the false registration/approval/activation claim is gone", !/registered, approved and activated/.test(room));
+  ok("registered-fetch birth goes through /runs before /plan", room.indexOf('fetch("/api/admin/auctions/results/runs", {') < room.indexOf('body: JSON.stringify({ runId })') && /reusedExisting/.test(room));
+  ok("run birth is shown immediately for the staged path, before any upload", roomCode.indexOf('setRun(emptyRun(runId, { ...identity, state: "uploading" }))') < roomCode.indexOf("uploadToSignedUrl"));
+  ok("a direct-upload failure keeps the run and asks the server to verify through /plan { runId }", /await planExistingRun\(runId, \{ \.\.\.identity, state: "uploading" \}\)/.test(room) && /The server could not be reached to verify the run; it remains durable as shown/.test(room));
+  ok("no client status mutation exists", !/method: "PATCH"|status: "failed"/.test(roomCode.replace(/state: planData\?\.state \?\? "failed"|state: tokenData\.state \?\? "failed"/g, "")));
+  ok("Current & Recent Runs reads the bounded server list and hydrates through the existing by-id route", /fetch\("\/api\/admin\/auctions\/results\/runs", \{ cache: "no-store" \}\)/.test(room) && /fetch\(`\/api\/admin\/auctions\/results\/runs\/\$\{runId\}`/.test(room));
+  ok("a legacy run is inspection only: labelled, no Apply, no re-plan", /Legacy run — inspection only/.test(room) && /!applyIsWithheld && !legacyRun/.test(room) && /const legacyRun = run\?\.revisionBound === false/.test(room) && /\{packet && \(!run \|\| run\.state === "failed"\) && \(/.test(room));
+  ok("Creating is a pre-birth label only — no persisted creating state anywhere", /Creating the governed run/.test(room) && !/state: "creating"|'creating'/.test(room + runs + store + m));
+  ok("Apply stays a separate exact-hash act and withheld truth stays server-owned", /Apply this exact plan/.test(room) && /Plan-only family — Apply is not yet enabled/.test(room) && /setApplyWithheld\(Array\.isArray\(data\?\.applyWithheldAdapters\)/.test(room) && !/"monaco-portable"/.test(room));
+
+  /* pointer affordance: named controls, no global rule */
+  const ops = read("components/AdminAuctionOperations.tsx");
+  const ingest = read("components/AdminAuctionIngest.tsx");
+  const identity = read("components/AuctionLotIdentity.tsx");
+  const css = read("app/globals.css");
+  ok("workspace tabs and Open / Edit confirm the click before it happens", (ops.match(/className=\{`cursor-pointer \$\{tabCls\(/g) ?? []).length === 2 && /className="cursor-pointer border border-\[var\(--border-mid\)\] px-3 py-1 text-\[10px\][^"]*"\s*onClick=\{\(\) => \{\s*setEditing\(r\)/.test(ops));
+  ok("Discard and Keep both cancelled resolve pointer", (ingest.match(/className="cursor-pointer border border-\[var\(--border-mid\)\] px-4 py-2 text-\[11px\] uppercase tracking-\[1\.6px\]/g) ?? []).length === 2);
+  ok("identity candidate cards keep disabled truth while gaining pointer", /w-full cursor-pointer border px-2 py-1\.5 text-left text-\[12px\] transition disabled:cursor-not-allowed disabled:opacity-40/.test(identity));
+  ok("outcome cards, Search and the decision control resolve pointer; the decision keeps disabled truth", /cursor-pointer border px-2 py-2 text-left transition/.test(identity) && /shrink-0 cursor-pointer border/.test(identity) && /mt-2 cursor-pointer border border-\[var\(--border-gold\)\][^"]*disabled:cursor-not-allowed disabled:opacity-40/.test(identity));
+  ok("selectable packet cards, Choose a different packet, and recent rows resolve pointer", /w-full cursor-pointer border border-\[var\(--border-mid\)\] p-4/.test(room) && /cursor-pointer text-\[10px\] uppercase tracking-\[1\.5px\] text-\[var\(--slate\)\][^"]*"\s*onClick=\{\(\) => \{\s*setPacket\(null\)/.test(room) && /flex w-full cursor-pointer flex-wrap/.test(room));
+  ok("no app-wide button cursor rule was introduced", !/^\s*button\s*\{[^}]*cursor/m.test(css) && !/^\s*button\s*,/m.test(css));
+
+  /* the migration */
+  ok("R1 is a partial unique index on packet_revision_id over exactly the three live states",
+    /create unique index if not exists auction_operations_run_one_unterminated_per_revision\s*on public\.auction_operations_run \(packet_revision_id\)\s*where state in \('uploading', 'planning', 'applying'\);/.test(m));
+  ok("the migration is the only DDL and creates no state, column, table, RPC, trigger, policy or grant", (m.match(/create unique index/g) ?? []).length === 1 && !/alter table|create table|create function|create trigger|create policy|grant |revoke /i.test(m));
+  const migrationV804 = read("supabase/migrations/20260823160000_auction_operations_run_store_and_read_model.sql");
+  ok("the run table stays browser-unreachable (v8.04 law untouched)", /revoke all on public\.auction_operations_run from public, anon, authenticated, service_role/.test(migrationV804));
+}
+
 console.log(`auction-operations: ${n} assertions passed`);

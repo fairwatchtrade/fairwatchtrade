@@ -98,10 +98,10 @@ export default function AdminAuctionOperations({
     <div>
       {/* ── the two jobs, named plainly ── */}
       <div className="mb-6 flex flex-wrap gap-2">
-        <button type="button" className={tabCls(workspace === "upcoming")} onClick={() => setWorkspace("upcoming")}>
+        <button type="button" className={`cursor-pointer ${tabCls(workspace === "upcoming")}`} onClick={() => setWorkspace("upcoming")}>
           Upcoming Auctions
         </button>
-        <button type="button" className={tabCls(workspace === "results")} onClick={() => setWorkspace("results")}>
+        <button type="button" className={`cursor-pointer ${tabCls(workspace === "results")}`} onClick={() => setWorkspace("results")}>
           Auction Results
         </button>
       </div>
@@ -201,7 +201,7 @@ export default function AdminAuctionOperations({
                         <td className={`${tdCls} text-right`}>
                           <button
                             type="button"
-                            className="border border-[var(--border-mid)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+                            className="cursor-pointer border border-[var(--border-mid)] px-3 py-1 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
                             onClick={() => {
                               setEditing(r);
                               setUpView("intake");

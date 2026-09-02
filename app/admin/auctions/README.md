@@ -52,9 +52,72 @@ manifest, or adapter string.
 ### The flow, and where each rule is enforced
 
 ```
-stage sources → Generate Plan (ZERO writes) → founder reviews summary+hash
-             → Apply (explicit, of that exact hash) → bounded slices → applied
+choose eligible packet → START PLANNING → durable run visible at birth
+  → sources staged or fetched → plan (ZERO writes) or truthful refusal on
+    that same run → founder reviews summary+hash → Apply (explicit, of that
+    exact hash) → bounded slices → applied
 ```
+
+### START PLANNING and run recovery (v8.22) — expose the run that exists
+
+The misconception this section kills: *"the run is created when planning
+starts, so a spinner is enough."* The run is durable the moment it is
+inserted, and an operator who reloads mid-planning must find it again.
+
+- **Registered-fetch birth is its own fast act:** `POST /api/admin/auctions/results/runs { packetId }`
+  births ONE `planning` run bound to the exact active revision (id, hash,
+  schema) and returns `runId, adapter, packetId, state, createdAt,
+  reusedExisting`. The room then calls the existing `/plan { runId }`, which
+  resolves by the run's bound revision. The browser authors nothing but a
+  packet id. Staged packets are refused here by name — their run is born by
+  `/uploads`, which binds before any token is issued (unchanged).
+- **R1 — one live run per exact revision, enforced by the database.**
+  Migration `20260902220000_auction_operations_one_live_run_per_revision.sql`
+  (applied): partial unique index on `packet_revision_id WHERE state IN
+  ('uploading','planning','applying')`. A check-then-insert is advisory;
+  the index is authority. `birthOrReuseRun()` reads for a live run, attempts
+  the insert, and on the index's refusal recovers the winner and returns it
+  with `reusedExisting: true`; if the winner terminated before that read it
+  retries the decision once rather than reporting a phantom conflict.
+  `planned | applied | failed` never block a fresh START. Legacy NULL-bound
+  rows are outside the guarantee by PostgreSQL NULL semantics — deliberately.
+- **The Apply consequence:** the same index governs `planned → applying`.
+  A planned run may coexist with a newer planning run for its revision, so
+  applying the older plan while that run is live is refused by the database.
+  The apply route returns `409 active_run_conflict`, leaves both runs
+  untouched, and the founder retries once the other run leaves the live
+  states. Not a new state — the invariant working.
+- **Post-birth failure lands on the run.** If `/uploads` births the run and
+  then cannot issue a signed token, it `markFailed()`s that run
+  (`staging_unavailable`) and returns the run id with the refusal. A browser
+  direct-upload failure keeps the run and calls `/plan { runId }`, so the
+  server inspects the staged objects and records its own `missing_source` /
+  hash / byte truth; if the server is unreachable the run stays visible in
+  its last true state. No client status mutation exists.
+- **Current & Recent Runs** — `GET /api/admin/auctions/results/runs`:
+  founder-gated, newest-first, bounded (`RECENT_RUNS_LIMIT`), strict
+  projection: `runId, adapter, packetId, packetLabel, state, revisionBound,
+  lastErrorCode, lastErrorDetail, createdAt, approvedAt, appliedAt`. No plan
+  bytes, storage paths, source hashes or evidence content. Selecting a row
+  hydrates through the existing by-id run route.
+  - **R2 `revisionBound`** is derived server-side from `packet_revision_id IS
+    NOT NULL`, never stored or backfilled. A legacy unbound run renders as
+    **Legacy run — inspection only**: no re-plan, no Apply, and recovery
+    never invokes the old active-revision `/plan` fallback for it. The two
+    production legacy rows stay exactly NULL.
+  - **R3 `packetLabel`** is catalog-owned: a bound run's own revision title;
+    for a legacy unbound run, the currently active revision's title for that
+    `packetId` as *present-day presentation only* (the row still says
+    `revisionBound: false`), else the bare `packetId`. Never a client
+    transformation of the slug.
+- Persistent states remain exactly `uploading · planning · planned · applying
+  · applied · failed`. "Creating…" is a pre-birth label in the room only.
+- **Apply is unchanged as a separate exact-hash act.** START never applies;
+  contradiction-bearing plans stay unapplyable; `monaco-portable` stays
+  Apply-withheld by server truth and ET37 stays outside production
+  selection. The room no longer claims that a family can be "registered,
+  approved and activated here" — it cannot; it describes only what the
+  operator can do.
 
 - **Staging** (`results/uploads` route): create-only signed tokens into the
   private `auction-operations-staging` bucket, paths server-generated under

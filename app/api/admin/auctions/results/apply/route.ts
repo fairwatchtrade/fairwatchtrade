@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { applyOneSlice } from "@/lib/auction-operations/applySlice";
-import { getRun, updateRun, verifyStoredPlan, type AuctionRun } from "@/lib/auction-operations/runStore";
+import { getRun, updateRun, verifyStoredPlan, isOneLiveRunConflict, type AuctionRun } from "@/lib/auction-operations/runStore";
 import { isApplyWithheld, APPLY_WITHHELD_ERROR } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -167,7 +167,28 @@ export async function POST(request: NextRequest) {
   }
 
   if (run.state === "planned") {
-    await updateRun(service, run.id, { state: "applying", approved_at: new Date().toISOString() });
+    /* planned -> applying enters the one-live-run index (migration
+       20260902220000). A planned run is deliberately allowed to coexist with
+       a newer planning run for the same revision, so this transition can be
+       refused by the database while that other run is live. That refusal is
+       the invariant working, not a fault: leave this plan exactly as it is,
+       touch nothing about the other run, and tell the founder to retry once
+       the other run leaves uploading/planning/applying. */
+    try {
+      await updateRun(service, run.id, { state: "applying", approved_at: new Date().toISOString() });
+    } catch (e) {
+      if (isOneLiveRunConflict(e)) {
+        return NextResponse.json(
+          {
+            error: "active_run_conflict",
+            detail:
+              "Another run for this exact packet revision is currently uploading, planning or applying. This plan is unchanged; retry Apply once that run finishes.",
+          },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
   }
 
   try {
