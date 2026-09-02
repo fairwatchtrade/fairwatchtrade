@@ -28,6 +28,11 @@ import { cardImageSrc } from "@/lib/media/cardImage";
    convenient one.
    ════════════════════════════════════════════════════════════════════════ */
 
+/** Kept in one place: the layout solves rows against it and the flex
+    container has to draw the same distance, or the arithmetic and the paint
+    disagree by a pixel per gap. */
+const GAP = 6;
+
 type Props = {
   photos: string[];
   active: number;
@@ -79,11 +84,17 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
       photos.map((_, i) => ({ index: i, aspect: aspects[i] ?? 1 })),
       width,
       orientation === "column"
-        ? { targetHeight: 78, gap: 6, maxRowHeight: 132 }
+        ? /* TWO ACROSS, derived rather than typed. A row of two square tiles
+             plus the gap between them IS the column, so the target height
+             falls out of the width — which means widening the rail enlarges
+             the photographs instead of packing more of them in. The old 78
+             was this same rule at the old 168, written down as a number and
+             therefore silently wrong the moment the column changed. */
+          { targetHeight: (width - GAP) / 2, gap: GAP, maxRowHeight: width * 0.79 }
         : /* A horizontal band has one row and unlimited width, so the target
              height IS the height and justification has nothing to solve. The
              tiles simply keep their aspects. */
-          { targetHeight: 64, gap: 6, maxRowHeight: 64 }
+          { targetHeight: 64, gap: GAP, maxRowHeight: 64 }
     );
   }, [photos, aspects, width, orientation]);
 
@@ -97,7 +108,7 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
       ref={railRef}
       className={
         orientation === "column"
-          ? "flex w-[168px] shrink-0 flex-col gap-1.5 overflow-y-auto pr-1"
+          ? "flex w-[240px] shrink-0 flex-col gap-1.5 overflow-y-auto pr-1 min-[100rem]:w-[300px]"
           : "flex w-full gap-1.5 overflow-x-auto"
       }
       aria-label="Other photographs of this watch"

@@ -99,7 +99,10 @@ export default function ListingGallery({
      viewport hands up an imperative handle rather than the header reaching
      into its geometry. */
   const zoomControlsRef = useRef<InspectionControls | null>(null);
-  const [zoomState, setZoomState] = useState({ scale: 1, maxScale: 1 });
+  /* width/height are the FIT rectangle, never the zoomed size. The room
+     places the next arrow against the photograph's right edge, and that
+     edge must not crawl outward while the collector zooms. */
+  const [zoomState, setZoomState] = useState({ scale: 1, maxScale: 1, width: 0, height: 0 });
   /* Discovery is remembered for the session. Deriving the hint purely from
      "scale === 1" would bring it back every time the collector returned to
      Fit, which is nagging rather than teaching.
@@ -110,12 +113,20 @@ export default function ListingGallery({
      is worse. Not a ref either: this is read during render to decide what
      the room shows, and refs are not for that. */
   const [zoomDiscovered, setZoomDiscovered] = useState(false);
-  const handleZoomState = useCallback((next: { scale: number; maxScale: number }) => {
-    setZoomState(next);
-    if (next.scale > 1) setZoomDiscovered(true);
-  }, []);
+  const handleZoomState = useCallback(
+    (next: { scale: number; maxScale: number; width: number; height: number }) => {
+      setZoomState(next);
+      if (next.scale > 1) setZoomDiscovered(true);
+    },
+    []
+  );
   const showZoomHint =
     zoomState.maxScale > 1.01 && !zoomDiscovered && zoomState.scale <= 1;
+  /* The Fit rectangle's width, handed up by the viewport. The room has no
+     other way to learn where the photograph's right edge is, and it needs
+     that twice: to stand the next arrow against the edge, and to centre the
+     hint under the photograph rather than under the room. */
+  const heroFitWidth = zoomState.width;
 
   /* Focus return (new this round — it did not exist before, and closing the
      viewer dropped focus to the top of the document). The Inspect control is
@@ -410,7 +421,7 @@ export default function ListingGallery({
               near-white field that read as disabled metadata, and it is the
               one thing in the room that names the watch. Quiet means low
               emphasis, not low contrast. */}
-          <div className="flex items-start justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[1900px] items-start justify-between gap-4 px-4 py-3 sm:px-6">
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="text-[12px] uppercase tracking-[1.4px] text-[var(--platinum-dim)]">
@@ -482,72 +493,114 @@ export default function ListingGallery({
             </div>
           </div>
 
-          {/* ── The room: stage on the left, supporting photographs on the
-                 right ────────────────────────────────────────────────────
-              A FIXED STAGE. The stage's geometry no longer depends on which
-              photograph is showing, so moving between a portrait dial macro
+          {/* ── The room: hero hard left, photographs down the right ──────
+              WHY THE PHOTOGRAPH IS NOT CENTRED.
+
+              A portrait photograph cannot fill a landscape stage, and most
+              watch photography is portrait — so leftover width exists no
+              matter what is done. Centring split it into two useless halves
+              and parked the next arrow in the middle of the right one, a
+              couple of hundred pixels from the watch it belongs to.
+              Left-aligning pools all of it on ONE side, where the rail can
+              actually spend it.
+
+              The left arrow therefore never moves: the hero's left edge is
+              fixed. The right arrow rides the hero's RIGHT edge, which does
+              travel with a photograph's shape. That is a deliberate and
+              single exception to the fixed stage — an arrow that belongs to
+              the photograph should move with it — and the frame, the rail,
+              the hint band and the header all still stay put.
+
+              A FIXED STAGE otherwise: moving between a portrait dial macro
               and a landscape box shot changes what is inside the frame and
               never the frame itself. Before this the whole room breathed on
-              every thumbnail click; the arrows moved, the rail moved, and
-              the eye had to re-find the watch each time.
+              every thumbnail click and the eye had to re-find the watch.
 
-              The rail becomes a column here rather than a strip underneath,
-              which is what frees the band below the stage for the zoom
-              hint — and it spends horizontal space the room was wasting
-              instead of taking height from the photograph. */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:gap-6">
+              max-w is shared with the header above so the two cannot drift
+              apart. On a very wide display an uncapped room strands the
+              rail against the far edge with a corridor of empty slate
+              between it and the watch. */}
+          <div className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:gap-6">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-16">
-                {/* THE PHOTOGRAPH, and the only thing that accepts
-                    inspection gestures. key={heroUrl} is load-bearing rather
-                    than tidy: a changed photograph remounts the viewport,
-                    which is what guarantees scale, translation, drag records
-                    AND the previous source's measured dimensions all go at
-                    once. Resetting by hand would leave the old naturals
-                    alive for a frame, and in that frame photograph B could
-                    be zoomed on the authority of photograph A's pixels. */}
-                <InspectionViewport
-                  key={heroUrl}
-                  src={heroUrl}
-                  alt={inspectionAlt}
-                  natural={heroNatural}
-                  aspect={heroAspect}
-                  controlsRef={zoomControlsRef}
-                  onZoomStateChange={handleZoomState}
-                />
-                {hasPrev && (
-                  <button
-                    type="button"
-                    aria-label="Previous photo"
-                    onClick={() => setActive((i) => Math.max(0, i - 1))}
-                    className={`${roomArrowClass} left-0 sm:left-2`}
-                  >
-                    <NavArrowMark flip />
-                  </button>
-                )}
-                {hasNext && (
-                  <button
-                    type="button"
-                    aria-label="Next photo"
-                    onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
-                    className={`${roomArrowClass} right-0 sm:right-2`}
-                  >
-                    <NavArrowMark />
-                  </button>
-                )}
+              {/* This padding is the ARROWS' room. The stage inside it
+                  carries none, and that is load-bearing rather than tidy:
+                  the Fit rectangle is measured from clientWidth, clientWidth
+                  INCLUDES padding, so a padded stage would let a wide
+                  photograph compute itself larger than the box it is laid
+                  out in and slide under both arrows. */}
+              <div className="relative flex min-h-0 flex-1 items-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem]">
+                <div className="relative flex h-full min-w-0 flex-1 items-center justify-start [--arrow-gutter:0px] sm:[--arrow-gutter:4rem]">
+                  {/* THE PHOTOGRAPH, and the only thing that accepts
+                      inspection gestures. key={heroUrl} is load-bearing
+                      rather than tidy: a changed photograph remounts the
+                      viewport, which is what guarantees scale, translation,
+                      drag records AND the previous source's measured
+                      dimensions all go at once. Resetting by hand would
+                      leave the old naturals alive for a frame, and in that
+                      frame photograph B could be zoomed on the authority of
+                      photograph A's pixels. */}
+                  <InspectionViewport
+                    key={heroUrl}
+                    src={heroUrl}
+                    alt={inspectionAlt}
+                    natural={heroNatural}
+                    aspect={heroAspect}
+                    controlsRef={zoomControlsRef}
+                    onZoomStateChange={handleZoomState}
+                  />
+                  {/* The gutter is a CSS variable rather than two sets of
+                      classes because the arrows need the same distance with
+                      opposite signs. Zero on a phone, where there is no
+                      margin to stand in and the arrows overlay the
+                      photograph's edges exactly as they always have. */}
+                  {hasPrev && (
+                    <button
+                      type="button"
+                      aria-label="Previous photo"
+                      onClick={() => setActive((i) => Math.max(0, i - 1))}
+                      className={roomArrowClass}
+                      style={{ left: "calc(-1 * var(--arrow-gutter))" }}
+                    >
+                      <NavArrowMark flip />
+                    </button>
+                  )}
+                  {hasNext && heroFitWidth > 0 && (
+                    <button
+                      type="button"
+                      aria-label="Next photo"
+                      onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+                      className={roomArrowClass}
+                      /* Standing against the photograph's right edge,
+                         wherever that edge falls for this shape. Held back
+                         until the rectangle is measured rather than guessed
+                         — for the one frame before that, the photograph has
+                         no size either. */
+                      style={{ left: `calc(${heroFitWidth}px - 2.75rem + var(--arrow-gutter))` }}
+                    >
+                      <NavArrowMark />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* THE HINT, off the watch at last. It used to sit on the
+              {/* THE HINT, off the watch. It used to sit on the
                   photograph's lower edge, which is the one place in this
                   room nothing belongs. The band is reserved whether or not
                   the hint is showing, so its arrival and departure cannot
-                  move the stage. */}
-              <div className="flex h-6 shrink-0 items-center justify-center">
-                {showZoomHint && (
-                  <span className="text-[11px] tracking-[0.4px] text-[var(--muted)]">
-                    Ctrl + scroll to zoom · drag to inspect
-                  </span>
-                )}
+                  move the stage — and it centres under the PHOTOGRAPH, not
+                  under the room, now that the two no longer share a centre
+                  line. */}
+              <div className="flex h-6 shrink-0 items-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem]">
+                <div
+                  className="flex justify-center"
+                  style={{ width: heroFitWidth > 0 ? `${heroFitWidth}px` : "100%" }}
+                >
+                  {showZoomHint && (
+                    <span className="whitespace-nowrap text-[11px] tracking-[0.4px] text-[var(--muted)]">
+                      Ctrl + scroll to zoom · drag to inspect
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

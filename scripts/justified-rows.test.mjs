@@ -166,8 +166,8 @@ const rowWidth = (row, gap = 6) =>
   ok("R1 tiles are sized in pixels from the layout, not by a class",
     /style=\{\{ width: `\$\{width\}px`, height: `\$\{height\}px` \}\}/.test(railCode));
 
-  ok("R2 the rail is a column beside the stage on wide screens",
-    /orientation="column"/.test(gallery) && /w-\[168px\]/.test(rail));
+  ok("R2 the rail is a column of an explicit width beside the stage on wide screens",
+    /orientation="column"/.test(gallery) && /flex w-\[\d+px\] shrink-0 flex-col/.test(rail));
   ok("R2 and a band beneath it on narrow ones, where a column would cost the photograph width",
     /orientation="row"/.test(gallery) && /min-\[56rem\]:hidden/.test(gallery));
 
@@ -176,7 +176,7 @@ const rowWidth = (row, gap = 6) =>
   ok("R3 the hint no longer lives inside the photograph viewport",
     !/Ctrl \+ scroll/.test(read("components/InspectionViewport.tsx")));
   ok("R3 its band is reserved whether or not it shows, so it cannot move the stage",
-    /flex h-6 shrink-0 items-center justify-center/.test(gallery));
+    /flex h-6 shrink-0 items-center/.test(gallery));
   ok("R3 discovery is remembered rather than re-nagged at every Fit",
     /zoomDiscovered/.test(gallery) && /setZoomDiscovered\(true\)/.test(gallery));
   ok("R3 the hint stays away when the source has no detail to reach",
@@ -184,6 +184,56 @@ const rowWidth = (row, gap = 6) =>
 
   ok("R4 the zoom capability is untouched by the recomposition",
     /InspectionViewport/.test(gallery) && /key=\{heroUrl\}/.test(gallery));
+}
+
+/* ── 9 · THE COMPOSITION — hero left, arrows on its own edges ───────────
+   The photograph is no longer centred. Leftover width pools on one side,
+   where the rail spends it, and the arrows are placed against the
+   photograph rather than against the room. The pieces of that which are
+   load-bearing are asserted here rather than eyeballed, because every one
+   of them fails SILENTLY and looks merely slightly off. */
+{
+  const gallery = read("components/ListingGallery.tsx");
+  const viewport = read("components/InspectionViewport.tsx");
+  const rail = read("components/InspectionPhotoRail.tsx");
+
+  ok("C1 the photograph is left-aligned in the stage, not centred",
+    /items-center justify-start \[--arrow-gutter/.test(gallery));
+
+  ok("C2 the next arrow is placed from the MEASURED hero width",
+    /left: `calc\(\$\{heroFitWidth\}px - 2\.75rem \+ var\(--arrow-gutter\)\)`/.test(gallery));
+  ok("C2 and is held back until that width is known rather than guessing one",
+    /hasNext && heroFitWidth > 0 &&/.test(gallery));
+  ok("C3 the previous arrow does NOT depend on it, so it never moves",
+    /left: "calc\(-1 \* var\(--arrow-gutter\)\)"/.test(gallery));
+
+  ok("C4 the viewport hands its Fit rectangle up to the room",
+    /width: fit\.width,\n\s+height: fit\.height,/.test(viewport));
+  ok("C4 and the room reads the FIT width, which does not travel while zooming",
+    /const heroFitWidth = zoomState\.width;/.test(gallery));
+
+  ok("C5 the measured stage excludes padding, so a wide photograph cannot overflow it",
+    /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(viewport));
+
+  ok("C6 the hint centres under the photograph, not under the room",
+    /width: heroFitWidth > 0 \? `\$\{heroFitWidth\}px` : "100%"/.test(gallery));
+
+  ok("C7 tile height is derived from the rail's width rather than typed",
+    /targetHeight: \(width - GAP\) \/ 2/.test(rail));
+  ok("C7 so widening the rail enlarges photographs instead of packing more in",
+    (() => {
+      const two = (w) => justifyRows(
+        [0, 1, 2, 3].map((i) => ({ index: i, aspect: 1 })), w,
+        { targetHeight: (w - 6) / 2, gap: 6, maxRowHeight: w * 0.79 }
+      );
+      const small = two(168), large = two(240);
+      const rowsOfSmall = new Set(small.map((t) => t.row)).size;
+      const rowsOfLarge = new Set(large.map((t) => t.row)).size;
+      return rowsOfSmall === rowsOfLarge && large[0].width > small[0].width;
+    })());
+
+  ok("C8 the room and the header hang on ONE outer geometry",
+    (gallery.match(/max-w-\[1900px\]/g) ?? []).length >= 2);
 }
 
 console.log(`justified-rows: ${n} assertions passed`);

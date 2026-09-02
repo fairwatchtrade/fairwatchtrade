@@ -211,8 +211,14 @@ convenient one.
 The stage reserves its geometry independently of which photograph is showing,
 and the rail sits beside it rather than beneath. Moving between a portrait dial
 macro and a landscape box shot now changes what is inside the frame and never
-the frame itself — before this, the arrows moved, the rail moved, and the eye
-had to re-find the watch on every click.
+the frame itself — before this, the whole room resized on every thumbnail click
+and the eye had to re-find the watch.
+
+**One deliberate exception: the next arrow.** It stands against the
+photograph's right edge, and that edge genuinely moves when a portrait is
+followed by a landscape. An arrow belonging to the photograph should travel
+with it. The frame, the rail, the hint band and the header do not, and the
+previous arrow does not either — the hero's LEFT edge never moves.
 
 The hint band under the stage is reserved whether or not the hint is showing,
 for the same reason: its arrival and departure must not move the photograph.
@@ -222,6 +228,45 @@ there would spend the width the photograph needs, which is the wrong trade on
 the smallest screen. Both rails exist in the DOM and CSS hides one — the hidden
 one is `display: none`, so it is out of the accessibility tree and unfocusable
 rather than a duplicate set of controls.
+
+## The photograph is left-aligned, and that is what pays for the rail
+
+A portrait photograph cannot fill a landscape stage, and most watch photography
+is portrait — so leftover width exists no matter what is done with it. Centring
+the hero split that width into two useless halves and stranded the next arrow in
+the middle of the right one, a couple of hundred pixels from the watch it
+belonged to. Left-aligning pools all of it on ONE side, where the rail spends
+it.
+
+Things that will bite whoever changes this next:
+
+- The **Fit rectangle is reported upward**, from `InspectionViewport` to
+  `ListingGallery`, on the `onZoomStateChange` payload. The room has no other
+  way to learn where the photograph's right edge is: that rectangle is
+  arithmetic in JS, not a CSS result anything can read back off the DOM. It is
+  the FIT width and not the zoomed width, so the arrow does not crawl outward
+  while the collector zooms.
+- The next arrow is **withheld until that width is measured** rather than placed
+  at a guess. For the single frame before it arrives, the photograph has no size
+  either, so nothing is visibly missing.
+- The gutter is a CSS variable because the two arrows need the same distance
+  with opposite signs. It is `0` on a phone, where there is no margin to stand
+  in and the arrows overlay the photograph's edges exactly as they always have.
+- The measured stage **carries no padding**, and that is load-bearing.
+  `clientWidth` INCLUDES padding, so a padded stage computes a Fit rectangle
+  wider than the box the photograph is laid out in — and a wide photograph then
+  overflows it and slides under both arrows. The padding lives on the wrapper
+  above, which is the arrows' room, not the photograph's.
+- The room and the header hang on **one shared `max-w`**. Without it, a very
+  wide display strands the rail against the far edge with a corridor of empty
+  slate between it and the watch. Applied to only one of the two, they drift out
+  of alignment.
+
+The rail's tile height is **derived from the rail's width** — two tiles plus the
+gap between them IS the column — so widening the rail enlarges the photographs
+instead of packing more of them in. The old hardcoded `78` was this same rule at
+the old `168`, written down as a number, and therefore silently wrong the moment
+the column width changed.
 
 ## Inspection zoom is not Dial Reveal
 

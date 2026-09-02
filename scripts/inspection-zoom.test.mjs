@@ -289,7 +289,7 @@ const VP = { width: 800, height: 600 };
   ok("H1 it retires once zoom has been discovered",
     /setZoomDiscovered\(true\)/.test(gallery));
   ok("H1 its band is reserved, so showing and hiding cannot move the stage",
-    /flex h-6 shrink-0 items-center justify-center/.test(gallery));
+    /flex h-6 shrink-0 items-center/.test(gallery));
   ok("H1 it is functional text at the readable floor, not decoration",
     /text-\[var\(--muted\)\]/.test(gallery));
 }

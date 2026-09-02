@@ -52,7 +52,18 @@ type Props = {
       offering zoom the file cannot honour. */
   natural: { w: number; h: number };
   aspect: number;
-  onZoomStateChange?: (state: { scale: number; maxScale: number }) => void;
+  /** Reports the Fit RECTANGLE alongside the zoom state. The room needs the
+      photograph's width to stand the next arrow against its edge and to
+      centre the hint under it, and only this component knows that width —
+      the rectangle is arithmetic here, not a CSS result anything else can
+      read off the DOM. Reported at Fit, so it does not travel while the
+      collector is zooming. */
+  onZoomStateChange?: (state: {
+    scale: number;
+    maxScale: number;
+    width: number;
+    height: number;
+  }) => void;
   /** Imperative handle for the accessible controls, which live in the
       viewer header rather than on top of the watch. */
   controlsRef?: React.MutableRefObject<InspectionControls | null>;
@@ -88,7 +99,20 @@ export default function InspectionViewport({
   useEffect(() => {
     const el = viewportRef.current?.parentElement;
     if (!el) return;
-    const measure = () => setStage({ width: el.clientWidth, height: el.clientHeight });
+    const measure = () => {
+      /* clientWidth INCLUDES padding. A padded stage would compute a Fit
+         rectangle wider than the box the photograph is actually laid out
+         in, and a wide photograph would overflow it and slide under the
+         arrows. The stage carries no padding today — subtracting it anyway
+         means the next person to add some does not inherit a silent
+         geometry bug. */
+      const cs = getComputedStyle(el);
+      const num = (v: string) => parseFloat(v) || 0;
+      setStage({
+        width: Math.max(0, el.clientWidth - num(cs.paddingLeft) - num(cs.paddingRight)),
+        height: Math.max(0, el.clientHeight - num(cs.paddingTop) - num(cs.paddingBottom)),
+      });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -122,8 +146,13 @@ export default function InspectionViewport({
   const transform = viewport.width > 0 ? reconcile(stored, viewport, maxScale) : stored;
 
   useEffect(() => {
-    onZoomStateChange?.({ scale: transform.scale, maxScale });
-  }, [transform.scale, maxScale, onZoomStateChange]);
+    onZoomStateChange?.({
+      scale: transform.scale,
+      maxScale,
+      width: fit.width,
+      height: fit.height,
+    });
+  }, [transform.scale, maxScale, fit.width, fit.height, onZoomStateChange]);
 
   const pointerIn = useCallback((clientX: number, clientY: number): Point => {
     const rect = viewportRef.current?.getBoundingClientRect();
