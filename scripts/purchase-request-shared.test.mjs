@@ -144,22 +144,48 @@ check("the dedicated route still exists and gates on auth", () => {
   assert.ok(src.includes("callbackUrl=/listings/"));
 });
 
-check("the in-page form follows the 1072px boundary directly after the gallery", () => {
+check("exactly one Purchase Request surface stands at any width", () => {
   const page = read("app/listings/[id]/page.tsx");
-  // Narrow desktop gets the inline form until the rail mounts at 67rem;
-  // below lg the plain route link stands.
-  assert.ok(page.includes('className="hidden lg:block min-[67rem]:hidden"'));
-  assert.equal(page.split('className="hidden lg:block min-[67rem]:hidden"').length - 1, 1);
-  assert.ok(page.includes('className="lg:hidden"'));
-  assert.ok(page.includes("min-[56rem]:w-[calc(100%_-_50px)] min-[56rem]:max-w-none"));
-  assert.equal(page.includes("lg:w-[calc(100%_-_50px)] lg:max-w-none"), false);
-  assert.equal(page.includes("lg:max-w-[767px]"), false);
-  assert.ok(page.includes("min-[67rem]:grid-cols-[minmax(0,974px)_clamp(224px,20vw,276px)]"));
-  assert.match(page, /<aside className="hidden min-\[67rem\][^"]*min-\[67rem\]:grid/);
-  assert.ok(page.includes("<ListingPurchaseRequestProvider"));
-  const firstInline = page.indexOf('variant="inline"');
-  assert.ok(firstInline > page.indexOf("CONTENT CELL"));
-  assert.ok(firstInline < page.indexOf("SECTION 2 — Identity block"));
+
+  /* This guard used to match Tailwind literals - a 67rem grid-cols string and
+     two lg: class lists. v5.82 restyled the page to a 56rem boundary and left
+     the assertions behind, so the file stopped executing HERE and every check
+     below it went unread. Nothing was broken; the guard was simply describing
+     a page that no longer existed.
+
+     So it anchors on the contract now. Both surfaces carry data attributes
+     that exist to be guarded, and restyling cannot orphan them again. */
+  assert.equal(page.split('data-purchase-rail=""').length - 1, 1);
+  assert.equal(page.split('data-purchase-inline=""').length - 1, 1);
+
+  // The rail is absent by default and appears only at its own breakpoint.
+  const rail = /<aside data-purchase-rail="" className="([^"]*)"/.exec(page);
+  assert.ok(rail, "the rail anchor must carry its class list");
+  assert.match(rail[1], /(^|\s)hidden(\s|$)/);
+  const bp = /min-\[(\d+(?:\.\d+)?)rem\]:grid(\s|$)/.exec(rail[1]);
+  assert.ok(bp, "the rail must mount at an explicit min-[Nrem] breakpoint");
+
+  /* THE INVARIANT: the in-flow surface hides at exactly the width the rail
+     appears. Move one and not the other and the listing draws two offer forms
+     or none - the failure this block exists for. The breakpoint is DERIVED
+     from the rail, so relocating it stays legal and only drift fails. */
+  const inline = /<div data-purchase-inline="" className="([^"]*)"/.exec(page);
+  assert.ok(inline, "the inline anchor must carry its class list");
+  assert.equal(inline[1].trim(), `min-[${bp[1]}rem]:hidden`);
+
+  /* Both sit inside the one shared provider, and after the gallery: the buyer
+     meets the watch before the offer surface. The in-flow block deliberately
+     follows the seller narrative (v5.82), so its position is guarded against
+     the gallery, never against the identity block it used to precede. */
+  const open = page.indexOf("<ListingPurchaseRequestProvider");
+  const close = page.indexOf("</ListingPurchaseRequestProvider>");
+  const gallery = page.indexOf("<ListingGallery");
+  assert.ok(open >= 0 && gallery > open && close > gallery);
+  for (const anchor of ['data-purchase-rail=""', 'data-purchase-inline=""']) {
+    const i = page.indexOf(anchor);
+    assert.ok(i > gallery, `${anchor} must follow the gallery`);
+    assert.ok(i < close, `${anchor} must sit inside the shared provider`);
+  }
 });
 
 check("only the two form-drawing surfaces receive offer context", () => {
@@ -176,9 +202,19 @@ check("only the two form-drawing surfaces receive offer context", () => {
 check("the fixed bar opens the page's form instead of navigating", () => {
   const rail = read("components/ListingActionRail.tsx");
   assert.ok(rail.includes("OpenPurchaseRequestButton"));
-  // Above the breakpoint the button; below it, and signed out, the route.
-  assert.match(rail, /hidden lg:inline-flex/);
-  assert.match(rail, /lg:hidden \$\{barCta\}/);
+
+  /* This was a BREAKPOINT split - a `hidden lg:inline-flex` button beside an
+     `lg:hidden` route link. v5.82 made it an AUTH split, and that is the
+     current contract: one in-page surface is mounted at every width, so a
+     signed-in buyer opens that one live form from the bar at any size, while
+     a guest still gets the dedicated route, whose server-side auth gate is
+     what returns them to the listing after sign-in. */
+  assert.match(rail, /if \(canRequestInline\) \{[\s\S]{0,200}?<OpenPurchaseRequestButton/);
+  assert.match(rail, /<Link href=\{`\/listings\/\$\{listingId\}\/purchase-request`\}/);
+  // Both presentations wear the one bar class, so they cannot drift apart.
+  assert.equal(rail.split("className={barCta}").length - 1, 2);
+  // The old split is gone, not merely unasserted.
+  assert.equal(/\blg:/.test(rail), false);
 
   const btn = read("components/OpenPurchaseRequestButton.tsx");
   // It asks. It does not submit, validate, navigate, or hold form state.
