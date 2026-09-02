@@ -220,6 +220,12 @@ keeping them close to the watch is what the bounded stage below is for. An
 earlier version pinned them to the photograph instead, and they travelled every
 time a portrait was followed by a landscape.
 
+Both arrows are always present, because the inspection room **cycles** instead
+of stopping at the ends. In a room whose entire purpose is looking through a
+set, an arrow that dies on the last photograph is a control that stopped
+working — and an arrow that disappears is one more thing moving. The resting
+hero above still clamps at the ends; only the room cycles.
+
 The hint band under the stage is reserved whether or not the hint is showing,
 for the same reason: its arrival and departure must not move the photograph.
 
@@ -241,9 +247,22 @@ instructively:
 - **Left-aligned, arrows pinned to the photograph.** The arrows hugged the
   watch, and travelled every time a portrait was followed by a landscape.
 
-Neither compromise turns out to be necessary. The stage is sized to the widest
-rectangle any photograph *in this listing* actually occupies, so the arrows can
-sit on the stage's own edges and be both close and still.
+Neither compromise turns out to be necessary. The stage is sized to the MEDIAN
+rectangle across the photographs *in this listing*, so the arrows can sit on the
+stage's own edges and be both close and still.
+
+**The median, and not the widest.** This was wrong the first time and the
+mistake is worth keeping: sizing to the widest photograph hands the whole room
+to a single outlier. One 16:9 shot among nine portraits set a 984px stage and
+put the arrows 213px from every watch in the listing — precisely the sprawl the
+bounding was built to end. Sizing to the narrowest fails identically from the
+other side, hostage to one extreme portrait. The median is hostage to neither.
+
+What that costs, stated plainly: a photograph wider than the stage is
+width-bound and renders shorter than the room could technically show it. It is
+not cropped, and inspection zoom still reaches every pixel the source has. The
+majority of photographs fill the stage exactly, and the arrows stand against
+them.
 
 eBay reaches the same place from the other direction. Every image in one of
 their listings is the same shape — measured on a live listing: sixteen

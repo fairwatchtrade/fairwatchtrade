@@ -252,7 +252,21 @@ const rowWidth = (row, gap = 6) =>
   ok("C6 WIDE_ROOM matches the breakpoint the rail actually switches at",
     !!WIDE && gallery.includes("min-[" + WIDE + "]:flex-row"));
 
-  ok("C7 the room and the header hang on ONE outer geometry",
+  ok("C7 the stage is sized to the MEDIAN photograph, not the widest",
+    /fits\[Math\.floor\(fits\.length \/ 2\)\]/.test(gallery));
+  ok("C7 sizing to the widest is gone — one outlier used to take the whole room",
+    !/const widest = Math\.max/.test(gallery));
+
+  ok("C8 the inspection room cycles rather than dead-ending at either end",
+    /\(i \+ step \+ photos\.length\) % photos\.length/.test(gallery));
+  ok("C8 so both of its arrows are always present and neither can appear or vanish",
+    /const canCycle = photos\.length > 1;/.test(gallery) &&
+    (gallery.match(/\{canCycle && \(/g) ?? []).length === 2);
+  ok("C8 and the resting hero above still stops at the ends, unchanged",
+    /const hasPrev = active > 0;/.test(gallery) &&
+    /const hasNext = active < photos\.length - 1;/.test(gallery));
+
+  ok("C9 the room and the header hang on ONE outer geometry",
     (gallery.match(/max-w-\[1900px\]/g) ?? []).length >= 2);
 }
 

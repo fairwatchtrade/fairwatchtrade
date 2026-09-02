@@ -210,10 +210,23 @@ export default function ListingGallery({
        room allows. Bounding on a partial set would size the room to whichever
        files happened to load first, and then move it when the rest arrived. */
     if (measured.some((n) => !n)) return available;
-    const widest = Math.max(
-      ...measured.map((n) => Math.min(room.height * (n.w / n.h), n.w))
-    );
-    return Math.min(available, Math.max(1, Math.round(widest)));
+    /* THE MEDIAN, not the widest — this is the part that was wrong first
+       time. Sizing to the widest photograph hands the whole room to a single
+       outlier: one 16:9 shot among nine portraits set a 984px stage and put
+       the arrows 213px from every watch in the listing, which is exactly the
+       sprawl this was built to end. The median sizes the stage to the TYPICAL
+       photograph, so it is hostage to neither an extreme landscape nor an
+       extreme portrait.
+
+       What that costs, stated plainly: a photograph wider than the stage is
+       width-bound and renders shorter than the room could technically show
+       it. It is not cropped, and inspection zoom reaches the detail. The
+       majority fill the stage exactly and the arrows sit against them. */
+    const fits = measured
+      .map((n) => Math.min(room.height * (n.w / n.h), n.w))
+      .sort((a, b) => a - b);
+    const typical = fits[Math.floor(fits.length / 2)];
+    return Math.min(available, Math.max(1, Math.round(typical)));
   }, [wideRoom, room.width, room.height, photos, naturals]);
 
   /* Focus return (new this round — it did not exist before, and closing the
@@ -236,12 +249,24 @@ export default function ListingGallery({
     }
   }, [inspecting]);
 
+  /* THE INSPECTION ROOM CYCLES; the resting hero above still stops at the
+     ends. In a room whose whole purpose is looking through a set, an arrow
+     that dies at the last photograph is just a control that stopped working.
+     Cycling also means both arrows are always present, so neither can appear
+     or vanish — which matters here, where nothing else moves either. */
+  const canCycle = photos.length > 1;
+  const cycle = useCallback(
+    (step: number) =>
+      setActive((i) => (photos.length ? (i + step + photos.length) % photos.length : 0)),
+    [photos.length]
+  );
+
   useEffect(() => {
     if (!inspecting) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setInspecting(false);
-      if (e.key === "ArrowLeft") setActive((i) => Math.max(0, i - 1));
-      if (e.key === "ArrowRight") setActive((i) => Math.min(photos.length - 1, i + 1));
+      if (e.key === "ArrowLeft") cycle(-1);
+      if (e.key === "ArrowRight") cycle(1);
     };
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
@@ -250,7 +275,7 @@ export default function ListingGallery({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [inspecting, photos.length]);
+  }, [inspecting, cycle]);
 
   /* The arrow frame must be the rendered photograph, not merely the column.
      A governed stage can be height-limited or width-limited depending on both
@@ -650,22 +675,22 @@ export default function ListingGallery({
                       same distance with opposite signs; it is 0 on a phone,
                       where there is no margin to stand in and the arrows
                       overlay the photograph's edges as they always have. */}
-                  {hasPrev && (
+                  {canCycle && (
                     <button
                       type="button"
                       aria-label="Previous photo"
-                      onClick={() => setActive((i) => Math.max(0, i - 1))}
+                      onClick={() => cycle(-1)}
                       className={roomArrowClass}
                       style={{ left: "calc(-1 * var(--arrow-gutter))" }}
                     >
                       <NavArrowMark flip />
                     </button>
                   )}
-                  {hasNext && (
+                  {canCycle && (
                     <button
                       type="button"
                       aria-label="Next photo"
-                      onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+                      onClick={() => cycle(1)}
                       className={roomArrowClass}
                       style={{ right: "calc(-1 * var(--arrow-gutter))" }}
                     >
