@@ -52,18 +52,7 @@ type Props = {
       offering zoom the file cannot honour. */
   natural: { w: number; h: number };
   aspect: number;
-  /** Reports the Fit RECTANGLE alongside the zoom state. The room needs the
-      photograph's width to stand the next arrow against its edge and to
-      centre the hint under it, and only this component knows that width —
-      the rectangle is arithmetic here, not a CSS result anything else can
-      read off the DOM. Reported at Fit, so it does not travel while the
-      collector is zooming. */
-  onZoomStateChange?: (state: {
-    scale: number;
-    maxScale: number;
-    width: number;
-    height: number;
-  }) => void;
+  onZoomStateChange?: (state: { scale: number; maxScale: number }) => void;
   /** Imperative handle for the accessible controls, which live in the
       viewer header rather than on top of the watch. */
   controlsRef?: React.MutableRefObject<InspectionControls | null>;
@@ -146,13 +135,8 @@ export default function InspectionViewport({
   const transform = viewport.width > 0 ? reconcile(stored, viewport, maxScale) : stored;
 
   useEffect(() => {
-    onZoomStateChange?.({
-      scale: transform.scale,
-      maxScale,
-      width: fit.width,
-      height: fit.height,
-    });
-  }, [transform.scale, maxScale, fit.width, fit.height, onZoomStateChange]);
+    onZoomStateChange?.({ scale: transform.scale, maxScale });
+  }, [transform.scale, maxScale, onZoomStateChange]);
 
   const pointerIn = useCallback((clientX: number, clientY: number): Point => {
     const rect = viewportRef.current?.getBoundingClientRect();

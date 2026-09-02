@@ -214,11 +214,11 @@ macro and a landscape box shot now changes what is inside the frame and never
 the frame itself — before this, the whole room resized on every thumbnail click
 and the eye had to re-find the watch.
 
-**One deliberate exception: the next arrow.** It stands against the
-photograph's right edge, and that edge genuinely moves when a portrait is
-followed by a landscape. An arrow belonging to the photograph should travel
-with it. The frame, the rail, the hint band and the header do not, and the
-previous arrow does not either — the hero's LEFT edge never moves.
+**Nothing in the room moves when the photograph changes** — not the frame, not
+either arrow, not the rail, not the hint band. Holding the arrows still while
+keeping them close to the watch is what the bounded stage below is for. An
+earlier version pinned them to the photograph instead, and they travelled every
+time a portrait was followed by a landscape.
 
 The hint band under the stage is reserved whether or not the hint is showing,
 for the same reason: its arrival and departure must not move the photograph.
@@ -229,44 +229,69 @@ the smallest screen. Both rails exist in the DOM and CSS hides one — the hidde
 one is `display: none`, so it is out of the accessibility tree and unfocusable
 rather than a duplicate set of controls.
 
-## The photograph is left-aligned, and that is what pays for the rail
+## The stage is bounded to the listing, not to the room
 
-A portrait photograph cannot fill a landscape stage, and most watch photography
-is portrait — so leftover width exists no matter what is done with it. Centring
-the hero split that width into two useless halves and stranded the next arrow in
-the middle of the right one, a couple of hundred pixels from the watch it
-belonged to. Left-aligning pools all of it on ONE side, where the rail spends
-it.
+The stage used to be "whatever width is left over", which is how a 598px
+photograph came to sit in a 1150px box with the arrows stranded at its far
+edges. Two arrangements were tried before this one, and both failed
+instructively:
+
+- **Centred, arrows at the room's edges.** The arrows never moved, but sat a
+  couple of hundred pixels from the watch.
+- **Left-aligned, arrows pinned to the photograph.** The arrows hugged the
+  watch, and travelled every time a portrait was followed by a landscape.
+
+Neither compromise turns out to be necessary. The stage is sized to the widest
+rectangle any photograph *in this listing* actually occupies, so the arrows can
+sit on the stage's own edges and be both close and still.
+
+eBay reaches the same place from the other direction. Every image in one of
+their listings is the same shape — measured on a live listing: sixteen
+photographs, every one of them aspect 0.75 — so their stage never needs to vary,
+and their arrows sit a permanent ~93px from the photograph. Ours varies per
+listing rather than per photograph, which is the smallest unit that can hold
+still while someone is looking at it.
 
 Things that will bite whoever changes this next:
 
-- The **Fit rectangle is reported upward**, from `InspectionViewport` to
-  `ListingGallery`, on the `onZoomStateChange` payload. The room has no other
-  way to learn where the photograph's right edge is: that rectangle is
-  arithmetic in JS, not a CSS result anything can read back off the DOM. It is
-  the FIT width and not the zoomed width, so the arrow does not crawl outward
-  while the collector zooms.
-- The next arrow is **withheld until that width is measured** rather than placed
-  at a guess. For the single frame before it arrives, the photograph has no size
-  either, so nothing is visibly missing.
-- The gutter is a CSS variable because the two arrows need the same distance
-  with opposite signs. It is `0` on a phone, where there is no margin to stand
-  in and the arrows overlay the photograph's edges exactly as they always have.
-- The measured stage **carries no padding**, and that is load-bearing.
-  `clientWidth` INCLUDES padding, so a padded stage computes a Fit rectangle
-  wider than the box the photograph is laid out in — and a wide photograph then
-  overflows it and slides under both arrows. The padding lives on the wrapper
-  above, which is the arrows' room, not the photograph's.
-- The room and the header hang on **one shared `max-w`**. Without it, a very
-  wide display strands the rail against the far edge with a corridor of empty
-  slate between it and the watch. Applied to only one of the two, they drift out
-  of alignment.
+- **"Actually occupies" is load-bearing.** A photograph's rectangle is bounded
+  by the room's height AND by the source's own pixels. Sizing the stage from
+  aspect ratio alone builds a box that a low-resolution photograph cannot fill,
+  which is the original sprawl in a smaller box.
+- **The stage reserves against the rail's MINIMUM, never its rendered width.**
+  The rail grows into whatever the stage leaves behind, so reading the rail's
+  actual width while deciding the stage width is reading a number that has not
+  been decided yet.
+- **Width is measured on the room, height on the stage area** — two different
+  elements, deliberately. Measuring width on the element whose width is about to
+  be set from that measurement is the feedback loop being avoided.
+- **The measured stage carries no padding.** `clientWidth` INCLUDES padding, so
+  a padded stage computes a Fit rectangle wider than the box the photograph is
+  laid out in, and a wide photograph then overflows it and slides under both
+  arrows. The padding lives on the wrapper above — it is the arrows' room, not
+  the photograph's.
+- **An explicit width needs `flex: 0 0 auto` beside it.** A `flex-1` item
+  resolves its main size from the basis and ignores `width` outright.
+- **Four geometry constants mirror Tailwind classes** — `STAGE_GUTTERS`,
+  `ROOM_GAP`, `RAIL_MIN`, `WIDE_ROOM`. Change a class without its constant and
+  the stage reserves the wrong width, silently, and it merely looks a little
+  off. The suite reads each constant back out of the class it mirrors.
+- **Full-size sources are probed on open, desktop only.** That is real
+  bandwidth, spent because the stage cannot be bounded without knowing every
+  photograph's true pixel size. On a phone the rail is a band underneath, there
+  is no leftover width to bound, and the probe is skipped entirely.
+- Until every photograph has reported, the stage stays as wide as the room
+  allows. Bounding on a partial set would size the room to whichever files
+  happened to load first, and then move it when the rest arrived.
+
+The room and the header hang on **one shared `max-w`**, so they cannot drift out
+of alignment on a very wide display.
 
 The rail's tile height is **derived from the rail's width** — two tiles plus the
-gap between them IS the column — so widening the rail enlarges the photographs
-instead of packing more of them in. The old hardcoded `78` was this same rule at
-the old `168`, written down as a number, and therefore silently wrong the moment
-the column width changed.
+gap between them IS the column — so handing the rail more room enlarges the
+supporting photographs instead of packing more of them in. The old hardcoded
+`78` was this same rule at the old `168`, written down as a number, and
+therefore silently wrong the moment the column changed.
 
 ## Inspection zoom is not Dial Reveal
 

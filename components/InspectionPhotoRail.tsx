@@ -108,13 +108,13 @@ export default function InspectionPhotoRail({ photos, active, onSelect, orientat
       ref={railRef}
       className={
         orientation === "column"
-          /* 240 is the tuned width at the ~1215px room this was composed
-             against. Wider rooms do not make the photograph any bigger — it
-             is bound by HEIGHT, not width — so every pixel past that is
-             slack, and the rail is what it was recovered for. The steps are
-             deliberately above the composing width so that room is left
-             exactly as it was drawn. */
-          ? "flex w-[240px] shrink-0 flex-col gap-1.5 overflow-y-auto pr-1 min-[85rem]:w-[340px] min-[110rem]:w-[420px]"
+          /* The column no longer carries its own width. The room bounds the
+             stage to the listing's own photographs and hands the rail
+             everything left over, so the rail fills the space it is given —
+             and because tile height is derived from that width, a wider room
+             enlarges the supporting photographs rather than stacking more of
+             them. */
+          ? "flex w-full shrink-0 flex-col gap-1.5 overflow-y-auto pr-1"
           : "flex w-full gap-1.5 overflow-x-auto"
       }
       aria-label="Other photographs of this watch"

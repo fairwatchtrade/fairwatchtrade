@@ -166,8 +166,8 @@ const rowWidth = (row, gap = 6) =>
   ok("R1 tiles are sized in pixels from the layout, not by a class",
     /style=\{\{ width: `\$\{width\}px`, height: `\$\{height\}px` \}\}/.test(railCode));
 
-  ok("R2 the rail is a column of an explicit width beside the stage on wide screens",
-    /orientation="column"/.test(gallery) && /flex w-\[\d+px\] shrink-0 flex-col/.test(rail));
+  ok("R2 the rail is a column beside the stage on wide screens",
+    /orientation="column"/.test(gallery) && /flex w-full shrink-0 flex-col/.test(rail));
   ok("R2 and a band beneath it on narrow ones, where a column would cost the photograph width",
     /orientation="row"/.test(gallery) && /min-\[56rem\]:hidden/.test(gallery));
 
@@ -186,53 +186,73 @@ const rowWidth = (row, gap = 6) =>
     /InspectionViewport/.test(gallery) && /key=\{heroUrl\}/.test(gallery));
 }
 
-/* ── 9 · THE COMPOSITION — hero left, arrows on its own edges ───────────
-   The photograph is no longer centred. Leftover width pools on one side,
-   where the rail spends it, and the arrows are placed against the
-   photograph rather than against the room. The pieces of that which are
-   load-bearing are asserted here rather than eyeballed, because every one
-   of them fails SILENTLY and looks merely slightly off. */
+/* ── 9 · THE BOUNDED STAGE ─────────────────────────────────────────────
+   The stage is sized to the widest rectangle any photograph in the LISTING
+   actually occupies. That is what lets the arrows sit on the stage's own
+   edges and be both close to the watch and perfectly still — the previous
+   two attempts could manage one or the other, never both. Everything below
+   fails silently and merely looks slightly wrong, so none of it is left to
+   the eye. */
 {
   const gallery = read("components/ListingGallery.tsx");
   const viewport = read("components/InspectionViewport.tsx");
   const rail = read("components/InspectionPhotoRail.tsx");
 
-  ok("C1 the photograph is left-aligned in the stage, not centred",
-    /items-center justify-start \[--arrow-gutter/.test(gallery));
+  ok("C1 the stage is bounded by each source's OWN pixels, not by aspect alone",
+    /Math\.min\(room\.height \* \(n\.w \/ n\.h\), n\.w\)/.test(gallery));
+  ok("C1 it reserves against the rail's MINIMUM, never the rail's rendered width",
+    /room\.width - RAIL_MIN - ROOM_GAP - STAGE_GUTTERS/.test(gallery));
+  ok("C1 and stays full width until every photograph has reported",
+    /measured\.some\(\(n\) => !n\)\) return available/.test(gallery));
 
-  ok("C2 the next arrow is placed from the MEASURED hero width",
-    /left: `calc\(\$\{heroFitWidth\}px - 2\.75rem \+ var\(--arrow-gutter\)\)`/.test(gallery));
-  ok("C2 and is held back until that width is known rather than guessing one",
-    /hasNext && heroFitWidth > 0 &&/.test(gallery));
-  ok("C3 the previous arrow does NOT depend on it, so it never moves",
-    /left: "calc\(-1 \* var\(--arrow-gutter\)\)"/.test(gallery));
+  ok("C2 width is measured on the room, height on the stage area",
+    /ro\.observe\(rowEl\)/.test(gallery) && /ro\.observe\(areaEl\)/.test(gallery));
+  ok("C2 the measured room width excludes its own padding",
+    /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(gallery));
+  ok("C2 an explicit stage width overrides flex, which would otherwise ignore it",
+    /flex: "0 0 auto", width: stageWidth \+ STAGE_GUTTERS/.test(gallery));
 
-  ok("C4 the viewport hands its Fit rectangle up to the room",
-    /width: fit\.width,\n\s+height: fit\.height,/.test(viewport));
-  ok("C4 and the room reads the FIT width, which does not travel while zooming",
-    /const heroFitWidth = zoomState\.width;/.test(gallery));
+  ok("C3 BOTH arrows are pinned to the stage, in plain CSS",
+    /left: "calc\(-1 \* var\(--arrow-gutter\)\)"/.test(gallery) &&
+    /right: "calc\(-1 \* var\(--arrow-gutter\)\)"/.test(gallery));
+  ok("C3 neither arrow is placed from the photograph any more, so neither travels",
+    !/heroFitWidth/.test(gallery));
 
-  ok("C5 the measured stage excludes padding, so a wide photograph cannot overflow it",
+  ok("C4 the measured stage excludes padding, so a wide photograph cannot overflow it",
     /clientWidth - num\(cs\.paddingLeft\) - num\(cs\.paddingRight\)/.test(viewport));
 
-  ok("C6 the hint centres under the photograph, not under the room",
-    /width: heroFitWidth > 0 \? `\$\{heroFitWidth\}px` : "100%"/.test(gallery));
-
-  ok("C7 tile height is derived from the rail's width rather than typed",
+  ok("C5 the rail fills the column the room hands it",
+    /flex w-full shrink-0 flex-col/.test(rail));
+  ok("C5 bounded at both ends, so it can neither vanish nor rival the watch",
+    /min-\[56rem\]:min-w-\[\d+px\]/.test(gallery) && /min-\[56rem\]:max-w-\[\d+px\]/.test(gallery));
+  ok("C5 tile height is derived from that width rather than typed",
     /targetHeight: \(width - GAP\) \/ 2/.test(rail));
-  ok("C7 so widening the rail enlarges photographs instead of packing more in",
-    (() => {
-      const two = (w) => justifyRows(
-        [0, 1, 2, 3].map((i) => ({ index: i, aspect: 1 })), w,
-        { targetHeight: (w - 6) / 2, gap: 6, maxRowHeight: w * 0.79 }
-      );
-      const small = two(168), large = two(240);
-      const rowsOfSmall = new Set(small.map((t) => t.row)).size;
-      const rowsOfLarge = new Set(large.map((t) => t.row)).size;
-      return rowsOfSmall === rowsOfLarge && large[0].width > small[0].width;
-    })());
 
-  ok("C8 the room and the header hang on ONE outer geometry",
+  /* ── The arithmetic and the paint must not drift apart ────────────────
+     Each constant is read back out of the Tailwind class it mirrors. These
+     are the assertions that will actually catch someone one day: changing a
+     padding class without its constant leaves a stage that reserves the
+     wrong width and looks merely a little off. */
+  const numOf = (re) => { const m = gallery.match(re); return m ? parseFloat(m[1]) : NaN; };
+  const RAIL_MIN = numOf(/const RAIL_MIN = (\d+)/);
+  const ROOM_GAP = numOf(/const ROOM_GAP = (\d+)/);
+  const STAGE_GUTTERS = numOf(/const STAGE_GUTTERS = (\d+)/);
+  const WIDE = gallery.match(/const WIDE_ROOM = "([^"]+)"/)?.[1];
+
+  ok("C6 RAIL_MIN matches the rail column's own min-width class",
+    gallery.includes("min-[56rem]:min-w-[" + RAIL_MIN + "px]"));
+  ok("C6 ROOM_GAP matches the gap class between stage and rail",
+    Number.isFinite(ROOM_GAP) && gallery.includes("min-[56rem]:gap-" + ROOM_GAP / 4 + '"'));
+  ok("C6 STAGE_GUTTERS matches the padding that holds the arrows",
+    (() => {
+      const l = gallery.match(/sm:pl-\[([\d.]+)rem\]/);
+      const r = gallery.match(/sm:pr-\[([\d.]+)rem\]/);
+      return !!l && !!r && (parseFloat(l[1]) + parseFloat(r[1])) * 16 === STAGE_GUTTERS;
+    })());
+  ok("C6 WIDE_ROOM matches the breakpoint the rail actually switches at",
+    !!WIDE && gallery.includes("min-[" + WIDE + "]:flex-row"));
+
+  ok("C7 the room and the header hang on ONE outer geometry",
     (gallery.match(/max-w-\[1900px\]/g) ?? []).length >= 2);
 }
 
