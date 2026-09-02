@@ -76,7 +76,6 @@ export default function InspectionViewport({
 }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [stored, setTransform] = useState<Transform>(FIT);
-  const [hintDismissed, setHintDismissed] = useState(false);
 
   /* Measure the STAGE, then compute the Fit rectangle in JS.
      Two CSS approaches failed here and both failed silently — see
@@ -151,7 +150,6 @@ export default function InspectionViewport({
       setTransform((t) =>
         zoomAtPoint(t, pointer, t.scale * wheelScaleFactor(e.deltaY, e.deltaMode), viewport, maxScale)
       );
-      setHintDismissed(true);
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -187,7 +185,6 @@ export default function InspectionViewport({
          the detail between the collector's fingers is the one being
          inspected. */
       setTransform((t) => zoomAtPoint(t, centroid, next, viewport, maxScale));
-      setHintDismissed(true);
       return;
     }
 
@@ -209,7 +206,6 @@ export default function InspectionViewport({
     (factor: number) => {
       const centre = { x: viewport.width / 2, y: viewport.height / 2 };
       setTransform((t) => zoomAtPoint(t, centre, t.scale * factor, viewport, maxScale));
-      setHintDismissed(true);
     },
     [viewport, maxScale]
   );
@@ -304,18 +300,6 @@ export default function InspectionViewport({
         }}
       />
 
-      {canInspect && !hintDismissed && !zoomed && (
-        /* Transient, and only where there is genuinely more detail to reach.
-           --platinum-dim on a translucent slate plate: this is functional
-           text telling a collector a capability exists, so it takes the
-           readable floor rather than being dressed as decoration. */
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm bg-[rgba(232,235,239,0.92)] px-2.5 py-1 text-[11px] tracking-[0.4px] text-[var(--platinum-dim)] shadow-sm"
-        >
-          Ctrl + scroll to zoom · drag to inspect
-        </div>
-      )}
     </div>
   );
 }

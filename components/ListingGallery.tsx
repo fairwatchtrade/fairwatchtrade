@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import DialReveal from "@/components/DialReveal";
 import FwtListingId from "@/components/FwtListingId";
+import InspectionPhotoRail from "@/components/InspectionPhotoRail";
 import InspectionViewport, { type InspectionControls } from "@/components/InspectionViewport";
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
@@ -99,6 +100,22 @@ export default function ListingGallery({
      into its geometry. */
   const zoomControlsRef = useRef<InspectionControls | null>(null);
   const [zoomState, setZoomState] = useState({ scale: 1, maxScale: 1 });
+  /* Discovery is remembered for the session. Deriving the hint purely from
+     "scale === 1" would bring it back every time the collector returned to
+     Fit, which is nagging rather than teaching.
+
+     A one-way latch, set from the viewport's own callback. Not an effect
+     watching the scale — an effect would be a second render reacting to the
+     first, and the rule against setState in effects is right about why that
+     is worse. Not a ref either: this is read during render to decide what
+     the room shows, and refs are not for that. */
+  const [zoomDiscovered, setZoomDiscovered] = useState(false);
+  const handleZoomState = useCallback((next: { scale: number; maxScale: number }) => {
+    setZoomState(next);
+    if (next.scale > 1) setZoomDiscovered(true);
+  }, []);
+  const showZoomHint =
+    zoomState.maxScale > 1.01 && !zoomDiscovered && zoomState.scale <= 1;
 
   /* Focus return (new this round — it did not exist before, and closing the
      viewer dropped focus to the top of the document). The Inspect control is
@@ -465,92 +482,95 @@ export default function ListingGallery({
             </div>
           </div>
 
-          {/* The photograph takes the room. Desktop reserves an arrow lane on
-              each side so a control never stands on the watch; narrow widths
-              have no such margin to spend, so there the arrows ride the very
-              edge and the photograph keeps the width. */}
-          {/* NOT a size container. An earlier build made this one so the
-              viewport could size itself in cqw/cqh — and size containment
-              means an element's box stops depending on its contents, so as a
-              flex-1 item it collapsed to 8x0 and took the photograph with it.
-              The viewport sizes itself from aspect-ratio and max constraints
-              instead, which needs nothing from this element but ordinary
-              flex layout. */}
-          <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-20">
-            {/* THE PHOTOGRAPH, and the only thing that accepts inspection
-                gestures. key={heroUrl} is load-bearing rather than tidy: a
-                changed photograph remounts the viewport, which is what
-                guarantees scale, translation, drag records AND the previous
-                source's measured dimensions all go at once. Resetting state
-                by hand would leave the old naturals alive for a frame, and
-                for that frame photograph B could be zoomed on the authority
-                of photograph A's pixels.
+          {/* ── The room: stage on the left, supporting photographs on the
+                 right ────────────────────────────────────────────────────
+              A FIXED STAGE. The stage's geometry no longer depends on which
+              photograph is showing, so moving between a portrait dial macro
+              and a landscape box shot changes what is inside the frame and
+              never the frame itself. Before this the whole room breathed on
+              every thumbnail click; the arrows moved, the rail moved, and
+              the eye had to re-find the watch each time.
 
-                IMAGE-QUALITY FLOOR, unchanged in spirit and now enforceable:
-                the viewport is capped at the source's own pixel width, and
-                the zoom ceiling inside it is derived from the same truth. */}
-            <InspectionViewport
-              key={heroUrl}
-              src={heroUrl}
-              alt={inspectionAlt}
-              natural={heroNatural}
-              aspect={heroAspect}
-              controlsRef={zoomControlsRef}
-              onZoomStateChange={setZoomState}
-            />
-            {hasPrev && (
-              <button
-                type="button"
-                aria-label="Previous photo"
-                onClick={() => setActive((i) => Math.max(0, i - 1))}
-                className={`${roomArrowClass} left-0 sm:left-4`}
-              >
-                <NavArrowMark flip />
-              </button>
-            )}
-            {hasNext && (
-              <button
-                type="button"
-                aria-label="Next photo"
-                onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
-                className={`${roomArrowClass} right-0 sm:right-4`}
-              >
-                <NavArrowMark />
-              </button>
-            )}
-          </div>
+              The rail becomes a column here rather than a strip underneath,
+              which is what frees the band below the stage for the zoom
+              hint — and it spends horizontal space the room was wasting
+              instead of taking height from the photograph. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-2 sm:px-6 min-[56rem]:flex-row min-[56rem]:gap-6">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="relative flex min-h-0 flex-1 items-center justify-center px-1 sm:px-16">
+                {/* THE PHOTOGRAPH, and the only thing that accepts
+                    inspection gestures. key={heroUrl} is load-bearing rather
+                    than tidy: a changed photograph remounts the viewport,
+                    which is what guarantees scale, translation, drag records
+                    AND the previous source's measured dimensions all go at
+                    once. Resetting by hand would leave the old naturals
+                    alive for a frame, and in that frame photograph B could
+                    be zoomed on the authority of photograph A's pixels. */}
+                <InspectionViewport
+                  key={heroUrl}
+                  src={heroUrl}
+                  alt={inspectionAlt}
+                  natural={heroNatural}
+                  aspect={heroAspect}
+                  controlsRef={zoomControlsRef}
+                  onZoomStateChange={handleZoomState}
+                />
+                {hasPrev && (
+                  <button
+                    type="button"
+                    aria-label="Previous photo"
+                    onClick={() => setActive((i) => Math.max(0, i - 1))}
+                    className={`${roomArrowClass} left-0 sm:left-2`}
+                  >
+                    <NavArrowMark flip />
+                  </button>
+                )}
+                {hasNext && (
+                  <button
+                    type="button"
+                    aria-label="Next photo"
+                    onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+                    className={`${roomArrowClass} right-0 sm:right-2`}
+                  >
+                    <NavArrowMark />
+                  </button>
+                )}
+              </div>
 
-          {photos.length > 1 && (
-            <div className="flex justify-center gap-2 overflow-x-auto px-4 py-3 sm:px-6">
-              {photos.map((url, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActive(i)}
-                  aria-label={`View photo ${i + 1}`}
-                  aria-current={i === active ? "true" : undefined}
-                  /* Selection has to survive a light field, where a single
-                     hairline border is not enough to say "this one". Three
-                     signals agree: a gold border, a gold ring standing off
-                     the slate, and full opacity against slightly held-back
-                     siblings. The held-back state is 75%, not a wash — these
-                     are photographs a collector is choosing between. */
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] ${
-                    i === active
-                      ? "border-[var(--gold)] opacity-100 ring-1 ring-[var(--gold)] ring-offset-2 ring-offset-[#E8EBEF]"
-                      : "border-transparent opacity-75 hover:border-[var(--border-mid)] hover:opacity-100"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={cardImageSrc(url, { width: 240 })}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </button>
-              ))}
+              {/* THE HINT, off the watch at last. It used to sit on the
+                  photograph's lower edge, which is the one place in this
+                  room nothing belongs. The band is reserved whether or not
+                  the hint is showing, so its arrival and departure cannot
+                  move the stage. */}
+              <div className="flex h-6 shrink-0 items-center justify-center">
+                {showZoomHint && (
+                  <span className="text-[11px] tracking-[0.4px] text-[var(--muted)]">
+                    Ctrl + scroll to zoom · drag to inspect
+                  </span>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Column beside the stage on wide screens; a band beneath it on
+                narrow ones, where a side column would eat the width the
+                photograph needs. */}
+            <div className="hidden min-[56rem]:flex min-[56rem]:min-h-0">
+              <InspectionPhotoRail
+                photos={photos}
+                active={active}
+                onSelect={setActive}
+                orientation="column"
+              />
+            </div>
+            <div className="min-[56rem]:hidden">
+              <InspectionPhotoRail
+                photos={photos}
+                active={active}
+                onSelect={setActive}
+                orientation="row"
+              />
+            </div>
+          </div>
         </div>
       )}
 

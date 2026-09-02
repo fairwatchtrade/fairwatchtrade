@@ -175,6 +175,54 @@ to simplify one image gesture is not a trade this product makes. If custom
 pinch ever conflicts with browser accessibility behaviour, accessibility wins
 and the conflict gets reported.
 
+## The supporting-photo rail is justified, not a grid of squares
+
+`lib/media/justifiedRows.ts` + `components/InspectionPhotoRail.tsx`.
+
+Rows of a common height, each filling the column exactly: a wide photograph
+takes a row alone, two narrow ones share. Every tile keeps its own aspect.
+
+**Why it is not five identical squares.** A uniform grid needs every photograph
+cropped into the same box, and the crop throws away the one thing a thumbnail
+is good for. A dial macro, a caseback engraving, a wrist shot and a box flat
+lay are different SHAPES, and shape is legible long before content is at rail
+size. It also broke the rule the rest of the viewer keeps — the stage is
+object-contain and the resting hero refuses the seller's focal crop, because
+subtracting evidence to improve presentation is the trade this product does not
+make. The old `h-14 w-14 object-cover` rail was making it anyway, and a
+caseback engraving near the frame edge vanished from its own thumbnail.
+
+`object-cover` **is** still used on a tile, and that is correct: the tile was
+sized FROM that photograph's aspect, so the box already matches the image and
+cover crops nothing. It absorbs sub-pixel rounding, nothing more.
+
+**The last row is capped.** Justified to full width, one lone portrait left over
+at the end becomes taller than every row above it and the rail reads as broken.
+It is allowed to end short instead — a row that does not reach the edge says
+"that is all of them", which is true.
+
+**Aspects are measured, never assumed.** A photograph whose dimensions have not
+arrived is laid out square and re-laid on load. Holding the rail blank until
+everything measures, or guessing portrait, both trade a truthful rail for a
+convenient one.
+
+## The stage is fixed so the room does not jump
+
+The stage reserves its geometry independently of which photograph is showing,
+and the rail sits beside it rather than beneath. Moving between a portrait dial
+macro and a landscape box shot now changes what is inside the frame and never
+the frame itself — before this, the arrows moved, the rail moved, and the eye
+had to re-find the watch on every click.
+
+The hint band under the stage is reserved whether or not the hint is showing,
+for the same reason: its arrival and departure must not move the photograph.
+
+On narrow screens the rail returns to a band beneath the stage. A side column
+there would spend the width the photograph needs, which is the wrong trade on
+the smallest screen. Both rails exist in the DOM and CSS hides one — the hidden
+one is `display: none`, so it is out of the accessibility tree and unfocusable
+rather than a duplicate set of controls.
+
 ## Inspection zoom is not Dial Reveal
 
 Different instruments, different rooms, deliberately kept apart:

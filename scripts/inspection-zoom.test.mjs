@@ -274,17 +274,24 @@ const VP = { width: 800, height: 600 };
     /const inspectionAlt = `\$\{brandLabel\} — photograph/.test(gallery));
 }
 
-/* ── 10 · THE HINT ─────────────────────────────────────────────────────── */
+/* ── 10 · THE HINT, now beneath the stage rather than on the watch ──────
+   It used to overlay the photograph's lower edge, which is the one place in
+   this room nothing belongs. It lives in a reserved band under the stage. */
 {
   const vp = read("components/InspectionViewport.tsx");
+  const gallery = read("components/ListingGallery.tsx");
   ok("H1 the hint says what the gesture is",
-    /Ctrl \+ scroll to zoom · drag to inspect/.test(vp));
+    /Ctrl \+ scroll to zoom · drag to inspect/.test(gallery));
+  ok("H1 it is no longer drawn on the photograph",
+    !/Ctrl \+ scroll/.test(vp));
   ok("H1 it never appears when there is no detail to reach",
-    /canInspect && !hintDismissed && !zoomed/.test(vp));
+    /zoomState\.maxScale > 1\.01 && !zoomDiscovered/.test(gallery));
   ok("H1 it retires once zoom has been discovered",
-    /setHintDismissed\(true\)/.test(vp));
+    /setZoomDiscovered\(true\)/.test(gallery));
+  ok("H1 its band is reserved, so showing and hiding cannot move the stage",
+    /flex h-6 shrink-0 items-center justify-center/.test(gallery));
   ok("H1 it is functional text at the readable floor, not decoration",
-    /text-\[var\(--platinum-dim\)\]/.test(vp));
+    /text-\[var\(--muted\)\]/.test(gallery));
 }
 
 console.log(`inspection-zoom: ${n} assertions passed`);
