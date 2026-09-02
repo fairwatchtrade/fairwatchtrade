@@ -223,11 +223,25 @@ commitment and the named buyer is told.** In `accept_trade_offer()`:
    not closed — nothing is cleared and nobody is warned.
 
 The bell renders any notification `type` and deep-links on `listing_id`, so
-no UI changed. A consequence worth knowing: `cancel_trade_deal()` restores a
-listing as `private_active` only if `private_buyer_id` is still set, so a
-watch whose private opportunity closed returns to `published` if that trade
-is later cancelled. That is the truthful reconstruction — the designation is
-gone by ruling.
+no UI changed.
+
+**If that trade is later cancelled before transfer (v8.20, founder ruling):**
+`cancel_trade_deal()` restores each listing by evidence, not by the row —
+after closure the row is indistinguishable from an always-public watch. It
+reads the winning offer's `accepted` event (`metadata.private_opportunities_closed`)
+and decides per listing:
+
+| The watch was | Cancelled trade restores it to |
+|---|---|
+| originally public | `published` |
+| private, acquired by its **named** buyer (designation never closed) | `private_active` |
+| private, opportunity **explicitly closed** and buyer notified | **`removed` (Paused)** — never Published, never the old invitation |
+
+Paused means Paused: `removed_at` is stamped and `removal_reason_note` says
+why; no seller `removal_reason_code` is invented (the reason is optional by
+ruling, and none of the seller vocabulary is true here). The seller's own
+Restore machinery lifts it like any other paused listing. The `cancelled`
+event records `listings_restored` — each listing and what it was restored to.
 
 ### Completed trades cannot be unilaterally reopened
 

@@ -609,6 +609,35 @@ const step2Sql = step2Raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm
       (step2Sql.match(/insert into public\.trade_offer_events/g) ?? []).length >= 6);
 }
 
+/* ── 11c · CANCELLATION RESTORE — a closed private opportunity pauses ──────
+   After v8.19 a closed private opportunity and an originally public watch
+   are identical at the listing row (reserved, private_buyer_id null). The
+   restore must therefore read the accepted event's closure record, and a
+   closed opportunity lands on Paused - never Published, never the old
+   invitation. Behavioural proof is a database proof (see the README);
+   these pins guard the shape. ────────────────────────────────────────────── */
+{
+  const cancelSql = read("supabase/migrations/20260902180000_trade_cancel_restores_closed_private_to_paused.sql")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*--.*$/gm, "");
+  ok("the closure evidence is read from the winning offer's accepted event, never inferred from the row",
+    /FROM public\.trade_offer_events e\s*CROSS JOIN LATERAL jsonb_array_elements\(coalesce\(e\.metadata->'private_opportunities_closed', '\[\]'::jsonb\)\) c\s*WHERE e\.trade_offer_id = v_deal\.trade_offer_id\s*AND e\.event_type = 'accepted'/.test(cancelSql));
+  ok("three outcomes in one CASE, in this order: designation kept → private, closed → removed, else → published",
+    /SET status = CASE\s*WHEN li\.private_buyer_id IS NOT NULL\s*THEN 'private_active'\s*WHEN li\.id = ANY \(v_closed_listings\)\s*THEN 'removed'\s*ELSE\s*'published'\s*END/.test(cancelSql));
+  ok("Paused means Paused: removed_at is stamped and a note says why; no seller reason code is invented",
+    /removed_at = CASE\s*WHEN li\.private_buyer_id IS NULL AND li\.id = ANY \(v_closed_listings\) THEN now\(\)/.test(cancelSql) &&
+      /removal_reason_note = CASE/.test(cancelSql) && !/removal_reason_code/.test(cancelSql));
+  ok("only reserved listings of this deal's legs are touched",
+    /WHERE li\.id IN \(SELECT listing_id FROM public\.trade_deal_legs\s*WHERE trade_deal_id = p_deal_id\)\s*AND li\.status = 'reserved'/.test(cancelSql));
+  ok("the cancelled event records what each listing was restored to",
+    /'listings_restored', v_restored/.test(cancelSql) && /jsonb_build_object\('listing_id', id, 'restored_to', status\)/.test(cancelSql));
+  ok("every existing refusal survives verbatim",
+    /RAISE EXCEPTION 'not_allowed'/.test(cancelSql) && /RAISE EXCEPTION 'already_cancelled'/.test(cancelSql) &&
+      /RAISE EXCEPTION 'deal_completed'/.test(cancelSql) && /RAISE EXCEPTION 'cannot_cancel_after_transfer'/.test(cancelSql) &&
+      /physical_watch_live_transfers/.test(cancelSql));
+  ok("no other function is re-issued by this repair",
+    (cancelSql.match(/create or replace function/gi) ?? []).length === 1);
+}
+
 /* ── 12 · no second messaging product ───────────────────────────────────── */
 {
   const offersModule = read("components/TradeOffersModule.tsx");
