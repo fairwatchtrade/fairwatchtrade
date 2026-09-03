@@ -45,6 +45,8 @@ import {
   rowIsUsable,
   APPLY_WITHHELD_ADAPTERS,
   APPLY_WITHHELD_ERROR,
+  planBoundApplyEnabled,
+  APPLY_PLAN_BOUND_DISABLED_ERROR,
   isApplyWithheld,
   applyDispatchFor,
 } from "../lib/auction-operations/packetContract.ts";
@@ -429,8 +431,12 @@ function fakeDb() {
     RUNTIME_REGISTERABLE_ADAPTERS.every((a) => isAllowlistedAdapter(a)));
   ok("monaco-layer2 is the family proven reusable in this flight",
     isRuntimeRegisterable("monaco-layer2"));
-  ok("monaco-portable is registerable for PLAN-ONLY use — and only because Apply is withheld for it",
-    isRuntimeRegisterable("monaco-portable") && isApplyWithheld("monaco-portable"));
+  /* v8.18–v8.24 this read "registerable for PLAN-ONLY use — and only because
+     Apply is withheld". v8.25 released the family: its safety basis is now
+     the explicit, proven writer path it dispatches to by name, plus the
+     plan-bound gate that keeps every withheld-era plan non-executable. */
+  ok("monaco-portable is registerable, and its safety basis is its explicit proven writer path — not a withheld gate",
+    isRuntimeRegisterable("monaco-portable") && !isApplyWithheld("monaco-portable") && applyDispatchFor("monaco-portable") === "portable");
   ok("the two unaudited families are NOT claimed reusable",
     !isRuntimeRegisterable("phillips-sale") && !isRuntimeRegisterable("monaco-legend"));
 }
@@ -596,7 +602,7 @@ function fakeDb() {
     /loadDescriptors[\s\S]{0,400}verifiedDescriptor\(row\)/.test(catalogSrc2));
 
   /* 6 · the two unaudited families are still not registerable after this
-     hardening; the registerable set is layer2 plus the plan-only portable
+     hardening; the registerable set is layer2 plus the portable family (released v8.25)
      family added in v8.18 */
   ok("D6 runtime-registerable set is exactly the proven pair",
     RUNTIME_REGISTERABLE_ADAPTERS.length === 2 && isRuntimeRegisterable("monaco-layer2") &&
@@ -1174,9 +1180,33 @@ const synthManifest = {
     !("retrieved_at" in keeperSpec) && !("retrieved_at" in salePage) && !/"retrieved_at"/.test(portablePlanToBytes(p1)));
   ok("the sale-page artifact keeps the most conservative posture; the keeper's normalized facts join the governed lane",
     salePage.public_use_scope === "none" && keeperSpec.public_use_scope === "normalized_facts_only");
-  ok("the plan names the keeper's retention destination and still says Apply is withheld",
+  ok("the plan names the keeper's retention destination and, by default, still says Apply is withheld (the conservative claim)",
     /PRIVATE_KEEPER_ARTIFACT/.test(p1.keeper.retention) && /withheld/i.test(p1.keeper.retention) &&
     /portable_keeper artifact spec/.test(p1.keeper.source_artifact_representation));
+  /* v8.25 — the released plan tells the truth about Apply, and ONLY those
+     fields move: counts, rows, gates and delta are byte-for-byte the same. */
+  const released = await buildPortablePlan({ ...args, applyWithheld: false });
+  ok("a released plan says Apply is enabled, in the apply block, the retention line and the summary",
+    released.apply.enabled === true && /released/i.test(released.apply.reason) && /released/i.test(released.keeper.retention) && /AVAILABLE/.test(released.summary.apply_state));
+  ok("release changes the plan bytes and hash — a released family needs a fresh plan",
+    sha(portablePlanToBytes(released)) !== sha(portablePlanToBytes(p1)));
+  const stripApply = (p) => { const c = JSON.parse(JSON.stringify(p)); delete c.apply; delete c.keeper.retention; delete c.summary.apply_state; return c; };
+  ok("…and nothing else moves: with the three apply fields removed the plans are identical",
+    JSON.stringify(stripApply(released)) === JSON.stringify(stripApply(p1)));
+  /* the plan-bound gate reads the verified plan VALUE, strictly */
+  ok("plan-bound gate: a withheld-era portable plan is NOT executable; a released one is",
+    planBoundApplyEnabled("monaco-portable", p1).enabled === false && planBoundApplyEnabled("monaco-portable", released).enabled === true);
+  ok("plan-bound gate: the refusal carries the plan's own stated reason", planBoundApplyEnabled("monaco-portable", p1).reason === p1.apply.reason);
+  ok("plan-bound gate: a portable plan with no apply block is not executable, and a coerced truthy is not true",
+    planBoundApplyEnabled("monaco-portable", { adapter: "monaco-portable" }).enabled === false &&
+      planBoundApplyEnabled("monaco-portable", { apply: { enabled: "true" } }).enabled === false &&
+      planBoundApplyEnabled("monaco-portable", { apply: { enabled: 1 } }).enabled === false);
+  ok("plan-bound gate: plan shapes that carry no apply block (Phillips, Monaco) stay governed by family dispatch",
+    planBoundApplyEnabled("phillips-sale", { sales: [] }).enabled === true && planBoundApplyEnabled("monaco-layer2", { sales: [] }).enabled === true &&
+      planBoundApplyEnabled("phillips-sale", { apply: { enabled: false } }).enabled === false);
+  ok("plan-bound gate: null, non-object and absent plans are not executable for the portable family",
+    planBoundApplyEnabled("monaco-portable", null).enabled === false && planBoundApplyEnabled("monaco-portable", undefined).enabled === false &&
+      planBoundApplyEnabled("monaco-portable", "plan").enabled === false && APPLY_PLAN_BOUND_DISABLED_ERROR === "apply_plan_bound_disabled");
 
   /* §15 — evidence completeness delta */
   const delta = evidenceCompletenessDelta(k.keeper);
@@ -1245,7 +1275,7 @@ const synthManifest = {
     ok("the ET37 plan preserves the nine source anomalies verbatim and the NO RESERVE wording on lot 100",
       p1.provenance.source_anomalies.length === 9 &&
       p1.sales[0].rows.find((r) => r.lot_number === "100").source_identity.estimate.unusual_estimate_wording_raw === "NO RESERVE");
-    ok("the ET37 summary is founder-legible and says Apply is withheld",
+    ok("the ET37 summary is founder-legible and, built with the conservative default, says Apply is withheld",
       p1.summary.sale === "Exclusive Timepieces 37" && p1.summary.keeper_sha256 === et37Manifest.keeper.sha256 &&
       p1.summary.lot_count === 166 && p1.summary.sold_total === 8029125 && /WITHHELD/.test(p1.summary.apply_state) && p1.summary.contradictions === 0);
     const rows = normalizePortableRows(v.keeper, view);
@@ -1257,14 +1287,16 @@ const synthManifest = {
 
 /* ── 8e · APPLY IS REFUSED BY NAME, AND BEFORE REGISTRATION ────────────── */
 {
-  ok("monaco-portable dispatches to WITHHELD, never to a writer",
-    applyDispatchFor("monaco-portable") === "withheld");
+  /* v8.25 — the family is RELEASED. It dispatches to its own writer by name;
+     the withheld mechanism stays, empty, for the next plan-only family. */
+  ok("monaco-portable dispatches to its OWN writer branch, never to the Monaco writer",
+    applyDispatchFor("monaco-portable") === "portable");
   ok("the proven writing families still dispatch to their engines",
     applyDispatchFor("phillips-sale") === "phillips" && applyDispatchFor("monaco-layer2") === "monaco" && applyDispatchFor("monaco-legend") === "monaco");
-  ok("withheld is a named set, and the portable family is in it",
-    APPLY_WITHHELD_ADAPTERS.length === 1 && APPLY_WITHHELD_ADAPTERS[0] === "monaco-portable" && APPLY_WITHHELD_ERROR === "apply_withheld_plan_only_family");
-  ok("PRECONDITION: every plan-only registerable family is withheld — registration cannot outrun the refusal",
-    RUNTIME_REGISTERABLE_ADAPTERS.filter((a) => a === "monaco-portable").every((a) => isApplyWithheld(a)));
+  ok("the withheld set is empty and the mechanism remains",
+    APPLY_WITHHELD_ADAPTERS.length === 0 && !isApplyWithheld("monaco-portable") && APPLY_WITHHELD_ERROR === "apply_withheld_plan_only_family" && typeof isApplyWithheld === "function");
+  ok("an unknown family is still unsupported — release did not reopen fall-through",
+    applyDispatchFor("sothebys-sale") === "unsupported" && applyDispatchFor(undefined) === "unsupported");
 
   const contract = read("lib/auction-operations/packetContract.ts");
   const contractCode = strip(contract);
@@ -1273,10 +1305,12 @@ const synthManifest = {
     withheldDecl >= 0 && withheldDecl < contract.indexOf("RUNTIME_REGISTERABLE_ADAPTERS = ["));
   const withheldBranch = contractCode.indexOf('if (isApplyWithheld(adapterId)) return "withheld"');
   const phillipsBranch = contractCode.indexOf('if (adapterId === "phillips-sale") return "phillips"');
-  ok("applyDispatchFor evaluates withheld first and the Monaco writer is the LAST branch",
-    withheldBranch >= 0 && phillipsBranch >= 0 &&
-    withheldBranch < phillipsBranch &&
-    phillipsBranch < contractCode.indexOf('return "monaco"'));
+  const monacoBranch = contractCode.indexOf('return "monaco"');
+  const portableBranch = contractCode.indexOf('if (adapterId === "monaco-portable") return "portable"');
+  ok("applyDispatchFor evaluates withheld first, names every writer branch, and the portable branch sits between Monaco and unsupported",
+    withheldBranch >= 0 && phillipsBranch >= 0 && monacoBranch >= 0 && portableBranch >= 0 &&
+    withheldBranch < phillipsBranch && phillipsBranch < monacoBranch && monacoBranch < portableBranch &&
+    portableBranch < contractCode.indexOf('return "unsupported"'));
 
   const slice = read("lib/auction-operations/applySlice.ts");
   const sliceCode = strip(slice);
@@ -1339,14 +1373,14 @@ const synthManifest = {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   9 · MONACO PORTABLE — APPLY FOUNDATION (v8.21), release gate WITHHELD
+   9 · MONACO PORTABLE — APPLY FOUNDATION (v8.21), RELEASED (v8.25)
 
-   The writer beneath the plan, proven behind the gate. Storage and Postgres
-   do not share a transaction, so the invariant under test is ORDER:
-   verified durable keeper object first, DB row referencing it second, and
-   no lot or result before either. The writer is reachable here by direct
-   call only; applyDispatchFor still says `withheld` and the route/room
-   never reach it.
+   The writer beneath the plan. Storage and Postgres do not share a
+   transaction, so the invariant under test is ORDER: verified durable
+   keeper object first, DB row referencing it second, and no lot or result
+   before either. Since v8.25 applyDispatchFor says `portable` and the
+   slice reaches this writer by name; 9c pins that wiring, and the
+   plan-bound gate that keeps every withheld-era plan non-executable.
    ════════════════════════════════════════════════════════════════════════ */
 
 function fakeStorage(seed = {}) {
@@ -1396,7 +1430,13 @@ function fakeStorage(seed = {}) {
   const expectSha = keeperPath ? et37Manifest.keeper.sha256 : synthSha;
   const v = verifyKeeperBytes(bytes, expectSha);
   const db = fakeDb();
-  const plan = await buildPortablePlan({ manifest, keeper: v.keeper, keeperSha256: v.sha256, keeperByteLength: v.byteLength, db, packetId: keeperPath ? "et37-portable" : "zz99-portable" });
+  const planArgs = { manifest, keeper: v.keeper, keeperSha256: v.sha256, keeperByteLength: v.byteLength, db, packetId: keeperPath ? "et37-portable" : "zz99-portable" };
+  /* v8.25 — the writer executes only a plan whose own bytes say it may. */
+  const withheldPlan = await buildPortablePlan({ ...planArgs, applyWithheld: true });
+  n += 1; await assert.rejects(applyPortablePlanSlice(withheldPlan, db, { keeperBytes: bytes, storage: fakeStorage() }), /plan_apply_disabled/, "writer: a plan whose own bytes say Apply is not enabled is refused, whatever the family says today");
+  ok("…before any database read or write", db.tables.auction_evidence_house.length === 0 && db.tables.auction_evidence_source_artifact.length === 0 && db.rpcCalls === 0);
+  const plan = await buildPortablePlan({ ...planArgs, applyWithheld: false });
+  ok("a released plan's own bytes say Apply is enabled", plan.apply.enabled === true);
   const storage = fakeStorage();
   const lotsExpected = keeperPath ? 166 : 5, soldExpected = keeperPath ? 156 : 3, sumExpected = keeperPath ? 8029125 : 6500;
 
@@ -1482,12 +1522,12 @@ function fakeStorage(seed = {}) {
 
 /* ── 9c · the release gate is intact, and refusal is selective ─────────── */
 {
-  ok("monaco-portable is STILL Apply-withheld after the writer exists", isApplyWithheld("monaco-portable") && applyDispatchFor("monaco-portable") === "withheld");
-  ok("the refusal is selective: phillips-sale → Phillips writer", applyDispatchFor("phillips-sale") === "phillips");
-  ok("the refusal is selective: monaco-legend and monaco-layer2 → Monaco writer", applyDispatchFor("monaco-legend") === "monaco" && applyDispatchFor("monaco-layer2") === "monaco");
-  ok("an unknown family is unsupported — it never inherits the Monaco writer by elimination",
+  ok("v8.25: monaco-portable is released — it dispatches to `portable`", !isApplyWithheld("monaco-portable") && applyDispatchFor("monaco-portable") === "portable");
+  ok("dispatch is still selective: phillips-sale → Phillips writer", applyDispatchFor("phillips-sale") === "phillips");
+  ok("dispatch is still selective: monaco-legend and monaco-layer2 → Monaco writer", applyDispatchFor("monaco-legend") === "monaco" && applyDispatchFor("monaco-layer2") === "monaco");
+  ok("an unknown family is unsupported — it never inherits any writer by elimination",
     applyDispatchFor("sothebys-sale") === "unsupported" && applyDispatchFor("monaco-layer3") === "unsupported" && applyDispatchFor(undefined) === "unsupported" && applyDispatchFor({}) === "unsupported");
-  ok("exactly one family is withheld", APPLY_WITHHELD_ADAPTERS.length === 1);
+  ok("no family is withheld, and the gate is still there for the next one", APPLY_WITHHELD_ADAPTERS.length === 0);
 
   const contract = strip(read("lib/auction-operations/packetContract.ts"));
   ok("dispatch names its Monaco families explicitly and ends in unsupported, not monaco",
@@ -1498,9 +1538,50 @@ function fakeStorage(seed = {}) {
   ok("the slice refuses an unsupported family by name before any engine",
     unsupportedAt >= 0 && unsupportedAt < slice.indexOf("applySalePlan(") && unsupportedAt < slice.indexOf("applyMonacoPlanSlice(") &&
       /if \(dispatch === "unsupported"\) \{\s*throw new Error\(\s*`\$\{APPLY_UNSUPPORTED_ERROR\}/.test(slice));
-  ok("the portable writer is not wired into the slice — unreachable from the normal Apply route",
-    !/monaco-portable-writer/.test(slice) && !/applyPortablePlanSlice/.test(slice) &&
-      !/applyPortablePlanSlice/.test(read("app/api/admin/auctions/results/apply/route.ts")));
+  /* v8.25 — the writer IS wired, by name, and only after the stored plan
+     is verified and the withheld/unsupported refusals have had their say. */
+  const portableAt = slice.indexOf('dispatch === "portable"');
+  ok("the portable writer is wired into the slice by name, after withheld and unsupported refusals",
+    portableAt >= 0 && /applyPortablePlanSlice\(plan, db, \{/.test(slice) &&
+      slice.indexOf('dispatch === "withheld"') < portableAt && slice.indexOf('dispatch === "unsupported"') < portableAt);
+  ok("the slice hands the writer the STAGED keeper bytes and the production storage boundary — never a guess",
+    /const keeperBytes = await stagedKeeperBytes\(db, run\)/.test(slice) && /storage: privateKeeperStorage\(db\)/.test(slice) &&
+      slice.indexOf("stagedKeeperBytes(db, run)") < slice.indexOf("applyPortablePlanSlice(plan, db, {"));
+  const boundary = strip(read("lib/auction-operations/privateKeeperStorage.ts"));
+  ok("the storage boundary can never overwrite a content-addressed object", /upsert: false/.test(boundary) && !/upsert: true/.test(boundary));
+  ok("the storage boundary treats not-found as null and every other storage error as a refusal",
+    /if \(NOT_FOUND\.test\(error\.message\)\) return null;/.test(boundary) && /private_keeper_read_failed/.test(boundary) && /private_keeper_write_failed/.test(boundary));
+  ok("staged keeper bytes come from the STAGING bucket at the run's recorded path; absence is a bounded missing_source",
+    /from\(STAGING_BUCKET\)\.download\(path\)/.test(boundary) && /run\.input_paths\?\.portable_json/.test(boundary) && /missing_source:/.test(boundary));
+  const applyRoute = read("app/api/admin/auctions/results/apply/route.ts");
+  ok("the apply route keeps a writer's named refusal as the run's last_error_code instead of flattening it",
+    /const named = \/\^\(\[a-z\]\[a-z0-9_\]\{2,63\}\):\/\.exec\(detail\)/.test(applyRoute) && /last_error_code: code/.test(applyRoute));
+  const core = strip(read("lib/auction-operations/monaco-portable-core.mjs"));
+  ok("the plan's apply block is derived from the gate at generation time, defaulting to the conservative claim",
+    /applyWithheld = true \}\)/.test(core) && /apply: applyWithheld\s*\? \{ enabled: false/.test(core) && /: \{ enabled: true, reason: "Apply is released for monaco-portable/.test(core));
+  ok("the plan engine passes the real gate value, so a released family's plan says so",
+    /applyWithheld: isApplyWithheld\(run\.adapter_id\)/.test(read("lib/auction-operations/planEngine.ts")));
+  /* the historical-plan safety gate: route, status projection, room, writer */
+  const gateAt = applyRoute.indexOf("planBoundApplyEnabled(run.adapter_id, plan)");
+  ok("the apply route consults the plan-bound gate AFTER verifyStoredPlan and BEFORE the run may move to applying, and refuses without touching the run",
+    gateAt > applyRoute.indexOf("verifyStoredPlan(run)") && gateAt < applyRoute.indexOf('state: "applying", approved_at') &&
+      /if \(!bound\.enabled\) \{\s*return NextResponse\.json\(\s*\{\s*error: APPLY_PLAN_BOUND_DISABLED_ERROR,/.test(applyRoute) &&
+      !/updateRun\([^)]*\)[\s\S]{0,200}APPLY_PLAN_BOUND_DISABLED_ERROR/.test(applyRoute.slice(gateAt - 400, gateAt + 600)));
+  const statusRoute = read("app/api/admin/auctions/results/runs/[runId]/route.ts");
+  ok("the run status route derives planApplyEnabled from the stored, re-verified plan — never from the summary",
+    /verifyStoredPlan\(run\)/.test(statusRoute) && /planBoundApplyEnabled\(run\.adapter_id, plan\)/.test(statusRoute) &&
+      /planApplyEnabled,\s*planApplyReason,/.test(statusRoute) && !/summary\.apply_state/.test(statusRoute));
+  ok("the plan route returns the same server-derived eligibility with the fresh plan",
+    /planApplyEnabled: bound\.enabled/.test(read("app/api/admin/auctions/results/plan/route.ts")));
+  const roomSrc = strip(read("components/AdminAuctionResultsIngest.tsx"));
+  ok("the room offers Apply only when the server says the plan's own bytes allow it, and parses no wording",
+    /run\.state === "planned" && run\.contradictions\.length === 0 && !applyIsWithheld && !legacyRun && run\.planApplyEnabled === true &&/.test(roomSrc) &&
+      /run\.planApplyEnabled === false &&/.test(roomSrc) && /Historical plan — inspection only/.test(roomSrc) &&
+      !/WITHHELD/.test(roomSrc) && !/apply_state/.test(roomSrc));
+  const writerSrc = strip(read("lib/auction-operations/monaco-portable-writer.mjs"));
+  ok("the writer fails closed on a plan whose own bytes do not say enabled, before its first database read",
+    /if \(plan\.apply\?\.enabled !== true\)/.test(writerSrc) &&
+      writerSrc.indexOf("plan.apply?.enabled !== true") < writerSrc.indexOf('client.from("profiles")'));
   const room = strip(read("components/AdminAuctionResultsIngest.tsx"));
   ok("the room still draws no Apply button for a withheld family", /Plan-only family — Apply is not yet enabled/.test(room) && /!applyIsWithheld/.test(room));
   const apply = read("app/api/admin/auctions/results/apply/route.ts");

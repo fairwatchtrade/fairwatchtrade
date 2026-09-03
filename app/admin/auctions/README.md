@@ -250,12 +250,64 @@ withheld.** The three blockers above are now answered in code:
   a writer by elimination any more. The release that lifts `monaco-portable`
   from the withheld set must add its `portable` branch at the same time.
 
-**Production application order, when the founder walks the gate:**
-1. `20260902140000_auction_operations_monaco_portable_adapter.sql`
-2. `20260902200000_auction_evidence_private_keeper_artifacts.sql`
+Both migrations were applied on 2026-09-02; ET37 was registered, approved
+and activated at revision 2; the real plan `bfd280e8` was generated and
+reviewed. **Apply for the portable family was released in v8.25.**
 
-then register → approve → activate ET37 → stage the keeper → Generate Plan →
-founder SEE-it. Apply stays withheld until a separate explicit release.
+### Portable Apply released (v8.25) — what changed, and the one rule to remember
+
+**The misconception:** *"the plan is planned, so press Apply."* Not plan
+`bfd280e8`. Its own hashed bytes say `apply.enabled = false` and "Apply is
+withheld for this family", because they were generated while the gate was
+closed. The plan states at generation time what the dispatcher will do with
+it (`buildPortablePlan({ applyWithheld })`, fed by `isApplyWithheld()` from
+the plan engine; default `true`, the conservative claim). Lifting the gate
+changes those three fields, the bytes and the hash — nothing else — so a
+released family needs a **fresh START PLANNING**, and the applied plan is
+that one. `bfd280e8` stays inspection-only as history.
+
+- `APPLY_WITHHELD_ADAPTERS` is now **empty**; the mechanism, the by-name
+  refusals and the room's plan-only copy stay for the next family that must
+  plan before it may write.
+- `applyDispatchFor("monaco-portable") === "portable"` — its own branch,
+  after `withheld` and before `unsupported`; unknown names still land on
+  `unsupported`.
+- `applySlice.ts` portable branch: verify the stored plan → read the **exact
+  staged keeper bytes** from the staging bucket at the run's recorded path →
+  `applyPortablePlanSlice(plan, db, { keeperBytes, storage, cursor, maxRows:
+  120, deadlineMs })` → persist cursor/counts like the Monaco branch. ET37 is
+  120 + 46 rows across two slices.
+- `lib/auction-operations/privateKeeperStorage.ts` — the production storage
+  boundary the writer is handed: private keeper bucket, **`upsert: false`**
+  (a content-addressed path is never overwritten), not-found → `null`, every
+  other storage error a refusal. No browser path into either bucket.
+- The apply route keeps a writer's named refusal (`keeper_object_conflict`,
+  `lot_contradiction`, …) as `last_error_code` instead of flattening it.
+- **The plan-bound gate.** `planBoundApplyEnabled(adapterId, plan)` in
+  `packetContract.ts` reads the *verified stored plan value*: a plan with an
+  `apply` block is executable only if `enabled === true`, strictly; a
+  portable plan without one is not executable; Phillips/Monaco plan shapes
+  carry no such block and stay governed by family dispatch. The apply route
+  consults it after `verifyStoredPlan()` and before `planned → applying`
+  (409 `apply_plan_bound_disabled`; the run stays `planned` as history).
+  The writer refuses `plan_apply_disabled` independently beneath it.
+- **Room eligibility is server truth.** `GET results/runs/[runId]` and the
+  plan response carry `planApplyEnabled` / `planApplyReason`, derived from
+  the re-verified stored plan. The room offers Apply only on `=== true`,
+  shows "Historical plan — inspection only" on `false`, and parses no
+  wording. The family-level `applyWithheldAdapters` list still describes
+  globally withheld families; it is no longer enough on its own.
+- **So for `bfd280e8`:** hash matches, zero contradictions, family released,
+  and Apply still answers 409 `apply_plan_bound_disabled`. Verify at any
+  time with a POST of its exact hash; nothing about the run changes.
+- The founder's **Apply this exact plan** click is the act that reaches the
+  writer in production: keeper retained privately at `sha256/<hash>.json`,
+  keeper artifact row (URL-less), sale-page artifact, ET37 sale, 166 lots,
+  166 results through the protected RPC, run `applied`. Replay reuses
+  everything and creates nothing.
+- Normalized ET37 facts appear on the public Auction Results surfaces to the
+  extent those surfaces already publish governed facts; the keeper stays
+  private (`internal_only`, `full_artifact_private`).
 
 ### Registered-fetch Monaco (38 / 40 / 41) result basis — v6.51, restated
 

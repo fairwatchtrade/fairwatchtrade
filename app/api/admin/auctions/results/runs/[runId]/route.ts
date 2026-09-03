@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getRun } from "@/lib/auction-operations/runStore";
+import { getRun, verifyStoredPlan } from "@/lib/auction-operations/runStore";
+import { planBoundApplyEnabled } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    GET /api/admin/auctions/results/runs/[runId] — durable run status
@@ -63,6 +64,27 @@ export async function GET(
     return NextResponse.json({ error: "not_found", detail: "No such run." }, { status: 404 });
   }
 
+  /* v8.25 — plan-bound Apply eligibility, derived HERE from the stored,
+     re-verified plan value. The room renders this boolean; it never decides
+     authority by parsing a summary string. null = no plan on the run yet;
+     false = the plan's own bytes say no (or the bytes no longer verify);
+     true = the plan states it may execute. The apply route applies the same
+     rule independently — this is presentation of that truth, not a second
+     authority. */
+  let planApplyEnabled: boolean | null = null;
+  let planApplyReason: string | null = null;
+  if (run.plan_bytes && run.plan_sha256) {
+    try {
+      const { plan } = verifyStoredPlan(run);
+      const bound = planBoundApplyEnabled(run.adapter_id, plan);
+      planApplyEnabled = bound.enabled;
+      planApplyReason = bound.reason;
+    } catch (e) {
+      planApplyEnabled = false;
+      planApplyReason = `the stored plan no longer verifies: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
   return NextResponse.json(
     {
       runId: run.id,
@@ -70,6 +92,8 @@ export async function GET(
       packetId: run.packet_id,
       state: run.state,
       planSha256: run.plan_sha256,
+      planApplyEnabled,
+      planApplyReason,
       summary: run.summary,
       contradictions: run.contradictions,
       progress: run.progress,

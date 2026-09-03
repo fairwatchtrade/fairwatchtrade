@@ -8,6 +8,7 @@ import {
 } from "@/lib/auction-operations/packetCatalog";
 import { generatePlanForRun } from "@/lib/auction-operations/planEngine";
 import { createRun, getRun, markFailed, updateRun } from "@/lib/auction-operations/runStore";
+import { planBoundApplyEnabled } from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/auctions/results/plan — deterministic plan generation
@@ -148,6 +149,9 @@ export async function POST(request: NextRequest) {
       source_hashes: generated.sourceHashes,
       progress: {},
     });
+    /* v8.25 — the same plan-bound eligibility the run status route derives,
+       so the room that just planned sees server truth without a re-read. */
+    const bound = planBoundApplyEnabled(run.adapter_id, generated.plan);
     return NextResponse.json(
       {
         runId: run.id,
@@ -155,6 +159,8 @@ export async function POST(request: NextRequest) {
         packetId: run.packet_id,
         state: "planned",
         planSha256: generated.planSha256,
+        planApplyEnabled: bound.enabled,
+        planApplyReason: bound.reason,
         summary: generated.summary,
         contradictions: generated.contradictions,
       },

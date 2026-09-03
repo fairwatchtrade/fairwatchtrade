@@ -3,6 +3,8 @@ import { applyMonacoPlanSlice } from "@/scripts/monaco-legend-import.mjs";
 import { applySalePlan } from "@/scripts/phillips-sale-import.mjs";
 import type { AuctionRun } from "@/lib/auction-operations/runStore";
 import { applyDispatchFor, APPLY_WITHHELD_ERROR, APPLY_UNSUPPORTED_ERROR } from "@/lib/auction-operations/packetContract";
+import { applyPortablePlanSlice } from "@/lib/auction-operations/monaco-portable-writer.mjs";
+import { privateKeeperStorage, stagedKeeperBytes } from "@/lib/auction-operations/privateKeeperStorage";
 
 /* ════════════════════════════════════════════════════════════════════════
    AUCTION OPERATIONS — APPLY SLICE — lib/auction-operations/applySlice.ts
@@ -82,11 +84,48 @@ export async function applyOneSlice(
     };
   }
 
+  if (dispatch === "portable") {
+    /* The portable family's own writer, by name (v8.25). It cannot share the
+       Monaco engine: that engine resolves artifacts by (sale, url), and the
+       artifact this family depends on — the private keeper — has no URL.
+
+       Bytes first, then the writer: the exact staged keeper is read back
+       from the staging bucket at the path the run recorded at birth, and
+       the writer rehashes it against the plan and the artifact spec before
+       retaining it privately or writing any row that depends on it. Same
+       cursor/counts contract as the Monaco branch, so a slice that stops at
+       its budget resumes exactly where it left off. */
+    const priorPortable = run.progress as {
+      cursor?: { sale_index: number; row_index: number };
+      counts?: Record<string, number>;
+    };
+    const keeperBytes = await stagedKeeperBytes(db, run);
+    const outcome = await applyPortablePlanSlice(plan, db, {
+      keeperBytes,
+      storage: privateKeeperStorage(db),
+      cursor: priorPortable.cursor,
+      maxRows: SLICE_ROWS,
+      deadlineMs,
+    });
+    const counts: Record<string, number> = { ...(priorPortable.counts ?? {}) };
+    for (const [k, v] of Object.entries(outcome.counts as Record<string, number>)) {
+      counts[k] = (counts[k] ?? 0) + v;
+    }
+    const total = (plan as { sales: { rows: unknown[] }[] }).sales.reduce(
+      (acc, s) => acc + s.rows.length,
+      0
+    );
+    // One lot per row: created or reused is exactly the rows visited.
+    const processed = (counts.lots_created ?? 0) + (counts.lots_reused ?? 0);
+    return {
+      done: outcome.done,
+      progress: { cursor: outcome.cursor, counts, processed, total },
+    };
+  }
+
   // dispatch === "monaco": the shared cursor-resumable engine for exactly the
   // two proven Monaco writing families, monaco-legend and monaco-layer2 —
-  // reached only when applyDispatchFor named them. The portable writer
-  // (monaco-portable-writer.mjs) is NOT wired here: its family is withheld,
-  // and the release that lifts that must add its explicit branch.
+  // reached only when applyDispatchFor named them.
   const prior = run.progress as {
     cursor?: { sale_index: number; row_index: number };
     counts?: Record<string, number>;

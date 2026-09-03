@@ -7,6 +7,7 @@ import {
   type PacketRevisionRow,
 } from "@/lib/auction-operations/packetCatalog";
 import { sha256Hex, type AuctionRun } from "@/lib/auction-operations/runStore";
+import { isApplyWithheld } from "@/lib/auction-operations/packetContract";
 // One engine, two entrances: these are the SAME functions the CLIs run.
 import { generatePhillipsSalePlan, planToBytes } from "@/scripts/phillips-sale-import.mjs";
 import { buildMonacoPlan, verifyMonacoSource } from "@/scripts/monaco-legend-import.mjs";
@@ -184,10 +185,10 @@ export async function generatePlanForRun(
   }
 
   if (packet.adapter === "monaco-portable") {
-    /* The accepted, reconciled portable keeper. PLAN-ONLY: this family has
-       no writer and Apply refuses it by name; what is produced here is a
-       reviewable plan and the proof that nothing in the keeper was weakened
-       on the way to it.
+    /* The accepted, reconciled portable keeper. Planning is zero-write:
+       what is produced here is a reviewable plan and the proof that nothing
+       in the keeper was weakened on the way to it. Whether that plan may
+       later execute is written into its own bytes (applyWithheld below).
 
        Byte authority: the descriptor pins the keeper's sha256; the exact
        staged bytes are downloaded, hashed, compared, and ONLY the verified
@@ -201,6 +202,10 @@ export async function generatePlanForRun(
     const keeperBytes = (await downloadStaged(db, run, specs.portable_json))!;
     const verified = verifyKeeperBytes(keeperBytes, manifest.keeper.sha256);
     const plan = await buildPortablePlan({
+      /* The plan states what the dispatcher will do with it, at generation
+         time. Lifting the gate changes this value, the bytes, and the hash —
+         which is exactly why a released family needs a fresh plan. */
+      applyWithheld: isApplyWithheld(run.adapter_id),
       manifest,
       keeper: verified.keeper,
       keeperSha256: verified.sha256,

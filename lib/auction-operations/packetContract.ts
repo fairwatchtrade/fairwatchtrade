@@ -41,21 +41,29 @@ export const ADAPTER_ALLOWLIST = ["phillips-sale", "monaco-legend", "monaco-laye
    That is how a plan-only family would have become a writing family without
    anyone deciding it should.
 
-   This set is the precondition of runtime registration for such a family,
-   not a sibling of it: monaco-portable appears in RUNTIME_REGISTERABLE_ADAPTERS
-   below ONLY because it appears here first, and applyDispatchFor() consults
-   this set before it consults anything else. UI hiding is not the boundary;
-   the server-side dispatch fails closed.
+   This set is the precondition of runtime registration for a family that
+   has no proven writer yet: such a family may appear in
+   RUNTIME_REGISTERABLE_ADAPTERS below only if it appears here first, and
+   applyDispatchFor() consults this set before it consults anything else.
+   UI hiding is not the boundary; the server-side dispatch fails closed.
 
    A family leaves this set when a writer for it has been built, proven, and
-   separately authorised — never by editing this line alone. */
-export const APPLY_WITHHELD_ADAPTERS = ["monaco-portable"] as const;
+   separately authorised — never by editing this line alone. monaco-portable
+   lived here from v8.18 and left in v8.25: its registration is safe now
+   because its explicit, proven writer is the dispatch target, and because
+   every portable plan states its own executability in its hashed bytes
+   (planBoundApplyEnabled below), so a plan generated while the family was
+   withheld can never execute merely because newer code exists.
+
+   The set is EMPTY as of v8.25. The mechanism stays for the next family
+   that needs to plan before it may write. */
+export const APPLY_WITHHELD_ADAPTERS = [] as const;
 
 export function isApplyWithheld(v: unknown): boolean {
   return typeof v === "string" && (APPLY_WITHHELD_ADAPTERS as readonly string[]).includes(v);
 }
 
-export type ApplyDispatch = "withheld" | "phillips" | "monaco" | "unsupported";
+export type ApplyDispatch = "withheld" | "phillips" | "monaco" | "portable" | "unsupported";
 
 /** THE dispatch decision, pure and testable, and explicit BY FAMILY.
 
@@ -64,21 +72,67 @@ export type ApplyDispatch = "withheld" | "phillips" | "monaco" | "unsupported";
     There is no fall-through: a name that is neither withheld nor a proven
     writer family is `unsupported`, and the slice refuses it before any
     engine. v8.18 closed the fourth-adapter hazard by withholding
-    monaco-portable first; this closes the general one — a future fifth
-    name cannot inherit the Monaco writer by elimination.
+    monaco-portable first; v8.21 closed the general one — a future name
+    cannot inherit a writer by elimination.
 
-    When a later, separately authorised release removes monaco-portable from
-    the withheld set, that release must add its explicit `portable` branch
-    here at the same time. Absent that branch it lands on `unsupported`,
-    which is the correct failure. */
+    v8.25: monaco-portable leaves the withheld set and gains its own branch,
+    dispatched to applyPortablePlanSlice — never to the Monaco writer, which
+    resolves artifacts by URL and cannot see the URL-less private keeper. */
 export function applyDispatchFor(adapterId: unknown): ApplyDispatch {
   if (isApplyWithheld(adapterId)) return "withheld";
   if (adapterId === "phillips-sale") return "phillips";
   if (adapterId === "monaco-legend" || adapterId === "monaco-layer2") return "monaco";
+  if (adapterId === "monaco-portable") return "portable";
   return "unsupported";
 }
 
 export const APPLY_WITHHELD_ERROR = "apply_withheld_plan_only_family";
+
+/* ── THE PLAN-BOUND GATE (v8.25) ────────────────────────────────────────────
+
+   A family-level release must never retroactively authorise a historical
+   plan whose own reviewed hash says it was not executable. When
+   monaco-portable left the withheld set, every portable plan generated
+   before that — bytes the founder reviewed, hash and all — still said
+   `apply.enabled: false`. The family being enabled is not authority to run
+   them; their own bytes are the authority, and their bytes say no.
+
+   This reads the VERIFIED stored plan value, never a summary string and
+   never anything the browser sent. Rules:
+
+     plan carries an `apply` block  → executable only if enabled === true,
+                                      strictly (no coercion, no wording)
+     no `apply` block, portable     → NOT executable: a released portable
+                                      plan must state its own enabled Apply
+     no `apply` block, other family → executable; those plan shapes carry no
+                                      plan-bound statement and family
+                                      dispatch governs them as before
+
+   The apply route consults this after verifyStoredPlan() and before the
+   run may move to `applying`; the run status route reports it so the room
+   renders server truth; the portable writer refuses independently beneath
+   both. */
+export const APPLY_PLAN_BOUND_DISABLED_ERROR = "apply_plan_bound_disabled";
+
+export function planBoundApplyEnabled(
+  adapterId: unknown,
+  plan: unknown
+): { enabled: boolean; reason: string } {
+  const apply =
+    plan !== null && typeof plan === "object" ? (plan as { apply?: unknown }).apply : undefined;
+  if (apply !== null && typeof apply === "object") {
+    const a = apply as { enabled?: unknown; reason?: unknown };
+    if (a.enabled === true) return { enabled: true, reason: "the plan's own bytes state Apply is enabled" };
+    return {
+      enabled: false,
+      reason: typeof a.reason === "string" && a.reason ? a.reason : "the plan's own bytes state Apply is not enabled",
+    };
+  }
+  if (adapterId === "monaco-portable") {
+    return { enabled: false, reason: "a portable plan must state its own enabled Apply; this one carries no apply block" };
+  }
+  return { enabled: true, reason: "this plan shape carries no plan-bound apply statement; family dispatch governs" };
+}
 export const APPLY_UNSUPPORTED_ERROR = "apply_unsupported_adapter";
 
 /** Families whose executable path was INSPECTED and proven able to resolve

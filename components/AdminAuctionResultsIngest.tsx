@@ -75,6 +75,13 @@ type RunStatus = {
      run this session just birthed (those are bound by construction). */
   revisionBound?: boolean;
   reusedExisting?: boolean;
+  /* Server-derived from the stored, re-verified plan (v8.25): whether the
+     plan's OWN bytes say it may execute. null/undefined = no plan yet;
+     false = a historical plan that says Apply was not enabled when it was
+     generated — inspection only, whatever the family says today. The room
+     renders this boolean; it never parses wording to decide. */
+  planApplyEnabled?: boolean | null;
+  planApplyReason?: string | null;
 };
 
 type RecentRun = {
@@ -624,7 +631,25 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
                 </div>
               )}
 
-              {run.state === "planned" && run.contradictions.length === 0 && !applyIsWithheld && !legacyRun && (
+              {run.state === "planned" && !applyIsWithheld && run.planApplyEnabled === false && (
+                /* A plan whose own reviewed bytes say Apply is not enabled —
+                   generated while its family was plan-only, or no longer
+                   verifying. The server refuses it by the same rule; the room
+                   draws no control and says why, quoting the plan's own
+                   statement rather than deciding anything from it. */
+                <div className="mt-4 border border-[var(--border-gold)] p-3">
+                  <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                    Historical plan — inspection only
+                  </div>
+                  <p className="mt-1 text-[12px] text-[var(--platinum-dim)]">
+                    This plan&apos;s own reviewed bytes say Apply was not enabled when it was generated. It stays
+                    as history and nothing can execute it. Generate a fresh plan and review its new hash.
+                    {run.planApplyReason ? ` Its own words: ${run.planApplyReason}` : ""}
+                  </p>
+                </div>
+              )}
+
+              {run.state === "planned" && run.contradictions.length === 0 && !applyIsWithheld && !legacyRun && run.planApplyEnabled === true && (
                 <button
                   type="button"
                   className="fw-btn-primary mt-4 disabled:opacity-40"

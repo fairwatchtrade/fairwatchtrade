@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { applyOneSlice } from "@/lib/auction-operations/applySlice";
 import { getRun, updateRun, verifyStoredPlan, isOneLiveRunConflict, type AuctionRun } from "@/lib/auction-operations/runStore";
-import { isApplyWithheld, APPLY_WITHHELD_ERROR } from "@/lib/auction-operations/packetContract";
+import {
+  isApplyWithheld,
+  APPLY_WITHHELD_ERROR,
+  planBoundApplyEnabled,
+  APPLY_PLAN_BOUND_DISABLED_ERROR,
+} from "@/lib/auction-operations/packetContract";
 
 /* ════════════════════════════════════════════════════════════════════════
    POST /api/admin/auctions/results/apply — explicit, bounded, resumable
@@ -166,6 +171,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "plan_hash_mismatch", detail }, { status: 409 });
   }
 
+  /* THE PLAN-BOUND GATE (v8.25). The verified bytes the founder reviewed
+     state whether this plan may execute. A plan generated while its family
+     was plan-only says no in its own hash, and the family being released
+     later is not authority to run it. Refused HERE, before the run's state
+     moves, so a historical plan stays truthfully `planned` as history —
+     never `failed`, never mutated, never retired to hide the question. */
+  const bound = planBoundApplyEnabled(run.adapter_id, plan);
+  if (!bound.enabled) {
+    return NextResponse.json(
+      {
+        error: APPLY_PLAN_BOUND_DISABLED_ERROR,
+        detail: `This plan's own reviewed bytes say Apply is not enabled (${bound.reason}). It stays planned as history. Generate a fresh plan under the released code and review that new hash.`,
+      },
+      { status: 409 }
+    );
+  }
+
   if (run.state === "planned") {
     /* planned -> applying enters the one-live-run index (migration
        20260902220000). A planned run is deliberately allowed to coexist with
@@ -219,12 +241,21 @@ export async function POST(request: NextRequest) {
     const detail = e instanceof Error ? e.message : String(e);
     console.error("[auction-ops] apply refused:", detail);
     /* A contradiction mid-apply stops the run loudly. Completed slices are
-       durable and idempotent; nothing is rolled back, nothing is faked. */
+       durable and idempotent; nothing is rolled back, nothing is faked.
+
+       The writers throw `code: detail`. The code is kept as the run's
+       last_error_code when it is a bounded snake_case word — a
+       keeper_object_conflict is not the same finding as a lot_contradiction,
+       and flattening both to one word is what hid the Sale 38 basis drift
+       behind "existing result differs" for a day. Anything else stays
+       apply_contradiction. */
+    const named = /^([a-z][a-z0-9_]{2,63}):/.exec(detail);
+    const code = named ? named[1] : "apply_contradiction";
     await updateRun(service, run.id, {
       state: "failed",
-      last_error_code: "apply_contradiction",
+      last_error_code: code,
       last_error_detail: detail.slice(0, 4000),
     });
-    return NextResponse.json({ error: "apply_contradiction", detail }, { status: 422 });
+    return NextResponse.json({ error: code, detail }, { status: 422 });
   }
 }
