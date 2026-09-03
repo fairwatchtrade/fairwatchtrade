@@ -96,20 +96,29 @@ function house() { return { name: "Monaco Legend Auctions", slug: "monaco-legend
 function artifacts(harvested) {
   const { manifest, landing_digest } = harvested, common = { permission_status: "unresolved", publication_status: "internal_only", artifact_retention_scope: "metadata_only", full_artifact_storage_path: null };
   const items = [
-    ["landing_html", manifest.sale.landing_url, landing_digest, "automated", "allowed", "Monaco landing/lot-page semantic digest only.", "Landing Result (Premium) is the normalized result as displayed.", "Raw Monaco HTML, text, and images are not retained or published."],
+    ["landing_html", manifest.sale.landing_url, landing_digest, "automated", "allowed", "Monaco landing/lot-page semantic digest only.", "The Monaco website displays sold figures as 'Result (Premium)' and does not state their composition (VAT basis unresolved). They are stored exactly as displayed, in the sale's currency, under price_basis reported_result_basis_unverified — no arithmetic, no VAT/TTC/ex-VAT inference, no basis inherited from another source.", "Raw Monaco HTML, text, and images are not retained or published."],
     ["catalog_pdf", manifest.artifacts.catalog_pdf.url, manifest.artifacts.catalog_pdf.sha256, "public_file", "not_applicable", "Official Monaco catalog PDF metadata only.", null, "Raw catalog PDF is not retained or published; contradictory source facts remain non-public evidence."],
     ["results_pdf", manifest.artifacts.results_pdf.url, manifest.artifacts.results_pdf.sha256, "public_file", "not_applicable", "Official Monaco results PDF metadata only.", "Conflicting PDF figures are source evidence, never substituted normalized results.", `Raw results PDF is not retained or published. Contradictions: ${json({ only: manifest.expected.pdf_only_outcomes ?? {}, differs: manifest.expected.pdf_contradictions ?? {}, canary_pdf_price: manifest.expected.canary?.pdf_price ?? null })}`],
   ];
   if (manifest.artifacts.founder_capture) items.push(["founder_capture", manifest.artifacts.founder_capture.url, manifest.artifacts.founder_capture.sha256, "founder_supplied_file", "not_applicable", "Founder capture reconciled to official Sale 40 landing representation.", null, "Founder-capture bytes are not retained or published."]);
   return items.map(([key, source_url, content_hash, intake_method, automation_status, attribution_note, price_basis_statement, omission_statement]) => ({ ...common, key, source_url, content_hash, intake_method, automation_status, attribution_note, price_basis_statement, omission_statement }));
 }
-function wantedResult(row, sale) { return { sale_outcome: row.outcome, price_realized: row.outcome === "sold" ? row.price_realized : null, currency: row.outcome === "sold" ? sale.currency : null, price_basis: row.outcome === "sold" ? "other" : null, result_date: sale.date, source_key: row.source_key }; }
+/* v6.51 result-basis law (387407e): the Monaco website displays "Result
+   (Premium)" and does not state what that figure is composed of, so the
+   value is trusted and stored EXACTLY as displayed under
+   reported_result_basis_unverified. Generic "other" was retired — it
+   collapsed "known but different" and "trustworthy but unresolved" into one
+   bucket — and must never be emitted by this adapter again. No arithmetic,
+   no VAT inference, no TTC/ex-VAT inference, no inheritance of another
+   source's semantics. Non-sold rows carry no price triplet at all. */
+export const MONACO_WEBSITE_RESULT_BASIS = "reported_result_basis_unverified";
+export function wantedResult(row, sale) { return { sale_outcome: row.outcome, price_realized: row.outcome === "sold" ? row.price_realized : null, currency: row.outcome === "sold" ? sale.currency : null, price_basis: row.outcome === "sold" ? MONACO_WEBSITE_RESULT_BASIS : null, result_date: sale.date, source_key: row.source_key }; }
 function sameLot(a, b) { return a.brand_text === b.brand_text && a.model_text === b.model_text && a.reference_text === b.reference_text && a.description === b.description; }
 /* Null-safe price comparison: passed/withdrawn/unsold rows legitimately hold
    NULL price facts, and Number(null) is 0 — the old comparison read every
    existing non-sold row as a contradiction on replay/re-plan, which broke
    idempotent convergence for exactly the rows that never change. */
-function sameResult(a, b) { const samePrice = a.price_realized === null || a.price_realized === undefined ? b.price_realized === null : Number(a.price_realized) === b.price_realized; return a.sale_outcome === b.sale_outcome && samePrice && a.currency === b.currency && a.price_basis === b.price_basis; }
+export function sameResult(a, b) { const samePrice = a.price_realized === null || a.price_realized === undefined ? b.price_realized === null : Number(a.price_realized) === b.price_realized; return a.sale_outcome === b.sale_outcome && samePrice && a.currency === b.currency && a.price_basis === b.price_basis; }
 async function query(request, label) { const { data, error } = await request; if (error) stop(`${label}: ${error.message}`); return data; }
 async function makePlan(harvested, client) {
   const existingHouse = await query(client.from("auction_evidence_house").select("id,name,slug,website_url").eq("slug", house().slug), "house query");

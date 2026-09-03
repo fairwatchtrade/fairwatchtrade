@@ -257,6 +257,27 @@ withheld.** The three blockers above are now answered in code:
 then register → approve → activate ET37 → stage the keeper → Generate Plan →
 founder SEE-it. Apply stays withheld until a separate explicit release.
 
+### Registered-fetch Monaco (38 / 40 / 41) result basis — v6.51, restated
+
+The Monaco website displays sold figures as **"Result (Premium)"** and does
+not state what that figure is composed of. The v6.51 law (`387407e`): the
+value is trusted and stored **exactly as displayed**, in the sale's currency
+(EUR for 38/40, CHF for 41), under
+`price_basis = reported_result_basis_unverified` — no arithmetic, no VAT or
+TTC/ex-VAT inference, no basis inherited from another source. Generic `other`
+was retired then; it collapsed "known but different" and "trustworthy but
+unresolved" into one bucket. Non-sold rows carry no price triplet.
+
+**The drift this section exists to prevent recurring (v8.23):** the
+registered-fetch adapter's `wantedResult()` in `scripts/monaco-legend-import.mjs`
+still emitted `other` after v6.51 had backfilled production to
+`reported_result_basis_unverified`. The first real START PLANNING against
+`sales-38-40-41` (run `a5c39656`) therefore stopped truthfully on "Sale 38
+Lot 1: existing result differs" — the production row was correct, the adapter
+was stale. The mapping is now `MONACO_WEBSITE_RESULT_BASIS`, `wantedResult` and
+`sameResult` are exported and pinned, and a current row carrying the governed
+basis compares as **reuse**. That failed run stays failed; it is history.
+
 ### The ET36 price quarantine (do not "fix" this)
 
 ET36 has no official result sheet. Its prices are current-website
