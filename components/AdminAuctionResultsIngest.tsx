@@ -562,11 +562,21 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
               {summaryEntries.length > 0 && (
                 <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
                   {summaryEntries.map(([k, v]) => (
+                    /* Governed values are shown whole — a 64-hex keeper SHA is
+                       evidence, never abbreviated. A grid/flex child cannot
+                       shrink below its content unless it is told it may
+                       (min-w-0), and a hash has no natural break, so the value
+                       wraps at any point only when it must (overflow-wrap:
+                       anywhere — unlike break-all, prose values such as the
+                       apply state still break at words). The label never
+                       shrinks; the value takes the rest. */
                     <div key={k} className="flex items-baseline justify-between gap-2 border-b border-[var(--border-faint)] py-1">
-                      <dt className="text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
+                      <dt className="shrink-0 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
                         {k.replaceAll("_", " ")}
                       </dt>
-                      <dd className="text-[12px] tabular-nums text-[var(--platinum-dim)]">{String(v)}</dd>
+                      <dd className="min-w-0 flex-1 text-right text-[12px] tabular-nums text-[var(--platinum-dim)] [overflow-wrap:anywhere]">
+                        {String(v)}
+                      </dd>
                     </div>
                   ))}
                 </dl>
