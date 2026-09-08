@@ -20,7 +20,8 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
    The wider peek makes the live page behind unmistakably visible — the drawer
    reads AS a drawer before the user interacts. Tapping the peek — or the close
    hint, the watch-hand pull, or a nav item — closes it. Below the desktop
-   masthead breakpoint only (lg:hidden — v3.23 raised it from md, v3.25
+   masthead breakpoint only (shell:hidden since v8.26, the token in
+   globals.css shared with NavBar — v3.23 raised it from md, v3.25
    corrected it to lg); desktop never renders this. Must always match
    <NavBar> and <HeaderSearchSlot> exactly.
 
@@ -112,6 +113,14 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
     <>
       <circle cx="7" cy="4" r="2.5" />
       <path d="M2 13c0-3 2.5-5 5-5s5 2 5 5" />
+    </>
+  ),
+  /* Admin — a shield in the shared 14-unit box. Authority, not a room full
+     of watches; the only drawer mark that is not a collector destination. */
+  Admin: (
+    <>
+      <path d="M7 1.5l4.5 1.8v3.4c0 2.8-1.9 4.9-4.5 5.8C4.5 11.6 2.5 9.5 2.5 6.7V3.3z" />
+      <path d="M5 7l1.4 1.4L9.2 5.6" />
     </>
   ),
 };
@@ -327,11 +336,19 @@ export default function MobileNav({
   open,
   onClose,
   authed = false,
+  displayName = null,
+  isAdmin = false,
   triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
   authed?: boolean;
+  /* v8.26 — the same session truth the masthead and footer already hold:
+     profile display_name (email fallback) resolved server-side in the root
+     layout, and the admin predicate resolved there too. Nothing is fetched
+     or inferred here. */
+  displayName?: string | null;
+  isAdmin?: boolean;
   triggerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const pathname = usePathname();
@@ -410,13 +427,13 @@ export default function MobileNav({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex lg:hidden transition-opacity duration-300 ${
+      className={`fixed inset-0 z-50 flex shell:hidden transition-opacity duration-300 ${
         open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
       {/* Drawer — 82%, slides from left */}
       <div
-        className={`relative flex h-full w-[76%] flex-col bg-[color:light-dark(#FFFDF8,#09090E)] transition-transform duration-300 ${
+        className={`relative flex h-full w-[76%] max-w-[24rem] flex-col bg-[color:light-dark(#FFFDF8,#09090E)] transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -440,15 +457,31 @@ export default function MobileNav({
           </button>
         </div>
 
-        {/* Greeting — authed only. "Welcome back" + "Your catalogue is
-            waiting" is personalized framing that must not greet a signed-out
-            visitor as a returning member (audit D5). Signed-out users get the
-            header, then straight to the nav sections. */}
+        {/* Identity — authed only. Signed-out visitors get the header, then
+            straight to the nav sections; nothing here may greet a guest as a
+            returning member (audit D5).
+
+            v8.26 — the block used to say only "Welcome back." A signed-in
+            person, above all on /admin, could not tell from the drawer WHO
+            was signed in or with what authority. It now leads with the
+            resolved display name (the same value the masthead cluster and
+            the footer print — profile display_name, email fallback) and, for
+            the admin session only, the resolved "Admin" mark. An ordinary
+            account carries no mark; the absence is the distinction. Nothing
+            is inferred from the name and no role is stored anywhere. When
+            no name resolved at all, the old greeting stands in so the block
+            never renders empty. "Your catalogue is waiting." keeps its place
+            as the closing line. */}
         {authed && (
           <div className="border-b border-[var(--border-faint)] px-5 py-5">
             <div className="font-display text-[16px] font-light text-[var(--platinum)]">
-              Welcome back.
+              {displayName ?? "Welcome back."}
             </div>
+            {isAdmin && (
+              <div className="mt-1 text-[10px] uppercase tracking-[2.5px] text-[var(--gold)]">
+                Admin
+              </div>
+            )}
             <div className="mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
               Your catalogue is waiting.
             </div>
@@ -548,6 +581,20 @@ export default function MobileNav({
               onNavigate={onClose}
             />
           ))}
+
+          {/* v8.26 — Admin, the admin session only. The desktop account menu
+              has carried this door since v2.5; the drawer never did, so below
+              the shell breakpoint the founder had no way into /admin from the
+              navigation at all. Same quiet tone as the utilities around it;
+              lit for every /admin room, which is one destination, not many. */}
+          {authed && isAdmin && (
+            <DrawerLink
+              item={{ label: "Admin", href: "/admin" }}
+              active={pathname === "/admin" || pathname.startsWith("/admin/")}
+              tone="quiet"
+              onNavigate={onClose}
+            />
+          )}
 
           {/* v2.5 — Sign Out, logged-in users only. The brief's referenced
               --ghost styling doesn't actually apply to interactive nav items

@@ -22,12 +22,16 @@ import { headerSearchVisible } from "@/lib/nav/headerSearch";
    creation, auth, legal, admin, home show nothing.
 
    The desktop and mobile fields remain EXACT breakpoint complements
-   (hidden lg:flex vs lg:hidden), so exactly one is laid out — and therefore
-   in the accessibility tree — at any viewport. Relocating the mount does not
-   change that proof; it only changes where the pair lives in the stack.
+   (hidden shell:flex vs shell:hidden), so exactly one is laid out — and
+   therefore in the accessibility tree — at any viewport. Relocating the
+   mount does not change that proof; it only changes where the pair lives
+   in the stack.
 
    v3.23 moved the pair md → xl to stay locked to <NavBar>; v3.25 corrected
-   both to lg. The header is one composition: below the breakpoint the
+   both to lg; v8.26 moved both onto the shared `shell` token (56rem, declared
+   in globals.css) that <NavBar> and <MobileNav> now key off, so the lock is
+   a single declaration rather than three files agreeing by hand. The header
+   is one composition: below the breakpoint the
    masthead is wordmark + hamburger, so the search must be the mobile row.
    Left behind it would desync — a desktop right-aligned field sitting under
    a hamburger masthead. This pair must always match <NavBar>.
@@ -50,12 +54,12 @@ export default function HeaderSearchSlot() {
           was. */}
       <div className="w-full px-4 sm:px-6">
         {/* Desktop — compact field, right-aligned. hidden below lg. */}
-        <div className="hidden justify-end py-2 lg:flex">
+        <div className="hidden justify-end py-2 shell:flex">
           <HeaderSearch variant="inline" />
         </div>
         {/* Mobile — full-width row. Hidden at lg and up. Exact complement of
             the desktop field above, so never both at one width. */}
-        <div className="py-2 lg:hidden">
+        <div className="py-2 shell:hidden">
           <HeaderSearch variant="row" />
         </div>
       </div>

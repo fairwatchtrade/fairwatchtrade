@@ -11,8 +11,23 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
 
-   Desktop (lg:flex, ≥1024px): wordmark left, then the primary words right.
-   Both auth states: Browse · Catalogue · Vault · Sell.
+   Desktop (shell:flex, ≥56rem / 896px): wordmark left, then the primary
+   words right. Both auth states: Browse · Catalogue · Vault · Sell.
+
+   v8.26 — the breakpoint is the `shell` token declared in globals.css,
+   shared with MobileNav and HeaderSearchSlot so the header stack flips as
+   one. lg (1024) left ~130px of dead margin against the measured signed-in
+   budget below, and the real defect it produced: a desktop window at 150%
+   browser zoom on a 125% display presents ~980 CSS px, so the founder saw
+   the phone drawer covering /admin on a 32-inch screen. The masthead was
+   sized from the CSS pixels the row actually needs, measured live, not
+   from the image that reported it.
+
+   Signed in, the identity cluster now also carries the resolved authority
+   mark ("Admin") when the session is the admin session — the same
+   predicate the root layout already resolves and the footer already
+   prints. No role is inferred from a name and none is stored; the mark is
+   the product's own gate, made visible where the person is.
 
    The row is collector-first. Discovery leads; Sell is the single seller
    destination that earns a place in global navigation and it sits last.
@@ -21,8 +36,10 @@ import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
    Sign In / Register control is, so a word would only be a second door.
    About is a footer destination, not a masthead one.
 
-   Below 1024 (lg:hidden): wordmark + hamburger; tapping opens <MobileNav />,
-   the left-edge "watch roll" drawer (separate component).
+   Below the shell breakpoint (shell:hidden): wordmark + hamburger; tapping
+   opens <MobileNav />, the left-edge "watch roll" drawer (separate
+   component), which now receives the same displayName / isAdmin truth this
+   masthead has always had, so the drawer says who is signed in.
 
    v3.23 raised this from md (768px), which was never wide enough for the
    signed-in row — it only ever passed because the guest header is ~190px
@@ -178,7 +195,7 @@ export default function NavBar({
             a flex item defaults to min-width:auto and will refuse to go below
             its content, which is what forced the fixed cap on the name
             below. */}
-        <div className="hidden min-w-0 items-center gap-6 lg:flex">
+        <div className="hidden min-w-0 items-center gap-6 shell:flex">
           {/* Four words, identical in both auth states.
 
               The label size is 13.7px: the 12px this row carried for its
@@ -269,6 +286,17 @@ export default function NavBar({
                 >
                   {displayName ?? "Account"}
                 </span>
+                {/* v8.26 — resolved authority, visible where the person is.
+                    Rendered only when the session IS the admin session (the
+                    same predicate that gates /admin and that the footer
+                    prints); an ordinary account shows nothing here, and that
+                    absence is the distinction. shrink-0: like the icon and
+                    chevron, the mark never gives way — the name does. */}
+                {isAdmin && (
+                  <span className="shrink-0 text-[10px] tracking-[2px] text-[var(--gold)]">
+                    Admin
+                  </span>
+                )}
                 <Chevron open={accountOpen} />
               </button>
 
@@ -343,7 +371,7 @@ export default function NavBar({
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="text-[var(--slate)] lg:hidden"
+          className="text-[var(--slate)] shell:hidden"
         >
           <svg
             width="22"
@@ -367,6 +395,8 @@ export default function NavBar({
         open={open}
         onClose={() => setOpen(false)}
         authed={authed}
+        displayName={displayName}
+        isAdmin={isAdmin}
         triggerRef={hamburgerRef}
       />
     </nav>

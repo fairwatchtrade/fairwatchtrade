@@ -3,6 +3,28 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
+   SHELL BREAKPOINT (v8.26)
+
+   `shell:` is the ONE width at which the global header stack flips
+   between its desktop composition and its wordmark + hamburger
+   composition. NavBar (masthead), MobileNav (drawer overlay) and
+   HeaderSearchSlot (compact search pair) all key off this token and
+   nothing else, so the stack can never desync.
+
+   56rem = 896 CSS px. Sized from the measured signed-in masthead
+   budget, not a screenshot: wordmark 161 + gutters 48 + four words
+   263 + bell 18 + identity marks ~90 + gaps 120 ≈ 700, which leaves
+   the display name ≥ ~190px of its own before flexbox has to
+   truncate it. The former `lg` (1024) was ~130px of dead margin, and
+   a browser at 150% zoom on a 125%-scaled display presents a wide
+   window as under 1000 CSS px — which is exactly where the desktop
+   shell was collapsing to a phone drawer on a desktop.
+   ═══════════════════════════════════════════════════════════════ */
+@theme {
+  --breakpoint-shell: 56rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    FAIRWATCHTRADE DESIGN SYSTEM v1.0
    Extracted from Studio prototypes. Every page inherits from here.
    ═══════════════════════════════════════════════════════════════ */
