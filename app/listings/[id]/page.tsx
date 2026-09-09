@@ -395,7 +395,23 @@ export default async function ListingDetailPage({
       : myPendingCuration
         ? "pending"
         : "none") as "none" | "pending" | "completed",
-    summary: (completedCuration?.summary as CurationSummary | null) ?? null,
+    /* GRS-010 (v8.29): the stored `comments` sentence is presentation frozen
+       at request time and the card no longer renders it — the shared mapper
+       derives the summary from the verdicts. It is stripped HERE so the
+       retired sentence does not ride into the page's serialized props
+       either: a contradiction nobody can see on the page is still a
+       contradiction anyone can read in the source. Verdicts and the
+       timestamp are the record; they pass through untouched. */
+    summary: ((): CurationSummary | null => {
+      const stored = completedCuration?.summary as CurationSummary | null | undefined;
+      if (!stored) return null;
+      return {
+        version: stored.version,
+        categories: stored.categories,
+        updated: stored.updated,
+        comments: "",
+      };
+    })(),
   };
 
   // Photos: keep only entries that actually carry a URL, so category-based
