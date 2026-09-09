@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "FairWatchTrade",
     short_name: "FairWatchTrade",
-    description: "Curated and verified watch marketplace.",
+    description: "Collector watch marketplace. Listings are reviewed before publication.",
     start_url: "/",
     display: "browser",
     background_color: "#0D0F14",

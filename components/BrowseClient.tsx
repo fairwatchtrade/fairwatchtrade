@@ -1529,13 +1529,19 @@ export default function BrowseClient({
             </h1>
             {/* This line carries catalogue status and a trust claim, not
                 decoration — how many watches are actually below, and that
-                they were curated and verified. At 10px in --muted it was
+                each was reviewed before publication. "curated and verified"
+                was retired here (Robots Readiness GRS-004, 2026-09-09): it
+                promised more than a listing review establishes. Review
+                considers the submitted information and photographs; it is
+                not a physical inspection or an authenticity certification,
+                and the per-listing Curation Review panel now says exactly
+                that. At 10px in --muted it was
                 the smallest text on the page saying one of the most
                 important things on it. 12px in --slate (7.4:1) reads
                 immediately; the weight and casing stay ordinary so it
                 remains a sentence beneath the heading, never a second one. */}
             <p className="mt-1 text-[12px] tracking-[0.4px] text-[var(--slate)]">
-              {filtered.length} {filtered.length === 1 ? "watch" : "watches"} · curated and verified
+              {filtered.length} {filtered.length === 1 ? "watch" : "watches"} · reviewed before publication
             </p>
           </div>
         </div>

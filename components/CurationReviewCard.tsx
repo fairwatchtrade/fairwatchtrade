@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CurationSummary } from "@/lib/curationReview";
+import {
+  curationDisplay,
+  REVIEW_SCOPE_EXPLANATION,
+  type CurationSummary,
+} from "@/lib/curationReview";
 
 /* ════════════════════════════════════════════════════════════════════════
    CURATION REVIEW CARD — "Double-check this listing"
@@ -83,30 +87,42 @@ export default function CurationReviewCard({
   }
 
   if (state === "completed" && summary) {
+    /* Robots Readiness GRS-010 (2026-09-09). The summary sentence is DERIVED
+       from the stored verdicts at read time through the shared mapper — the
+       stored `comments` string is no longer printed. A sentence frozen at
+       request time could open "Nothing inconsistent was found" above a row
+       that said a category could not be resolved; the verdicts were right
+       and the sentence contradicted them. The lead now sits ABOVE the
+       findings so "See the findings below" is literally true, and an
+       unreadable record draws no conclusion at all. */
+    const display = curationDisplay(summary);
     return (
       <section className={CARD} aria-label="Curation Review">
         <div className={KICKER}>Curation Review</div>
-        <dl className="mt-3 space-y-1.5">
-          {summary.categories.map((c) => (
-            <div key={c.label} className="flex items-baseline justify-between gap-3">
-              <dt className="text-[12px] text-[var(--muted)]">{c.label}</dt>
-              <dd
-                className={`text-right text-[12px] ${
-                  c.verdict === "Consistent"
-                    ? "text-[var(--platinum-dim)]"
-                    : "text-[var(--gold)]"
-                }`}
-              >
-                {c.verdict}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        {summary.comments && (
-          <p className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[12px] leading-relaxed text-[var(--muted)]">
-            {summary.comments}
-          </p>
+        <p className="mt-3 text-[12px] leading-relaxed text-[var(--slate)]">{display.lead}</p>
+        {display.findings.length > 0 && (
+          <dl className="mt-3 space-y-1.5 border-t border-[var(--border-faint)] pt-3">
+            {display.findings.map((c) => (
+              <div key={c.label} className="flex items-baseline justify-between gap-3">
+                <dt className="text-[12px] text-[var(--muted)]">{c.label}</dt>
+                <dd
+                  className={`text-right text-[12px] ${
+                    c.verdict === "Consistent"
+                      ? "text-[var(--platinum-dim)]"
+                      : "text-[var(--gold)]"
+                  }`}
+                >
+                  {c.verdict}
+                </dd>
+              </div>
+            ))}
+          </dl>
         )}
+        {/* Locked scope explanation (GRS-004). Its last sentence is true
+            only because the limits and unresolved findings render above. */}
+        <p className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[12px] leading-relaxed text-[var(--muted)]">
+          {REVIEW_SCOPE_EXPLANATION}
+        </p>
         <p className="mt-2 text-[10px] uppercase tracking-[1.2px] text-[var(--ghost)]">
           Updated{" "}
           {new Date(summary.updated).toLocaleDateString("en-US", {

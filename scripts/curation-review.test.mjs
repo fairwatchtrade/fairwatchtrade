@@ -16,7 +16,13 @@ import { readFileSync } from "node:fs";
 import {
   composeCurationSummary,
   curationCompleteMessage,
+  curationDisplay,
   CURATION_VERDICTS,
+  MIXED_SUMMARY_SENTENCE,
+  CLEAN_SUMMARY_SENTENCE,
+  ALL_UNRESOLVED_SENTENCE,
+  UNREADABLE_REVIEW_SENTENCE,
+  REVIEW_SCOPE_EXPLANATION,
 } from "../lib/curationReview.ts";
 
 let n = 0;
@@ -67,8 +73,11 @@ const verdictOf = (s, label) => s.categories.find((c) => c.label === label).verd
   const s = compose([]);
   assert.ok(s.categories.every((c) => c.verdict === "Could not be independently resolved"));
   assert.match(s.comments, /could not independently resolve/i);
-  assert.match(s.comments, /Nothing adverse was found/);
-  ok("no completed attempts never reads Consistent");
+  /* GRS-010: silence draws no favourable clause. The former trailing
+     "Nothing adverse was found." was a conclusion from absence. */
+  assert.doesNotMatch(s.comments, /Nothing adverse/);
+  assert.doesNotMatch(s.comments, /Nothing inconsistent/);
+  ok("no completed attempts never reads Consistent and draws nothing favourable");
 }
 
 /* ── 4 · only CURRENT active attempts count ────────────────────────────── */
@@ -176,6 +185,129 @@ const verdictOf = (s, label) => s.categories.find((c) => c.label === label).verd
   assert.match(route, /runIntegrityProviderPass/);
   assert.match(admin, /runIntegrityProviderPass/);
   ok("both doors call the one shared review seam");
+}
+
+/* ═══ 10 · PUBLIC DISPLAY MAPPING — Robots Readiness GRS-004 / GRS-010 ═══
+   The panel derives its summary from the stored VERDICTS at read time
+   through curationDisplay(); the stored sentence is never printed. These
+   six cases are the order's required matrix, on in-memory fixtures. */
+const V_OK = "Consistent";
+const V_FLAG = "Needs clarification";
+const V_UNRES = "Could not be independently resolved";
+const stored = (verdicts, comments = "STALE STORED SENTENCE — must never render") => ({
+  version: 1,
+  categories: [
+    { label: "Listing details", verdict: verdicts[0] },
+    { label: "Photographs", verdict: verdicts[1] },
+    { label: "Reference / identity", verdict: verdicts[2] },
+  ],
+  comments,
+  updated: UPDATED,
+});
+const allClear = /Nothing inconsistent was found/;
+
+/* Case 1 — completed clean: scoped clean allowed, no unresolved label. */
+{
+  const d = curationDisplay(stored([V_OK, V_OK, V_OK]));
+  assert.equal(d.kind, "clean");
+  assert.equal(d.allCompletedClean, true);
+  assert.equal(d.lead, CLEAN_SUMMARY_SENTENCE);
+  assert.match(d.lead, /details, its photographs and the reference/);
+  assert.ok(!d.findings.some((f) => f.verdict === V_UNRES));
+  assert.doesNotMatch(d.lead, /unresolved/i);
+  ok("case 1 · all completed clean reads the scoped clean sentence and nothing else");
+}
+/* Case 2 — recorded concern: concern visible, no clean summary. */
+{
+  const d = curationDisplay(stored([V_OK, V_FLAG, V_OK]));
+  assert.equal(d.kind, "concern");
+  assert.equal(d.allCompletedClean, false);
+  assert.match(d.lead, /worth a closer look under photographs/);
+  assert.doesNotMatch(d.lead, allClear);
+  assert.ok(d.findings.some((f) => f.verdict === V_FLAG));
+  ok("case 2 · a recorded concern stays visible and no clean summary is drawn");
+}
+/* Case 3 — unresolved/unavailable everywhere: visible, no clean conclusion. */
+{
+  const d = curationDisplay(stored([V_UNRES, V_UNRES, V_UNRES]));
+  assert.equal(d.kind, "unresolved");
+  assert.equal(d.lead, ALL_UNRESOLVED_SENTENCE);
+  assert.doesNotMatch(d.lead, allClear);
+  assert.doesNotMatch(d.lead, /Nothing adverse/);
+  assert.ok(d.findings.every((f) => f.verdict === V_UNRES));
+  ok("case 3 · all unresolved says so and draws no favourable conclusion");
+}
+/* Case 4 — mixed (the M55915 shape): completed stays truthful, unresolved
+   stays visible, the locked mixed sentence leads, no unconditional all-clear.
+   The stored sentence is the exact contradiction that shipped; it must not
+   render. */
+{
+  const s = stored(
+    [V_UNRES, V_OK, V_OK],
+    "Nothing inconsistent was found. FairWatchTrade could not independently resolve listing details from the material available."
+  );
+  const d = curationDisplay(s);
+  assert.equal(d.kind, "mixed");
+  assert.equal(d.lead, MIXED_SUMMARY_SENTENCE);
+  assert.equal(d.lead, "Some checks completed, but parts of this review remain unresolved. See the findings below.");
+  assert.doesNotMatch(d.lead, allClear);
+  assert.equal(d.findings.find((f) => f.label === "Listing details").verdict, V_UNRES);
+  assert.equal(d.findings.find((f) => f.label === "Photographs").verdict, V_OK);
+  assert.equal(d.allCompletedClean, false);
+  ok("case 4 · mixed leads with the locked sentence; the stored all-clear never renders");
+}
+/* Case 4b — concern AND unresolved: the concern leads and the unresolved
+   part is still said, not absorbed. */
+{
+  const d = curationDisplay(stored([V_UNRES, V_FLAG, V_OK]));
+  assert.equal(d.kind, "concern");
+  assert.match(d.lead, /worth a closer look under photographs/);
+  assert.match(d.lead, /also remain unresolved/);
+  assert.doesNotMatch(d.lead, allClear);
+  ok("case 4b · a concern beside an unresolved item names both");
+}
+/* Case 5 — not applicable: the V1 producer has no such state. A verdict
+   outside the closed vocabulary must not be read as pass or fail. */
+{
+  const d = curationDisplay(stored([V_OK, "Not applicable", V_OK]));
+  assert.equal(d.kind, "unreadable");
+  assert.equal(d.allCompletedClean, false);
+  assert.doesNotMatch(d.lead, allClear);
+  assert.equal(d.findings.length, 0);
+  ok("case 5 · a verdict outside the closed vocabulary is neither a pass nor a failure");
+}
+/* Case 6 — absent / legacy / unreadable review data: no favourable result. */
+{
+  for (const bad of [null, undefined, { version: 1, comments: "x", updated: UPDATED }, { version: 1, categories: [], comments: "x", updated: UPDATED }]) {
+    const d = curationDisplay(bad);
+    assert.equal(d.kind, "unreadable");
+    assert.equal(d.lead, UNREADABLE_REVIEW_SENTENCE);
+    assert.equal(d.allCompletedClean, false);
+    assert.doesNotMatch(d.lead, allClear);
+  }
+  ok("case 6 · absent or unreadable review data generates no favourable result");
+}
+/* The composer and the mapper agree: a freshly composed record displays
+   the same lead its own comments carry. */
+{
+  const fresh = compose([row("image_authenticity", "passed"), row("identity_consistency", "passed")]);
+  assert.equal(curationDisplay(fresh).lead, fresh.comments);
+  assert.equal(fresh.comments, MIXED_SUMMARY_SENTENCE);
+  const clean = compose([row("aubrey_exact_hash", "passed"), row("image_authenticity", "passed"), row("identity_consistency", "passed")]);
+  assert.equal(curationDisplay(clean).lead, clean.comments);
+  ok("composer and display mapper produce one sentence, not two");
+}
+/* The locked explanation carries no guarantee language and the card renders
+   the mapper, never the stored sentence. */
+{
+  const forbidden = /fraud|suspicio|caught|guarantee|confidence|score/i;
+  assert.doesNotMatch(REVIEW_SCOPE_EXPLANATION, forbidden);
+  assert.match(REVIEW_SCOPE_EXPLANATION, /not a physical inspection or authenticity certification/);
+  const card = read("components/CurationReviewCard.tsx");
+  assert.match(card, /curationDisplay\(summary\)/);
+  assert.ok(!/\{summary\.comments\}/.test(card), "card must not print the stored sentence");
+  assert.match(card, /REVIEW_SCOPE_EXPLANATION/);
+  ok("the card renders the derived lead and the locked explanation, never summary.comments");
 }
 
 console.log(`\ncuration-review: ${n} pins hold.`);
