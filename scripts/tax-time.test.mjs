@@ -254,4 +254,67 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
   ok("D8 · no reporting read, aggregation or export capability was invented anywhere in the seams");
 }
 
+/* ═══ E · dealer admission is a founder act — the authority seam (v8.31) ═══
+   Layout's finding: dealer_profiles was self-mintable by any authenticated
+   client (owner INSERT policy + default INSERT grant), so an ordinary seller
+   could insert their own row and satisfy readDealerAccess(). These pins
+   hold the repair in place: the migration closes the door at the database,
+   the account route only edits an existing row, the founder route is the
+   only path to the only writer, and nothing infers dealer from media. */
+{
+  const mig = read("supabase/migrations/20260909120000_dealer_profiles_admission_is_a_founder_act.sql");
+  const route = read("app/api/account/dealer-profile/route.ts");
+  const admit = read("app/api/admin/dealers/admit/route.ts");
+  const settings = read("components/AccountSettings.tsx");
+
+  assert.match(mig, /revoke all on table public\.dealer_profiles from anon;/);
+  assert.match(mig, /revoke all on table public\.dealer_profiles from authenticated;/);
+  assert.match(mig, /grant select on table public\.dealer_profiles to anon, authenticated;/);
+  assert.match(mig, /grant update \(slug, business_name, logo_url, logo_path, location, tagline, updated_at\)\s+on table public\.dealer_profiles to authenticated;/);
+  assert.ok(!/grant insert[^;]*dealer_profiles[^;]*(anon|authenticated)/i.test(mig));
+  ok("E1 · clients keep SELECT and an identity-only UPDATE grant; no client INSERT/DELETE grant survives");
+
+  assert.match(mig, /drop policy if exists dealer_profiles_owner_insert on public\.dealer_profiles;/);
+  assert.ok(!/create policy[^;]*for insert/i.test(mig));
+  ok("E2 · the owner INSERT policy is dropped and no client INSERT policy is created");
+
+  assert.match(mig, /create or replace function public\.dealer_profile_admit\(/);
+  assert.match(mig, /security definer/);
+  assert.match(mig, /revoke all on function public\.dealer_profile_admit\(uuid, text, text, uuid\) from public;/);
+  assert.match(mig, /revoke all on function public\.dealer_profile_admit\(uuid, text, text, uuid\) from anon;/);
+  assert.match(mig, /revoke all on function public\.dealer_profile_admit\(uuid, text, text, uuid\) from authenticated;/);
+  assert.match(mig, /grant execute on function public\.dealer_profile_admit\(uuid, text, text, uuid\) to service_role;/);
+  assert.match(mig, /raise exception 'already_admitted'/);
+  assert.match(mig, /raise exception 'unknown_account'/);
+  ok("E3 · the one writer is SECURITY DEFINER, service_role-only, and refuses a second admission or an unknown account");
+
+  assert.match(mig, /add column if not exists admitted_at timestamptz/);
+  assert.match(mig, /add column if not exists admitted_by uuid references public\.profiles\(id\)/);
+  const migCode = mig.replace(/--[^\n]*/g, "");
+  assert.ok(!/add column[^;]*\b(role|is_dealer|dealer_role|is_admin)\b/i.test(migCode), "no role/flag column");
+  assert.ok(!/create (type|role)\b/i.test(migCode), "no new type or role");
+  assert.ok(!/DEALER_IDS|dealer_allowlist|in \('[0-9a-f-]{36}'/i.test(migCode), "no hard-coded dealer list");
+  ok("E4 · admission is recorded as provenance; no role column, no flag, no hard-coded dealer list");
+
+  const routeCode = route.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/upsert\(/.test(routeCode), "route must not upsert");
+  assert.ok(!/listing_media|dealer_import|importedMedia/.test(routeCode), "route must not infer dealer from media");
+  assert.match(routeCode, /if \(!dealer\) \{\s*return \{ error: "dealer_required" as const \};/);
+  assert.equal((routeCode.match(/\.update\(/g) || []).length, 2);
+  assert.equal((routeCode.match(/\.eq\("seller_id", context\.user\.id\)/g) || []).length, 2);
+  ok("E5 · the account route edits an existing admitted row (two UPDATEs on the caller's own seller_id) and never creates one");
+
+  assert.match(admit, /user\.id !== ADMIN_USER_ID/);
+  assert.match(admit, /createServiceClient\(\)/);
+  assert.match(admit, /rpc\("dealer_profile_admit"/);
+  assert.match(admit, /p_admitted_by: user\.id/);
+  assert.ok(!/p_admitted_by:\s*body/.test(admit));
+  ok("E6 · the founder route is hardcoded-founder-gated, calls the writer with the service client, and records the admitter from the session");
+
+  const settingsCode = settings.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assert.match(settingsCode, /setIsDealer\(Boolean\(dealerProfile\)\)/);
+  assert.ok(!/dealerMedia/.test(settingsCode));
+  ok("E7 · the Settings form opens on the admitted row only, never on imported media");
+}
+
 console.log(`\ntax-time: ${n} pins hold.`);

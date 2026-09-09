@@ -172,19 +172,17 @@ export default function AccountSettings({
         else if (profile.appearance === "light" || profile.appearance === "dark")
           setAppearance(profile.appearance);
       }
-      // Dealer identity — RLS scopes this read to the user's own listings.
-      const { data: dealerMedia } = await supabase
-        .from("listing_media")
-        .select("id")
-        .eq("capture_source", "dealer_import")
-        .limit(1);
+      // Dealer identity — v8.31: the admitted dealer_profiles row is the only
+      // dealer truth. Imported media no longer opens the identity form; the
+      // route behind it refuses anyone without a row, so offering the form
+      // on media alone would be a control that cannot save.
       const { data: dealerProfile } = await supabase
         .from("dealer_profiles")
         .select("slug,business_name,logo_url,location,tagline")
         .eq("seller_id", userId)
         .maybeSingle();
       if (active) {
-        setIsDealer(Boolean(dealerProfile) || (dealerMedia ?? []).length > 0);
+        setIsDealer(Boolean(dealerProfile));
         /* Deliberately NOT isDealer. That flag is the broader "behaves like a
            dealer" signal and is true for someone with imported media but no
            dealer profile — for whom a business-name greeting has no business

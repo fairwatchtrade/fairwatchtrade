@@ -39,22 +39,23 @@ async function dealerContext() {
   } = await supabase.auth.getUser();
   if (!user) return { error: "not_authenticated" as const };
 
-  const [{ data: profile }, { data: dealer }, { data: importedMedia }] =
-    await Promise.all([
-      supabase.from("profiles").select("display_name").eq("id", user.id).single(),
-      supabase
-        .from("dealer_profiles")
-        .select("seller_id,slug,business_name,logo_url,logo_path,location,tagline")
-        .eq("seller_id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("listing_media")
-        .select("id")
-        .eq("capture_source", "dealer_import")
-        .limit(1),
-    ]);
+  /* v8.31 — dealer admission is a founder act. This route EDITS the identity
+     row of an already-admitted dealer; it never creates one. The former
+     "imported media counts as dealer" branch is gone: having Accelerator
+     photographs is not admission, and the database no longer lets any
+     client insert a dealer_profiles row at all (migration
+     20260909120000). The row is minted only by dealer_profile_admit(),
+     service_role-only, from the founder-gated admin route. */
+  const [{ data: profile }, { data: dealer }] = await Promise.all([
+    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+    supabase
+      .from("dealer_profiles")
+      .select("seller_id,slug,business_name,logo_url,logo_path,location,tagline")
+      .eq("seller_id", user.id)
+      .maybeSingle(),
+  ]);
 
-  if (!dealer && (importedMedia ?? []).length === 0) {
+  if (!dealer) {
     return { error: "dealer_required" as const };
   }
 
@@ -105,7 +106,6 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     context.user.id
   );
   const next = {
-    seller_id: context.user.id,
     slug,
     business_name: businessName,
     location: boundedText(body.location, 120),
@@ -113,9 +113,14 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     updated_at: new Date().toISOString(),
   };
 
+  /* UPDATE of the caller's own row, never upsert: an upsert is an INSERT
+     with a conflict clause and needs the INSERT privilege the client no
+     longer holds. The owner UPDATE policy scopes this to seller_id =
+     auth.uid(); seller_id itself is outside the client UPDATE grant. */
   const { data, error } = await context.supabase
     .from("dealer_profiles")
-    .upsert(next, { onConflict: "seller_id" })
+    .update(next)
+    .eq("seller_id", context.user.id)
     .select("slug,business_name,logo_url,location,tagline")
     .single();
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
@@ -166,28 +171,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     cacheControlMaxAge: 31_536_000,
   });
 
-  const businessName =
-    context.dealer?.business_name ||
-    boundedText(context.profile?.display_name, 120) ||
-    "FairWatchTrade Dealer";
-  const slug =
-    context.dealer?.slug ||
-    (await availableSlug(context.supabase, businessName, context.user.id));
+  /* The logo joins an EXISTING admitted row (dealerContext refused anyone
+     without one). Update of the two logo columns only — no upsert, no
+     identity rewrite: the admitted business name and slug are not
+     re-derived from a display name on a logo upload. */
   const { data, error } = await context.supabase
     .from("dealer_profiles")
-    .upsert(
-      {
-        seller_id: context.user.id,
-        slug,
-        business_name: businessName,
-        logo_url: blob.url,
-        logo_path: blob.pathname,
-        location: context.dealer?.location ?? null,
-        tagline: context.dealer?.tagline ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "seller_id" }
-    )
+    .update({
+      logo_url: blob.url,
+      logo_path: blob.pathname,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("seller_id", context.user.id)
     .select("slug,business_name,logo_url,location,tagline")
     .single();
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
