@@ -79,16 +79,22 @@ function Chevron({ open }: { open: boolean }) {
 export default function AccountRoomSelector({
   value,
   onSelect,
+  rooms = ACCOUNT_ROOMS,
 }: {
   value: string;
   onSelect: (id: string) => void;
+  /** The destinations to offer. Defaults to the eight real rooms; the
+      dashboard passes a list with the dealer-only Tax Time room inserted
+      when the SERVER resolved dealer access (v8.30). The selector never
+      decides access — it lists what it is handed. */
+  rooms?: ReadonlyArray<AccountRoom>;
 }) {
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const currentLabel =
-    ACCOUNT_ROOMS.find((r) => r.id === value)?.label ?? "Listings";
+    rooms.find((r) => r.id === value)?.label ?? "Listings";
 
   /* Escape closes and returns focus to the control that opened the menu.
 
@@ -187,7 +193,7 @@ export default function AccountRoomSelector({
           role="menu"
           className="absolute left-0 top-[46px] z-40 w-[228px] border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
         >
-          {ACCOUNT_ROOMS.map((room) => {
+          {rooms.map((room) => {
             /* Quiet, but unmistakable: a mineral left edge and the faintest
                mineral wash. Ruled visual law: gold is FWT identity, mineral
                is architecture, orientation and selection - so a structural

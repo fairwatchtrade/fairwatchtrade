@@ -4,6 +4,7 @@ import AccountDashboard, {
   type AccountListing,
   type AccountDecisionEvent,
 } from "@/components/AccountDashboard";
+import { readDealerAccess } from "@/lib/dealerAccess";
 
 /* ────────────────────────────────────────────────────────────────────────
    MY LISTINGS — /account  (v1.43)
@@ -122,11 +123,23 @@ export default async function AccountPage({
     }
   }
 
+  /* ── Dealer access (Tax Time shell, v8.30) ──────────────────────────────
+     Resolved HERE, on the server, from the one dealer identity the product
+     has: the account's own dealer_profiles row, read on the session client
+     under RLS. Only the boolean result travels into the workspace, which
+     uses it to decide whether the Tax Time door exists and whether a typed
+     ?module=tax-time may resolve. Display/navigation truth, like the
+     Marketplace Control flag below — every dealer-only route keeps its own
+     gate. Nothing about listings, sales, Accelerator use or display
+     identity is consulted (lib/dealerAccess.ts). */
+  const dealerAccess = await readDealerAccess(supabase, user.id);
+
   return (
     <AccountDashboard
       listings={listings}
       decisions={decisions}
       publishedAt={publishedAt}
+      dealerAccess={dealerAccess}
       /* Founder-only Marketplace Control rail entry (§2 of the room's build
          order): decided here on the server, so ordinary sellers get no dead
          door and no UID reaches a bundle. The /admin page and every

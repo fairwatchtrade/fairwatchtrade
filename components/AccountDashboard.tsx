@@ -17,6 +17,10 @@ import HelpBubble from "@/components/HelpBubble";
 import { sellerLabel, statusTokenKey } from "@/lib/listingStatus";
 import { formatMoney } from "@/lib/formatMoney";
 import FwtListingId from "@/components/FwtListingId";
+import TaxTimeRoom from "@/components/TaxTimeRoom";
+import { ACCOUNT_ROOMS, type AccountRoom } from "@/components/AccountRoomSelector";
+import { moduleFromParam as resolveAccountModule, TAX_TIME_MODULE_ID } from "@/lib/accountModules";
+import { NO_DEALER_ACCESS, type DealerAccess } from "@/lib/dealerAccess";
 
 /* ────────────────────────────────────────────────────────────────────────
    ACCOUNT DASHBOARD — client shell for /account  (v2.7)
@@ -169,6 +173,7 @@ type ModuleId =
   | "saved"
   | "wanted"
   | "trades"
+  | "tax-time"
   | "analytics";
 // v2.23 — lifecycle tab state moved into SellerListingsRoom, which owns the
 // Listings room's tabs and selection (ids remain the REAL status values).
@@ -209,21 +214,12 @@ function dialThumbUrl(photos?: ListingPhoto[]): string | null {
 /* "communications" is the rail door; "messages" and "requests" survive
    ONLY as deep-link addresses (notification → requests filter, email →
    messages filter). All three render the same room. */
-const NAVIGABLE_MODULE_IDS = [
-  "dashboard",
-  "inventory",
-  "accelerator",
-  "communications",
-  "messages",
-  "requests",
-  "saved",
-  "wanted",
-  "trades",
-] as const;
-function moduleFromParam(p: string | null): ModuleId {
-  return (NAVIGABLE_MODULE_IDS as readonly string[]).includes(p ?? "")
-    ? (p as ModuleId)
-    : "inventory";
+/* v8.30 — the allowlist and the normalization moved to lib/accountModules.ts
+   so the refusal of an access-gated module (tax-time for a non-dealer) is
+   a pure function the tests can prove, not a rendered page to read. Same
+   rules as before for every other id: real modules only, unknown → Inventory. */
+function moduleFromParam(p: string | null, access: DealerAccess): ModuleId {
+  return resolveAccountModule(p, access) as ModuleId;
 }
 
 /* v3.21 — the module list, labels, and Soon rows now live in
@@ -580,6 +576,7 @@ export default function AccountDashboard({
   decisions = [],
   publishedAt = {},
   marketplaceControl = false,
+  dealerAccess = NO_DEALER_ACCESS,
 }: {
   listings: AccountListing[];
   /** Adjudication history for these listings, newest first. Optional so any
@@ -591,6 +588,12 @@ export default function AccountDashboard({
   /** Founder-only Marketplace Control rail entry — decided by the server
       page from the session, passed through untouched. */
   marketplaceControl?: boolean;
+  /** Dealer access (Tax Time shell, v8.30) — resolved by the server page
+      from the account's dealer_profiles row and passed through untouched.
+      Decides whether the Tax Time door exists and whether ?module=tax-time
+      resolves; defaults to no access, so a caller that passes nothing gets
+      the ordinary seller workspace. */
+  dealerAccess?: DealerAccess;
 }) {
   /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
      ?module=saved deep link becomes the general convention: every real
@@ -603,7 +606,7 @@ export default function AccountDashboard({
      changes but the single-view law governs what renders; no mobile module
      nav is added (the 'saved' deep link remains mobile's one exception). */
   const moduleParam = useSearchParams().get("module");
-  const activeModule = moduleFromParam(moduleParam);
+  const activeModule = moduleFromParam(moduleParam, dealerAccess);
   function selectModule(id: ModuleId) {
     if (id === activeModule) return;
     window.history.pushState(
@@ -669,7 +672,16 @@ export default function AccountDashboard({
     "saved",
     "wanted",
     "accelerator",
+    "tax-time",
   ] as const;
+  /* The phone's room list: the eight real rooms, plus Tax Time between
+     Dealer and Settings ONLY when the server resolved dealer access. The
+     selector lists what it is handed and never decides access itself. */
+  const mobileRooms: ReadonlyArray<AccountRoom> = dealerAccess.taxTime
+    ? ACCOUNT_ROOMS.flatMap((room) =>
+        room.id === "settings" ? [{ id: TAX_TIME_MODULE_ID, label: "Tax Time" }, room] : [room]
+      )
+    : ACCOUNT_ROOMS;
   const mobileRoomValue =
     activeModule === "messages" || activeModule === "requests"
       ? "communications"
@@ -856,7 +868,9 @@ export default function AccountDashboard({
               ? "Wanted Requests"
               : activeModule === "trades"
                 ? "Trades"
-                : "Listings";
+                : activeModule === "tax-time"
+                  ? "Tax Time"
+                  : "Listings";
 
   /* Mirrors the fallback above and the render branch below: the Listings room
      is what shows when the module is none of the named ones. Derived rather
@@ -871,7 +885,8 @@ export default function AccountDashboard({
     activeModule !== "accelerator" &&
     activeModule !== "saved" &&
     activeModule !== "wanted" &&
-    activeModule !== "trades";
+    activeModule !== "trades" &&
+    activeModule !== "tax-time";
 
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
@@ -893,6 +908,7 @@ export default function AccountDashboard({
           unreadThreads={unreadThreadCount}
           pendingRequests={pendingRequestCount}
           marketplaceControl={marketplaceControl}
+          taxTime={dealerAccess.taxTime}
         />
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}
@@ -916,6 +932,7 @@ export default function AccountDashboard({
               <AccountRoomSelector
                 value={mobileRoomValue}
                 onSelect={selectRoom}
+                rooms={mobileRooms}
               />
             </div>
             <div className="mb-4 flex items-center justify-between">
@@ -1077,6 +1094,13 @@ export default function AccountDashboard({
               onBackToOverview={() => selectModule("dashboard")}
               initialTab={acceleratorTab}
             />
+          ) : activeModule === "tax-time" ? (
+            /* v8.30 — Tax Time renders ONCE, outside the mobile/desktop
+               split (the Saved Searches precedent). Reached only when the
+               server-resolved dealer access admitted the module; a
+               non-dealer's typed ?module=tax-time never arrives here
+               because moduleFromParam already fell to Inventory. */
+            <TaxTimeRoom />
           ) : activeModule === "communications" ||
             activeModule === "messages" ||
             activeModule === "requests" ? (

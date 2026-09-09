@@ -37,7 +37,8 @@ type ModuleId =
   | "communications"
   | "saved"
   | "wanted"
-  | "trades";
+  | "trades"
+  | "tax-time";
 
 const ICONS = {
   overview: (
@@ -74,6 +75,14 @@ const ICONS = {
   saved: (
     <svg viewBox="0 0 24 24">
       <path d="M6 4h12v16l-6-4-6 4z" />
+    </svg>
+  ),
+  /* Tax Time — a ledger page: the dealer's record of completed business.
+     Same 24-unit box and stroke discipline as the Design Gate set. */
+  taxTime: (
+    <svg viewBox="0 0 24 24">
+      <path d="M7 3h10l2 3v15H5V6z" />
+      <path d="M8 9h8M8 13h8M8 17h5" />
     </svg>
   ),
   settings: (
@@ -159,6 +168,7 @@ export default function AccountRail({
   unreadThreads,
   pendingRequests,
   marketplaceControl = false,
+  taxTime = false,
 }: {
   surface: "account" | "settings" | "marketplace";
   activeModule?: string;
@@ -170,6 +180,11 @@ export default function AccountRail({
       destination is rendered only for a user the gate would admit — no
       dead door for ordinary sellers, no founder UID in any bundle. */
   marketplaceControl?: boolean;
+  /** Dealer-only Tax Time entry (v8.30). Decided by the mounting SERVER
+      page from the account's dealer_profiles row (lib/dealerAccess.ts) —
+      never a client-side check, never inferred from a business name typed
+      into a form. No door is rendered for an ordinary seller. */
+  taxTime?: boolean;
 }) {
   /* Standalone badge truth (standalone surfaces only, and only when the
      mounting page passed nothing): the same two established reads
@@ -270,6 +285,22 @@ export default function AccountRail({
             />
           );
         })}
+        {/* Tax Time — dealer-only, a normal live destination (never under
+            "Coming next"). Rendered only when the server said this account
+            is a dealer; the workspace independently refuses the module for
+            anyone else, so this door and that lock agree by construction. */}
+        {taxTime && (
+          <RailItem
+            icon={ICONS.taxTime}
+            label="Tax Time"
+            active={surface === "account" && activeModule === "tax-time"}
+            chevron
+            ariaCurrent={surface === "account" && activeModule === "tax-time" ? "true" : undefined}
+            {...(surface === "account" && onSelectModule
+              ? { onClick: () => onSelectModule("tax-time") }
+              : { href: moduleHref("tax-time") })}
+          />
+        )}
         <RailItem
           icon={ICONS.settings}
           label="Account Settings"
