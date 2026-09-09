@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
 /* ────────────────────────────────────────────────────────────────────────
    TERMS OF SERVICE — /terms  (server component, static)
    ──────────────────────────────────────────────────────────────────────── */
+
+/* Robots Readiness GRS-005/006: locked title, description, clean canonical. */
+export const metadata: Metadata = staticRouteMetadata("/terms");
 
 export default function TermsPage() {
   return (

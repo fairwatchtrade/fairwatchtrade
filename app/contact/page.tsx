@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import ContactForm from "@/components/ContactForm";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
 
 /* ────────────────────────────────────────────────────────────────────────
    CONTACT — /contact  (public, no authentication)
@@ -20,11 +21,11 @@ import ContactForm from "@/components/ContactForm";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Contact — FairWatchTrade",
-  description: "Write to FairWatchTrade.",
-  robots: { index: false, follow: false },
-};
+/* Robots Readiness GRS-005/006: /contact is a legitimate public support
+   destination. Its blanket noindex is withdrawn; it now carries the locked
+   title, description and clean canonical from the one route-policy source
+   and is sitemap-eligible. (Robots itself stays closed site-wide.) */
+export const metadata: Metadata = staticRouteMetadata("/contact");
 
 export default async function ContactPage() {
   let email = "";

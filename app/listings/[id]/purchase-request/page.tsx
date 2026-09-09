@@ -1,6 +1,12 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
+import type { Metadata } from "next";
+import { privateRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005: a buyer action page, never a public resource.
+   Noindex, no canonical — the listing itself is the canonical object. */
+export const metadata: Metadata = privateRouteMetadata();
 
 /* ────────────────────────────────────────────────────────────────────────
    PURCHASE REQUEST — /listings/[id]/purchase-request  (v2.28)

@@ -339,7 +339,7 @@ const workspace = read("components/WantedWorkspace.tsx");
   const browse = read("components/BrowseClient.tsx");
   const accountRail = read("components/AccountRail.tsx");
   const dashboard = read("components/AccountDashboard.tsx");
-  const sell = read("app/sell/page.tsx");
+  const sell = read("app/sell/(entry)/page.tsx");
 
   ok(
     "Wanted joins the EXISTING Discover section",

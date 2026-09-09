@@ -43,7 +43,18 @@ let pass = 0;
 const ok = (name, c) => { assert.ok(c, name); pass++; };
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-const home = read("../app/page.tsx");
+/* Robots Readiness GRS-005/006 (v8.32): the homepage body moved verbatim to
+   components/CurrentHomepage.tsx so app/page.tsx could become a server
+   wrapper that declares the canonical. The identity guards below now read
+   the body where it lives; the route file is pinned to render it. */
+const home = read("../components/CurrentHomepage.tsx");
+const homeRoute = read("../app/page.tsx");
+
+ok("the / route renders the current homepage body",
+  homeRoute.includes('from "@/components/CurrentHomepage"') &&
+    homeRoute.includes("<CurrentHomepage />"));
+ok("the / route declares its clean canonical through the route policy",
+  homeRoute.includes("homeMetadata()"));
 
 /* ── the exact approved copy, from the one durable source ── */
 ok("primary eyebrow is exact",

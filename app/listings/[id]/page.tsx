@@ -27,6 +27,8 @@ import {
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { formatMoney } from "@/lib/formatMoney";
 import { getCollectorDossierForListing } from "@/lib/dossier/collectorDossierService";
+import type { Metadata } from "next";
+import { listingMetadata, type ListingMetadataRow } from "@/lib/seo/routeMetadata";
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC LISTING DETAIL — /listings/[id]  (v2.4b)
@@ -244,6 +246,36 @@ function buildSimilarHref(
   return qs ? `/browse?${qs}` : null;
 }
 
+
+/* Robots Readiness GRS-005/006 — page-level indexability and identity.
+
+   The sitemap controls discovery; THIS controls whether the resource stays
+   indexable after its lifecycle changes. A published row gets a truthful
+   title/description built only from its own fields and the clean canonical
+   /listings/[id]; any other row the viewer is authorized to see (reserved,
+   private_active, removed, draft…) gets noindex with only the listing-code
+   title — brand, model and reference of a non-public listing never reach
+   metadata. A row this viewer cannot see at all resolves to a neutral
+   noindex, exactly as the page below resolves to notFound().
+
+   The canonical never carries returnTo or any navigation parameter: the
+   page keeps honoring returnTo for the human (safeBrowseReturn below) while
+   declaring the clean URL as identity. Same session client and the same RLS
+   answer as the page; a second small read, deliberately not a wider one. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("listings")
+    .select("id, status, brand, model, reference, public_code")
+    .eq("id", id)
+    .maybeSingle();
+  return listingMetadata((data as ListingMetadataRow | null) ?? null, id);
+}
 
 export default async function ListingDetailPage({
   params,

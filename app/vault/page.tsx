@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import VaultGalaxy from "@/components/VaultGalaxy";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005/006: /vault is the Vault's preferred identity;
+   /vault/galaxy declares this URL as its canonical. */
+export const metadata: Metadata = staticRouteMetadata("/vault");
 
 /* ════════════════════════════════════════════════════════════════════════
    THE VAULT — app/vault/page.tsx   (v2.0)

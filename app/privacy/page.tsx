@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
 /* ────────────────────────────────────────────────────────────────────────
    PRIVACY POLICY — /privacy  (server component, static)
    ──────────────────────────────────────────────────────────────────────── */
+
+/* Robots Readiness GRS-005/006: locked title, description, clean canonical.
+   GRS-008 payment/privacy wording is NOT resolved here. */
+export const metadata: Metadata = staticRouteMetadata("/privacy");
 
 export default function PrivacyPage() {
   return (

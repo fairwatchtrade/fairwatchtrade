@@ -3,6 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import CatalogueClient, { type ListingRow } from "@/components/CatalogueClient";
 import type { CatalogueMatchRow, CatalogueSearch } from "@/lib/catalogueMatches";
 import { getCatalogueGreetingIdentity } from "@/lib/catalogueGreetingIdentity";
+import type { Metadata } from "next";
+import { privateRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005: a signed-in personal workspace, never a public
+   resource. Noindex, no canonical. */
+export const metadata: Metadata = privateRouteMetadata();
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER CATALOGUE — /catalogue

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CatalogueRail from "@/components/CatalogueRail";
 import WantedWorkspace from "@/components/WantedWorkspace";
+import type { Metadata } from "next";
+import { privateRouteMetadata } from "@/lib/seo/routeMetadata";
 
 /* ────────────────────────────────────────────────────────────────────────
    /wanted — the collector's demand workspace
@@ -25,6 +27,10 @@ import WantedWorkspace from "@/components/WantedWorkspace";
    ──────────────────────────────────────────────────────────────────────── */
 
 export const dynamic = "force-dynamic";
+
+/* Robots Readiness GRS-005: while Wanted remains an authenticated personal
+   request surface it is noindex with no canonical. */
+export const metadata: Metadata = privateRouteMetadata();
 
 export default async function WantedPage() {
   const supabase = await createClient();

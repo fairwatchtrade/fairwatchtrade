@@ -14,7 +14,12 @@
    promise stays reserved for a later build.
    ──────────────────────────────────────────────────────────────────────── */
 
+import type { Metadata } from "next";
 import FounderSignature from "@/components/FounderSignature";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005/006: locked title, description, clean canonical. */
+export const metadata: Metadata = staticRouteMetadata("/about");
 
 export default function AboutPage() {
   return (

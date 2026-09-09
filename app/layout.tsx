@@ -6,6 +6,7 @@ import HeaderSearchSlot from "@/components/HeaderSearchSlot";
 import SiteFooter from "@/components/SiteFooter";
 import VaultNavigationTransition from "@/components/VaultNavigationTransition";
 import { createClient } from "@/lib/supabase/server";
+import { CANONICAL_ORIGIN } from "@/lib/seo/routeMetadata";
 import "./globals.css";
 
 // Footer session-status — temporary, founder-only pre-launch tooling.
@@ -14,6 +15,13 @@ import "./globals.css";
 const ADMIN_EMAIL = "jmynatt74@gmail.com";
 
 export const metadata: Metadata = {
+  /* Robots Readiness GRS-005/006: the base every relative URL-bearing
+     metadata field resolves against. Canonicals are emitted absolute from
+     lib/seo/routeMetadata.ts regardless; this keeps any future relative
+     field on the serving host (www — the apex only redirects there). No
+     canonical is declared HERE on purpose: a root-level canonical would be
+     inherited by every route that forgot its own. */
+  metadataBase: new URL(CANONICAL_ORIGIN),
   title: "FairWatchTrade — Independent & Boutique Watchmakers",
   description: "FairWatchTrade is a collector-focused watch marketplace specializing in independent and boutique watchmaking, with selected references from larger manufacturers admitted through stricter curation.",
 };

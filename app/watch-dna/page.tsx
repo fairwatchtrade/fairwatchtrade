@@ -3,6 +3,13 @@ import CatalogueRail from "@/components/CatalogueRail";
 import CatalogueRoomSelector from "@/components/CatalogueRoomSelector";
 import WatchDnaQuiz from "@/components/WatchDnaQuiz";
 import { isArchetypeKey } from "@/lib/watchDna";
+import type { Metadata } from "next";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005/006: locked title, description, clean canonical.
+   ?dna=<key> is return context, not identity — it never reaches the
+   canonical. */
+export const metadata: Metadata = staticRouteMetadata("/watch-dna");
 
 /* v3.22 — Watch DNA result brand pills become real doors to Browse (founder
    order, 2026-08-02). Two things the page now owns that the quiz cannot:

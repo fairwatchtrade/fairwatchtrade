@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import FaqRoom from "@/components/FaqRoom";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
 
 /* ────────────────────────────────────────────────────────────────────────
    FAQ — /faq  (public, no authentication)
@@ -27,11 +28,9 @@ import FaqRoom from "@/components/FaqRoom";
    on the day that opens.
    ──────────────────────────────────────────────────────────────────────── */
 
-export const metadata: Metadata = {
-  title: "Frequently Asked Questions — FairWatchTrade",
-  description:
-    "Answers to common questions about buying, selling, payments, listings, verification, and privacy on FairWatchTrade.",
-};
+/* Robots Readiness GRS-005/006: locked title, description and clean
+   canonical from the one route-policy source (lib/seo/routeMetadata.ts). */
+export const metadata: Metadata = staticRouteMetadata("/faq");
 
 export default function FaqPage() {
   return (

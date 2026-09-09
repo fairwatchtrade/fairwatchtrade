@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import VaultGalaxy from "@/components/VaultGalaxy";
+import { vaultGalaxyMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-006: the same Vault through a deeper route, so it
+   declares /vault as its canonical and stays out of the sitemap. Not
+   noindexed — a duplicate is consolidated, not hidden. The human route is
+   untouched. */
+export const metadata: Metadata = vaultGalaxyMetadata();
 
 /* ════════════════════════════════════════════════════════════════════════
    THE VAULT GALAXY — app/vault/galaxy/page.tsx   (v1.99)

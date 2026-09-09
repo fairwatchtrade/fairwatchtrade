@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import MobileWizard, { type VaultBrandLite } from "@/components/MobileWizard";
+import type { Metadata } from "next";
+import { privateRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005: a signed-in, camera-first working surface,
+   never a public destination. Noindex, no canonical. /sell itself stays
+   indexable; this door is explicit opt-in only. */
+export const metadata: Metadata = privateRouteMetadata();
 
 /* ════════════════════════════════════════════════════════════════════════
    LIST FROM PHONE — /sell/mobile   (v2.2 · Phase 3)

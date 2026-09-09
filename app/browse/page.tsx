@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import BrowseClient from "@/components/BrowseClient";
+import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+
+/* Robots Readiness GRS-005/006: locked title, description and clean
+   canonical from the one route-policy source. Query-string variants
+   (facets, view mode, page) are navigation state, not identity. */
+export const metadata: Metadata = staticRouteMetadata("/browse");
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBLIC BROWSE — /browse  (v1.58)
