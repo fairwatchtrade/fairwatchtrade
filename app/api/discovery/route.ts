@@ -53,7 +53,8 @@ export async function GET() {
     {
       name: "FairWatchTrade Public Inventory Discovery",
       description:
-        "A collector-first marketplace for independent and boutique watchmaking. This surface lets an " +
+        "FairWatchTrade is a collector-focused watch marketplace specializing in independent and boutique watchmaking, " +
+        "with selected references from larger manufacturers admitted through stricter curation. This surface lets an " +
         "assistant discover current public FairWatchTrade inventory and link a collector to the real listing.",
       site: SITE_URL,
       version: "1.0",

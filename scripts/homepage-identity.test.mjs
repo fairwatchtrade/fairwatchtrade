@@ -117,9 +117,18 @@ for (const [name, src] of [["current homepage", home]]) {
   ok(`${name} adds no Tudor branding`, !/tudor/i.test(src));
 }
 
-/* ── current homepage structure unchanged (waitlist remains the page) ── */
-ok("current homepage keeps the waitlist", home.includes("Notify Me"));
-ok("current homepage keeps the buyer/seller choice", home.includes("I want to buy"));
+/* ── current homepage structure (Robots Readiness GRS-002, 2026-09-09) ──
+   The pre-inventory waitlist zone ("Get Notified When Watches Arrive",
+   buyer/seller choice, email field, Notify Me → /api/waitlist) was stale
+   product truth once public inventory existed. The zone is now a real
+   Browse entrance. These assertions pin the door and the absence of the
+   waitlist mechanics in the page — on code tokens, not on prose, so a
+   comment recording the history cannot satisfy or trip them. */
+ok("current homepage opens a real door into Browse", home.includes('href="/browse"'));
+ok("current homepage labels the door with the locked action", home.includes("Browse watches"));
+ok("current homepage carries the locked entry heading", home.includes("Explore the watches"));
+ok("current homepage no longer posts to the waitlist", !home.includes("fetch('/api/waitlist'"));
+ok("current homepage no longer carries the waitlist handler", !home.includes("handleWaitlist"));
 ok("current homepage keeps the hero headline",
   home.includes("A marketplace") && home.includes("of the watches within it."));
 

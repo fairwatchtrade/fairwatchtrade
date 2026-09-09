@@ -179,7 +179,7 @@ function SellPageInner() {
                 List your watch.
               </h1>
               <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
-                Independent &amp; boutique makers only. Curated before listed.
+                Independent and boutique watchmaking is our specialty. Other watches are considered under our curation requirements.
               </p>
 
               {/* v2.56 — the seller's approved answer, near the entry. */}

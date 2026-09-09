@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   MARKETPLACE_IDENTITY_EYEBROW,
   MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
@@ -9,32 +10,6 @@ import {
 
 export default function Home() {
   const [time, setTime] = useState({ hourDeg: -90, minDeg: -90, secDeg: -90 });
-  const [email, setEmail] = useState('');
-  const [isBuyer, setIsBuyer] = useState(false);
-  const [isSeller, setIsSeller] = useState(false);
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
-  const [waitlistDone, setWaitlistDone] = useState(false);
-  const [waitlistError, setWaitlistError] = useState('');
-
-  const handleWaitlist = async () => {
-    if (!email) { setWaitlistError('Please enter your email'); return; }
-    if (!isBuyer && !isSeller) { setWaitlistError('Please select buyer, seller, or both'); return; }
-    setWaitlistLoading(true);
-    setWaitlistError('');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, isBuyer, isSeller }),
-      });
-      if (!res.ok) throw new Error('Failed');
-      setWaitlistDone(true);
-    } catch {
-      setWaitlistError('Something went wrong. Please try again.');
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
 
   useEffect(() => {
     function calcTime() {
@@ -177,57 +152,28 @@ export default function Home() {
       {/* ── GUARANTEED SPACER between Zone 1 and Zone 2 ── */}
       <div style={{ height: '56px', flexShrink: 0 }} />
 
-      {/* ── ZONE 2 — WAITLIST ── */}
+      {/* ── ZONE 2 — BROWSE ENTRANCE ──
+          Robots Readiness GRS-002 (Layout order 2026-09-08). This zone used
+          to be the pre-inventory waitlist: "Get Notified When Watches
+          Arrive", two role checkboxes, an email field and a Notify Me
+          button posting to /api/waitlist. Public inventory exists, so that
+          story was stale product truth. The waitlist stored nothing (the
+          route only sent two Resend emails, one to the visitor and one to
+          the founder), so nothing was migrated; the API route itself is
+          left in place untouched. The zone now does the one job a signed-out
+          stranger needs from the homepage: a real door into Browse. Same
+          slot, same eyebrow treatment, the existing primary control. The
+          identity copy above (hero eyebrow + governed clarification) is the
+          specialty statement and is deliberately not repeated here. ── */}
       <div className="relative z-[1] flex flex-col items-center px-6">
 
         <p className="mb-5 text-center text-[11px] uppercase tracking-[2.2px] text-[var(--muted)]">
-          Get Notified When Watches Arrive
+          Explore the watches
         </p>
 
-        <div className="mb-5 flex justify-center gap-6">
-          {[
-            { label: 'I want to buy', key: 'buyer' },
-            { label: 'I want to sell', key: 'seller' },
-          ].map(({ label, key }) => (
-            <label
-              key={key}
-              className="flex cursor-pointer items-center gap-2 text-[11px] tracking-[0.5px] text-[var(--slate)]"
-            >
-              <input
-                type="checkbox"
-                checked={key === 'buyer' ? isBuyer : isSeller}
-                onChange={e => key === 'buyer' ? setIsBuyer(e.target.checked) : setIsSeller(e.target.checked)}
-                style={{ accentColor: 'var(--gold)', width: '14px', height: '14px', cursor: 'pointer' }}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-
-        <div className="w-full max-w-[420px]">
-          <div className="flex gap-3">
-            <input
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="fw-input flex-1"
-            />
-            <button
-              onClick={handleWaitlist}
-              disabled={waitlistLoading || waitlistDone}
-              className="fw-btn-primary whitespace-nowrap"
-            >
-              {waitlistDone ? "You're In ✦" : waitlistLoading ? '...' : 'Notify Me'}
-            </button>
-          </div>
-
-          {waitlistError && (
-            <p className="mt-3 text-center text-[11px] text-[var(--danger)]">
-              {waitlistError}
-            </p>
-          )}
-        </div>
+        <Link href="/browse" className="fw-btn-primary whitespace-nowrap">
+          Browse watches
+        </Link>
 
       </div>
 

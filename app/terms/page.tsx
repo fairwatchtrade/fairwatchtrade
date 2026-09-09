@@ -52,9 +52,11 @@ export default function TermsPage() {
           5. Curation &amp; Eligibility
         </h2>
         <p className="text-[14px] leading-relaxed text-[var(--slate)]">
-          FairWatchTrade reserves the right to decline or remove any listing
-          that does not meet our independent and boutique focus. Curation
-          decisions are final.
+          Independent and boutique watchmakers are the heart of FairWatchTrade.
+          Selected historic and collector-worthy references from larger
+          manufacturers may enter through stricter curation. FairWatchTrade
+          reserves the right to decline or remove any listing that does not
+          meet our curation requirements. Curation decisions are final.
         </p>
 
         <h2 className="mt-8 mb-2 text-[15px] font-medium text-[var(--platinum)]">
