@@ -83,6 +83,13 @@ export const STATIC_ROUTE_COPY: Readonly<Record<string, StaticRouteCopy>> = Obje
     title: "About FairWatchTrade",
     description: "Learn what FairWatchTrade is building for watch collectors, occasional sellers, and dealers.",
   },
+  /* v8.33 — the description is the page's own governed hero sentence,
+     not freehand crawler prose. */
+  "/what-fairwatchtrade-can-do": {
+    title: "What Can FairWatchTrade Do For Me? | FairWatchTrade",
+    description:
+      "Choose what you came to do, and see what FairWatchTrade can actually help with today — including where it deliberately stops and what isn’t available yet.",
+  },
   "/faq": {
     title: "FairWatchTrade FAQ",
     description:

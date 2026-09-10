@@ -57,7 +57,9 @@ assert.throws(() => canonicalUrl("browse"), /absolute and internal/); n += 1;
 assert.throws(() => canonicalUrl("https://evil.example/"), /absolute and internal/); n += 1;
 
 /* ── 2 · INDEX + SITEMAP static matrix, locked copy ── */
-const EXPECTED_STATIC = ["/", "/browse", "/vault", "/sell", "/watch-dna", "/about", "/faq", "/contact", "/terms", "/privacy"];
+/* v8.33 added /what-fairwatchtrade-can-do through the policy source — the
+   designed path for a new public page (add the copy, it joins the sitemap). */
+const EXPECTED_STATIC = ["/", "/browse", "/vault", "/sell", "/watch-dna", "/about", "/what-fairwatchtrade-can-do", "/faq", "/contact", "/terms", "/privacy"];
 assert.deepEqual([...PUBLIC_STATIC_PATHS], EXPECTED_STATIC, "the indexable static set is exactly the locked route policy"); n += 1;
 
 const LOCKED = {
@@ -66,6 +68,7 @@ const LOCKED = {
   "/sell": ["Sell a Watch | FairWatchTrade", "Create a structured FairWatchTrade listing through Curation, Photos, Details, Description, and Review."],
   "/watch-dna": ["Watch DNA | FairWatchTrade", "Explore your watch preferences with FairWatchTrade’s Watch DNA experience."],
   "/about": ["About FairWatchTrade", "Learn what FairWatchTrade is building for watch collectors, occasional sellers, and dealers."],
+  "/what-fairwatchtrade-can-do": ["What Can FairWatchTrade Do For Me? | FairWatchTrade", "Choose what you came to do, and see what FairWatchTrade can actually help with today — including where it deliberately stops and what isn’t available yet."],
   "/faq": ["FairWatchTrade FAQ", "Answers about browsing, buying, selling, listings, payments, privacy, and how FairWatchTrade works."],
   "/contact": ["Contact FairWatchTrade", "Contact FairWatchTrade for support and questions about the marketplace."],
   "/terms": ["Terms | FairWatchTrade", "FairWatchTrade marketplace terms and conditions."],
