@@ -55,8 +55,10 @@ const metalsClass = metals ? metals[0] : "";
 ok("the metals block is NOT shrink-0 — that was the defect",
   !/\bshrink-0\b/.test(metalsClass));
 ok("the metals block can shrink", /\bshrink\b/.test(metalsClass) && !/shrink-0/.test(metalsClass));
-ok("the metals block does not grow past its natural width on desktop",
-  /\bgrow-0\b/.test(metalsClass));
+ok("the metals block does not grow past its natural width from sm up",
+  /\bsm:grow-0\b/.test(metalsClass));
+ok("the metals block DOES take the full row below sm, where the auction half is gone",
+  /(^|\s)grow(\s|")/.test(metalsClass));
 ok("the metals block keeps its natural width when it fits (basis-auto)",
   /\bbasis-auto\b/.test(metalsClass));
 ok("the metals block scrolls its own overflow rather than clipping it",
@@ -113,5 +115,38 @@ ok("the strip is mounted once in the shared root layout",
 ok("the repair lives in the shared component, not in any page",
   !/MarketBar|market-strip/i.test(
     readFileSync(new URL("../components/WhatFairWatchTradeCanDo.tsx", import.meta.url), "utf8")));
+
+/* -- narrow mobile: the auction half stands down (v8.41) ------------------
+   v8.39 made the strip contain itself at 360px; containment bought the
+   auction scroller only 70px, which is not enough to read a house and a
+   session in. Below `sm` the auction chrome now leaves entirely and the
+   metals band owns the row. At `sm` and above the geometry must be exactly
+   what v8.39 shipped. */
+const auctionWrapper = code.match(/\{ordered\.length > 0 && \(\s*<div className="([^"]*)">/);
+ok("the auction half is wrapped so it can stand down as one unit", !!auctionWrapper);
+const wrapperClass = auctionWrapper ? auctionWrapper[1] : "";
+ok("the auction half is hidden below sm", /\bhidden\b/.test(wrapperClass));
+ok("the auction half returns at sm and above", /\bsm:contents\b/.test(wrapperClass));
+ok("it returns as display:contents, so the four children stay direct flex items and desktop geometry is unchanged",
+  wrapperClass.includes("sm:contents") && !/sm:flex\b|sm:block\b/.test(wrapperClass));
+ok("hiding is display:none, so the arrows leave the accessibility tree rather than lingering invisible",
+  /\bhidden\b/.test(wrapperClass) && !/opacity-0|invisible|w-0/.test(wrapperClass));
+
+ok("the divider, both arrows and the scroller all live inside that one wrapper",
+  (() => {
+    const start = code.indexOf("{ordered.length > 0 && (");
+    const inner = code.slice(start);
+    return inner.includes('aria-label="Scroll auctions left"') &&
+           inner.includes('aria-label="Scroll auctions right"') &&
+           inner.includes("w-px shrink-0 self-stretch") &&
+           inner.includes("basis-[120px]");
+  })());
+
+ok("no replacement Auctions link was added in this flight",
+  !/href="\/auctions"|View auctions|All auctions/i.test(code));
+ok("auction destination logic is untouched - cards still link to their own catalogUrl",
+  code.includes("a.catalogUrl"));
+ok("the auction data path is untouched",
+  code.includes('fetch("/api/auctions")') && /statusOf\(a, now\) !== "past"/.test(code));
 
 console.log(`market-strip-containment: ${n} assertions PASS`);

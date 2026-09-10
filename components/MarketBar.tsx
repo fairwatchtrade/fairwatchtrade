@@ -129,7 +129,12 @@ export default function MarketBar() {
           Above roughly 450px there is free space, no item shrinks, and the
           desktop geometry is byte-for-byte what it was. */}
       <div className="flex h-11 w-full items-center gap-2 px-6">
-        <div className="flex min-w-0 shrink grow-0 basis-auto items-center gap-4 overflow-x-auto pr-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* `grow sm:grow-0`: below sm the auction half is gone, so the metals
+            band takes the whole row and its scroll region spans the full
+            width rather than stopping at its content. At sm and above it
+            returns to grow-0 and sits at its natural width, exactly as
+            v8.39 left it. */}
+        <div className="flex min-w-0 shrink grow basis-auto items-center gap-4 overflow-x-auto pr-3 sm:grow-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <span className="select-none shrink-0 text-[11px] tracking-wide text-[var(--gold)] [writing-mode:vertical-rl] rotate-180">
             London
           </span>
@@ -169,8 +174,30 @@ export default function MarketBar() {
             (divider, arrows, strip) collapses entirely rather than
             leaving arrows pointing at nothing. No placeholder auctions,
             nothing resurrected — the metals bar stands alone, intact. */}
+        {/* NARROW MOBILE: the auction half stands down entirely (v8.41).
+
+            v8.39 made the strip CONTAIN itself at 360px, and it does — but
+            containment bought the auction scroller only 70px, which is not
+            enough to read a house and a session in. Two bands were sharing a
+            row that has room for one. Below `sm` the auction chrome now
+            leaves altogether and the metals band owns the full width; the
+            three metals then fit outright at 360 with room to spare, so the
+            ticker reads without scrolling at all.
+
+            `hidden sm:contents` is the whole mechanism. `display: contents`
+            means the wrapper itself boxes nothing and its four children go on
+            being direct flex items of the strip row, so at `sm` and above the
+            geometry is byte-for-byte what v8.39 shipped — same divider, same
+            arrows, same basis-[120px] scroller. Below `sm` the wrapper is
+            display:none, which takes the arrows out of the accessibility tree
+            too rather than leaving invisible controls behind.
+
+            Deliberately NOT done here: no replacement Auctions link, no
+            destination change, no alteration to which auctions qualify. The
+            data, the fetch and the ordering are untouched — this hides a
+            presentation half at one breakpoint and nothing more. */}
         {ordered.length > 0 && (
-          <>
+          <div className="hidden sm:contents">
             <div className="my-2 w-px shrink-0 self-stretch bg-[var(--border-mid)]" />
 
             <button
@@ -234,7 +261,7 @@ export default function MarketBar() {
         >
           ›
         </button>
-          </>
+          </div>
         )}
       </div>
     </div>
