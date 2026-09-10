@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import ContactComposer from "@/components/ContactComposer";
+import ContactDoorway from "@/components/ContactDoorway";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CLOSING,
@@ -73,8 +75,24 @@ function StatusPill({ tone, label }: { tone: BenefitStatus | "coming"; label: st
 const PATH_CLASS =
   "inline-flex min-h-[44px] items-center justify-center border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-[18px] py-[12px] text-[12px] uppercase leading-[16px] tracking-[1.6px] text-[var(--gold)] transition hover:bg-[rgba(201,168,76,0.1)]";
 
-export default function WhatFairWatchTradeCanDo() {
+export default function WhatFairWatchTradeCanDo({ signedIn = false }: { signedIn?: boolean }) {
   const [room, setRoom] = useState<RoomId>("browse");
+
+  /* In-FWT contact composer (2026-09-10): one composer for the page, opened
+     from the doorway inside whichever room the visitor is standing in. The
+     doorway element is remembered so focus returns to it on close. `signedIn`
+     is decided by the mounting server page and only chooses which fields the
+     composer shows; the contact route derives identity itself. */
+  const [composerOpen, setComposerOpen] = useState(false);
+  const composerTrigger = useRef<HTMLButtonElement | null>(null);
+  const openComposer = useCallback((trigger: HTMLButtonElement) => {
+    composerTrigger.current = trigger;
+    setComposerOpen(true);
+  }, []);
+  const closeComposer = useCallback(() => {
+    setComposerOpen(false);
+    composerTrigger.current?.focus();
+  }, []);
   const tabRefs = useRef<Partial<Record<RoomId, HTMLButtonElement | null>>>({});
 
   /* Direct room selection: /…#sell opens Sell. Read once on mount and again
@@ -242,9 +260,17 @@ export default function WhatFairWatchTradeCanDo() {
                 </p>
               </div>
             )}
+
+            {/* The room's contact doorway: after everything this room has to
+                say (for the dealer, after Tax Time) and before the shared
+                material below. Inactive panels are hidden, so one doorway is
+                visible at a time. */}
+            <ContactDoorway onOpen={openComposer} />
           </section>
         ))}
       </div>
+
+      <ContactComposer open={composerOpen} signedIn={signedIn} onClose={closeComposer} />
 
       {/* ── Shared refusals ── */}
       <section className="mt-[34px] border border-[var(--border-mid)] bg-[var(--surface)] px-[18px] py-[24px] md:p-[32px]">

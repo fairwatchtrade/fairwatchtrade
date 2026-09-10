@@ -212,7 +212,8 @@ ok("house tokens only: no raw hex colours", !/#[0-9a-fA-F]{3,6}\b/.test(componen
 
 /* ── 13 · route + policy ── */
 const page = read("app/what-fairwatchtrade-can-do/page.tsx");
-ok("route renders the room inside the real shell (main + ink)", page.includes("<WhatFairWatchTradeCanDo />") && page.includes('bg-[var(--ink)]'));
+// 2026-09-10: the mount now carries the server-resolved signedIn flag for the contact composer.
+ok("route renders the room inside the real shell (main + ink)", page.includes("<WhatFairWatchTradeCanDo signedIn={signedIn} />") && page.includes('bg-[var(--ink)]'));
 ok("route metadata comes from the policy source", page.includes('staticRouteMetadata("/what-fairwatchtrade-can-do")'));
 const policy = read("lib/seo/routeMetadata.ts");
 ok("route is in the locked public set", policy.includes('"/what-fairwatchtrade-can-do": {'));

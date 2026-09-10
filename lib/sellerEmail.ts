@@ -29,8 +29,13 @@ export async function sendSellerEmail(params: {
   html: string;
   /** Short tag for the log line, e.g. "listing-live" or "decision:rejected". */
   kind: string;
+  /** Optional provider Reply-To (in-FWT contact composer, 2026-09-10): the
+      person a human should answer when they hit reply. Omitted by every
+      existing caller, and omitted means the request is byte-for-byte what
+      it was before this parameter existed. */
+  replyTo?: string;
 }): Promise<SellerEmailResult> {
-  const { to, subject, html, kind } = params;
+  const { to, subject, html, kind, replyTo } = params;
   if (!to) {
     console.error(`[seller-email:${kind}] no recipient address — not sent`);
     return { ok: false, reason: "no_recipient" };
@@ -46,7 +51,7 @@ export async function sendSellerEmail(params: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       },
-      body: JSON.stringify({ from: FROM, to, subject, html }),
+      body: JSON.stringify({ from: FROM, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     if (!res.ok) {
       // Read Resend's own words rather than guessing — a bad key and an

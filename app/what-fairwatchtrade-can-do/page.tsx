@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import WhatFairWatchTradeCanDo from "@/components/WhatFairWatchTradeCanDo";
 import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
+import { createClient } from "@/lib/supabase/server";
 
 /* ────────────────────────────────────────────────────────────────────────
    WHAT CAN FAIRWATCHTRADE DO FOR ME? — /what-fairwatchtrade-can-do
@@ -23,10 +24,26 @@ import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
 
 export const metadata: Metadata = staticRouteMetadata("/what-fairwatchtrade-can-do");
 
-export default function WhatFairWatchTradeCanDoPage() {
+export default async function WhatFairWatchTradeCanDoPage() {
+  /* Whether the visitor is signed in decides only which fields the contact
+     composer shows: a known account needs no reply-address field. Read on
+     the server from the session (the root layout already reads it for the
+     masthead); the contact route re-derives identity itself and never
+     trusts this flag or the browser. */
+  let signedIn = false;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    signedIn = !!user?.email;
+  } catch {
+    signedIn = false;
+  }
+
   return (
     <main className="min-h-screen bg-[var(--ink)]">
-      <WhatFairWatchTradeCanDo />
+      <WhatFairWatchTradeCanDo signedIn={signedIn} />
     </main>
   );
 }
