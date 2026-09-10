@@ -63,6 +63,7 @@ export default function ContactComposer({
   const [phase, setPhase] = useState<Phase>("idle");
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
 
   /* Initial focus: the first field the visitor actually has to fill. */
   useEffect(() => {
@@ -70,6 +71,13 @@ export default function ContactComposer({
     const id = window.requestAnimationFrame(() => firstFieldRef.current?.focus());
     return () => window.cancelAnimationFrame(id);
   }, [open]);
+
+  /* After a confirmed send the form is gone, so the field that held focus is
+     gone with it. Focus moves to the Close control, keeping keyboard focus
+     (and Escape) inside the dialog instead of letting it fall to the page. */
+  useEffect(() => {
+    if (open && phase === "sent") closeRef.current?.focus();
+  }, [open, phase]);
 
   if (!open) return null;
 
@@ -146,6 +154,7 @@ export default function ContactComposer({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={introId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         className="max-h-full w-full max-w-[520px] overflow-y-auto border border-[var(--border-mid)] bg-[var(--surface)] px-5 py-6 sm:px-7"
       >
@@ -154,6 +163,7 @@ export default function ContactComposer({
             {COMPOSER_COPY.title}
           </h2>
           <button
+            ref={closeRef}
             type="button"
             onClick={close}
             disabled={sending}

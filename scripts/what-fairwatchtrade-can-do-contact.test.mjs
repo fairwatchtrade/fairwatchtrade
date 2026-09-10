@@ -191,6 +191,9 @@ test("dialog semantics: named, modal, initial focus, Tab contained, Escape close
   assert.match(src, /if \(e\.key === "Escape"\)/);
   assert.match(src, /if \(e\.key !== "Tab" \|\| !dialogRef\.current\) return;/);
   assert.match(src, /aria-label=\{COMPOSER_COPY\.close\}/);
+  // After a confirmed send the form is gone: focus moves to Close so Escape still works.
+  assert.match(src, /if \(open && phase === "sent"\) closeRef\.current\?\.focus\(\);/);
+  assert.match(src, /ref=\{closeRef\}/);
   assert.match(src, /<label className=\{LABEL\}>/);
   assert.match(src, /focus-visible:outline/);
   // Narrow: the panel scrolls inside the viewport instead of overflowing it.
