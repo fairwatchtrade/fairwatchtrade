@@ -203,16 +203,38 @@ test("the renderer lays out the composed geography and nothing else", () => {
   assert.doesNotMatch(specs, /pushSnap|pushTech|snapshotRows|techRows/);
   // Every governed row is its own three-column grid: a gap in one row can
   // never be filled by the next row's first fact.
-  assert.match(specs, /const ROW =\s*"grid grid-cols-1 [^"]*sm:grid-cols-3/);
-  assert.match(specs, /<dl className=\{ROW\}>/);
+  assert.match(specs, /const ROW = "grid-cols-1 [^"]*sm:grid-cols-3/);
+  assert.match(specs, /<dl key=\{unit\.key\} className=\{className\}>/);
   // Wide rows exist for the long facts.
-  assert.match(specs, /const WIDE =\s*"grid grid-cols-1 /);
-  assert.match(specs, /geo\.technicalWide\.map/);
+  assert.match(specs, /const WIDE = "grid-cols-1 /);
+  assert.match(specs, /geo\.technicalWide\.map\(\(slot\) => \(\{ key: slot\.key, slots: \[slot\], wide: true \}\)\)/);
   // The reserved cell is the empty third column, not a phantom element.
   assert.match(specs, /\.filter\(\(slot\) => !slot\.reserved\)/);
-  // The extras render after the governed rows, through the same Row.
+  // The extras render after the governed rows, through the same Units.
   assert.match(specs, /chunkRows\(geo\.snapshotExtras\)/);
   assert.match(specs, /chunkRows\(geo\.technicalExtras\)/);
+});
+
+/* Founder ruling 2026-09-10: below sm an absent slot does not render and a
+   row with nothing present does not render; desktop keeps every slot. The
+   rule between rows is decided per breakpoint from what is shown, because a
+   hidden sibling still satisfies :first-child and would leave a stray rule
+   above the first visible phone row. */
+test("below sm absent facts leave; on desktop every slot stays", () => {
+  assert.match(specs, /const isPresent = \(slot: SpecSlot\) => !slot\.reserved && slot\.value !== ""/);
+  // Absent slot: hidden on the phone, a block from sm up.
+  assert.match(specs, /className=\{isPresent\(slot\) \? undefined : "hidden sm:block"\}/);
+  // Fully absent row: hidden on the phone, a grid from sm up.
+  assert.match(specs, /shownNarrow \? "grid" : "hidden sm:grid"/);
+  // Rules: narrow decided by earlier VISIBLE rows, desktop by earlier rows.
+  assert.match(specs, /narrowRule \? "border-t pt-4" : "border-t-0 pt-0"/);
+  assert.match(specs, /wideRule \? "sm:border-t sm:pt-4" : "sm:border-t-0 sm:pt-0"/);
+  assert.match(specs, /if \(shownNarrow\) shownBeforeNarrow = true;/);
+  assert.match(specs, /shownBeforeWide = true;/);
+  assert.doesNotMatch(specs, /first:(border|pt)/);
+  // Nothing about desktop geometry moved: three columns from sm, one below.
+  assert.match(specs, /sm:grid-cols-3/);
+  assert.doesNotMatch(specs, /md:grid-cols|lg:grid-cols/);
 });
 
 test("section labels are real headings, visually quiet", () => {

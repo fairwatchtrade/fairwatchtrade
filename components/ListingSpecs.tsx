@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   chunkRows,
   composeWatchDetailGeography,
-  type SpecRow,
   type SpecSlot,
   type WatchDetailDetails,
 } from "@/lib/watchDetailGeography";
@@ -15,12 +14,18 @@ import {
    matrix itself is composed in lib/watchDetailGeography.ts, which also
    carries the reasoning; this file only lays it out.
 
-   The layout law, in one line: a slot is a slot whether or not this watch
-   has a value for it. Every governed row is its own three-column grid, so a
-   missing value can never pull a later fact forward, and the reserved cell
-   is simply the empty third column of its row. Below `sm` each row becomes
-   a single column, which makes the narrow reading order the desktop
-   row-major order by construction, never by auto-placement.
+   The layout law, in one line: on desktop a slot is a slot whether or not
+   this watch has a value for it. Every governed row is its own three-column
+   grid, so a missing value can never pull a later fact forward, and the
+   reserved cell is simply the empty third column of its row.
+
+   Below `sm` there is no matrix to protect, only sequence (founder ruling
+   2026-09-10): an absent slot does not render on a phone, and a row with
+   nothing present does not render either. The facts that are present keep
+   the governed order because each row still becomes a single column in DOM
+   order. Because a hidden row still counts as a child, the faint rule
+   between rows is decided here per breakpoint from what is actually shown,
+   never with a `first:` variant that a hidden sibling would fool.
 
    v4.26 — THE BROOM CLOSET OPENS (founder audit, 2026-08-12) still governs
    the facts this matrix does not name: a fact we hold is never hidden. Those
@@ -37,20 +42,20 @@ const HEADING =
 const LABEL = "text-[12px] uppercase tracking-[0.08em] text-[var(--slate)]";
 const VALUE =
   "mt-1 font-display text-[16px] font-light text-[var(--platinum)] sm:min-h-[1.5rem]";
-const ROW =
-  "grid grid-cols-1 gap-y-4 border-t border-[var(--border-faint)] pt-4 first:border-t-0 first:pt-0 sm:grid-cols-3 sm:gap-x-6";
-const WIDE =
-  "grid grid-cols-1 border-t border-[var(--border-faint)] pt-4 first:border-t-0 first:pt-0";
+const ROW = "grid-cols-1 gap-y-4 border-[var(--border-faint)] sm:grid-cols-3 sm:gap-x-6";
+const WIDE = "grid-cols-1 border-[var(--border-faint)]";
+
+const isPresent = (slot: SpecSlot) => !slot.reserved && slot.value !== "";
 
 function Slot({ slot }: { slot: SpecSlot }) {
   return (
-    <div>
+    /* An absent value keeps its desktop slot and leaves the phone. */
+    <div className={isPresent(slot) ? undefined : "hidden sm:block"}>
       <dt className={LABEL}>{slot.label}</dt>
       <dd className={VALUE}>
         {/* Underlining means a real interaction. Only a value with a live
             Browse destination gets the link treatment; everything else is
-            plain text, including an absent value, which renders nothing
-            and leaves its slot standing. */}
+            plain text. */}
         {slot.href ? (
           <Link
             href={slot.href}
@@ -66,25 +71,54 @@ function Slot({ slot }: { slot: SpecSlot }) {
   );
 }
 
-/* The reserved cell is deliberately not an element: the row is a
-   three-column grid, so the third column simply stays empty. */
-function Row({ row }: { row: SpecRow }) {
-  return (
-    <dl className={ROW}>
-      {row
-        .filter((slot) => !slot.reserved)
-        .map((slot) => (
-          <Slot key={slot.key} slot={slot} />
-        ))}
-    </dl>
-  );
+type Unit = { key: string; slots: SpecSlot[]; wide?: boolean };
+
+/* One section body. Rows are rendered in order; each decides its own
+   visibility and its own top rule for each breakpoint from what precedes
+   it, so the first VISIBLE row at either width carries no rule. The
+   reserved cell is deliberately not an element: the row is a three-column
+   grid and the third column simply stays empty. */
+type LaidUnit = Unit & { className: string };
+
+/* Pure bookkeeping, outside render: walks the rows once and decides each
+   one's visibility and top rule for each breakpoint from what precedes it,
+   so the first VISIBLE row at either width carries no rule. */
+function layoutUnits(units: Unit[]): LaidUnit[] {
+  const laid: LaidUnit[] = [];
+  let shownBeforeNarrow = false;
+  let shownBeforeWide = false;
+  for (const unit of units) {
+    const shownNarrow = unit.slots.some(isPresent);
+    const narrowRule = shownBeforeNarrow;
+    const wideRule = shownBeforeWide;
+    if (shownNarrow) shownBeforeNarrow = true;
+    shownBeforeWide = true;
+    const className = [
+      unit.wide ? WIDE : ROW,
+      shownNarrow ? "grid" : "hidden sm:grid",
+      narrowRule ? "border-t pt-4" : "border-t-0 pt-0",
+      wideRule ? "sm:border-t sm:pt-4" : "sm:border-t-0 sm:pt-0",
+    ].join(" ");
+    laid.push({ ...unit, className });
+  }
+  return laid;
 }
 
-function Wide({ slot }: { slot: SpecSlot }) {
+/* One section body. The reserved cell is deliberately not an element: the
+   row is a three-column grid and the third column simply stays empty. */
+function Units({ units }: { units: Unit[] }) {
   return (
-    <dl className={WIDE}>
-      <Slot slot={slot} />
-    </dl>
+    <div className="mt-4 flex flex-col gap-y-4">
+      {layoutUnits(units).map(({ className, ...unit }) => (
+        <dl key={unit.key} className={className}>
+          {unit.slots
+            .filter((slot) => !slot.reserved)
+            .map((slot) => (
+              <Slot key={slot.key} slot={slot} />
+            ))}
+        </dl>
+      ))}
+    </div>
   );
 }
 
@@ -108,19 +142,23 @@ export default function ListingSpecs({
 }) {
   const geo = composeWatchDetailGeography(details, year, condition);
 
+  const snapshotUnits: Unit[] = [
+    ...geo.snapshot.map((slots, i) => ({ key: `snapshot-${i}`, slots })),
+    ...chunkRows(geo.snapshotExtras).map((slots, i) => ({ key: `snapshot-extra-${i}`, slots })),
+  ];
+
+  const technicalUnits: Unit[] = [
+    ...geo.technical.map((slots, i) => ({ key: `technical-${i}`, slots })),
+    ...geo.technicalWide.map((slot) => ({ key: slot.key, slots: [slot], wide: true })),
+    ...chunkRows(geo.technicalExtras).map((slots, i) => ({ key: `technical-extra-${i}`, slots })),
+  ];
+
   return (
     <>
-      {/* SECTION 3 — Collector Snapshot: 3 × 3, slots fixed. */}
+      {/* SECTION 3 — Collector Snapshot: 3 × 3, slots fixed on desktop. */}
       <section className="mt-8">
         <SectionHeading>Collector Snapshot</SectionHeading>
-        <div className="mt-4 flex flex-col gap-y-4">
-          {geo.snapshot.map((row, i) => (
-            <Row key={`snapshot-${i}`} row={row} />
-          ))}
-          {chunkRows(geo.snapshotExtras).map((row, i) => (
-            <Row key={`snapshot-extra-${i}`} row={row} />
-          ))}
-        </div>
+        <Units units={snapshotUnits} />
       </section>
 
       {/* SECTION 4 — Technical Specifications: short facts align in two
@@ -128,17 +166,7 @@ export default function ListingSpecs({
           continuous surface; the disclosure died in v4.26. */}
       <section className="mt-6">
         <SectionHeading>Technical Specifications</SectionHeading>
-        <div className="mt-4 flex flex-col gap-y-4">
-          {geo.technical.map((row, i) => (
-            <Row key={`technical-${i}`} row={row} />
-          ))}
-          {geo.technicalWide.map((slot) => (
-            <Wide key={slot.key} slot={slot} />
-          ))}
-          {chunkRows(geo.technicalExtras).map((row, i) => (
-            <Row key={`technical-extra-${i}`} row={row} />
-          ))}
-        </div>
+        <Units units={technicalUnits} />
       </section>
     </>
   );
