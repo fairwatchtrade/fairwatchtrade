@@ -6,7 +6,8 @@ import { staticRouteMetadata } from "@/lib/seo/routeMetadata";
    ──────────────────────────────────────────────────────────────────────── */
 
 /* Robots Readiness GRS-005/006: locked title, description, clean canonical.
-   GRS-008 payment/privacy wording is NOT resolved here. */
+   GRS-008 payment/privacy wording resolved 2026-09-10: no payment-processing
+   disclosure, because FairWatchTrade does not process payments. */
 export const metadata: Metadata = staticRouteMetadata("/privacy");
 
 export default function PrivacyPage() {
@@ -17,7 +18,7 @@ export default function PrivacyPage() {
           FairWatchTrade
         </div>
         <h1 className="text-3xl font-light text-[var(--platinum)]">Privacy Policy</h1>
-        <p className="mt-2 text-[12px] text-[var(--muted)]">Last updated: June 2026</p>
+        <p className="mt-2 text-[12px] text-[var(--muted)]">Last updated: September 2026</p>
 
         <h2 className="mt-8 mb-2 text-[15px] font-medium text-[var(--platinum)]">
           1. Our Commitment
@@ -52,8 +53,8 @@ export default function PrivacyPage() {
         <p className="text-[14px] leading-relaxed text-[var(--slate)]">
           We do not sell your data. We do not serve ads. We do not use tracking
           pixels or behavioral advertising. We do not share your information with
-          third parties except as required to operate the platform (payment
-          processing, email delivery).
+          third parties except as required to operate the platform (email
+          delivery).
         </p>
 
         <h2 className="mt-8 mb-2 text-[15px] font-medium text-[var(--platinum)]">
