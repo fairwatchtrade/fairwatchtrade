@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import AccountRail from "@/components/AccountRail";
 import DealerAcceleratorEntry from "@/components/DealerAcceleratorEntry";
+import BuyerPurchasesPanel from "@/components/BuyerPurchasesPanel";
 import AccountRoomSelector from "@/components/AccountRoomSelector";
 import DealerAcceleratorRoom from "@/components/DealerAcceleratorRoom";
 import SavedSearchesModule from "@/components/SavedSearchesModule";
@@ -536,6 +537,13 @@ function DashboardView({
         </button>
       </div>
       )}
+
+      {/* YOUR PURCHASES (Stripe Step 1, 2026-09-10) — the buyer's accepted
+          purchases and what the webhook has confirmed about each. Renders
+          nothing for an account that is not the buyer of any purchase, so
+          the ordinary seller Overview is unchanged. The Stripe return URL
+          lands here with ?transaction=… as its anchor. */}
+      <BuyerPurchasesPanel />
 
       {/* RECENT PREVIEW — last 3, no tabs */}
       <div className="px-6 pt-5 pb-3 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
