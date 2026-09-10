@@ -272,6 +272,30 @@ test("payment-state route: session identity, server-only provider read, allowlis
   assert.doesNotMatch(src, /select\("\*"\)/);
 });
 
+test("S1-C2: a failed provider-state read is never treated as no payment", () => {
+  const ps = stripComments(read("app/api/stripe/payment-state/route.ts"));
+  assert.match(ps, /const \{ data: atts, error: attErr \}/);
+  assert.match(ps, /if \(attErr\) \{[\s\S]*?payment_state_unavailable[\s\S]*?status: 503/);
+  assert.match(ps, /catch \(e\) \{[\s\S]*?payment_state_unavailable[\s\S]*?status: 503/);
+  // The checkout route must not start an attempt when it cannot see whether one exists.
+  const co = stripComments(read("app/api/stripe/checkout/route.ts"));
+  assert.match(co, /const \{ data: activeRow, error: activeErr \}/);
+  assert.match(co, /if \(activeErr\) \{[\s\S]*?refuse\("payment_state_unavailable", 503\)/);
+  assert.match(co, /const \{ data: cur, error: curErr \}/);
+  assert.match(co, /if \(curErr\) \{[\s\S]*?refuse\("payment_state_unavailable", 503\)/);
+  // The webhook must not record a failed lookup as "unresolved" and tell Stripe not to retry.
+  const wh = stripComments(read("app/api/stripe/webhook/route.ts"));
+  assert.match(wh, /const \{ data, error: lookupErr \}/);
+  assert.match(wh, /if \(lookupErr\) \{[\s\S]*?lookup_failed[\s\S]*?status: 500/);
+  assert.doesNotMatch(wh, /const \{ data \} = await db\.from\("stripe_payment_attempts"\)/);
+  // The surface says could-not-look out loud rather than showing nothing or a Pay button.
+  const panel = stripComments(read("components/BuyerPurchasesPanel.tsx"));
+  assert.match(panel, /type Read = \{ ok: true; purchases: Purchase\[\] \} \| \{ ok: false \}/);
+  assert.match(panel, /setUnavailable\(!next\.ok\)/);
+  assert.match(panel, /if \(unavailable && \(!purchases \|\| purchases\.length === 0\)\)/);
+  assert.match(panel, /Your purchases could not be loaded just now\. Nothing has changed\. Refresh in a moment\./);
+});
+
 test("the Stripe client is server-only, sandbox-only, and secrets never leave it", () => {
   const src = stripComments(read("lib/payments/stripe/client.ts"));
   assert.match(src, /import "server-only"/);

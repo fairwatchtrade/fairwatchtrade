@@ -94,23 +94,31 @@ export async function POST(request: NextRequest) {
   const ev = normalizeEvent(event);
   const db = createServiceClient();
 
-  /* 3 · resolve the payment attempt */
+  /* 3 · resolve the payment attempt. S1-C2: a lookup that FAILS is not a
+         lookup that found nothing. Recording such an event as "unresolved"
+         and answering 2xx would tell Stripe never to retry a message we
+         never actually examined, so a failed lookup answers 500 and Stripe
+         brings the event back. */
+  const lookups: Array<[string, string] | null> = [
+    ev.metadata.fwt_payment_attempt_id && UUID.test(ev.metadata.fwt_payment_attempt_id) ? ["id", ev.metadata.fwt_payment_attempt_id] : null,
+    ev.checkoutSessionId ? ["checkout_session_id", ev.checkoutSessionId] : null,
+    ev.paymentIntentId ? ["payment_intent_id", ev.paymentIntentId] : null,
+    ev.chargeId ? ["charge_id", ev.chargeId] : null,
+  ];
   let attempt: AttemptRow | null = null;
-  const hinted = ev.metadata.fwt_payment_attempt_id;
-  if (hinted && UUID.test(hinted)) {
-    const { data } = await db.from("stripe_payment_attempts").select(ATTEMPT_COLUMNS).eq("id", hinted).maybeSingle();
-    attempt = (data as AttemptRow | null) ?? null;
-  }
-  if (!attempt && ev.checkoutSessionId) {
-    const { data } = await db.from("stripe_payment_attempts").select(ATTEMPT_COLUMNS).eq("checkout_session_id", ev.checkoutSessionId).maybeSingle();
-    attempt = (data as AttemptRow | null) ?? null;
-  }
-  if (!attempt && ev.paymentIntentId) {
-    const { data } = await db.from("stripe_payment_attempts").select(ATTEMPT_COLUMNS).eq("payment_intent_id", ev.paymentIntentId).maybeSingle();
-    attempt = (data as AttemptRow | null) ?? null;
-  }
-  if (!attempt && ev.chargeId) {
-    const { data } = await db.from("stripe_payment_attempts").select(ATTEMPT_COLUMNS).eq("charge_id", ev.chargeId).limit(1).maybeSingle();
+  for (const lookup of lookups) {
+    if (!lookup || attempt) continue;
+    const [column, value] = lookup;
+    const { data, error: lookupErr } = await db
+      .from("stripe_payment_attempts")
+      .select(ATTEMPT_COLUMNS)
+      .eq(column, value)
+      .limit(1)
+      .maybeSingle();
+    if (lookupErr) {
+      console.error(`[stripe:webhook] attempt lookup by ${column} failed event=${ev.eventId}:`, lookupErr.message);
+      return NextResponse.json({ error: "lookup_failed" }, { status: 500 });
+    }
     attempt = (data as AttemptRow | null) ?? null;
   }
 

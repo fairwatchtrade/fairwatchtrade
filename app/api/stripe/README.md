@@ -165,6 +165,18 @@ connected account id, PaymentIntent and Charge ids, the idempotency key and
 raw provider status never leave the server. The browser sends requests; the
 server determines commercial truth; the webhook confirms it.
 
+## Could-not-look is not nothing-found (S1-C2)
+
+Every read of the provider record checks its error. `payment-state`
+answers 503 `payment_state_unavailable` when the attempt read fails, so a
+buyer is never shown Pay with Stripe on top of a state FairWatchTrade failed
+to establish; the Overview panel then says the purchases could not be loaded
+and offers Refresh instead of rendering nothing. `checkout` answers the same
+503 when it cannot see whether an attempt already exists or cannot read the
+currency, rather than starting a new attempt on an assumption. `webhook`
+answers 500 `lookup_failed` when an attempt lookup fails, so Stripe retries
+instead of the event being recorded as unresolved and never re-examined.
+
 ## Return race
 
 Returning before the webhook is normal. The Overview panel shows

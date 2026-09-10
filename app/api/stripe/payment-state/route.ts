@@ -87,12 +87,26 @@ export async function GET(request: NextRequest) {
      session client just proved are this buyer's. */
   const attempts: SafeAttemptRow[] = [];
   if (ids.length > 0) {
-    const db = createServiceClient();
-    const { data: atts } = await db
+    /* S1-C2: a failed provider-state read is NOT "no payment exists". With
+       no attempt, canStartCheckout is true and the buyer would be shown
+       Pay with Stripe on top of a state FairWatchTrade failed to establish.
+       Could-not-look is its own answer. */
+    let db;
+    try {
+      db = createServiceClient();
+    } catch (e) {
+      console.error("[stripe:payment-state] service client unavailable:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "payment_state_unavailable" }, { status: 503 });
+    }
+    const { data: atts, error: attErr } = await db
       .from("stripe_payment_attempts")
       .select(SAFE_ATTEMPT_COLUMNS)
       .in("transaction_id", ids)
       .eq("is_active", true);
+    if (attErr) {
+      console.error("[stripe:payment-state] attempt read failed:", attErr.message);
+      return NextResponse.json({ error: "payment_state_unavailable" }, { status: 503 });
+    }
     for (const a of (atts ?? []) as SafeAttemptRow[]) attempts.push(a);
   }
   const byTxn = new Map(attempts.map((a) => [a.transaction_id, a]));

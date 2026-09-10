@@ -52,18 +52,23 @@ type Purchase = {
 const POLL_MS = 4000;
 const POLL_WINDOW_MS = 120_000;
 
-/** One read of the buyer's purchases; null when the read did not succeed,
-    so the caller leaves the last known state on screen. */
-async function fetchPurchases(): Promise<Purchase[] | null> {
+type Read = { ok: true; purchases: Purchase[] } | { ok: false };
+
+/** One read of the buyer's purchases. `ok: false` means FairWatchTrade
+    could not establish payment state (S1-C2): the caller must say so, and
+    must never treat it as "no purchases". */
+async function fetchPurchases(): Promise<Read> {
   try {
     const res = await fetch("/api/stripe/payment-state", { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) return { ok: false };
     const data = (await res.json()) as { ok?: boolean; purchases?: Purchase[] };
-    return data.ok && Array.isArray(data.purchases) ? data.purchases : null;
+    return data.ok && Array.isArray(data.purchases) ? { ok: true, purchases: data.purchases } : { ok: false };
   } catch {
-    return null;
+    return { ok: false };
   }
 }
+
+const UNAVAILABLE = "Your purchases could not be loaded just now. Nothing has changed. Refresh in a moment.";
 
 const CHECKOUT_ERRORS: Record<string, string> = {
   unauthenticated: "Please sign in again to continue.",
@@ -110,6 +115,8 @@ export default function BuyerPurchasesPanel() {
   const returned = params.get("payment");
 
   const [purchases, setPurchases] = useState<Purchase[] | null>(null);
+  /* S1-C2: true when the last read could not establish payment state. */
+  const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waitedOut, setWaitedOut] = useState(false);
@@ -117,7 +124,8 @@ export default function BuyerPurchasesPanel() {
 
   const load = useCallback(async () => {
     const next = await fetchPurchases();
-    if (next) setPurchases(next);
+    setUnavailable(!next.ok);
+    if (next.ok) setPurchases(next.purchases);
   }, []);
 
   /* First read. The async body sets state only after the network answers,
@@ -126,7 +134,9 @@ export default function BuyerPurchasesPanel() {
     let cancelled = false;
     (async () => {
       const next = await fetchPurchases();
-      if (!cancelled && next) setPurchases(next);
+      if (cancelled) return;
+      setUnavailable(!next.ok);
+      if (next.ok) setPurchases(next.purchases);
     })();
     return () => {
       cancelled = true;
@@ -177,11 +187,31 @@ export default function BuyerPurchasesPanel() {
     }
   }
 
+  /* Could-not-look with nothing yet on screen: say so, never stay silent as
+     though there were no purchases (S1-C2). */
+  if (unavailable && (!purchases || purchases.length === 0)) {
+    return (
+      <section aria-label="Your purchases" className="px-6 pt-6">
+        <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">Your Purchases</div>
+        <p role="status" className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="mt-2 border border-[var(--border-mid)] px-3 py-1.5 text-[11px] uppercase tracking-[1.5px] text-[var(--platinum)] transition hover:border-[var(--gold-subtle)]"
+        >
+          Refresh
+        </button>
+      </section>
+    );
+  }
   if (!purchases || purchases.length === 0) return null;
 
   return (
     <section aria-label="Your purchases" className="px-6 pt-6">
       <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">Your Purchases</div>
+      {unavailable && (
+        <p role="status" className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>
+      )}
       <div className="mt-2 border border-[var(--border-faint)]">
         {purchases.map((p) => {
           const d = describe(p, p.transactionId === focusId ? returned : null, waitedOut);

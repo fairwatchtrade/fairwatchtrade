@@ -117,11 +117,16 @@ export async function POST(request: NextRequest) {
   /* 4 · currency from the transaction snapshot, never the listing; never assumed */
   const currency = transaction.final_purchase_currency;
   if (!currency) return refuse("transaction_currency_missing", 409);
-  const { data: cur } = await db
+  const { data: cur, error: curErr } = await db
     .from("supported_currencies")
     .select("code, exponent, active")
     .eq("code", currency)
     .maybeSingle();
+  if (curErr) {
+    // S1-C2: a failed lookup is not "unsupported"; it is could-not-look.
+    console.error("[stripe:checkout] currency read failed:", curErr.message);
+    return refuse("payment_state_unavailable", 503);
+  }
   if (!cur || cur.active !== true) return refuse("currency_unsupported", 409, { currency });
 
   /* 5 · governed minor units */
@@ -138,12 +143,18 @@ export async function POST(request: NextRequest) {
 
   /* 7 · existing active attempt: reuse an open session, refuse a locked one,
          retire a dead one */
-  const { data: activeRow } = await db
+  const { data: activeRow, error: activeErr } = await db
     .from("stripe_payment_attempts")
     .select("id, lifecycle, amount_minor, refund_state, refunded_amount_minor, dispute_state, dispute_provider_status, checkout_url, checkout_expires_at")
     .eq("transaction_id", transaction.id)
     .eq("is_active", true)
     .maybeSingle();
+  if (activeErr) {
+    /* S1-C2: if FairWatchTrade cannot see whether an attempt already exists,
+       it must not start another one on the assumption that none does. */
+    console.error("[stripe:checkout] active attempt read failed:", activeErr.message);
+    return refuse("payment_state_unavailable", 503);
+  }
   const active = activeRow as AttemptRow | null;
   if (active) {
     const truth: PaymentTruth = {
