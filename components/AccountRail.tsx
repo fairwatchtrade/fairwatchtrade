@@ -169,6 +169,7 @@ export default function AccountRail({
   pendingRequests,
   marketplaceControl = false,
   taxTime = false,
+  dealerAccelerator = false,
 }: {
   surface: "account" | "settings" | "marketplace";
   activeModule?: string;
@@ -185,6 +186,11 @@ export default function AccountRail({
       never a client-side check, never inferred from a business name typed
       into a form. No door is rendered for an ordinary seller. */
   taxTime?: boolean;
+  /** Dealer Accelerator door (founder lock 2026-09-10). Decided by the
+      mounting SERVER page from the account's own entitlement row
+      (lib/dealerAcceleratorEntitlement.ts) — a SEPARATE fact from dealer
+      identity. Default false: no door unless the server said so. */
+  dealerAccelerator?: boolean;
 }) {
   /* Standalone badge truth (standalone surfaces only, and only when the
      mounting page passed nothing): the same two established reads
@@ -258,6 +264,9 @@ export default function AccountRail({
           below keeps its label; that split is real information. */}
       <RailSection>
         {MODULE_ITEMS.map((m) => {
+          /* Designated dealers only: the Dealer Accelerator item is not a
+             disabled or hidden row, it does not exist for this account. */
+          if (m.id === "accelerator" && !dealerAccelerator) return null;
           const isActive = surface === "account" && activeModule === m.id;
           /* One door, one indicator: everything currently needing the
              seller's eyes — pending requests + unread correspondence.

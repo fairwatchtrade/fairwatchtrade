@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { readDealerAcceleratorEntitlement } from "@/lib/dealerAcceleratorEntitlement";
 import AccountRail from "@/components/AccountRail";
 import FaqRoom from "@/components/FaqRoom";
 
@@ -41,11 +42,16 @@ export default async function AccountFaqPage() {
 
   if (!user) redirect("/login");
 
+  /* Same server-resolved Dealer Accelerator entitlement the account page
+     passes, so the rail shows the same doors on every surface. */
+  const dealerAccelerator = await readDealerAcceleratorEntitlement(supabase, user.id);
+
   return (
     <div className="flex min-h-screen bg-[var(--ink)]">
       <AccountRail
         surface="account"
         marketplaceControl={user.id === "77a6893a-54fe-4373-9bf7-3327d0ba69cf"}
+        dealerAccelerator={dealerAccelerator.dealerAccelerator}
       />
       <div className="min-w-0 flex-1">
         <FaqRoom />

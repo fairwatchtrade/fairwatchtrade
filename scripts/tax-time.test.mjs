@@ -90,7 +90,9 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
   assert.equal(moduleVisible("trades", seller), true);
   ok("B3 · visibility follows the same access, and ungated modules stay visible");
 
-  for (const id of ["dashboard", "inventory", "accelerator", "communications", "messages", "requests", "saved", "wanted", "trades"]) {
+  // "accelerator" left this list on 2026-09-10: it is now entitlement-gated
+  // (scripts/dealer-accelerator-entitlement.test.mjs pins both directions).
+  for (const id of ["dashboard", "inventory", "communications", "messages", "requests", "saved", "wanted", "trades"]) {
     assert.equal(moduleFromParam(id, seller), id, id);
     assert.equal(moduleFromParam(id, dealer), id, id);
   }
@@ -205,12 +207,15 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
   assert.doesNotMatch(accessCode, /localStorage|listing_media|dealer_import|business_name|listings|window\./);
   ok("D2 · the access seam reads dealer_profiles only — no Accelerator media, no business-name field, no client storage");
 
-  assert.match(dash, /moduleFromParam\(moduleParam, dealerAccess\)/);
+  // 2026-09-10: the resolver is fed the server-resolved dealer access merged
+  // with the separately-read Dealer Accelerator entitlement; Tax Time still
+  // comes from dealerAccess alone (scripts/dealer-accelerator-entitlement.test.mjs).
+  assert.match(dash, /moduleFromParam\(moduleParam, \{ \.\.\.dealerAccess, dealerAccelerator \}\)/);
   assert.match(dash, /taxTime=\{dealerAccess\.taxTime\}/);
   assert.match(dash, /activeModule === "tax-time" \? \(/);
   assert.match(dash, /<TaxTimeRoom \/>/);
   assert.match(dash, /rooms=\{mobileRooms\}/);
-  assert.match(dash, /dealerAccess\.taxTime\s*\?\s*ACCOUNT_ROOMS\.flatMap/);
+  assert.match(dash, /dealerAccess\.taxTime\s*\?\s*baseRooms\.flatMap/);
   assert.doesNotMatch(dash, /localStorage.*tax|tax.*localStorage/);
   ok("D3 · the dashboard normalizes the module with the access, renders the room once, and hands the phone selector a gated list");
 

@@ -5,6 +5,7 @@ import AccountDashboard, {
   type AccountDecisionEvent,
 } from "@/components/AccountDashboard";
 import { readDealerAccess } from "@/lib/dealerAccess";
+import { readDealerAcceleratorEntitlement } from "@/lib/dealerAcceleratorEntitlement";
 
 /* ────────────────────────────────────────────────────────────────────────
    MY LISTINGS — /account  (v1.43)
@@ -134,12 +135,21 @@ export default async function AccountPage({
      identity is consulted (lib/dealerAccess.ts). */
   const dealerAccess = await readDealerAccess(supabase, user.id);
 
+  /* ── Dealer Accelerator entitlement (founder lock 2026-09-10) ──────────
+     A SEPARATE fact from dealer identity, read from its own founder-written
+     table under RLS (lib/dealerAcceleratorEntitlement.ts). Only the boolean
+     travels: it decides whether the Dealer Accelerator door, the Overview
+     entry and a typed ?module=accelerator exist for this account. Every
+     seller-facing Dealer Accelerator route re-checks the same entitlement. */
+  const dealerAccelerator = await readDealerAcceleratorEntitlement(supabase, user.id);
+
   return (
     <AccountDashboard
       listings={listings}
       decisions={decisions}
       publishedAt={publishedAt}
       dealerAccess={dealerAccess}
+      dealerAccelerator={dealerAccelerator.dealerAccelerator}
       /* Founder-only Marketplace Control rail entry (§2 of the room's build
          order): decided here on the server, so ordinary sellers get no dead
          door and no UID reaches a bundle. The /admin page and every

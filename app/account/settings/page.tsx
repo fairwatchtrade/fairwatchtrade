@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountRail from "@/components/AccountRail";
 import { readDealerAccess } from "@/lib/dealerAccess";
+import { readDealerAcceleratorEntitlement } from "@/lib/dealerAcceleratorEntitlement";
 import AccountSettings from "@/components/AccountSettings";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ export default async function AccountSettingsPage() {
   /* Same server-resolved dealer access the account page passes, so the
      rail shows the same doors on both surfaces (Tax Time shell, v8.30). */
   const dealerAccess = await readDealerAccess(supabase, user.id);
+  const dealerAccelerator = await readDealerAcceleratorEntitlement(supabase, user.id);
 
   return (
     <div className="flex min-h-screen bg-[var(--ink)]">
@@ -41,6 +43,7 @@ export default async function AccountSettingsPage() {
         surface="settings"
         marketplaceControl={user.id === "77a6893a-54fe-4373-9bf7-3327d0ba69cf"}
         taxTime={dealerAccess.taxTime}
+        dealerAccelerator={dealerAccelerator.dealerAccelerator}
       />
       <div className="min-w-0 flex-1">
         <AccountSettings

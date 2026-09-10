@@ -16,7 +16,9 @@
 
    2. Access-gated modules: `tax-time` is a real module, but it is
       navigable only for an account whose server-resolved dealer access
-      says so. For anyone else the value is treated exactly like an unknown
+      says so; `accelerator` likewise exists only for a seller account
+      FairWatchTrade explicitly designated (founder lock 2026-09-10 —
+      dealer identity does NOT imply it). For anyone else the value is treated exactly like an unknown
       one — it falls to Inventory. There is no "you cannot see this" room:
       a non-dealer typing the address lands on their Listings, the same
       thing an unknown word does, and learns nothing about the room's
@@ -24,6 +26,12 @@
    ════════════════════════════════════════════════════════════════════════ */
 
 import type { DealerAccess } from "@/lib/dealerAccess";
+import type { DealerAcceleratorEntitlement } from "@/lib/dealerAcceleratorEntitlement";
+
+/** Everything the workspace may be handed about this account's access:
+    dealer identity (Tax Time) and Dealer Accelerator entitlement are read
+    separately on the server and merged only here, for the module gate. */
+export type AccountAccess = DealerAccess & DealerAcceleratorEntitlement;
 
 export type AccountModuleId =
   | "dashboard"
@@ -59,8 +67,9 @@ export const NAVIGABLE_MODULE_IDS = [
 ] as const;
 
 /** Modules that exist only for accounts with the named access. */
-const ACCESS_GATED: Readonly<Record<string, keyof DealerAccess>> = {
+const ACCESS_GATED: Readonly<Record<string, keyof AccountAccess>> = {
   [TAX_TIME_MODULE_ID]: "taxTime",
+  accelerator: "dealerAccelerator",
 };
 
 /**
@@ -68,7 +77,7 @@ const ACCESS_GATED: Readonly<Record<string, keyof DealerAccess>> = {
  * `access` is the server-resolved dealer access; when absent, every gated
  * module is refused (fail closed).
  */
-export function moduleFromParam(p: string | null | undefined, access?: DealerAccess | null): AccountModuleId {
+export function moduleFromParam(p: string | null | undefined, access?: Partial<AccountAccess> | null): AccountModuleId {
   const value = p ?? "";
   if (!(NAVIGABLE_MODULE_IDS as readonly string[]).includes(value)) return "inventory";
   const gate = ACCESS_GATED[value];
@@ -77,7 +86,7 @@ export function moduleFromParam(p: string | null | undefined, access?: DealerAcc
 }
 
 /** Whether a module id may appear as a destination for this access. */
-export function moduleVisible(id: string, access?: DealerAccess | null): boolean {
+export function moduleVisible(id: string, access?: Partial<AccountAccess> | null): boolean {
   const gate = ACCESS_GATED[id];
   return !gate || !!(access && access[gate] === true);
 }

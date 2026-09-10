@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { readDealerAcceleratorEntitlement } from "@/lib/dealerAcceleratorEntitlement";
 import { buildDealerAcceleratorState } from "@/lib/dealer/dealerPath";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -26,6 +27,12 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
+  /* Designated dealers only (founder lock 2026-09-10): the capability does
+     not exist for an account without the entitlement row, whatever its
+     dealer identity. Generic refusal; every downstream check still runs. */
+  if (!(await readDealerAcceleratorEntitlement(supabase, user.id)).dealerAccelerator) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   try {

@@ -19,7 +19,7 @@ import { formatMoney } from "@/lib/formatMoney";
 import FwtListingId from "@/components/FwtListingId";
 import TaxTimeRoom from "@/components/TaxTimeRoom";
 import { ACCOUNT_ROOMS, type AccountRoom } from "@/components/AccountRoomSelector";
-import { moduleFromParam as resolveAccountModule, TAX_TIME_MODULE_ID } from "@/lib/accountModules";
+import { moduleFromParam as resolveAccountModule, TAX_TIME_MODULE_ID, type AccountAccess } from "@/lib/accountModules";
 import { NO_DEALER_ACCESS, type DealerAccess } from "@/lib/dealerAccess";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ function dialThumbUrl(photos?: ListingPhoto[]): string | null {
    so the refusal of an access-gated module (tax-time for a non-dealer) is
    a pure function the tests can prove, not a rendered page to read. Same
    rules as before for every other id: real modules only, unknown → Inventory. */
-function moduleFromParam(p: string | null, access: DealerAccess): ModuleId {
+function moduleFromParam(p: string | null, access: Partial<AccountAccess>): ModuleId {
   return resolveAccountModule(p, access) as ModuleId;
 }
 
@@ -445,11 +445,14 @@ function DashboardView({
   hasImportedDrafts,
   onOpenAccelerator,
   onOpenImportedDrafts,
+  dealerAccelerator,
 }: {
   listings: AccountListing[];
   counts: Counts;
   selectedListing: string | null;
   onSelect: (id: string) => void;
+  /** Dealer Accelerator entitlement — without it neither entry renders. */
+  dealerAccelerator: boolean;
   hasImportedDrafts: boolean | null;
   onOpenAccelerator: () => void;
   onOpenImportedDrafts: () => void;
@@ -497,6 +500,7 @@ function DashboardView({
           as Overview first; the doorway stays discoverable as a genuinely
           subordinate one-row entry below instead. Same two capabilities,
           demoted presentation — no product machinery changed. */}
+      {dealerAccelerator && (
       <div className="hidden px-6 pt-6 md:block">
         <DealerAcceleratorEntry
           hasImportedDrafts={hasImportedDrafts}
@@ -504,10 +508,12 @@ function DashboardView({
           onOpenImportedDrafts={onOpenImportedDrafts}
         />
       </div>
+      )}
       {/* Mobile: the compact subordinate entry. One quiet row; when
           imported drafts are waiting it says so and opens the review
           destination directly, otherwise it opens the Accelerator start.
           Both existing capabilities survive the demotion. */}
+      {dealerAccelerator && (
       <div className="px-6 pt-5 md:hidden">
         <button
           type="button"
@@ -529,6 +535,7 @@ function DashboardView({
           </span>
         </button>
       </div>
+      )}
 
       {/* RECENT PREVIEW — last 3, no tabs */}
       <div className="px-6 pt-5 pb-3 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
@@ -577,6 +584,7 @@ export default function AccountDashboard({
   publishedAt = {},
   marketplaceControl = false,
   dealerAccess = NO_DEALER_ACCESS,
+  dealerAccelerator = false,
 }: {
   listings: AccountListing[];
   /** Adjudication history for these listings, newest first. Optional so any
@@ -594,6 +602,10 @@ export default function AccountDashboard({
       resolves; defaults to no access, so a caller that passes nothing gets
       the ordinary seller workspace. */
   dealerAccess?: DealerAccess;
+  /** Dealer Accelerator entitlement (founder lock 2026-09-10): a SEPARATE
+      fact from dealerAccess, resolved by the server page from the account's
+      own entitlement row. False = the capability does not exist here. */
+  dealerAccelerator?: boolean;
 }) {
   /* WS2 (v2.88) — the URL is the ONLY owner of the active module. v2.68's
      ?module=saved deep link becomes the general convention: every real
@@ -606,7 +618,7 @@ export default function AccountDashboard({
      changes but the single-view law governs what renders; no mobile module
      nav is added (the 'saved' deep link remains mobile's one exception). */
   const moduleParam = useSearchParams().get("module");
-  const activeModule = moduleFromParam(moduleParam, dealerAccess);
+  const activeModule = moduleFromParam(moduleParam, { ...dealerAccess, dealerAccelerator });
   function selectModule(id: ModuleId) {
     if (id === activeModule) return;
     window.history.pushState(
@@ -640,6 +652,9 @@ export default function AccountDashboard({
      line until the truth arrives. */
   const [hasImportedDrafts, setHasImportedDrafts] = useState<boolean | null>(null);
   useEffect(() => {
+    /* No entitlement, no read: the predicate feeds a doorway that does not
+       exist for this account. */
+    if (!dealerAccelerator) return;
     let cancelled = false;
     (async () => {
       const { createClient } = await import("@/lib/supabase/client");
@@ -653,7 +668,7 @@ export default function AccountDashboard({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dealerAccelerator]);
 
   // v2.8 — Submit for Review. router is used only to re-run the SERVER page's
   // own listings query after a successful transition; see submitForReview().
@@ -677,11 +692,16 @@ export default function AccountDashboard({
   /* The phone's room list: the eight real rooms, plus Tax Time between
      Dealer and Settings ONLY when the server resolved dealer access. The
      selector lists what it is handed and never decides access itself. */
+  /* Designated dealers only (founder lock 2026-09-10): without the
+     entitlement the Dealer room is not in the phone's list at all. */
+  const baseRooms: ReadonlyArray<AccountRoom> = dealerAccelerator
+    ? ACCOUNT_ROOMS
+    : ACCOUNT_ROOMS.filter((room) => room.id !== "accelerator");
   const mobileRooms: ReadonlyArray<AccountRoom> = dealerAccess.taxTime
-    ? ACCOUNT_ROOMS.flatMap((room) =>
+    ? baseRooms.flatMap((room) =>
         room.id === "settings" ? [{ id: TAX_TIME_MODULE_ID, label: "Tax Time" }, room] : [room]
       )
-    : ACCOUNT_ROOMS;
+    : baseRooms;
   const mobileRoomValue =
     activeModule === "messages" || activeModule === "requests"
       ? "communications"
@@ -909,6 +929,7 @@ export default function AccountDashboard({
           pendingRequests={pendingRequestCount}
           marketplaceControl={marketplaceControl}
           taxTime={dealerAccess.taxTime}
+          dealerAccelerator={dealerAccelerator}
         />
 
         {/* RIGHT WORKSPACE — controls change WHAT you're doing. */}
@@ -1125,6 +1146,7 @@ export default function AccountDashboard({
                Accelerator doorway, which is exactly why mobile Listings no
                longer needs to carry the billboard. */
             <DashboardView
+              dealerAccelerator={dealerAccelerator}
               listings={searchFiltered}
               counts={counts}
               selectedListing={selectedListing}
@@ -1161,6 +1183,7 @@ export default function AccountDashboard({
                 submitErrorId={submitErrorId}
                 submitErrorMsg={submitErrorMsg}
               />
+              {dealerAccelerator && (
               <div className="px-4 pb-6 pt-2 md:hidden">
                 <DealerAcceleratorEntry
                   hasImportedDrafts={hasImportedDrafts}
@@ -1168,6 +1191,7 @@ export default function AccountDashboard({
                   onOpenImportedDrafts={() => openAccelerator("drafts")}
                 />
               </div>
+              )}
             </>
           )}
         </div>
