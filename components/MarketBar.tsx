@@ -103,13 +103,40 @@ export default function MarketBar() {
           is also the only thing holding the London label off the viewport
           edge - the Left Cliff Law lives on this band too, and 12px was thin
           for it. */}
+      {/* CONTAINMENT (GRS-011 / GW06-F01). The metals block used to be
+          `shrink-0`. At a 360px viewport its intrinsic 265px could not yield,
+          so the row's fixed chrome was pushed past the edge: the right
+          scroll-auctions arrow measured 358→386 against a 360px document,
+          i.e. 2px of it inside the viewport and the rest outside, and the
+          document itself gained 26px of horizontal overflow.
+
+          The arrow was never the defect. It was the last item in a row whose
+          FIRST item refused to shrink, so every fix applied at the arrow —
+          or on any one page — would have been treating the symptom on one
+          surface while the shared shell kept producing it on all of them.
+
+          Both bands are now scrollers that yield, with the metals block
+          giving up width first:
+            metals   grow-0 shrink-1 basis-auto → natural width when it fits,
+                     shrinks and scrolls internally when it does not;
+            auctions grow-1 shrink-1 basis-[120px] → a real basis so it keeps
+                     a usable share instead of collapsing to zero. A basis of
+                     0 (plain flex-1) contributes nothing to shrink weighting,
+                     which would have handed the entire deficit to the metals
+                     and left the auction strip 0px wide — contained, but
+                     useless.
+
+          Above roughly 450px there is free space, no item shrinks, and the
+          desktop geometry is byte-for-byte what it was. */}
       <div className="flex h-11 w-full items-center gap-2 px-6">
-        <div className="flex shrink-0 items-center gap-4 pr-3">
-          <span className="select-none text-[11px] tracking-wide text-[var(--gold)] [writing-mode:vertical-rl] rotate-180">
+        <div className="flex min-w-0 shrink grow-0 basis-auto items-center gap-4 overflow-x-auto pr-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="select-none shrink-0 text-[11px] tracking-wide text-[var(--gold)] [writing-mode:vertical-rl] rotate-180">
             London
           </span>
           {list.map((m) => (
-            <div key={m.key} className="flex items-center gap-2">
+            /* Each metal stays whole and scrolls; a price must never wrap or
+               be squeezed into two lines to fit a phone. */
+            <div key={m.key} className="flex shrink-0 items-center gap-2">
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${METAL_DOT_CLASS[m.key as keyof typeof METAL_DOT_CLASS] ?? "bg-zinc-400"}`}
               />
@@ -156,7 +183,7 @@ export default function MarketBar() {
 
         <div
           ref={scroller}
-          className="flex flex-1 gap-2 overflow-x-auto scroll-smooth px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 shrink grow basis-[120px] gap-2 overflow-x-auto scroll-smooth px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {ordered.map((a) => {
             const live = statusOf(a, now) === "live";
