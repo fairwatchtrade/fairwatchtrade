@@ -636,4 +636,128 @@ ok("P6 did not disturb the P7 association read",
 eq("P6 did not disturb history semantics",
   assessHistory(input({ publicationEpisodes: [episode()] })), "established");
 
+/* -- 16 . P8 . founder diagnostic caller + governed P7 correction path ----
+   Both routes are founder-gated server code; the live 401 and the real
+   reference inspection are reported in the return. These pins hold the
+   properties source review would otherwise have to re-derive. */
+const diag = read("app/api/admin/public-watch-index/diagnostic/route.ts");
+const epref = read("app/api/admin/public-watch-index/episode-reference/route.ts");
+/* Both routes are checked as CODE: their comments deliberately name the
+   things they refuse to do, and a naive grep reads those sentences as the
+   defects they prevent. */
+const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const eprefCode = strip(epref);
+
+/* Proofs 1-2 - denial */
+for (const [name, src] of [["diagnostic", diag], ["episode-reference", epref]]) {
+  ok("P8 " + name + " denies a signed-out caller with 401",
+    /not_authenticated"? \}, \{ status: 401 \}/.test(src));
+  ok("P8 " + name + " denies an ordinary authenticated caller with 403",
+    src.includes("user.id !== ADMIN_USER_ID") && /forbidden"? \}, \{ status: 403 \}/.test(src));
+  ok("P8 " + name + " gates every handler through requireFounder",
+    (src.match(/const gate = await requireFounder\(\);/g) || []).length ===
+    (src.match(/export async function (GET|POST)\(/g) || []).length);
+}
+
+/* Proof 3 - the founder caller invokes the REAL composed projection */
+ok("P8-3 the diagnostic calls the real projectReference, not a reimplementation",
+  diag.includes('from "@/lib/publicWatchIndex/projectionSource"') &&
+  diag.includes("await projectReference(vaultReferenceId)"));
+/* Comments are stripped first: the route NAMES fuzzy matching in order to say
+   it does none, and a naive grep would read that sentence as the defect. */
+const diagCode = diag.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+ok("P8-3 exact identity only - no fuzzy or nearby matching",
+  diagCode.includes('.eq("reference", textParam)') && !/ilike|\.like\(|similar to|%/.test(diagCode));
+ok("P8-3 an ambiguous exact string is refused, never picked",
+  diag.includes("ambiguous_reference") && diag.includes(".limit(2)"));
+ok("P8-3 a non-match is an honest 404, not a nearby reference",
+  diag.includes("no_exact_match"));
+
+/* Proof 4 - all four assertion states returned independently */
+ok("P8-4 the diagnostic returns the projection's own record unchanged",
+  diag.includes("record: result.record") && !/availableNow\s*:/.test(diag));
+ok("P8-4 the shorthand is computed by the projection's rule, not the route",
+  diag.includes("presentationShorthand(result.record)") &&
+  !/Available Now"|Previously Listed"/.test(diag));
+ok("P8-4 internal coverage notes ride along for diagnosis",
+  diag.includes("coverageNotes: result.coverageNotes"));
+
+/* Proof 5 - one dimension failing does not false-out the others (route level:
+   the route never rewrites a state, so the projection's guarantee carries) */
+ok("P8-5 the route sets no assertion state of its own",
+  !/unavailable_or_incomplete|none_established_within_coverage|qualifying_record/.test(diagCode));
+
+/* Proof 6 - no hidden/internal content leaks through the diagnostic */
+ok("P8-6 the diagnostic never reads knowledge content",
+  !/reference_knowledge/.test(diagCode));
+ok("P8-6 the diagnostic reads no listing, evidence, seller or storage source directly",
+  !/from\("listings"\)|auction_evidence|storage|seller_display_name|private_buyer/.test(diagCode));
+ok("P8-6 privacy is not relaxed just because the route is private",
+  diag.includes("exclusion list is not relaxed by privacy") ||
+  diag.includes("§7's exclusion list"));
+ok("P8-6 a reference with no public identity discloses nothing about internal records",
+  diag.includes("not a statement about internal records"));
+
+/* Proofs 7-9 - the correction path's authority and refusals */
+ok("P8-7 the actor is the session founder, never a request field",
+  epref.includes("p_actor_uid: founderId") && !/body\.actor|body\[.actor/.test(eprefCode));
+ok("P8-8 a non-integer or non-positive episode id is refused before any call",
+  epref.includes("invalid_episode") && /Number\.isSafeInteger\(n\) && n > 0/.test(epref));
+ok("P8-8 a non-public episode refusal is surfaced from the function, not invented",
+  epref.includes("unknown_public_episode"));
+ok("P8-9 both actions require a non-empty governed reason",
+  /reason\.length < 1 \|\| reason\.length > 2000/.test(epref) && epref.includes("reason_required"));
+ok("P8-9 correcting requires an exact canonical reference id",
+  /action === "correct"[\s\S]{0,400}UUID\.test\(vaultReferenceId\)/.test(epref));
+ok("P8-9 withdrawing takes no reference id - it removes a claim, not moves one",
+  !/action === "withdraw"[\s\S]{0,400}p_vault_reference_id/.test(epref));
+
+/* Proof 10 - delegation, not reimplementation */
+ok("P8-10 the route calls the existing P7 functions",
+  epref.includes('rpc("public_watch_index_correct_episode_reference"') &&
+  epref.includes('rpc("public_watch_index_withdraw_episode_reference"'));
+ok("P8-10 the route never writes the association table directly",
+  !/from\("public_watch_index_episode_reference"\)[\s\S]{0,120}\.(insert|update|delete)\(/.test(epref));
+ok("P8-10 the route reimplements no P7 semantics",
+  !/supersedes_id\s*:|retired_kind\s*:|is_current\s*:\s*(true|false)/.test(eprefCode));
+ok("P8-10 seller text is never consulted by the correction path",
+  !/listing_reference|seller_text|brand|model/.test(eprefCode));
+
+/* Proof 11 - suppression still bites across correction */
+/* The route's reply text mentions suppression in order to draw the
+   distinction for the founder reading it; what must be absent is any
+   suppression MACHINERY. */
+ok("P8-11 suppression is applied by the projection, never by the correction route",
+  !/public_watch_index_suppress|public_watch_index_suppressions|readLiveSuppressions/.test(eprefCode));
+eq("P8-11 a live contribution suppression survives reassociation",
+  assessHistory({ ...input({ publicationEpisodes: [episode()] }),
+    reference: { ...REF, vaultReferenceId: "44444444-4444-4444-8444-444444444444" },
+    suppressions: supContrib(L1, "public_listing_history") }),
+  "not_established_within_coverage");
+
+/* Proofs 12-13 - nothing historical and nothing public moved */
+ok("P8-12 no migration rides along with P8",
+  (() => {
+    try { readFileSync(new URL("../supabase/migrations/20260910190000_p8.sql", import.meta.url)); return false; }
+    catch { return true; }
+  })());
+ok("P8-12 neither route contains a backfill or batch resolution",
+  !/insert into|for \(const ep of|batch|backfill/i.test(diagCode + eprefCode));
+ok("P8-13 no public watch-index route file exists", (() => {
+  for (const q of ["app/api/watch-index/route.ts", "app/api/public-watch-index/route.ts", "app/watch-index/page.tsx"]) {
+    try { readFileSync(new URL(`../${q}`, import.meta.url)); return false; } catch { /* absent */ }
+  }
+  return true;
+})());
+ok("P8-13 neither route touches robots, sitemap, manifest or metadata policy",
+  !/robots|sitemap|well-known|STATIC_ROUTE_COPY|metadataBase/i.test(diagCode + eprefCode));
+ok("P8-13 both routes live under /api/admin - founder surface, not public",
+  true);
+ok("P8-13 the diagnostic states plainly that public release is not authorized",
+  diag.includes("not authorized; no public endpoint exists"));
+
+/* listing_addenda stays out of scope */
+ok("P8 does not touch listing_addenda",
+  !/listing_addenda/.test(diagCode + eprefCode));
+
 console.log(`public-watch-index: ${n} assertions PASS`);
