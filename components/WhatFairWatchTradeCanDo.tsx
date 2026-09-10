@@ -114,7 +114,7 @@ export default function WhatFairWatchTradeCanDo() {
     <div className="mx-auto w-full max-w-[1240px] px-4 pb-[70px] pt-[32px] sm:px-6 lg:px-[34px]">
       {/* ── Hero ── */}
       <section className="max-w-[930px] pb-[28px] pt-[24px] sm:pt-[40px]">
-        <div className="mb-[10px] text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+        <div className="mb-[10px] font-medium text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
           {HERO.eyebrow}
         </div>
         <h1 className="font-display text-[38px] font-normal leading-[42px] tracking-[-0.01em] text-[var(--platinum)] sm:text-[52px] sm:leading-[56px]">
@@ -175,7 +175,7 @@ export default function WhatFairWatchTradeCanDo() {
             hidden={r.id !== room}
           >
             <div className="border-b border-[var(--border-faint)] px-[18px] py-[26px] md:px-[34px] md:py-[32px]">
-              <div className="mb-[6px] text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+              <div className="mb-[6px] font-medium text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
                 {r.kicker}
               </div>
               <h2 className="font-display text-[28px] font-normal leading-[34px] text-[var(--platinum)] md:text-[34px] md:leading-[38px]">
@@ -202,7 +202,16 @@ export default function WhatFairWatchTradeCanDo() {
                       <div className="font-display text-[17px] font-normal leading-[24px] text-[var(--platinum)]">
                         {benefit.title}
                       </div>
-                      <p className="text-[14px] leading-[22px] text-[var(--slate)]">{benefit.body}</p>
+                      <p className="text-[14px] leading-[22px] text-[var(--slate)]">
+                        {benefit.lead ? (
+                          <>
+                            <strong className="font-medium text-[var(--platinum)]">{benefit.lead}</strong>{" "}
+                            {benefit.body}
+                          </>
+                        ) : (
+                          benefit.body
+                        )}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -239,7 +248,7 @@ export default function WhatFairWatchTradeCanDo() {
 
       {/* ── Shared refusals ── */}
       <section className="mt-[34px] border border-[var(--border-mid)] bg-[var(--surface)] px-[18px] py-[24px] md:p-[32px]">
-        <div className="mb-[8px] text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
+        <div className="mb-[8px] font-medium text-[11px] uppercase leading-[14px] tracking-[2.2px] text-[var(--gold-dim)]">
           {REFUSALS_SECTION.eyebrow}
         </div>
         <h2 className="font-display text-[28px] font-normal leading-[34px] text-[var(--platinum)] md:text-[34px] md:leading-[38px]">

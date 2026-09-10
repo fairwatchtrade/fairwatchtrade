@@ -17,7 +17,7 @@
    review, because a public claim is a promise.
 
    CLASSIFICATIONS. `live` and `bounded` are the settled capability basis of
-   the 52 ordinary benefit rows (25 live, 27 bounded). `bounded` is the
+   the 53 ordinary benefit rows (26 live, 27 bounded). `bounded` is the
    INTERNAL class name; its visible label is "Available with limits" — see
    STATUS_LABELS. Tax Time is the one `coming` block and is deliberately
    separate from the ordinary rows. Never promote a bounded row to live here
@@ -32,6 +32,8 @@ export type BenefitStatus = "live" | "bounded";
 export type Benefit = {
   status: BenefitStatus;
   title: string;
+  /** Optional emphasized lead-in for a benefit whose approved copy has one. */
+  lead?: string;
   body: string;
 };
 
@@ -73,7 +75,7 @@ export const HERO = Object.freeze({
   eyebrow: "Start with why you came",
   title: PAGE_TITLE,
   intro:
-    "Choose what you came to do, and see what FairWatchTrade can actually help with today — including where it deliberately stops and what isn’t available yet.",
+    "Choose what you came to do and see how FairWatchTrade can help today—including what it does not handle and what is still being built.",
 });
 
 const b = (status: BenefitStatus, title: string, body: string): Benefit => ({ status, title, body });
@@ -86,21 +88,21 @@ export const ROOMS: readonly Room[] = Object.freeze([
     kicker: "Browse",
     heading: "Find the watch. Learn the watch. Keep the hunt intact.",
     intro:
-      "Browse is built for collectors who may simply want to explore, inspect, remember, and understand watches without being shoved toward a transaction.",
+      "Browse is for collectors who want to explore, inspect, and understand watches—and return to the hunt later—without being pushed to buy.",
     groups: [
       {
         heading: "Search",
         benefits: [
           b("live", "Exact reference and permanent listing-code search",
             "Search an exact manufacturer reference or permanent FWT listing code. If that exact watch is not here, FWT says so instead of swapping in a look-alike."),
-          b("live", "Unified Browse refinement",
-            "Search and watch-specific filters work together, and every active criterion stays visible and removable. FWT supports useful collector language, but exact identifiers still take priority."),
-          b("live", "Durable Browse state",
-            "Your Browse hunt lives in the URL, so it can be shared, reloaded, and revisited. Open a watch and return without losing the search you built."),
+          b("live", "Search and filters that work together",
+            "Use search and watch-specific filters together, and see every filter you have applied. FWT understands some common collector terms, while exact references and listing codes take priority."),
+          b("live", "Keep your place in Browse",
+            "Share or reload a Browse search without losing it. Open a watch and return to the same search, filters, and view."),
         ],
         feature: {
-          big: "Exact really means exact.",
-          body: "FairWatchTrade does not quietly replace a missing exact reference with something merely related. A truthful no-match is better than a convenient wrong answer.",
+          big: "Related stays related.",
+          body: "If related watches are shown, they stay clearly labeled as related; none is presented as the exact reference or listing code you asked for.",
         },
       },
       {
@@ -154,7 +156,7 @@ export const ROOMS: readonly Room[] = Object.freeze([
     kicker: "Buy",
     heading: "Know what you are looking at before you decide.",
     intro:
-      "A potential buyer gets clear watch details, full-photo inspection, conversations tied to the listing, and clear limits on what FWT handles today.",
+      "A buyer can review the watch’s details and full set of listing photos, ask questions tied to that listing, and see what FWT does—and does not—handle today.",
     groups: [
       {
         heading: "Find the exact watch",
@@ -168,8 +170,8 @@ export const ROOMS: readonly Room[] = Object.freeze([
         benefits: [
           b("live", "Public Curation Review",
             "Every listing is reviewed before it goes public. Its Curation Review shows what FWT could check and what still needs an answer. That review is not a physical inspection or an authenticity certificate."),
-          b("bounded", "Watch facts kept separate",
-            "See identity, condition, documentation, and service history as separate watch facts instead of one sales paragraph. If something is unknown, FWT leaves it unknown rather than quietly turning it into “no.”"),
+          b("bounded", "Condition, documentation, and service history",
+            "See the watch’s identity, condition, documentation, and disclosed service history separately—not folded into one sales pitch. If FWT does not know something, it leaves it unknown rather than treating it as ‘no.’"),
           b("live", "Individual-watch story and provenance",
             "Read this watch’s story separately from the facts about its reference, with a Story Photo when it adds meaningful context. Being shown on the page does not certify the story; provenance still needs support."),
           b("bounded", "Know who is selling",
@@ -187,9 +189,9 @@ export const ROOMS: readonly Room[] = Object.freeze([
         heading: "Talk and act on one exact watch",
         benefits: [
           b("live", "Conversation stays with the watch",
-            "Ask the seller a question in a conversation that stays tied to the exact listing and its permanent FWT code. That keeps the watch in context; today, FWT does not handle payment, escrow, or transaction disputes for you."),
+            "Ask the seller questions in a conversation tied to the exact listing and its permanent FWT code, so the watch and the discussion stay together."),
           b("bounded", "Purchase Request",
-            "Send a Purchase Request tied to the exact listing, with an amount and message the seller can answer. Today, buyer and seller still handle payment and hand-off directly; FWT does not provide checkout or escrow for the deal."),
+            "Send the seller an amount and message tied to the exact listing. A Purchase Request is not checkout: buyer and seller still arrange payment and hand-off directly, and FWT does not provide escrow or handle transaction disputes."),
           b("bounded", "Private Listing for a named buyer",
             "A seller can share a non-public listing with a named buyer instead of placing it in Browse. Private visibility is not the same thing as a reservation or completed deal."),
           b("bounded", "Watch-for-watch Trade offers",
@@ -214,14 +216,14 @@ export const ROOMS: readonly Room[] = Object.freeze([
     kicker: "Occasional seller",
     heading: "Sell one watch without becoming a dealer.",
     intro:
-      "FairWatchTrade gives a collector a guided path to build, review, correct, share, trade, or take a watch off the market without making them run a storefront.",
+      "List one watch step by step, correct it after review, share it privately or trade it, and take it off the market when needed—without running a storefront.",
     groups: [
       {
         heading: "Create the listing",
         benefits: [
-          b("live", "Guided five-step SellFlow",
+          b("live", "List a watch in five steps",
             "Sell one watch through five clear steps: Curation, Photos, Details, Description, and Review."),
-          b("bounded", "Mobile selling with cross-device continuation",
+          b("bounded", "Start on your phone, continue on another device",
             "Use the phone-friendly selling flow for photographs, then continue the same listing on another device."),
           b("bounded", "Autosave and saved drafts",
             "FWT saves an in-progress listing to your account, so an interruption does not erase your work. It also avoids creating an empty draft just because you opened Sell."),
@@ -260,8 +262,8 @@ export const ROOMS: readonly Room[] = Object.freeze([
             "Already have a buyer? Use an existing FWT conversation to share a non-public listing instead of placing the watch in Browse."),
           b("bounded", "Watch-for-watch Trade option",
             "Open your listing to watch-for-watch Trade offers and use FWT’s two-leg exchange workflow. Any cash adjustment is recorded, not moved by FWT."),
-          b("bounded", "Remove versus permanent Delete",
-            "Remove takes a listing off market without deleting its record. Permanent Delete is separate and may be blocked while something active still depends on the listing."),
+          b("bounded", "Take a listing down or delete it permanently",
+            "Remove takes a listing off the market but keeps its record. Permanent Delete is separate and may be unavailable while other active FWT activity still depends on the listing."),
         ],
       },
     ],
@@ -293,8 +295,14 @@ export const ROOMS: readonly Room[] = Object.freeze([
         benefits: [
           b("live", "Dealer access to the five-step SellFlow",
             "Add one watch through the same five clear steps: Curation, Photos, Details, Description, and Review."),
-          b("live", "Manage your FWT inventory",
-            "Work with your own FWT inventory by listing state in one signed-in room instead of treating every watch as a disconnected page."),
+          {
+            status: "live",
+            title: "Dealer Accelerator",
+            lead: "Already have your inventory online? Don’t build it again.",
+            body: "Give FairWatchTrade your existing dealer inventory source. We prepare private draft listings from the work you have already done. You confirm the commercial truth. Nothing is published until you submit and FairWatchTrade reviews it.",
+          },
+          b("live", "Manage listings by status",
+            "See your FWT listings grouped by their current status in one signed-in room, rather than opening each listing separately."),
           b("live", "Public inventory can be found through compatible AI assistants",
             "Compatible AI assistants can search your public FWT inventory and return the real FWT listing page. Unconfirmed details stay separate from confirmed matches."),
         ],
@@ -338,7 +346,7 @@ export const TAX_TIME = Object.freeze({
 export type Refusal = { heading: string; body: string };
 
 export const REFUSALS_SECTION = Object.freeze({
-  eyebrow: "Product truth",
+  eyebrow: "WHAT FWT WON’T FAKE",
   heading: "Where FairWatchTrade draws the line",
   lead:
     "Some of FairWatchTrade’s most useful safeguards are the things it refuses to fake: an answer it does not know, pressure you did not ask for, or protection it does not provide today.",
@@ -358,8 +366,8 @@ export const REFUSALS: readonly Refusal[] = Object.freeze([
     body: "If a review check could not be completed, FWT says that. It does not turn an unanswered question into a clean bill of health, and review is not physical inspection or authentication.",
   },
   {
-    heading: "No going live with a blocking review issue or no watch photos.",
-    body: "If review still has an issue that prevents publication — or there are no real watch photos — the listing does not go public.",
+    heading: "No publication while review is blocked—or without watch photos.",
+    body: "A listing stays out of Browse while a review issue blocks publication or it lacks real watch photos.",
   },
   {
     heading: "Private does not mean reserved.",
@@ -371,7 +379,7 @@ export const REFUSALS: readonly Refusal[] = Object.freeze([
   },
   {
     heading: "Trade has clear rules, not blanket guarantees.",
-    body: "FWT can bind both watches and track completion, but it does not promise that every possible transaction conflict or post-completion problem is automatically prevented.",
+    body: "When a Trade is accepted, FWT reserves both watches and tracks both sides through completion. It cannot prevent every conflict or automatically resolve every problem afterward.",
   },
   {
     heading: "No ads, crowd pressure, or fake urgency.",
@@ -382,7 +390,7 @@ export const REFUSALS: readonly Refusal[] = Object.freeze([
 export const CLOSING = Object.freeze({
   heading: "Start where you actually are.",
   body:
-    "Browse without buying. Ask before committing. Sell one watch without becoming a store. Run dealer inventory and client conversations without turning the whole marketplace into business software.",
+    "Browse without buying. Ask questions before you commit. Sell an occasional watch without running a store. If you are a dealer, manage inventory and client conversations in one place.",
 });
 
 /** Real destinations with their normal signed-out / signed-in behaviour.

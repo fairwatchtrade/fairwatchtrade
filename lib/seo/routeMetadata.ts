@@ -88,7 +88,7 @@ export const STATIC_ROUTE_COPY: Readonly<Record<string, StaticRouteCopy>> = Obje
   "/what-fairwatchtrade-can-do": {
     title: "What Can FairWatchTrade Do For Me? | FairWatchTrade",
     description:
-      "Choose what you came to do, and see what FairWatchTrade can actually help with today — including where it deliberately stops and what isn’t available yet.",
+      "Choose what you came to do and see how FairWatchTrade can help today—including what it does not handle and what is still being built.",
   },
   "/faq": {
     title: "FairWatchTrade FAQ",

@@ -68,7 +68,7 @@ const LOCKED = {
   "/sell": ["Sell a Watch | FairWatchTrade", "Create a structured FairWatchTrade listing through Curation, Photos, Details, Description, and Review."],
   "/watch-dna": ["Watch DNA | FairWatchTrade", "Explore your watch preferences with FairWatchTrade’s Watch DNA experience."],
   "/about": ["About FairWatchTrade", "Learn what FairWatchTrade is building for watch collectors, occasional sellers, and dealers."],
-  "/what-fairwatchtrade-can-do": ["What Can FairWatchTrade Do For Me? | FairWatchTrade", "Choose what you came to do, and see what FairWatchTrade can actually help with today — including where it deliberately stops and what isn’t available yet."],
+  "/what-fairwatchtrade-can-do": ["What Can FairWatchTrade Do For Me? | FairWatchTrade", "Choose what you came to do and see how FairWatchTrade can help today—including what it does not handle and what is still being built."],
   "/faq": ["FairWatchTrade FAQ", "Answers about browsing, buying, selling, listings, payments, privacy, and how FairWatchTrade works."],
   "/contact": ["Contact FairWatchTrade", "Contact FairWatchTrade for support and questions about the marketplace."],
   "/terms": ["Terms | FairWatchTrade", "FairWatchTrade marketplace terms and conditions."],
