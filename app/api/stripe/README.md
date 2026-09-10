@@ -147,13 +147,23 @@ with type, livemode, object, provider timestamp, receipt time, the resolved
 attempt/transaction, the processing result and note, and the full payload.
 Kept even when nothing transitioned.
 
-## Authority
+## Authority (S1-C1: provider internals are server-only)
 
-`anon` and `authenticated` hold **no** INSERT / UPDATE / DELETE on any Stripe
-table. Buyers and sellers of a transaction may SELECT its attempts and
-refunds; nobody but the service role reads `stripe_events`.
-`stripe_apply_event` executes for `service_role` only. The browser sends
-requests; the server determines commercial truth; the webhook confirms it.
+No client role can read or write any Stripe table. `anon` and
+`authenticated` hold no SELECT, INSERT, UPDATE or DELETE on
+`stripe_payment_attempts`, `stripe_refunds` or `stripe_events`
+(`20260910220000_stripe_step1_c1_server_only_reads.sql` withdrew the
+own-row SELECT the first migration had granted). `stripe_apply_event`
+executes for `service_role` only.
+
+The buyer sees payment truth only through `GET /api/stripe/payment-state`,
+which identifies the caller on the session client, reads their transactions
+under RLS, then reads the provider record with the service role and returns
+an allowlist: `lifecycle`, `refundState`, `refundedAmountMinor`,
+`disputeState`, `checkoutExpiresAt`, `updatedAt`. `checkout_url`, the
+connected account id, PaymentIntent and Charge ids, the idempotency key and
+raw provider status never leave the server. The browser sends requests; the
+server determines commercial truth; the webhook confirms it.
 
 ## Return race
 

@@ -255,11 +255,21 @@ test("webhook route: raw body, signature first, connect-aware, one atomic writer
   assert.doesNotMatch(src, /searchParams/);
 });
 
-test("payment-state route reads on the session client only and never the provider", () => {
+test("payment-state route: session identity, server-only provider read, allowlisted response (S1-C1)", () => {
   const src = stripComments(read("app/api/stripe/payment-state/route.ts"));
   assert.match(src, /createClient\(\)/);
-  assert.doesNotMatch(src, /createServiceClient|getStripe/);
   assert.match(src, /\.eq\("buyer_id", user\.id\)/);
+  // The provider record is read with the service role, scoped to the ids the
+  // session client just proved are this buyer's.
+  assert.match(src, /createServiceClient\(\)/);
+  assert.match(src, /\.in\("transaction_id", ids\)/);
+  assert.doesNotMatch(src, /getStripe/);
+  // Only public-safe columns are ever selected, and only they are returned.
+  assert.match(src, /const SAFE_ATTEMPT_COLUMNS =\s*"transaction_id, lifecycle, amount_minor, refund_state, refunded_amount_minor, dispute_state, checkout_expires_at, updated_at"/);
+  for (const secret of ["checkout_url", "stripe_account_id", "payment_intent_id", "charge_id", "idempotency_key", "provider_status", "dispute_provider_status", "dispute_id", "attemptId"]) {
+    assert.doesNotMatch(src, new RegExp(secret), `payment-state must never touch ${secret}`);
+  }
+  assert.doesNotMatch(src, /select\("\*"\)/);
 });
 
 test("the Stripe client is server-only, sandbox-only, and secrets never leave it", () => {
@@ -307,6 +317,16 @@ test("migration: currency snapshotted at acceptance, three server-only tables, o
   for (const lc of ["requires_capture", "expired", "confirming"]) assert.ok(sql.includes(`'${lc}'`), lc);
   assert.match(sql, /amount_minor\s+bigint/);
   assert.doesNotMatch(sql, /paid boolean|refunded boolean/);
+
+  // S1-C1: the correction migration withdraws every client read of the
+  // provider record, so the net authority after both migrations is
+  // server-only for all three Stripe tables.
+  const c1 = read("supabase/migrations/20260910220000_stripe_step1_c1_server_only_reads.sql");
+  assert.match(c1, /drop policy if exists stripe_payment_attempts_read_own on public\.stripe_payment_attempts;/);
+  assert.match(c1, /drop policy if exists stripe_refunds_read_own on public\.stripe_refunds;/);
+  assert.match(c1, /revoke all on table public\.stripe_payment_attempts from anon, authenticated;/);
+  assert.match(c1, /revoke all on table public\.stripe_refunds from anon, authenticated;/);
+  assert.doesNotMatch(c1, /grant\s+select|create policy/i);
 });
 
 /* ── Source pins: surface and frozen neighbors ──────────────────────── */

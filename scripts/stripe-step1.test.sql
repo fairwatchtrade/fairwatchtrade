@@ -117,35 +117,43 @@ begin
   select coalesce(rail,'null') into s from public.transactions where id=v_txn;
   if s <> 'null' then raise exception 'B16 rail was written: %', s; end if;
 
-  -- 3 · RLS under real roles
+  -- 3 · authority under real roles (S1-C1: provider internals are server-only;
+  --     NO client role may read attempts or refunds, own or otherwise)
+  for r in select jsonb_build_object('who', x.who, 'id', x.id) from (values ('buyer', v_buyer), ('seller', v_seller), ('stranger', v_other)) as x(who, id) loop
+    perform set_config('request.jwt.claims', json_build_object('sub', (r->>'id')::uuid, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    begin
+      perform 1 from public.stripe_payment_attempts where transaction_id=v_txn;
+      raise exception 'R1 % can read stripe_payment_attempts', r->>'who';
+    exception when insufficient_privilege then null; end;
+    begin
+      perform 1 from public.stripe_refunds where payment_attempt_id=v_att;
+      raise exception 'R2 % can read stripe_refunds', r->>'who';
+    exception when insufficient_privilege then null; end;
+    begin
+      update public.stripe_payment_attempts set lifecycle='succeeded' where id=v_att;
+      raise exception 'R3 % UPDATE succeeded', r->>'who';
+    exception when insufficient_privilege then null; end;
+    begin
+      perform 1 from public.stripe_events;
+      raise exception 'R4 % can read the event log', r->>'who';
+    exception when insufficient_privilege then null; end;
+    begin
+      perform public.stripe_apply_event('{}'::jsonb, null, null, null);
+      raise exception 'R5 % can execute stripe_apply_event', r->>'who';
+    exception when insufficient_privilege then null; end;
+    reset role;
+  end loop;
+  -- The buyer still reads their OWN transaction (FairWatchTrade's row, not the provider's).
   perform set_config('request.jwt.claims', json_build_object('sub', v_buyer, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  select count(*) into n from public.stripe_payment_attempts where transaction_id=v_txn;
-  if n <> 1 then raise exception 'R1 buyer sees % attempts, expected 1', n; end if;
-  select count(*) into n from public.stripe_refunds where payment_attempt_id=v_att;
-  if n <> 3 then raise exception 'R2 buyer sees % refunds, expected 3', n; end if;
-  begin
-    update public.stripe_payment_attempts set lifecycle='succeeded' where id=v_att;
-    raise exception 'R3 buyer UPDATE succeeded';
-  exception when insufficient_privilege then null; end;
-  begin
-    perform 1 from public.stripe_events;
-    raise exception 'R4 buyer can read the event log';
-  exception when insufficient_privilege then null; end;
-  begin
-    perform public.stripe_apply_event('{}'::jsonb, null, null, null);
-    raise exception 'R5 buyer can execute stripe_apply_event';
-  exception when insufficient_privilege then null; end;
-  reset role;
-  perform set_config('request.jwt.claims', json_build_object('sub', v_seller, 'role', 'authenticated')::text, true);
-  set local role authenticated;
-  select count(*) into n from public.stripe_payment_attempts where transaction_id=v_txn;
-  if n <> 1 then raise exception 'R6 seller sees % attempts, expected 1', n; end if;
+  select count(*) into n from public.transactions where id=v_txn;
+  if n <> 1 then raise exception 'R6 buyer cannot read own transaction'; end if;
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', v_other, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  select count(*) into n from public.stripe_payment_attempts where transaction_id=v_txn;
-  if n <> 0 then raise exception 'R7 stranger sees % attempts, expected 0', n; end if;
+  select count(*) into n from public.transactions where id=v_txn;
+  if n <> 0 then raise exception 'R7 stranger reads a transaction'; end if;
   reset role;
 
   raise exception 'PROOF_OK';

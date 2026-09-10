@@ -36,13 +36,13 @@ type Purchase = {
   amount: string | number;
   currency: string | null;
   acceptedAt: string | null;
+  /* Public-safe payment truth only (S1-C1): no provider identifiers reach
+     the browser, and this component needs none. */
   payment: {
-    attemptId: string;
     lifecycle: string;
     refundState: "none" | "partial" | "full";
     refundedAmountMinor: number;
     disputeState: "none" | "open" | "won" | "lost";
-    disputeProviderStatus: string | null;
     checkoutExpiresAt: string | null;
     updatedAt: string;
   } | null;
