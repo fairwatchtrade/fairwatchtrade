@@ -1,4 +1,4 @@
-# Public Watch Index — internal projection (Phase 1 + P7)
+# Public Watch Index — internal projection (Phase 1 + P7 + P6)
 
 **Governing authority:** [`docs/product-laws/Public_Watch_Index_Product_Contract_v2_ADOPTED.md`](../../docs/product-laws/Public_Watch_Index_Product_Contract_v2_ADOPTED.md), adopted v2, locked 2026-09-09. Section numbers below refer to it. The law governs; this README explains the machinery and records what will age.
 
@@ -36,6 +36,8 @@ Nothing in `lib/publicWatchIndex/` writes. It is a *derived* representation reco
 | The reference spine | `vault_references.id`, reached through `vault_galaxy_references` |
 | Durable publication episodes | `listing_lifecycle_events` (`BECAME_PUBLIC`) — not written here |
 | Episode → reference association | `public_watch_index_episode_reference`, bound by a trigger at the publication boundary |
+| Authority to state knowledge publicly | `public_watch_index_reference_knowledge_approval` — the knowledge content is never read |
+| Founder authority for approval | `app/api/admin/public-watch-index/reference-knowledge/route.ts` |
 
 ## Three-valued, always
 
@@ -44,15 +46,33 @@ Every assertion distinguishes an affirmative fact, a successful complete check t
 - **An incomplete retrieval that returned nothing is not a negative** (§4). An empty partial page reports `availability_unavailable`, not "none".
 - **`not_established_within_coverage` never means "FWT has never listed this reference."** It means a complete evaluation of the approved public coverage found no qualifying record.
 
-## One dimension is still unavailable, and that is the honest answer
+## Approved public reference knowledge — closed by P6
 
-### Approved public reference knowledge (P6, still open)
+*(This section described a missing authority until P6, v8.37. It now describes the authority.)*
 
-`reference_knowledge` is **not read**, deliberately. §3 admits only information *approved for public representation* and says a `reference_knowledge` row alone does not qualify. No approval state exists anywhere: that table has version, freshness and payload but no `approved_at`, `publication_status`, `permission_status` or reviewer column. Compare `auction_evidence_source_artifact`, which carries all of them — that is what approval looks like in this codebase.
+> **The misconception:** "There is a `reference_knowledge` row for this reference, so FairWatchTrade has public reference knowledge about it."
 
-Galaxy visibility does **not** qualify either. It is a brand-boundary presentation decision; the Galaxy Publication Law forbids inferring lower-level meaning from it, and 388 of 468 references are Galaxy-visible while 0 have a knowledge row.
+Possessing knowledge and being permitted to state it publicly are different facts. §3 admits only information *approved for public representation* and says plainly that a knowledge row alone does not qualify. Galaxy visibility does not qualify either — it is a brand-boundary presentation decision the Galaxy Publication Law forbids reading downward.
 
-Because no approval check can be *completed*, the state is `unavailable_or_incomplete` — not "none established". Populating or reading that table to make the assertion look answered is forbidden; it is publicly readable today with no approval gate, which is a public-release prerequisite of its own.
+**The authority is a satellite, not a column.** `public_watch_index_reference_knowledge_approval` is keyed to the canonical reference and holds the approving actor, the time, an internal reason, an optional approved destination, and the revocation history. Bolting `approved = true` onto the generated content would have made content possession equal publication permission — the same conflation, rebuilt in a column.
+
+**`reference_knowledge` is still never read here, and that is the point.** Because the reader cannot observe the knowledge content at all, its answer is identical whether internal knowledge exists or not. Hidden existence cannot leak through a positive, a special negative, a distinctive error, coverage wording or metadata, because no code path can see it.
+
+**A destination is optional** (§7, "approved destination when one exists"). Approval alone is the authority; no URL is ever invented to complete one.
+
+### Revocation and no resurrection
+
+Approval is publication authority, not immutable fact. A revoked approval is **retired, never deleted**, and the positive assertion disappears on the projection's next read because the assertion is resolved from the authority every time.
+
+Nothing can resurrect it: there is **no automatic producer of an approval anywhere** — no trigger, no derivation, no compile step. A knowledge row that still exists cannot bring one back. The only way an approval returns is another explicit founder act, and the test pins the absence of any trigger in that migration.
+
+Internal knowledge is untouched by revocation and remains under its own rules.
+
+### Exposure hardening performed in P6
+
+`reference_knowledge` carried a policy literally named **"readable by anyone"** with `USING (true)`, plus `SELECT` and `INSERT` grants to `anon` and `authenticated`. Any client could read every row, so an unapproved row would have become public merely by existing — and its existence would have been observable.
+
+Verified before narrowing: **nothing in the product reads that table.** Its only writer is `lib/research/compileReferenceKnowledge.ts`, which holds the service client and bypasses RLS. The policy and the client grants are gone; RLS stays enabled with zero policies. No legitimate internal use was destroyed.
 
 ### Public listing history — closed by P7 for future publications
 
@@ -118,6 +138,7 @@ Four rules, made mechanical:
 
 ## Traps
 
+- **`is_current` is mandatory on the approval read too**, for the same reason: a revoked approval would otherwise read as live authority.
 - **`is_current` is mandatory on every association read.** The table is append-and-retire; without that filter superseded and withdrawn associations read as live evidence. Same trap as `auction_evidence_result` and `physical_watch_identifier_observations`.
 - **Suppression candidates must include the historical episodes' listings, not only the eligible ones.** A contribution-scoped suppression follows its contribution across reassociation, so omitting the historical half would let a reassociated episode slip past a live decision.
 - **`assessedOn` is a UTC calendar day, never an event time** (§12). It is the date of an actual successful public-scope assessment — not a publication, reservation, removal or transaction date. A day-granular date is not a daily-refresh permission or a freshness guarantee, and it does not stop an observer from timing their own requests.
@@ -152,8 +173,15 @@ select count(*) filter (where a.id is null)     as unassociated_episodes,
          on a.episode_id = e.id and a.is_current
  where e.event_type = 'BECAME_PUBLIC';
 
--- P6 remains open: no approval state exists to read
-select count(*) from information_schema.columns
- where table_schema='public' and table_name='reference_knowledge'
-   and (column_name like '%approv%' or column_name like '%publication%' or column_name like '%permission%');
+-- P6: reference_knowledge is closed to every client role (expect 0 / false / false)
+select (select count(*) from pg_policies
+         where schemaname='public' and tablename='reference_knowledge') as policies,
+       has_table_privilege('anon','public.reference_knowledge','SELECT')          as anon_read,
+       has_table_privilege('authenticated','public.reference_knowledge','SELECT') as authed_read,
+       has_table_privilege('service_role','public.reference_knowledge','INSERT')  as compiler_still_writes;
+
+-- P6: which references currently carry live public-knowledge authority
+select vault_reference_id, approved_at, public_destination
+  from public.public_watch_index_reference_knowledge_approval
+ where is_current;
 ```

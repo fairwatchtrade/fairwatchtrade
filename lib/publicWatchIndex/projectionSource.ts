@@ -8,6 +8,7 @@ import {
   type LiveSuppression,
   type ProjectionInput,
   type PublicWatchIndexRecord,
+  type KnowledgeState,
   type PublicationEpisode,
   type ReferenceIdentity,
 } from "./projection";
@@ -43,19 +44,18 @@ import {
        and all three are internal-only inputs.
      · NONE — approved public reference knowledge. See below.
 
-   WHY KNOWLEDGE IS STILL ALWAYS UNAVAILABLE (P6 open). `reference_knowledge` is
-   NOT read here, and that is deliberate rather than unfinished. The law (§3)
-   admits only information APPROVED for public representation, and says
-   plainly that a `reference_knowledge` row alone does not qualify. No
-   approval state exists anywhere in the schema — that table has version,
-   freshness and payload but no approved_at, publication_status, permission
-   or reviewer column — and Galaxy visibility is a brand-boundary
-   presentation decision that §3 expressly excludes. Because no approval
-   check can be COMPLETED, the honest state is unavailable_or_incomplete, not
-   "none established". Populating or reading that table to make the assertion
-   look answered is forbidden: it is publicly readable today with no approval
-   gate in front of it, which is a public-release prerequisite in its own
-   right.
+   HOW KNOWLEDGE IS APPROVED (P6, v8.37). `reference_knowledge` is STILL not
+   read here, and that is the point rather than an omission. The law (§3)
+   admits only information APPROVED for public representation and says
+   plainly that a knowledge row alone does not qualify; Galaxy visibility is
+   a brand-boundary presentation decision §3 expressly excludes as well.
+
+   So the assertion is answered from ONE relation —
+   public_watch_index_reference_knowledge_approval — and from nothing else.
+   Because this reader never touches the knowledge content, its answer is
+   identical whether internal knowledge exists or not: hidden existence
+   cannot leak through a positive, a special negative, a distinctive error,
+   coverage wording or metadata, because no code path here can observe it.
 
    HOW HISTORY IS ESTABLISHED (P7, v8.36). Two separate proofs, never one.
    §5 condition 2 is satisfied by listing_lifecycle_events, which records a
@@ -93,12 +93,16 @@ export type CoverageNote = {
   reason: string;
 };
 
-export const KNOWLEDGE_GAP: CoverageNote = {
+/* P6 (v8.37) supplied the approval authority this note used to say was
+   missing. What remains is a COVERAGE statement: the assessed population is
+   the approval relation, never the knowledge content, and a negative means
+   no live approval was found — never that FWT holds no internal knowledge. */
+export const KNOWLEDGE_COVERAGE_NOTE: CoverageNote = {
   assertion: "approved_public_reference_knowledge",
   reason:
-    "No approved-public-representation state exists for reference knowledge. " +
-    "Galaxy visibility is a brand-boundary presentation decision and does not qualify (contract section 3). " +
-    "The check cannot be completed, so the assertion is unavailable rather than negative.",
+    "Assessed against the explicit public-approval authority for this exact canonical reference. " +
+    "A negative means no live approval was found in that population; it says nothing about internal knowledge, " +
+    "and neither a knowledge row nor Galaxy visibility can make it positive.",
 };
 
 /* P7 (v8.36) closed the mechanism gap this note used to describe. What
@@ -377,6 +381,42 @@ export async function readLiveSuppressions(
   return out;
 }
 
+/* ── Approved public reference knowledge (§3) ───────────────────── */
+
+/**
+ * The explicit authority to state reference knowledge publicly for THIS exact
+ * canonical reference.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT READ: `reference_knowledge`, any Vault or
+ * Galaxy visibility flag, seller text, or generated content. None of them is
+ * an approval source, and consulting one would rebuild the conflation the
+ * satellite exists to prevent — as well as making the answer differ between
+ * two references whose only difference is hidden internal material.
+ *
+ * `is_current` is mandatory: the table is append-and-retire, and without that
+ * filter a revoked approval reads as live authority.
+ *
+ * Returns null when the authority read could not be completed — a failure is
+ * never collapsed into a negative.
+ */
+export async function readApprovedPublicKnowledge(
+  service: SupabaseClient,
+  vaultReferenceId: string
+): Promise<{ approved: boolean; destination: string | null } | null> {
+  const { data, error } = await service
+    .from("public_watch_index_reference_knowledge_approval")
+    .select("public_destination")
+    .eq("is_current", true)
+    .eq("vault_reference_id", vaultReferenceId)
+    .maybeSingle();
+  if (error) return null;
+  if (!data) return { approved: false, destination: null };
+  return {
+    approved: true,
+    destination: (data as { public_destination: string | null }).public_destination ?? null,
+  };
+}
+
 /* ── Market Evidence (§9) ───────────────────────────────────────────────── */
 
 /**
@@ -424,7 +464,7 @@ export async function projectReference(vaultReferenceId: string): Promise<Projec
      completed. Existing episodes recorded before P7 carry no association and
      were deliberately not backfilled, so HISTORY_COVERAGE_NOTE explains what
      the history answer does and does not span. */
-  const coverageNotes: CoverageNote[] = [HISTORY_COVERAGE_NOTE, KNOWLEDGE_GAP];
+  const coverageNotes: CoverageNote[] = [HISTORY_COVERAGE_NOTE, KNOWLEDGE_COVERAGE_NOTE];
 
   const reference = await readReferenceIdentity(anon, vaultReferenceId);
   if (!reference) return { record: null, coverageNotes };
@@ -442,6 +482,18 @@ export async function projectReference(vaultReferenceId: string): Promise<Projec
   const publicationEpisodes = service
     ? await readPublicationEpisodes(service, vaultReferenceId)
     : null;
+
+  /* Approved public reference knowledge resolves from its own authority and
+     nothing else, so it is independent of availability, history and Market
+     Evidence in both directions: it cannot be made positive by them, and its
+     failure cannot turn any of them false. */
+  const approval = service ? await readApprovedPublicKnowledge(service, vaultReferenceId) : null;
+  const knowledge: { state: KnowledgeState; destination: string | null } =
+    approval === null
+      ? { state: "unavailable_or_incomplete", destination: null }
+      : approval.approved
+        ? { state: "approved_public_knowledge", destination: approval.destination }
+        : { state: "none_established_within_coverage", destination: null };
 
   /* Suppression candidates are every contribution that could reach this
      record: the listings currently eligible AND the listings behind the
@@ -489,7 +541,7 @@ export async function projectReference(vaultReferenceId: string): Promise<Projec
     eligibleListings: eligible ? eligible.listings : null,
     retrievalComplete: eligible ? eligible.retrievalComplete : false,
     publicationEpisodes,
-    knowledge: { state: "unavailable_or_incomplete", destination: null },
+    knowledge,
     marketEvidence,
     suppressions,
     assessedOn: utcAssessmentDay(),

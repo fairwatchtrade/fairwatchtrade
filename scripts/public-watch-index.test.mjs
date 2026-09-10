@@ -274,9 +274,10 @@ ok("no per-listing event timestamp appears anywhere in a record",
 /* ── 10 · Phase 1 reader: the two honest gaps ── */
 const source = read("lib/publicWatchIndex/projectionSource.ts");
 ok("the reader NEVER queries reference_knowledge", !/from\(\s*["'`]reference_knowledge/.test(source));
-ok("knowledge is handed to the projection as unavailable, not invented",
-  source.includes('knowledge: { state: "unavailable_or_incomplete", destination: null }'));
-ok("the knowledge gap is recorded as a named prerequisite", source.includes("KNOWLEDGE_GAP"));
+ok("knowledge is resolved from the approval authority, not invented",
+  source.includes("readApprovedPublicKnowledge(service, vaultReferenceId)"));
+ok("knowledge now carries a COVERAGE note, not a missing-authority note",
+  source.includes("KNOWLEDGE_COVERAGE_NOTE") && !source.includes("KNOWLEDGE_GAP"));
 ok("history now carries a COVERAGE note, not a missing-mechanism note",
   source.includes("HISTORY_COVERAGE_NOTE") && !source.includes("HISTORY_GAP"));
 ok("availability reads the governed view, not a status string",
@@ -466,7 +467,173 @@ ok("P7 does not collapse the four assertions",
   afterP7.publicListingHistory.state === "established" &&
   afterP7.approvedPublicReferenceKnowledge.state === "unavailable_or_incomplete" &&
   afterP7.marketEvidence.state === "none_established_within_coverage");
-ok("approved public reference knowledge remains unavailable until P6",
-  /knowledge: \{ state: "unavailable_or_incomplete", destination: null \}/.test(source));
+ok("a fail-closed suppression read still forces knowledge to unavailable",
+  /suppressions === null[\s\S]{0,500}knowledge: \{ state: "unavailable_or_incomplete", destination: null \}/.test(source));
+
+/* -- 15 . P6 . approved public reference knowledge authority -------------
+   The projection half runs here against in-memory rows; the database half
+   (authority, revocation, client denial, reference_knowledge hardening) is
+   proven on production in one rolled-back transaction, reported in the
+   return. */
+const p6 = read("supabase/migrations/20260910140000_public_watch_index_reference_knowledge_approval.sql");
+
+const approved = (destination = null) => ({ state: "approved_public_knowledge", destination });
+
+/* Proof 1 - internal knowledge exists but no public approval */
+const noApproval = project(input({ knowledge: { state: "none_established_within_coverage", destination: null } }));
+eq("P6-1 no approval yields a within-coverage negative, never a positive",
+  noApproval.approvedPublicReferenceKnowledge.state, "none_established_within_coverage");
+ok("P6-1 the negative carries no destination and no explanation",
+  noApproval.approvedPublicReferenceKnowledge.destination === null &&
+  Object.keys(noApproval.approvedPublicReferenceKnowledge).length === 2);
+
+/* Proof 2 - founder-governed approval creates the positive assertion */
+const withApproval = project(input({ knowledge: approved("https://www.fairwatchtrade.com/vault") }));
+eq("P6-2 approval yields the positive assertion",
+  withApproval.approvedPublicReferenceKnowledge.state, "approved_public_knowledge");
+eq("P6-2 the approved destination rides along when one exists",
+  withApproval.approvedPublicReferenceKnowledge.destination, "https://www.fairwatchtrade.com/vault");
+ok("P6-2 approval without a destination is still a valid positive",
+  project(input({ knowledge: approved(null) })).approvedPublicReferenceKnowledge.state === "approved_public_knowledge");
+
+/* Proof 3 - approval binds to ONE exact canonical reference */
+ok("P6-3 the authority read is keyed to the exact reference",
+  /public_watch_index_reference_knowledge_approval"\)[\s\S]{0,220}\.eq\("vault_reference_id", vaultReferenceId\)/.test(source));
+ok("P6-3 one live approval per reference, enforced by the database",
+  /pwi_rka_one_live_per_reference[\s\S]{0,140}where is_current/.test(p6));
+ok("P6-3 nothing fans approval out to a parent, sibling or child",
+  !/variant_id|family_id|collection_id|brand_id/.test(p6));
+
+/* Proof 4 - revocation, and no resurrection */
+eq("P6-4 a revoked approval reads as a within-coverage negative",
+  project(input({ knowledge: { state: "none_established_within_coverage", destination: null } }))
+    .approvedPublicReferenceKnowledge.state, "none_established_within_coverage");
+ok("P6-4 the authority read demands the current generation",
+  /public_watch_index_reference_knowledge_approval"\)[\s\S]{0,220}\.eq\("is_current", true\)/.test(source));
+ok("P6-4 a revoked row is retired, never deleted",
+  /revoked_at = now\(\)/.test(p6) && !/delete from public\.public_watch_index_reference_knowledge_approval/.test(p6));
+ok("P6-4 revocation records its actor and reason or is refused",
+  /pwi_rka_revocation_is_complete check/.test(p6) && /no_live_approval/.test(p6));
+ok("P6-4 nothing re-creates an approval automatically - no trigger, no derivation",
+  !/create trigger/i.test(p6));
+ok("P6-4 an identical rebuild returns an identical answer",
+  JSON.stringify(project(input({ knowledge: approved(null) }))) ===
+  JSON.stringify(project(input({ knowledge: approved(null) }))));
+
+/* Proof 5 - a failed authority read is unavailable, never false */
+eq("P6-5 an unreadable authority is unavailable, not negative",
+  project(input({ knowledge: { state: "unavailable_or_incomplete", destination: null } }))
+    .approvedPublicReferenceKnowledge.state, "unavailable_or_incomplete");
+ok("P6-5 the reader returns null on error rather than a negative",
+  /readApprovedPublicKnowledge\([\s\S]{0,700}if \(error\) return null;/.test(source));
+ok("P6-5 null maps to unavailable, a missing row maps to a negative - two different answers",
+  /approval === null[\s\S]{0,140}unavailable_or_incomplete[\s\S]{0,220}none_established_within_coverage/.test(source));
+
+/* Proof 6 - four-assertion independence, in both directions */
+const knowledgeFails = project(input({
+  eligibleListings: [listing(L1)],
+  publicationEpisodes: [episode()],
+  marketEvidence: { qualifies: true, destination: "https://example.invalid/lot/9" },
+  knowledge: { state: "unavailable_or_incomplete", destination: null },
+}));
+ok("P6-6 a failed knowledge check turns no other dimension false",
+  knowledgeFails.availableNow.state === "yes" &&
+  knowledgeFails.publicListingHistory.state === "established" &&
+  knowledgeFails.marketEvidence.state === "qualifying_record" &&
+  knowledgeFails.approvedPublicReferenceKnowledge.state === "unavailable_or_incomplete");
+const knowledgeOnlyPositive = project(input({ knowledge: approved(null) }));
+ok("P6-6 approval alone earns no availability, no history and no evidence",
+  knowledgeOnlyPositive.availableNow.state === "no_current_qualifying_public_listings" &&
+  knowledgeOnlyPositive.publicListingHistory.state === "not_established_within_coverage" &&
+  knowledgeOnlyPositive.marketEvidence.state === "none_established_within_coverage");
+ok("P6-6 knowledge produces no commercial shorthand",
+  presentationShorthand(knowledgeOnlyPositive) === null);
+ok("P6-6 the knowledge read is independent of the other three reads",
+  /const approval = service \? await readApprovedPublicKnowledge/.test(source));
+
+/* Proof 7 - client authority */
+ok("P6-7 RLS enabled on the approval table with no policy",
+  /alter table public\.public_watch_index_reference_knowledge_approval enable row level security/.test(p6) &&
+  !/create policy/i.test(p6));
+ok("P6-7 anon and authenticated revoked from the approval table",
+  /revoke all on table public\.public_watch_index_reference_knowledge_approval from anon/.test(p6) &&
+  /revoke all on table public\.public_watch_index_reference_knowledge_approval from authenticated/.test(p6));
+for (const fn of ["public_watch_index_approve_reference_knowledge", "public_watch_index_revoke_reference_knowledge"]) {
+  ok(fn + " is service_role only",
+    new RegExp("revoke all on function public\\." + fn + "[^\\n]*from anon").test(p6) &&
+    new RegExp("revoke all on function public\\." + fn + "[^\\n]*from authenticated").test(p6) &&
+    new RegExp("grant execute on function public\\." + fn + "[^\\n]*to service_role").test(p6));
+  ok(fn + " is security definer with a fixed search_path",
+    new RegExp(fn + "\\([\\s\\S]{0,700}security definer[\\s\\S]{0,120}set search_path = public, pg_catalog").test(p6));
+}
+const kroute = read("app/api/admin/public-watch-index/reference-knowledge/route.ts");
+ok("P6-7 the route is founder-gated on the server session",
+  kroute.includes("requireFounder()") && kroute.includes("user.id !== ADMIN_USER_ID"));
+ok("P6-7 the actor is the session founder, never a request field",
+  kroute.includes("p_actor_uid: founderId") && !/body\.actor/.test(kroute));
+ok("P6-7 the route writes only through the governed RPCs",
+  kroute.includes('rpc("public_watch_index_approve_reference_knowledge"') &&
+  kroute.includes('rpc("public_watch_index_revoke_reference_knowledge"') &&
+  !/from\("public_watch_index_reference_knowledge_approval"\)[\s\S]{0,80}\.(insert|update|delete)/.test(kroute));
+ok("P6-7 the route returns no index record and no knowledge content",
+  !kroute.includes("projectReference") && !kroute.includes("reference_knowledge\")"));
+
+/* Proof 8 - no hidden-knowledge leak */
+ok("P6-8 the knowledge reader never touches reference_knowledge",
+  !/readApprovedPublicKnowledge\([\s\S]{0,900}reference_knowledge"/.test(source));
+ok("P6-8 the whole reader still never queries reference_knowledge",
+  !/from\(\s*["'`]reference_knowledge/.test(source));
+ok("P6-8 two inputs differing only in hidden knowledge are indistinguishable",
+  JSON.stringify(project(input({ knowledge: { state: "none_established_within_coverage", destination: null } }))) ===
+  JSON.stringify(project(input({ knowledge: { state: "none_established_within_coverage", destination: null } }))));
+ok("P6-8 the negative is the same shape whether or not internal knowledge exists",
+  noApproval.approvedPublicReferenceKnowledge.state === "none_established_within_coverage" &&
+  noApproval.approvedPublicReferenceKnowledge.destination === null);
+ok("P6-8 the coverage note reveals nothing about internal holdings",
+  /says nothing about internal knowledge/.test(source));
+
+/* Proof 9 - no fake approval source */
+ok("P6-9 the approval function body reads only vault_references and its own table",
+  (() => {
+    const sql = p6.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*--.*$/gm, "");
+    const from = sql.indexOf("function public.public_watch_index_approve_reference_knowledge");
+    const body = sql.slice(from, sql.indexOf("$$;", from));
+    const tables = [...body.matchAll(/from public\.(\w+)/g)].map((m) => m[1]);
+    return tables.length > 0 && tables.every((t) =>
+      t === "vault_references" || t === "public_watch_index_reference_knowledge_approval");
+  })());
+/* Comments are stripped first: the migration NAMES galaxy_visible in order to
+   say it is never consulted, and a naive grep would read that sentence as the
+   defect it prevents. The check is about SQL. */
+const p6Sql = p6.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*--.*$/gm, "");
+ok("P6-9 the approval function consults no Galaxy or Vault visibility",
+  !/galaxy_visible|vault_galaxy/.test(p6Sql));
+ok("P6-9 approval requires an existing reference and an explicit reason",
+  /unknown_reference/.test(p6) && /reason_required/.test(p6));
+ok("P6-9 suppression still overrides a live approval",
+  project(input({ knowledge: approved("https://example.invalid"),
+    suppressions: supRef("approved_public_reference_knowledge") }))
+    .approvedPublicReferenceKnowledge.state === "unavailable_or_incomplete");
+ok("P6-9 an 'all' suppression also withholds approved knowledge",
+  project(input({ knowledge: approved(null), suppressions: supRef("all") }))
+    .approvedPublicReferenceKnowledge.state === "unavailable_or_incomplete");
+
+/* Proof 10 - no public release, and the exposure hardening */
+ok("P6-10 reference_knowledge's readable-by-anyone policy is dropped",
+  /drop policy if exists "reference_knowledge readable by anyone" on public\.reference_knowledge/.test(p6));
+ok("P6-10 reference_knowledge is revoked from anon and authenticated",
+  /revoke all on table public\.reference_knowledge from anon/.test(p6) &&
+  /revoke all on table public\.reference_knowledge from authenticated/.test(p6));
+ok("P6-10 the hardening records that the sole writer is service-role",
+  /bypasses RLS/.test(p6));
+ok("P6-10 no endpoint, sitemap, manifest or robots change rides along",
+  !/robots|sitemap|well-known|STATIC_ROUTE_COPY/i.test(p6) &&
+  !/robots|sitemap|well-known/i.test(kroute));
+
+/* P7 remains intact */
+ok("P6 did not disturb the P7 association read",
+  /public_watch_index_episode_reference"\)[\s\S]{0,160}\.eq\("is_current", true\)/.test(source));
+eq("P6 did not disturb history semantics",
+  assessHistory(input({ publicationEpisodes: [episode()] })), "established");
 
 console.log(`public-watch-index: ${n} assertions PASS`);
