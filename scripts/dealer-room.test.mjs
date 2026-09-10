@@ -156,7 +156,9 @@ const actions = read("components/DealerRoomActions.tsx");
 const correspondence = read("components/ListingCorrespondence.tsx");
 const gallery = read("components/ListingGallery.tsx");
 const stageFaq = read("components/ListingStageFaq.tsx");
-const specs = read("components/ListingSpecs.tsx");
+/* The spec-link law and the Documentation ruling moved with the facts into the
+   fixed-geography composer (Watch Detail scanability, 2026-09-10). */
+const specs = read("lib/watchDetailGeography.ts");
 
 test("Contact Dealer is the room's primary action and enters the existing messaging flow", () => {
   assert.match(browse, /<DealerContactPanel/);
@@ -275,7 +277,9 @@ test("clickable collector navigation uses only byte-exact filter dimensions", ()
    not a rule against spec links. */
 test("documentation is descriptive text, never navigation", () => {
   assert.doesNotMatch(specs, /browseLink\("docs"/);
-  assert.match(specs, /pushTech\("Documentation", details\.documentation\)/);
+  assert.match(specs, /slot\("documentation", "Documentation", details\.documentation\)/);
+  // It sits in the Snapshot row (slot only), never with a browseLink argument.
+  assert.doesNotMatch(specs, /"Documentation", details\.documentation, browseLink/);
 });
 
 /* ── Recomposition invariants (Build Order 2026-08-17 §3 · §6 · §11 · §16) ──

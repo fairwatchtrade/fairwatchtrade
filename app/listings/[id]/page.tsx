@@ -44,7 +44,7 @@ import { listingMetadata, type ListingMetadataRow } from "@/lib/seo/routeMetadat
      1. Media gallery (hero w/ brand·model overlay + thumbnail strip)
      2. Identity block — brand+model, Ref., Box & Papers sentence, Collector
         Fingerprint (unboxed quick-read lines — Design Gate v2)
-     3. Collector Snapshot — prominent two-column spec grid
+     3. Collector Snapshot — fixed 3×3 semantic matrix (facts keep their slots)
      4. Technical Specifications — remaining specs, never duplicating §3
      5. From the Seller — full description, mb-8 reserve for the message stream
      6. Price, then (buyer-only) Start Purchase Request / pending-status badge
@@ -1066,7 +1066,7 @@ export default async function ListingDetailPage({
                minus the 224px rail and 24px gap), capped at its 974px ceiling. ── */}
         <div className="min-[56rem]:max-w-[min(974px,calc(100%_-_248px))]">
 
-        {/* SECTIONS 3 & 4 — Collector Snapshot + collapsible Technical Specs */}
+        {/* SECTIONS 3 & 4 — Collector Snapshot + Technical Specifications, fixed geography */}
         <ListingSpecs
           details={details}
           year={listing.year}

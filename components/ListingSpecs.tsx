@@ -1,96 +1,99 @@
 import Link from "next/link";
-import { formatMovementFrequency } from "@/lib/movementFrequency";
+import {
+  chunkRows,
+  composeWatchDetailGeography,
+  type SpecRow,
+  type SpecSlot,
+  type WatchDetailDetails,
+} from "@/lib/watchDetailGeography";
 
 /* ────────────────────────────────────────────────────────────────────────
    LISTING SPECS — §3 Collector Snapshot + §4 Technical Specifications
    for /listings/[id].
 
-   v4.26 — THE BROOM CLOSET OPENS (founder audit, 2026-08-12). The Sell flow
-   collects 22 structured details and the publish route persists every one of
-   them verbatim — but this renderer showed 11 fields and hid six more behind
-   a collapsed accordion the founder himself forgot existed. Eight persisted
-   fields appeared nowhere at all, including Beat Rate — which Browse renders
-   and facets on, then dropped the moment a buyer clicked through.
+   Fixed semantic geography (Watch Detail scanability, 2026-09-10). The
+   matrix itself is composed in lib/watchDetailGeography.ts, which also
+   carries the reasoning; this file only lays it out.
 
-   Corrections, per the audited ruling:
-     · Every orphan joins the surface: Beat Rate, Case Finish, Crown Present,
-       Service & Case History, Included With Watch, Original strap/bracelet,
-       Bracelet Wrist Size. (Rolex admission rendering is corridor-design
-       territory — deliberately NOT here; it has its own gate.)
-     · The accordion is REMOVED, not defaulted open: nothing in these rows
-       earns hiding — caseback, crystal and bezel are exactly what the
-       criteria-first collector came to check. One continuous specifications
-       surface; the heading stays as rhythm, the chevron and its state go.
-     · Beat Rate renders through the ONE ruled formatter
-       (lib/movementFrequency, v3.13) — never a second presentation.
+   The layout law, in one line: a slot is a slot whether or not this watch
+   has a value for it. Every governed row is its own three-column grid, so a
+   missing value can never pull a later fact forward, and the reserved cell
+   is simply the empty third column of its row. Below `sm` each row becomes
+   a single column, which makes the narrow reading order the desktop
+   row-major order by construction, never by auto-placement.
 
-   Every row keeps the standing law: rendered only when present. No penalty
-   for missing data — only for hiding data we have.
+   v4.26 — THE BROOM CLOSET OPENS (founder audit, 2026-08-12) still governs
+   the facts this matrix does not name: a fact we hold is never hidden. Those
+   render after the governed rows, present-only, never inside a slot.
 
-   Now stateless and server-rendered: no client state remained once the
-   disclosure died.
+   Labels sit one tier above the old --muted treatment with tracking pulled
+   back so they can be found in a second; values stay larger, lighter and
+   platinum so they remain the thing the eye lands on. Faint rules separate
+   rows. No boxes, no cards, no bold-black labels.
    ──────────────────────────────────────────────────────────────────────── */
 
-type ListingDetails = {
-  movementType?: string;
-  movementFrequency?: string;
-  caseSizeMm?: string;
-  caseThicknessMm?: string;
-  caseMaterial?: string;
-  caseColorFinish?: string;
-  dialColorType?: string;
-  complications?: string[];
-  crownPresent?: boolean;
-  closureType?: string;
-  originalStrapBracelet?: boolean;
-  braceletWristSize?: string;
-  includedWithWatch?: string[];
-  serviceHistory?: string[];
-  documentation: string;
-  bezelMaterial?: string;
-  waterResistance?: string;
-  calibre?: string;
-  jewels?: string;
-  powerReserve?: string;
-  casebackType?: string;
-  crystalMaterial?: string;
-};
+const HEADING =
+  "text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]";
+const LABEL = "text-[12px] uppercase tracking-[0.08em] text-[var(--slate)]";
+const VALUE =
+  "mt-1 font-display text-[16px] font-light text-[var(--platinum)] sm:min-h-[1.5rem]";
+const ROW =
+  "grid grid-cols-1 gap-y-4 border-t border-[var(--border-faint)] pt-4 first:border-t-0 first:pt-0 sm:grid-cols-3 sm:gap-x-6";
+const WIDE =
+  "grid grid-cols-1 border-t border-[var(--border-faint)] pt-4 first:border-t-0 first:pt-0";
 
-const MOVEMENT_LABELS: Record<string, string> = {
-  "Manual Wind": "Manual Wind",
-  Automatic: "Automatic",
-  Quartz: "Quartz",
-  "Solar/Kinetic": "Solar/Kinetic",
-};
-
-function SpecGrid({ rows }: { rows: Array<{ label: string; value: string; href?: string }> }) {
+function Slot({ slot }: { slot: SpecSlot }) {
   return (
-    <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-      {rows.map((row) => (
-        <div key={row.label} className="flex flex-col">
-          <dt className="text-[11px] uppercase tracking-[1.5px] text-[var(--muted)]">
-            {row.label}
-          </dt>
-          <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">
-            {/* Clickable collector navigation (buyer-facing polish,
-                2026-08-13 §9): a value that maps byte-for-byte onto an
-                existing Browse filter dimension leads outward to the
-                marketplace's inventory carrying that same value. The link
-                is quiet — the fact stays a fact first. */}
-            {row.href ? (
-              <Link
-                href={row.href}
-                className="underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)] hover:decoration-[var(--gold-dim)]"
-              >
-                {row.value}
-              </Link>
-            ) : (
-              row.value
-            )}
-          </dd>
-        </div>
-      ))}
+    <div>
+      <dt className={LABEL}>{slot.label}</dt>
+      <dd className={VALUE}>
+        {/* Underlining means a real interaction. Only a value with a live
+            Browse destination gets the link treatment; everything else is
+            plain text, including an absent value, which renders nothing
+            and leaves its slot standing. */}
+        {slot.href ? (
+          <Link
+            href={slot.href}
+            className="underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)] hover:decoration-[var(--gold-dim)]"
+          >
+            {slot.value}
+          </Link>
+        ) : (
+          slot.value
+        )}
+      </dd>
+    </div>
+  );
+}
+
+/* The reserved cell is deliberately not an element: the row is a
+   three-column grid, so the third column simply stays empty. */
+function Row({ row }: { row: SpecRow }) {
+  return (
+    <dl className={ROW}>
+      {row
+        .filter((slot) => !slot.reserved)
+        .map((slot) => (
+          <Slot key={slot.key} slot={slot} />
+        ))}
     </dl>
+  );
+}
+
+function Wide({ slot }: { slot: SpecSlot }) {
+  return (
+    <dl className={WIDE}>
+      <Slot slot={slot} />
+    </dl>
+  );
+}
+
+function SectionHeading({ children }: { children: string }) {
+  return (
+    <div className="pt-8">
+      <div className="mb-6 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      <h2 className={HEADING}>{children}</h2>
+    </div>
   );
 }
 
@@ -99,119 +102,44 @@ export default function ListingSpecs({
   year,
   condition,
 }: {
-  details: ListingDetails;
+  details: WatchDetailDetails;
   year?: string | null;
   condition?: string | null;
 }) {
-  const movementLabel = details.movementType
-    ? MOVEMENT_LABELS[details.movementType] ?? details.movementType
-    : "";
-
-  const complications =
-    Array.isArray(details.complications) && details.complications.length > 0
-      ? details.complications.join(", ")
-      : "";
-
-  const joined = (list?: string[]): string =>
-    Array.isArray(list) && list.length > 0
-      ? list.map((v) => String(v).trim()).filter(Boolean).join(", ")
-      : "";
-
-  /* §9 clickable navigation — ONLY dimensions whose Browse filter consumes
-     the stored value verbatim get a link (caseMaterial, dialColorType,
-     movementType, documentation are faceted byte-for-byte from the same
-     fields). Formatted/derived dimensions (case size, beat rate, power
-     reserve) deliberately stay text: a link built from a reformatted value
-     could land on an empty filter and masquerade as a real path. */
-  const browseLink = (param: string, raw?: string | null): string | undefined =>
-    raw && String(raw).trim() !== ""
-      ? `/browse?${param}=${encodeURIComponent(String(raw))}`
-      : undefined;
-
-  const snapshotRows: Array<{ label: string; value: string; href?: string }> = [];
-  const pushSnap = (label: string, value?: string | null, href?: string) => {
-    if (value != null && String(value).trim() !== "")
-      snapshotRows.push({ label, value: String(value), href });
-  };
-  pushSnap("Case Size", details.caseSizeMm ? `${details.caseSizeMm} mm` : "");
-  pushSnap("Case Thickness", details.caseThicknessMm ? `${details.caseThicknessMm} mm` : "");
-  pushSnap("Case Material", details.caseMaterial, browseLink("caseMaterial", details.caseMaterial));
-  pushSnap("Case Finish", details.caseColorFinish);
-  pushSnap("Movement", movementLabel, browseLink("movement", details.movementType));
-  pushSnap("Calibre", details.calibre);
-  pushSnap("Beat Rate", formatMovementFrequency(details.movementFrequency));
-  pushSnap("Power Reserve", details.powerReserve);
-  pushSnap("Water Resistance", details.waterResistance);
-  pushSnap("Dial Color", details.dialColorType, browseLink("dialColor", details.dialColorType));
-  pushSnap("Complications", complications);
-  pushSnap("Year", year);
-  pushSnap("Condition", condition);
-
-  const techRows: Array<{ label: string; value: string; href?: string }> = [];
-  const pushTech = (label: string, value?: string | null, href?: string) => {
-    if (value != null && String(value).trim() !== "")
-      techRows.push({ label, value: String(value), href });
-  };
-  pushTech("Closure Type", details.closureType);
-  pushTech("Caseback", details.casebackType);
-  pushTech("Crystal", details.crystalMaterial);
-  pushTech("Bezel Material", details.bezelMaterial);
-  pushTech("Jewel Count", details.jewels);
-  /* Crown Present is a required Sell answer — a declared fact either way.
-     Only its absence (older listings, pre-question drafts) renders nothing. */
-  if (typeof details.crownPresent === "boolean") {
-    pushTech("Crown Present", details.crownPresent ? "Yes" : "No");
-  }
-  /* Checkbox semantics: unchecked is "not claimed", never "No" — so the
-     original-hardware row appears only on the affirmative claim. */
-  if (details.originalStrapBracelet === true) {
-    pushTech("Strap / Bracelet & Hardware", "Original");
-  }
-  pushTech("Bracelet Wrist Size", details.braceletWristSize);
-  pushTech("Included With Watch", joined(details.includedWithWatch));
-  pushTech("Service & Case History", joined(details.serviceHistory));
-  /* Deliberately NOT a link (founder ruling 2026-09-01). Documentation is
-     descriptive information about THIS watch, not an identity dimension of it.
-     Case material, movement and dial colour describe the object and are worth
-     navigating by; "No Box or Papers" describes what did not come with it, and
-     linking an absence offers the collector "show me more watches that are
-     missing things" — which is not a path this marketplace should hand anyone.
-
-     It qualified under the §9 rule above because that rule asks only whether a
-     filter consumes the value verbatim. That answers "can this link work",
-     never "should this link exist". The technical test passed and the
-     editorial one was never put. */
-  pushTech("Documentation", details.documentation);
+  const geo = composeWatchDetailGeography(details, year, condition);
 
   return (
     <>
-      {/* SECTION 3 — Collector Snapshot */}
-      {snapshotRows.length > 0 && (
-        <section className="mt-8">
-          <div className="pt-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
-              Collector Snapshot
-            </span>
-          </div>
-          <SpecGrid rows={snapshotRows} />
-        </section>
-      )}
+      {/* SECTION 3 — Collector Snapshot: 3 × 3, slots fixed. */}
+      <section className="mt-8">
+        <SectionHeading>Collector Snapshot</SectionHeading>
+        <div className="mt-4 flex flex-col gap-y-4">
+          {geo.snapshot.map((row, i) => (
+            <Row key={`snapshot-${i}`} row={row} />
+          ))}
+          {chunkRows(geo.snapshotExtras).map((row, i) => (
+            <Row key={`snapshot-extra-${i}`} row={row} />
+          ))}
+        </div>
+      </section>
 
-      {/* SECTION 4 — Technical Specifications: one continuous surface. The
-          disclosure died in v4.26 — facts a buyer came to check do not hide
-          behind an affordance the founder himself forgot existed. */}
-      {techRows.length > 0 && (
-        <section className="mt-6">
-          <div className="pt-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]">
-              Technical Specifications
-            </span>
-          </div>
-          <SpecGrid rows={techRows} />
-        </section>
-      )}
+      {/* SECTION 4 — Technical Specifications: short facts align in two
+          three-column rows, long facts breathe in wide rows beneath. One
+          continuous surface; the disclosure died in v4.26. */}
+      <section className="mt-6">
+        <SectionHeading>Technical Specifications</SectionHeading>
+        <div className="mt-4 flex flex-col gap-y-4">
+          {geo.technical.map((row, i) => (
+            <Row key={`technical-${i}`} row={row} />
+          ))}
+          {geo.technicalWide.map((slot) => (
+            <Wide key={slot.key} slot={slot} />
+          ))}
+          {chunkRows(geo.technicalExtras).map((row, i) => (
+            <Row key={`technical-extra-${i}`} row={row} />
+          ))}
+        </div>
+      </section>
     </>
   );
 }
