@@ -48,6 +48,17 @@ export default function SiteFooter({
             Contact
           </Link>
           <span className="text-[var(--muted)]">·</span>
+          {/* The public page's one entrance. It was live but reachable only by
+              URL; a page a visitor cannot find answers nobody. One ordinary
+              utility link, same styling and separator as its neighbours — no
+              top-nav item, no homepage or About promotion, no second door. */}
+          <Link
+            href="/what-fairwatchtrade-can-do"
+            className="transition-colors hover:text-[var(--platinum)]"
+          >
+            What FWT can do
+          </Link>
+          <span className="text-[var(--muted)]">·</span>
           <Link href="/terms" className="transition-colors hover:text-[var(--platinum)]">
             Terms
           </Link>
