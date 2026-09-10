@@ -277,9 +277,8 @@ ok("the reader NEVER queries reference_knowledge", !/from\(\s*["'`]reference_kno
 ok("knowledge is handed to the projection as unavailable, not invented",
   source.includes('knowledge: { state: "unavailable_or_incomplete", destination: null }'));
 ok("the knowledge gap is recorded as a named prerequisite", source.includes("KNOWLEDGE_GAP"));
-ok("the history gap is recorded as a named prerequisite", source.includes("HISTORY_GAP"));
-ok("publication episodes return null in Phase 1 — the assessment cannot be completed",
-  /readPublicationEpisodes\(\)[\s\S]{0,200}return null;/.test(source));
+ok("history now carries a COVERAGE note, not a missing-mechanism note",
+  source.includes("HISTORY_COVERAGE_NOTE") && !source.includes("HISTORY_GAP"));
 ok("availability reads the governed view, not a status string",
   source.includes('.from("public_discovery_listings")') && !/\.eq\(\s*["'`]status["'`]\s*,\s*["'`]published/.test(source));
 /* Comments are stripped first: the doc comment names the two seller columns
@@ -357,5 +356,117 @@ ok("the sitemap policy does not carry a watch-index route",
 ok("the adopted law is carried in the repository",
   read("docs/product-laws/Public_Watch_Index_Product_Contract_v2_ADOPTED.md").includes("ADOPTED PRODUCT LAW"));
 ok("the README names the governing law", read("lib/publicWatchIndex/README.md").includes("Public_Watch_Index_Product_Contract_v2_ADOPTED.md"));
+
+const p7 = read("supabase/migrations/20260910090000_public_watch_index_episode_reference_association.sql");
+
+/* -- 14 . P7 . durable publication-episode -> canonical-reference association --
+   The projection half is proven here against in-memory rows; the database
+   half (trigger, correction, withdrawal, client denial) is proven on
+   production in one rolled-back transaction, reported in the return. */
+
+/* Proof 1 - a future publication with a resolved reference establishes history */
+eq("P7-1 durable episode + durable association establishes history",
+  assessHistory(input({ publicationEpisodes: [episode()] })), "established");
+
+/* Proof 2 - the listing later leaves public availability */
+const departed = project(input({ eligibleListings: [], retrievalComplete: true, publicationEpisodes: [episode()] }));
+ok("P7-2 availability drops to a definitive negative while history survives",
+  departed.availableNow.state === "no_current_qualifying_public_listings" &&
+  departed.availableNow.listingUrls.length === 0 &&
+  departed.publicListingHistory.state === "established");
+ok("P7-2 history also survives an UNAVAILABLE availability check",
+  project(input({ eligibleListings: null, publicationEpisodes: [episode()] })).publicListingHistory.state === "established");
+
+/* Proof 3 - a future publication whose reference could not be resolved. The
+   binder writes no association, so the episode never reaches the projection's
+   set and the reference simply has no qualifying contribution. */
+eq("P7-3 an unresolved reference invents no exact-reference history",
+  assessHistory(input({ publicationEpisodes: [] })), "not_established_within_coverage");
+ok("P7-3 the binder records nothing and refuses nothing when unresolved",
+  /if v_reference is null then\s*return null;/.test(p7) &&
+  /must never be blocked because the Public Watch Index/.test(p7));
+
+/* Proof 4 - today's mutable listing row changes later */
+ok("P7-4 the episode set comes from the association table, never from listings.vault_reference_id",
+  /readPublicationEpisodes\([\s\S]{0,1600}from\("public_watch_index_episode_reference"\)/.test(source));
+ok("P7-4 the history reader never queries listings at all",
+  !/readPublicationEpisodes\([\s\S]{0,2200}from\("listings"\)/.test(source));
+ok("P7-4 current-generation filter is mandatory on the association read",
+  /public_watch_index_episode_reference"\)[\s\S]{0,160}\.eq\("is_current", true\)/.test(source));
+
+/* Proof 5 - governed reassociation */
+ok("P7-5 correction retires the prior row as superseded and appends the new one",
+  /retired_kind = 'superseded'/.test(p7) && /supersedes_id\)/.test(p7));
+ok("P7-5 the superseded row is never deleted or rewritten",
+  !/delete from public\.public_watch_index_episode_reference/.test(p7));
+ok("P7-5 a correction must carry an actor and a reason",
+  /pwi_epref_correction_is_attributed check/.test(p7));
+ok("P7-5 the publication boundary itself is unattributed and never a correction",
+  /pwi_epref_boundary_is_unattributed check/.test(p7));
+ok("P7-5 a correction must be tied to a genuine public episode",
+  /unknown_public_episode/.test(p7));
+ok("P7-5 withdrawal exists for a correction that cannot be defensibly tied",
+  /retired_kind = 'withdrawn'/.test(p7) && /no_current_association/.test(p7));
+ok("P7-5 exactly one current association per episode",
+  /pwi_epref_one_current_per_episode[\s\S]{0,140}where is_current/.test(p7));
+
+/* Proof 6 - suppression across reassociation */
+ok("P7-6 suppression candidates include the historical episodes' contributions",
+  /candidateListingIds[\s\S]{0,400}publicationEpisodes \?\? \[\]\)\.map\(\(e\) => e\.listingId\)/.test(source));
+ok("P7-6 a live contribution suppression still bites after reassociation",
+  assessHistory({ ...input({ publicationEpisodes: [episode()] }),
+    reference: { ...REF, vaultReferenceId: "33333333-3333-4333-8333-333333333333" },
+    suppressions: supContrib(L1, "public_listing_history") }) === "not_established_within_coverage");
+ok("P7-6 an ordinary rebuild cannot resurrect it",
+  assessHistory(input({ publicationEpisodes: [episode()], suppressions: supContrib(L1, "all") }))
+    === assessHistory(input({ publicationEpisodes: [episode()], suppressions: supContrib(L1, "all") })));
+ok("P7-6 suppression does not erase the underlying publication event",
+  !/delete from public\.listing_lifecycle_events/.test(p7));
+
+/* Proof 7 - private-only lifecycle never creates public history */
+ok("P7-7 the binder fires only on BECAME_PUBLIC",
+  /when \(new\.event_type = 'BECAME_PUBLIC'\)/.test(p7));
+ok("P7-7 private and removed are separate event types the binder ignores",
+  /'BECAME_PRIVATE' and 'REMOVED' are separate event types/.test(p7));
+
+/* Proof 8 - client authority */
+ok("P7-8 RLS is enabled on the association table with no policy",
+  /alter table public\.public_watch_index_episode_reference enable row level security/.test(p7));
+ok("P7-8 anon and authenticated are revoked from the association table",
+  /revoke all on table public\.public_watch_index_episode_reference from anon/.test(p7) &&
+  /revoke all on table public\.public_watch_index_episode_reference from authenticated/.test(p7));
+for (const fn of ["public_watch_index_correct_episode_reference", "public_watch_index_withdraw_episode_reference"]) {
+  ok(fn + " is service_role only",
+    new RegExp("revoke all on function public\\." + fn + "[^\\n]*from anon").test(p7) &&
+    new RegExp("revoke all on function public\\." + fn + "[^\\n]*from authenticated").test(p7) &&
+    new RegExp("grant execute on function public\\." + fn + "[^\\n]*to service_role").test(p7));
+}
+ok("P7-8 the binder is security definer with a locked search_path",
+  /public_watch_index_bind_episode_reference\(\)[\s\S]{0,300}security definer[\s\S]{0,80}set search_path to ''/.test(p7));
+
+/* Proof 9 - no backfill */
+ok("P7-9 the migration writes no association rows for existing episodes",
+  !/insert into public\.public_watch_index_episode_reference[\s\S]{0,240}select /i.test(p7));
+ok("P7-9 the reader documents that pre-seam episodes were left alone",
+  source.includes("NOT BACKFILLED"));
+
+/* the mistake gate (section 5 condition 5) */
+eq("a governed listing_mistake removal disqualifies the episode",
+  assessHistory(input({ publicationEpisodes: [episode({ disqualifyingMistake: true })] })),
+  "not_established_within_coverage");
+ok("the mistake reason code is the governed one",
+  source.includes('MISTAKE_REASON_CODE = "listing_mistake"'));
+ok("the mistake gate is derived at read time, not stored",
+  /disqualifyingMistake:[\s\S]{0,80}next\?\.event_type === "REMOVED"/.test(source));
+
+/* the four assertions stay independent after P7 */
+const afterP7 = project(input({ eligibleListings: [listing(L1)], publicationEpisodes: [episode()] }));
+ok("P7 does not collapse the four assertions",
+  afterP7.availableNow.state === "yes" &&
+  afterP7.publicListingHistory.state === "established" &&
+  afterP7.approvedPublicReferenceKnowledge.state === "unavailable_or_incomplete" &&
+  afterP7.marketEvidence.state === "none_established_within_coverage");
+ok("approved public reference knowledge remains unavailable until P6",
+  /knowledge: \{ state: "unavailable_or_incomplete", destination: null \}/.test(source));
 
 console.log(`public-watch-index: ${n} assertions PASS`);

@@ -1,4 +1,4 @@
-# Public Watch Index — internal projection (Phase 1)
+# Public Watch Index — internal projection (Phase 1 + P7)
 
 **Governing authority:** [`docs/product-laws/Public_Watch_Index_Product_Contract_v2_ADOPTED.md`](../../docs/product-laws/Public_Watch_Index_Product_Contract_v2_ADOPTED.md), adopted v2, locked 2026-09-09. Section numbers below refer to it. The law governs; this README explains the machinery and records what will age.
 
@@ -21,7 +21,7 @@ All four can be true at once. Collapsing them into one status is the failure the
 
 > "The index is a table, so building it means writing rows."
 
-Nothing here writes. It is a *derived* representation recomputed from governed sources on every call (§12), which is also why a suppression can never be outrun by a rebuild. There is no history ledger, no cache, and no backfill.
+Nothing in `lib/publicWatchIndex/` writes. It is a *derived* representation recomputed from governed sources on every call (§12), which is also why a suppression can never be outrun by a rebuild. There is no history ledger, no cache, and no backfill. The one write anywhere in this seam is a database trigger that freezes the reference at the publication boundary — see the history section below.
 
 ## Where the behaviour actually lives
 
@@ -34,6 +34,8 @@ Nothing here writes. It is a *derived* representation recomputed from governed s
 | Admission into current availability | the `public_discovery_listings` view — never re-derived here |
 | Market Evidence admission | `market_evidence_for_reference(uuid)` — consumed, never reimplemented |
 | The reference spine | `vault_references.id`, reached through `vault_galaxy_references` |
+| Durable publication episodes | `listing_lifecycle_events` (`BECAME_PUBLIC`) — not written here |
+| Episode → reference association | `public_watch_index_episode_reference`, bound by a trigger at the publication boundary |
 
 ## Three-valued, always
 
@@ -42,9 +44,9 @@ Every assertion distinguishes an affirmative fact, a successful complete check t
 - **An incomplete retrieval that returned nothing is not a negative** (§4). An empty partial page reports `availability_unavailable`, not "none".
 - **`not_established_within_coverage` never means "FWT has never listed this reference."** It means a complete evaluation of the approved public coverage found no qualifying record.
 
-## Two dimensions are unavailable in Phase 1, and that is the honest answer
+## One dimension is still unavailable, and that is the honest answer
 
-### Approved public reference knowledge
+### Approved public reference knowledge (P6, still open)
 
 `reference_knowledge` is **not read**, deliberately. §3 admits only information *approved for public representation* and says a `reference_knowledge` row alone does not qualify. No approval state exists anywhere: that table has version, freshness and payload but no `approved_at`, `publication_status`, `permission_status` or reviewer column. Compare `auction_evidence_source_artifact`, which carries all of them — that is what approval looks like in this codebase.
 
@@ -52,13 +54,43 @@ Galaxy visibility does **not** qualify either. It is a brand-boundary presentati
 
 Because no approval check can be *completed*, the state is `unavailable_or_incomplete` — not "none established". Populating or reading that table to make the assertion look answered is forbidden; it is publicly readable today with no approval gate, which is a public-release prerequisite of its own.
 
-### Public listing history
+### Public listing history — closed by P7 for future publications
 
-Durable publication evidence **exists**: `listing_lifecycle_events` records `BECAME_PUBLIC` per listing, append-only, trigger-written. That satisfies §5 condition 2.
+*(This section described a missing mechanism until P7, v8.36. It now describes the mechanism.)*
 
-Condition 3 has no mechanism. It requires evidence, *separate from publication*, that the episode belongs to this canonical reference. `listing_lifecycle_events` has no reference column at all. `listing_decision_events` carries only the seller's typed text, which §2 and §5 both refuse. `listings.vault_reference_id` is a mutable current field that §5 names as insufficient by itself.
+Two proofs, never one:
 
-So the assessment cannot be completed, and the law is explicit about what to do: identify that prerequisite and **do not manufacture a history by copying mutable listing rows into an index** (§5, backfill boundary).
+- **§5 condition 2 — genuine publication.** `listing_lifecycle_events` records a `BECAME_PUBLIC` row per genuine publication, append-only, written by `record_listing_lifecycle_event()`. That trigger is the **sole producer** of a public episode and emits one only when `listings.status` becomes `published`, so every publishing path passes through it and `BECAME_PRIVATE` / `REMOVED` can never masquerade as one.
+- **§5 condition 3 — reference association.** `public_watch_index_episode_reference` binds that episode to a canonical reference, written by a trigger on the episode itself.
+
+**The temporal distinction is the whole design, and it is the thing to get right.**
+
+> At the publication moment, `listings.vault_reference_id` **is** the governed server-side resolution for that publication, and capturing it then is evidence. After that moment it is only mutable current state, and nothing may ever re-derive a historical association from it again.
+
+So the reader's episode set comes **entirely** from the association table and never from `listings`. Change a listing's reference today and its old episode does not move — proven on production.
+
+**Unresolved is a real answer.** If the reference cannot be resolved at publication time the binder records nothing, guesses nothing, and — critically — **refuses nothing**: an otherwise valid marketplace publication is never blocked because the index cannot establish historical identity.
+
+**Not backfilled.** Thirteen episodes predate the binder. They carry no association and were deliberately left alone; only a governed correction can resolve one, with evidence.
+
+### Correction, withdrawal, and the thing they are not
+
+Corrections are **append/supersede**. A correction retires the prior row as `superseded` and appends the new one with a `supersedes_id` link; the original publication evidence is never rewritten and the superseded association stays auditable forever.
+
+**Withdrawal is not suppression, and confusing them loses the distinction the law is built on:**
+
+| | Withdrawal | Suppression |
+|---|---|---|
+| Says | we no longer defensibly know *which reference* this episode belonged to | we are not *permitted to publish* this contribution |
+| Kind of statement | evidence | permission |
+| Lives in | `public_watch_index_episode_reference` | `public_watch_index_suppressions` |
+| Undone by | a governed correction re-establishing an association | an explicit authorized reversal plus a live eligibility check |
+
+Withdrawal is what §2 demands when a correction *cannot* be defensibly tied to the episode: the exact-reference contribution goes away rather than moving to today's row value.
+
+### The mistake gate
+
+An episode whose **very next** lifecycle event ended it as `REMOVED` with `removal_reason_code = 'listing_mistake'` is not provenance (§5 condition 5). Derived at read time rather than stored, so a later correction to the reason code is honoured immediately. A brief genuine publication is not automatically a mistake, and a long-lived test is not automatically real — evidence and governed reason codes decide.
 
 ## Suppression and no-resurrection (§8)
 
@@ -86,6 +118,8 @@ Four rules, made mechanical:
 
 ## Traps
 
+- **`is_current` is mandatory on every association read.** The table is append-and-retire; without that filter superseded and withdrawn associations read as live evidence. Same trap as `auction_evidence_result` and `physical_watch_identifier_observations`.
+- **Suppression candidates must include the historical episodes' listings, not only the eligible ones.** A contribution-scoped suppression follows its contribution across reassociation, so omitting the historical half would let a reassociated episode slip past a live decision.
 - **`assessedOn` is a UTC calendar day, never an event time** (§12). It is the date of an actual successful public-scope assessment — not a publication, reservation, removal or transaction date. A day-granular date is not a daily-refresh permission or a freshness guarantee, and it does not stop an observer from timing their own requests.
 - **Read availability as anon, never as the session.** `listings_select_public_or_own` widens for a signed-in seller, so a cookie-bound client would let a seller's own drafts into a projection meant to compute what is *publicly* true.
 - **The view decides eligibility; this code never does.** Reaching past `public_discovery_listings` for "just one more field" reintroduces the leak it prevents. The second read supplies only the reference edge for rows already admitted.
@@ -106,9 +140,19 @@ select count(*) from pg_policies where schemaname='public' and tablename='public
 select proname, array_to_string(proacl,' | ') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where n.nspname='public' and proname like 'public_watch_index%';
 
--- the two Phase 1 gaps, measured rather than assumed
-select count(*) from information_schema.columns
- where table_schema='public' and table_name='listing_lifecycle_events' and column_name like '%reference%';
+-- P7: the binder is installed on the one governed publication boundary
+select tgname from pg_trigger where tgrelid='public.listing_lifecycle_events'::regclass
+ and tgname='public_watch_index_bind_episode_reference';
+
+-- P7: how much history the seam can speak for (unassociated = pre-seam episodes)
+select count(*) filter (where a.id is null)     as unassociated_episodes,
+       count(*) filter (where a.id is not null) as associated_episodes
+  from public.listing_lifecycle_events e
+  left join public.public_watch_index_episode_reference a
+         on a.episode_id = e.id and a.is_current
+ where e.event_type = 'BECAME_PUBLIC';
+
+-- P6 remains open: no approval state exists to read
 select count(*) from information_schema.columns
  where table_schema='public' and table_name='reference_knowledge'
    and (column_name like '%approv%' or column_name like '%publication%' or column_name like '%permission%');

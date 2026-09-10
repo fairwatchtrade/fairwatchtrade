@@ -13,7 +13,7 @@ import {
 } from "./projection";
 
 /* ════════════════════════════════════════════════════════════════════════
-   PUBLIC WATCH INDEX — the reader  (Phase 1, internal only)
+   PUBLIC WATCH INDEX — the reader  (internal only; Phase 1 + P7)
    lib/publicWatchIndex/projectionSource.ts
 
    Governing authority:
@@ -38,11 +38,12 @@ import {
        (listings_select_public_or_own returns their own drafts). Reading as
        anon makes it structurally impossible for the projection to see more
        than the public can.
-     · SERVICE ROLE — publication evidence and suppressions. Both tables deny
-       every client role by design, and both are internal-only inputs.
+     · SERVICE ROLE — publication episodes, their reference associations,
+       and suppressions. All three tables deny every client role by design,
+       and all three are internal-only inputs.
      · NONE — approved public reference knowledge. See below.
 
-   WHY KNOWLEDGE IS ALWAYS UNAVAILABLE IN PHASE 1. `reference_knowledge` is
+   WHY KNOWLEDGE IS STILL ALWAYS UNAVAILABLE (P6 open). `reference_knowledge` is
    NOT read here, and that is deliberate rather than unfinished. The law (§3)
    admits only information APPROVED for public representation, and says
    plainly that a `reference_knowledge` row alone does not qualify. No
@@ -56,19 +57,25 @@ import {
    gate in front of it, which is a public-release prerequisite in its own
    right.
 
-   WHY HISTORY IS ALWAYS UNAVAILABLE IN PHASE 1. Durable publication evidence
-   EXISTS: listing_lifecycle_events records a BECAME_PUBLIC episode per
-   listing, append-only, written by a trigger. That satisfies §5 condition 2.
-   Condition 3 — defensible evidence that the episode belongs to THIS
-   canonical reference — has no mechanism at all. listing_lifecycle_events
-   carries no reference column, and listing_decision_events carries only the
-   seller's typed text, which §2 and §5 both refuse as association evidence.
-   `listings.vault_reference_id` is a mutable current field and §5 names it
-   as insufficient by itself. So the assessment cannot be completed, and the
-   law's instruction is explicit: identify that specific prerequisite, and do
-   NOT manufacture a history by copying mutable listing rows into an index.
+   HOW HISTORY IS ESTABLISHED (P7, v8.36). Two separate proofs, never one.
+   §5 condition 2 is satisfied by listing_lifecycle_events, which records a
+   BECAME_PUBLIC episode per genuine publication, append-only, written by a
+   trigger. §5 condition 3 is satisfied by
+   public_watch_index_episode_reference, which freezes the canonical
+   reference AT the publication boundary and binds it to that episode.
 
-   NO BACKFILL. Nothing here writes history, and nothing infers it.
+   THE TEMPORAL DISTINCTION IS THE WHOLE DESIGN. At the publication moment,
+   `listings.vault_reference_id` IS the governed server-side resolution for
+   that publication, and capturing it then is evidence. After that moment it
+   is only mutable current state, and nothing may ever re-derive a historical
+   association from it again. This reader therefore never consults that
+   column for history: the episode set comes entirely from the association
+   table, which is why changing a listing's reference today cannot move an
+   old episode onto it.
+
+   NOT BACKFILLED, AND NOTHING HERE WRITES. Episodes published before the
+   binder existed carry no association and were deliberately left alone; only
+   a governed correction can resolve one, with evidence.
 
    Read lib/publicWatchIndex/README.md before changing a rule here.
    PFC274 = 62 — the evaluate route is untouched.
@@ -94,13 +101,17 @@ export const KNOWLEDGE_GAP: CoverageNote = {
     "The check cannot be completed, so the assertion is unavailable rather than negative.",
 };
 
-export const HISTORY_GAP: CoverageNote = {
+/* P7 (v8.36) closed the mechanism gap this note used to describe. What
+   remains is a COVERAGE statement, not a missing mechanism: episodes
+   published before the binder existed carry no association and were
+   deliberately not backfilled, so a `not_established_within_coverage` answer
+   spans only the episodes the seam can actually speak for. */
+export const HISTORY_COVERAGE_NOTE: CoverageNote = {
   assertion: "public_listing_history",
   reason:
-    "Durable publication evidence exists (listing_lifecycle_events BECAME_PUBLIC), " +
-    "but no episode-linked reference-association evidence exists (contract section 5 condition 3). " +
-    "Today's listings.vault_reference_id and seller text are both refused as association evidence, " +
-    "so the assessment cannot be completed.",
+    "Episode-to-reference association is captured at the publication boundary from P7 onward. " +
+    "Publication episodes recorded before that seam existed carry no association and were not backfilled, " +
+    "so the assessed coverage is future publications plus any episode a governed correction has since resolved.",
 };
 
 type AnonClient = SupabaseClient;
@@ -221,22 +232,96 @@ export async function readEligibleListings(
 
 /* ── Publication evidence (§5) ──────────────────────────────────────────── */
 
+/** The governed removal reason that disqualifies a publication episode from
+    becoming provenance. A brief genuine publication is not automatically a
+    mistake — evidence and governed reason codes decide (§5). */
+export const MISTAKE_REASON_CODE = "listing_mistake";
+
 /**
- * Durable public publication episodes for the listings that currently resolve
- * to this reference.
+ * Durable public publication episodes belonging to this canonical reference.
  *
- * Every episode returned carries `referenceAssociationEvidenced: false`, and
- * that is the truthful value, not a placeholder: no mechanism ties a
- * publication episode to a canonical reference. The episodes are still read
- * and returned so the shape of the gap is visible rather than invisible — the
- * projection then reports `not_established_within_coverage` only if the
- * assessment could actually be completed, which it cannot, so this reader
- * hands the projection `null` and records HISTORY_GAP.
+ * P7 (v8.36) replaced the Phase 1 stub. The set is driven ENTIRELY by
+ * `public_watch_index_episode_reference`, the durable association captured at
+ * each publication boundary — never by today's `listings.vault_reference_id`.
+ * A listing whose current row points here contributes nothing unless its
+ * episode carries a current association saying so, which is exactly what
+ * stops history moving when a mutable row changes.
  *
- * Returns null: the history assessment cannot be completed in Phase 1.
+ * `is_current` is mandatory: the association table is append-and-retire, and
+ * without that filter superseded and withdrawn associations read as live
+ * evidence.
+ *
+ * Field by field, for the projection's five §5 conditions:
+ *   · durablyEvidenced — true. The lifecycle event IS the governed durable
+ *     publication evidence; the row would not exist otherwise.
+ *   · referenceAssociationEvidenced — true. A current association is the
+ *     separate proof §5 condition 3 demands.
+ *   · publicUsePermitted — true here. Per-episode public-use restriction has
+ *     exactly two mechanisms, and neither belongs in this flag: withdrawal
+ *     removes the current association (so the episode never reaches this
+ *     list), and suppression is applied by the projection itself. The
+ *     platform-wide retention permission remains an open PUBLIC-RELEASE
+ *     prerequisite, not a per-episode fact this reader can evaluate.
+ *   · disqualifyingMistake — derived at read time: an episode whose very next
+ *     lifecycle event ended it as REMOVED with the governed mistake reason is
+ *     not provenance. Derived rather than stored so a later correction to the
+ *     reason code is honoured immediately.
+ *
+ * Returns null only when the assessment could not be completed.
  */
-export async function readPublicationEpisodes(): Promise<PublicationEpisode[] | null> {
-  return null;
+export async function readPublicationEpisodes(
+  service: SupabaseClient,
+  vaultReferenceId: string
+): Promise<PublicationEpisode[] | null> {
+  const associations = await service
+    .from("public_watch_index_episode_reference")
+    .select("episode_id")
+    .eq("is_current", true)
+    .eq("vault_reference_id", vaultReferenceId);
+  if (associations.error) return null;
+
+  const episodeIds = ((associations.data ?? []) as { episode_id: number }[]).map((r) => r.episode_id);
+  if (episodeIds.length === 0) return [];
+
+  const episodes = await service
+    .from("listing_lifecycle_events")
+    .select("id, listing_id, occurred_at")
+    .in("id", episodeIds)
+    .eq("event_type", "BECAME_PUBLIC");
+  if (episodes.error) return null;
+
+  const rows = (episodes.data ?? []) as { id: number; listing_id: string; occurred_at: string }[];
+  if (rows.length === 0) return [];
+
+  /* Every lifecycle event for the listings involved, so "what ended this
+     episode" is answered in one read rather than one read per episode. */
+  const timeline = await service
+    .from("listing_lifecycle_events")
+    .select("listing_id, event_type, removal_reason_code, occurred_at")
+    .in("listing_id", [...new Set(rows.map((r) => r.listing_id))])
+    .order("occurred_at", { ascending: true });
+  if (timeline.error) return null;
+
+  const events = (timeline.data ?? []) as {
+    listing_id: string;
+    event_type: string;
+    removal_reason_code: string | null;
+    occurred_at: string;
+  }[];
+
+  return rows.map((episode) => {
+    const next = events.find(
+      (e) => e.listing_id === episode.listing_id && e.occurred_at > episode.occurred_at
+    );
+    return {
+      listingId: episode.listing_id,
+      durablyEvidenced: true,
+      referenceAssociationEvidenced: true,
+      publicUsePermitted: true,
+      disqualifyingMistake:
+        next?.event_type === "REMOVED" && next?.removal_reason_code === MISTAKE_REASON_CODE,
+    };
+  });
 }
 
 /* ── Suppressions (§8) ──────────────────────────────────────────────────── */
@@ -334,7 +419,12 @@ export type ProjectionResult = {
  */
 export async function projectReference(vaultReferenceId: string): Promise<ProjectionResult> {
   const anon = createDiscoveryClient();
-  const coverageNotes: CoverageNote[] = [HISTORY_GAP, KNOWLEDGE_GAP];
+  /* P7 closed the history gap for FUTURE publications; the knowledge gap
+     (P6) is untouched and still the honest reason that assertion cannot be
+     completed. Existing episodes recorded before P7 carry no association and
+     were deliberately not backfilled, so HISTORY_COVERAGE_NOTE explains what
+     the history answer does and does not span. */
+  const coverageNotes: CoverageNote[] = [HISTORY_COVERAGE_NOTE, KNOWLEDGE_GAP];
 
   const reference = await readReferenceIdentity(anon, vaultReferenceId);
   if (!reference) return { record: null, coverageNotes };
@@ -342,15 +432,38 @@ export async function projectReference(vaultReferenceId: string): Promise<Projec
   const eligible = await readEligibleListings(anon, vaultReferenceId);
   const marketEvidence = await readMarketEvidence(anon, vaultReferenceId);
 
-  let suppressions: LiveSuppression[] | null = [];
+  let service: SupabaseClient | null = null;
   try {
-    suppressions = await readLiveSuppressions(
-      createServiceClient(),
-      vaultReferenceId,
-      (eligible?.listings ?? []).map((l) => l.listingId)
-    );
+    service = createServiceClient();
   } catch {
+    service = null;
+  }
+
+  const publicationEpisodes = service
+    ? await readPublicationEpisodes(service, vaultReferenceId)
+    : null;
+
+  /* Suppression candidates are every contribution that could reach this
+     record: the listings currently eligible AND the listings behind the
+     historical episodes. A contribution-scoped suppression follows its
+     contribution across reassociation, so omitting the historical half would
+     let a reassociated episode slip past a live decision (§8). */
+  const candidateListingIds = [
+    ...new Set([
+      ...(eligible?.listings ?? []).map((l) => l.listingId),
+      ...(publicationEpisodes ?? []).map((e) => e.listingId),
+    ]),
+  ];
+
+  let suppressions: LiveSuppression[] | null = [];
+  if (service === null) {
     suppressions = null;
+  } else {
+    try {
+      suppressions = await readLiveSuppressions(service, vaultReferenceId, candidateListingIds);
+    } catch {
+      suppressions = null;
+    }
   }
 
   /* FAIL CLOSED ON SUPPRESSION. If publication authority cannot be read, the
@@ -375,7 +488,7 @@ export async function projectReference(vaultReferenceId: string): Promise<Projec
     reference,
     eligibleListings: eligible ? eligible.listings : null,
     retrievalComplete: eligible ? eligible.retrievalComplete : false,
-    publicationEpisodes: await readPublicationEpisodes(),
+    publicationEpisodes,
     knowledge: { state: "unavailable_or_incomplete", destination: null },
     marketEvidence,
     suppressions,
