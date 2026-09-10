@@ -41,6 +41,14 @@ export const dynamic = "force-dynamic";
 
 const CONTACT_INBOX = "hello@fairwatchtrade.com";
 
+/* Contact mail is sent FROM a second address on the same verified domain.
+   Sent from hello@ and addressed to hello@, Resend accepted every message and
+   none reached the inbox, while ordinary external mail to hello@ arrives: the
+   self-addressed shape was the one difference (2026-09-10). contact@ is a
+   transport sender only; the public contact identity stays hello@, and the
+   Reply-To stays the person who wrote. */
+const CONTACT_SENDER = "FairWatchTrade <contact@fairwatchtrade.com>";
+
 export async function POST(request: NextRequest) {
   let body: ContactInput;
   try {
@@ -105,6 +113,7 @@ export async function POST(request: NextRequest) {
     html,
     kind: "contact",
     replyTo,
+    from: CONTACT_SENDER,
   });
 
   if (!sent.ok) {

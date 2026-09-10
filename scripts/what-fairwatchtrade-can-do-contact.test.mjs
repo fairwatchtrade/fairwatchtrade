@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 
 import { resolveContact, CONTACT_LIMITS } from "../lib/contact/composeContact.ts";
 
@@ -78,7 +80,9 @@ test("the route derives identity from the session and passes the reply identity 
   assert.match(src, /import \{ resolveContact, type ContactInput \} from "@\/lib\/contact\/composeContact"/);
   assert.match(src, /sessionEmail = user\?\.email \?\? null/);
   assert.match(src, /resolveContact\(body, sessionEmail\)/);
-  assert.match(src, /replyTo,\s*\}\);/);
+  assert.match(src, /replyTo,\s*from: CONTACT_SENDER,\s*\}\);/);
+  assert.match(src, /const CONTACT_SENDER = "FairWatchTrade <contact@fairwatchtrade\.com>";/);
+  assert.match(src, /const CONTACT_INBOX = "hello@fairwatchtrade\.com";/);
   assert.match(src, /subject,\s*html,\s*kind: "contact"/);
   // Success only when the transport says so.
   assert.match(src, /if \(!sent\.ok\)/);
@@ -90,6 +94,13 @@ test("reply-to is an optional, backward-compatible transport parameter", () => {
   const src = stripComments(transport);
   assert.match(src, /replyTo\?: string;/);
   assert.match(src, /\.\.\.\(replyTo \? \{ reply_to: replyTo \} : \{\}\)/);
+  // Sender override: optional, defaulting to the unchanged hello@ sender.
+  assert.match(src, /from\?: string;/);
+  assert.match(src, /const FROM = "FairWatchTrade <hello@fairwatchtrade\.com>";/);
+  assert.match(src, /const from = params\.from \?\? FROM;/);
+  assert.match(src, /JSON\.stringify\(\{ from, to, subject, html,/);
+  // Reply-To is independent of From.
+  assert.doesNotMatch(src, /reply_to: from|from: replyTo/);
   // Every existing caller is untouched: none passes replyTo.
   for (const f of ["app/api/listings/[id]/decision/route.ts", "lib/sellerEmail.ts"]) {
     try {
@@ -99,6 +110,21 @@ test("reply-to is an optional, backward-compatible transport parameter", () => {
       /* file may not exist in this tree; the pin is on the parameter shape */
     }
   }
+});
+
+test("only the contact route overrides the sender; every other caller keeps hello@; contact@ never reaches public UI", () => {
+  const { execSync } = require("node:child_process");
+  const callers = execSync("git grep -l sendSellerEmail -- app lib components", { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
+  for (const f of callers) {
+    const src = stripComments(read(f));
+    if (f === "app/api/contact/route.ts" || f === "lib/sellerEmail.ts") continue;
+    assert.doesNotMatch(src, /from:\s*["'`]/, `${f} must not override the sender`);
+    assert.doesNotMatch(src, /contact@fairwatchtrade/, f);
+  }
+  for (const f of [room, composer, doorway, read("lib/whatFairWatchTradeCanDo/content.ts")]) {
+    assert.doesNotMatch(f, /contact@fairwatchtrade\.com/);
+  }
+  assert.match(doorway, /hello@fairwatchtrade\.com/);
 });
 
 /* ── Doorway placement on the benefits page ──────────────────────────── */

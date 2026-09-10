@@ -19,6 +19,10 @@
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
 
+/* The default sender for every seller, listing, review and notification
+   email. Fixed. A caller may override it ONLY for a seam that must not send
+   as hello@ (the contact composer: mail from hello@ addressed to hello@ was
+   accepted by Resend and never reached the inbox, 2026-09-10). */
 const FROM = "FairWatchTrade <hello@fairwatchtrade.com>";
 
 export type SellerEmailResult = { ok: boolean; reason?: string };
@@ -34,8 +38,12 @@ export async function sendSellerEmail(params: {
       existing caller, and omitted means the request is byte-for-byte what
       it was before this parameter existed. */
   replyTo?: string;
+  /** Optional sender override. Omitted by every seller/listing caller, and
+      omitted means the existing hello@ sender, unchanged. */
+  from?: string;
 }): Promise<SellerEmailResult> {
   const { to, subject, html, kind, replyTo } = params;
+  const from = params.from ?? FROM;
   if (!to) {
     console.error(`[seller-email:${kind}] no recipient address — not sent`);
     return { ok: false, reason: "no_recipient" };
@@ -51,7 +59,7 @@ export async function sendSellerEmail(params: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       },
-      body: JSON.stringify({ from: FROM, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
+      body: JSON.stringify({ from, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     if (!res.ok) {
       // Read Resend's own words rather than guessing — a bad key and an
