@@ -154,7 +154,11 @@ test("the Checkout request is cards-only, automatic capture, server amounts, cor
   assert.equal(o.idempotencyKey, `fwt:stripe:checkout:${TXN}:${ATT}`);
   assert.equal(o.stripeAccount, "acct_123");
   const u = returnUrls("https://www.fairwatchtrade.com", TXN);
-  assert.match(u.successUrl, new RegExp(`^https://www\\.fairwatchtrade\\.com/account\\?module=dashboard&transaction=${TXN}&payment=return$`));
+  /* Accepted Purchase Continuity (2026-09-11): Stripe returns to the same
+     accepted purchase in the Shopping Bag; the Bag page resolves the return
+     against current membership at arrival and forwards a nonmember to Your
+     Purchases. The redirect is still navigation only. */
+  assert.match(u.successUrl, new RegExp(`^https://www\\.fairwatchtrade\\.com/shopping-bag\\?transaction=${TXN}&payment=return$`));
   assert.match(u.cancelUrl, /payment=cancel$/);
 });
 

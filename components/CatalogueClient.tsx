@@ -169,7 +169,12 @@ type MyOfferRow = {
 // after a failed query.
 type MyOffersState =
   | { phase: "loading" }
-  | { phase: "loaded"; offers: MyOfferRow[] }
+  /* Accepted Purchase Continuity (2026-09-11): `bag` maps purchase request
+     id → transaction id for every request whose accepted transaction is a
+     CURRENT Shopping Bag member, read from the shared resolver's route.
+     null = the Bag could not be read; no continuation is drawn on a truth
+     that was not established (never a dead doorway, never a guess). */
+  | { phase: "loaded"; offers: MyOfferRow[]; bag: Record<string, string> | null }
   | { phase: "error" };
 
 // Status → buyer-facing copy, derived at render time. superseded is distinct
@@ -565,10 +570,17 @@ function canDismissOffer(o: MyOfferRow): boolean {
 // One watch group: identity once, current request dominant, history beneath.
 function WatchOfferGroup({
   group,
+  bagHref,
   onRequestWithdraw,
   onDismiss,
 }: {
   group: WatchGroup;
+  /* Accepted Purchase Continuity (2026-09-11): the exact active Shopping
+     Bag purchase behind an accepted offer, present ONLY while the shared
+     resolver says the transaction is a current member. Rendered as a
+     sibling of the card's listing link (an anchor inside an anchor is not a
+     control), attached to the watch it belongs to. */
+  bagHref: string | null;
   onRequestWithdraw: (requestId: string, trigger: HTMLElement | null) => void;
   onDismiss: (requestId: string) => void;
 }) {
@@ -728,16 +740,37 @@ function WatchOfferGroup({
 
   // Navigable to the existing listing when present; otherwise a quiet,
   // non-navigable group (the watch is gone — no fabricated destination).
-  return l ? (
+  const card = l ? (
     <Link
       href={`/listings/${l.id}`}
-      className="block border-b border-[rgba(255,255,255,0.03)] transition last:border-b-0 hover:bg-[var(--hover-wash)]"
+      className="block transition hover:bg-[var(--hover-wash)]"
     >
       {inner}
     </Link>
   ) : (
-    <div className="block cursor-default border-b border-[rgba(255,255,255,0.03)] opacity-70 last:border-b-0">
+    <div className="block cursor-default opacity-70">
       {inner}
+    </div>
+  );
+
+  /* The accepted continuation sits directly under the card it belongs to
+     (attention geography: action beside the watch, never in a far column),
+     outside the listing link so it is its own control. Absent for every
+     offer that is not a current Bag member. */
+  return (
+    <div className="border-b border-[rgba(255,255,255,0.03)] last:border-b-0">
+      {card}
+      {bagHref && (
+        <div className="px-4 pb-4 pl-[96px]">
+          <Link
+            href={bagHref}
+            data-bag-continuation={current.id}
+            className="inline-flex min-h-[40px] items-center border border-[var(--gold)] bg-[var(--cta-fill)] px-4 text-[11px] uppercase tracking-[1.6px] text-[var(--on-cta)] transition hover:opacity-90 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+          >
+            Continue in your Shopping Bag →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -936,6 +969,11 @@ function MyOffersSection({
             <WatchOfferGroup
               key={group.key}
               group={group}
+              bagHref={
+                state.phase === "loaded" && group.current.status === "accepted" && state.bag && state.bag[group.current.id]
+                  ? `/shopping-bag?transaction=${encodeURIComponent(state.bag[group.current.id])}`
+                  : null
+              }
               onRequestWithdraw={(requestId, trigger) => {
                 setWithdrawnNotice(false);
                 setPrompt({ requestId, trigger });
@@ -1204,7 +1242,7 @@ export default function CatalogueClient({
       } = await supabase.auth.getUser();
       if (!user) {
         // Not signed in — treat as an empty (loaded) workspace, not an error.
-        if (!cancelled) setMyOffers({ phase: "loaded", offers: [] });
+        if (!cancelled) setMyOffers({ phase: "loaded", offers: [], bag: null });
         return;
       }
       const { data, error } = await supabase
@@ -1258,9 +1296,34 @@ export default function CatalogueClient({
          simply no longer this collector's problem to look at. Filtered here
          rather than in the query so the reason is legible at the surface it
          governs. */
+      /* Accepted Purchase Continuity (2026-09-11): which accepted offers
+         still have a CURRENT Shopping Bag member behind them. Read from the
+         shared resolver's route, never decided here. A failed read yields
+         null and no continuation is drawn — the offers themselves still
+         render, and the Bag entrance in the header carries its own
+         unavailable truth. */
+      let bag: Record<string, string> | null = null;
+      if (offers.some((o) => o.status === "accepted")) {
+        try {
+          const res = await fetch("/api/shopping-bag", { cache: "no-store" });
+          if (res.ok) {
+            const data = (await res.json()) as { ok?: boolean; members?: { transactionId: string; purchaseRequestId: string | null }[] };
+            if (data.ok && Array.isArray(data.members)) {
+              bag = {};
+              for (const m of data.members) if (m.purchaseRequestId) bag[m.purchaseRequestId] = m.transactionId;
+            }
+          }
+        } catch {
+          bag = null;
+        }
+      } else {
+        bag = {};
+      }
+      if (cancelled) return;
       setMyOffers({
         phase: "loaded",
         offers: offers.filter((o) => o.buyer_dismissed_at == null),
+        bag,
       });
     }
     loadOffers();

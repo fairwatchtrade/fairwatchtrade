@@ -10,6 +10,7 @@ import {
 } from "@/lib/payments/stripe/checkout";
 import { toMinorUnits } from "@/lib/payments/money";
 import { canStartCheckout, type Lifecycle, type PaymentTruth } from "@/lib/payments/paymentState";
+import { isPayableTransactionStatus } from "@/lib/payments/transactionPayability";
 import { CANONICAL_ORIGIN } from "@/lib/seo/routeMetadata";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -38,7 +39,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PAYABLE_TRANSACTION_STATUSES = new Set(["pending", "payment_pending"]);
+/* The payable-status predicate lives in lib/payments/transactionPayability
+   (2026-09-11) and is shared with payment-state and the Shopping Bag
+   resolver, so the three can never drift. Behaviour here is unchanged. */
 
 type TransactionRow = {
   id: string;
@@ -110,7 +113,7 @@ export async function POST(request: NextRequest) {
   if (transaction.buyer_id !== user.id) return refuse("not_transaction_buyer", 403);
 
   /* 3 · the transaction must be in a state that can start Step 1 payment */
-  if (!PAYABLE_TRANSACTION_STATUSES.has(transaction.status ?? "")) {
+  if (!isPayableTransactionStatus(transaction.status)) {
     return refuse("transaction_not_payment_eligible", 409, { transactionStatus: transaction.status });
   }
 

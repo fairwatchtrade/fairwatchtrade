@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import MobileNav from "@/components/MobileNav";
 import NotificationsBell from "@/components/NotificationsBell";
 import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
+import ShoppingBagEntrance from "@/components/ShoppingBagEntrance";
+import type { BagHeaderTruth } from "@/lib/purchases/bagMembership";
 
 /* ────────────────────────────────────────────────────────────────────────
    NAV BAR — site navigation, sits inside the sticky header above MarketBar.
@@ -132,11 +134,17 @@ export default function NavBar({
   initialUnreadCount = 0,
   displayName = null,
   isAdmin = false,
+  initialBag = null,
 }: {
   authed?: boolean;
   initialUnreadCount?: number;
   displayName?: string | null;
   isAdmin?: boolean;
+  /* Accepted Purchase Continuity (2026-09-11): the server-resolved Shopping
+     Bag truth — none / members(count) / unavailable — so the conditional
+     Bag entrance never flashes on mount. null = the server could not
+     resolve, rendered as unavailable, never as none. */
+  initialBag?: BagHeaderTruth | null;
 } = {}) {
   const [open, setOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -216,6 +224,12 @@ export default function NavBar({
               {item.label}
             </Link>
           ))}
+          {/* Shopping Bag — founder-locked signed-in utility order:
+              SELL → [Bag when present] → Bell → Username. This is the one
+              conditional slot; the entrance renders nothing on a successful
+              read that proved no members, so the row is then exactly
+              SELL → Bell → Username. Not a word in the collector row. */}
+          {authed && <ShoppingBagEntrance initial={initialBag} />}
           {/* Bell — authenticated users only; count seeded server-side. */}
           {authed && <NotificationsBell initialUnreadCount={initialUnreadCount} />}
 
@@ -397,6 +411,7 @@ export default function NavBar({
         authed={authed}
         displayName={displayName}
         isAdmin={isAdmin}
+        initialBag={initialBag}
         triggerRef={hamburgerRef}
       />
     </nav>

@@ -190,7 +190,7 @@ ok("dealer entries carry no invented lastModified", entries.filter((e) => e.url.
 ok("static entries carry no invented lastModified", entries.slice(0, EXPECTED_STATIC.length).every((e) => e.lastModified === undefined));
 ok("no /vault/galaxy in sitemap", !urls.includes(`${O}/vault/galaxy`));
 ok("no query-string variants", urls.every((u) => !u.includes("?")));
-for (const excluded of ["/login", "/signup", "/forgot-password", "/reset-password", "/account", "/account/settings", "/catalogue", "/wanted", "/sell/mobile", "/sell/continue", "/admin", "/internal", "/api", "/dashboard", "/tracking"]) {
+for (const excluded of ["/login", "/signup", "/forgot-password", "/reset-password", "/account", "/account/settings", "/catalogue", "/wanted", "/shopping-bag", "/sell/mobile", "/sell/continue", "/admin", "/internal", "/api", "/dashboard", "/tracking"]) {
   ok(`${excluded} is excluded from sitemap`, !urls.some((u) => u === `${O}${excluded}` || u.startsWith(`${O}${excluded}/`)));
 }
 ok("every entry is on the canonical origin", urls.every((u) => u.startsWith(`${O}/`)));
@@ -216,7 +216,7 @@ ok("no plain app/sell/layout.tsx exists to leak /sell metadata into noindex chil
 for (const [file, path] of [["app/login/layout.tsx", "/login"], ["app/signup/layout.tsx", "/signup"], ["app/forgot-password/layout.tsx", "/forgot-password"]]) {
   ok(`${file} declares authRouteMetadata("${path}")`, read(file).includes(`authRouteMetadata("${path}")`));
 }
-for (const file of ["app/admin/layout.tsx", "app/account/layout.tsx", "app/internal/layout.tsx", "app/reset-password/layout.tsx", "app/catalogue/page.tsx", "app/wanted/page.tsx", "app/sell/mobile/page.tsx", "app/listings/[id]/purchase-request/page.tsx"]) {
+for (const file of ["app/admin/layout.tsx", "app/account/layout.tsx", "app/internal/layout.tsx", "app/reset-password/layout.tsx", "app/catalogue/page.tsx", "app/wanted/page.tsx", "app/shopping-bag/page.tsx", "app/sell/mobile/page.tsx", "app/listings/[id]/purchase-request/page.tsx"]) {
   ok(`${file} is noindex via privateRouteMetadata`, read(file).includes("privateRouteMetadata("));
 }
 ok("/sell/continue keeps its own noindex", read("app/sell/continue/[token]/page.tsx").includes("robots: { index: false, follow: false }"));

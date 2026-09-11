@@ -13,6 +13,7 @@ import FwtListingId from "@/components/FwtListingId";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
+import { resolveShoppingBag } from "@/lib/purchases/shoppingBag";
 import type { CurationSummary } from "@/lib/curationReview";
 import ListingPurchaseRequestProvider from "@/components/ListingPurchaseRequestProvider";
 import { buildCollectorFingerprint } from "@/lib/collectorFingerprint";
@@ -366,6 +367,24 @@ export default async function ListingDetailPage({
       .limit(1)
       .maybeSingle()
     : { data: null };
+
+  /* Accepted Purchase Continuity (2026-09-11): for the accepted buyer, a
+     doorway to the exact accepted purchase in the Shopping Bag — but ONLY
+     while the shared resolver says that transaction is a current member.
+     Once the watch has left the Bag (webhook-confirmed payment) this stays
+     null and the listing is simply the watch again; the persistent record
+     lives in Your Purchases. A resolver failure also yields null: no
+     doorway is drawn on a truth FairWatchTrade could not establish. */
+  let bagHref: string | null = null;
+  if (user && myLatestRequest?.status === "accepted" && listing.status === "reserved") {
+    try {
+      const bag = await resolveShoppingBag(user.id);
+      const member = bag.ok ? bag.members.find((m) => m.listingId === listing.id) : null;
+      if (member) bagHref = `/shopping-bag?transaction=${encodeURIComponent(member.transactionId)}`;
+    } catch (e) {
+      console.error("[listing] shopping bag doorway unavailable:", e instanceof Error ? e.message : e);
+    }
+  }
 
   /* Trade V1 — this collector's own latest proposal on this watch, if any.
      RLS on trade_offers scopes it to the two parties, so a stranger's
@@ -1054,6 +1073,7 @@ export default async function ListingDetailPage({
               priceText={priceText}
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
+              bagHref={bagHref}
             openToTrades={listing.open_to_trades === true}
             listingIdentity={tradeIdentity}
             myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
@@ -1197,6 +1217,7 @@ export default async function ListingDetailPage({
             priceText={priceText}
             isOwner={isOwner}
             requestStatus={myLatestRequest?.status ?? null}
+            bagHref={bagHref}
             openToTrades={listing.open_to_trades === true}
             listingIdentity={tradeIdentity}
             myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
@@ -1237,6 +1258,7 @@ export default async function ListingDetailPage({
               priceText={priceText}
               isOwner={isOwner}
               requestStatus={myLatestRequest?.status ?? null}
+              bagHref={bagHref}
             openToTrades={listing.open_to_trades === true}
             listingIdentity={tradeIdentity}
             myTradeOfferStatus={myLatestTradeOffer?.status ?? null}

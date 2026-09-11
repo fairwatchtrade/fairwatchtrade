@@ -78,8 +78,16 @@ export function checkoutRequestOptions(
   };
 }
 
-/** Where the collector lands afterwards: the same transaction, never home. */
+/** Where the collector lands afterwards: the same accepted purchase in the
+    Shopping Bag, never home (Accepted Purchase Continuity, 2026-09-11).
+
+    The Bag page resolves the return against CURRENT membership at arrival:
+    while the transaction is still a member it is focused there; if the
+    webhook already confirmed payment and the watch has left the Bag, the
+    page sends the buyer on to the same transaction in persistent Your
+    Purchases. Either way the redirect is navigation only — `payment=return`
+    is where the collector came from, never what happened. */
 export function returnUrls(origin: string, transactionId: string): { successUrl: string; cancelUrl: string } {
-  const base = `${origin}/account?module=dashboard&transaction=${encodeURIComponent(transactionId)}`;
+  const base = `${origin}/shopping-bag?transaction=${encodeURIComponent(transactionId)}`;
   return { successUrl: `${base}&payment=return`, cancelUrl: `${base}&payment=cancel` };
 }

@@ -165,6 +165,7 @@ export default function CommunicationsRoom({
   loaded,
   onThreadsChanged,
   onRequestsChanged,
+  onCommercialStateChanged,
 }: {
   module: "communications" | "requests" | "messages";
   threads: CommThread[];
@@ -173,9 +174,35 @@ export default function CommunicationsRoom({
       before concluding an id doesn't exist. */
   loaded: boolean;
   onThreadsChanged: () => void;
-  onRequestsChanged: () => void;
+  /** Re-reads the seller's requests. May report whether it succeeded
+      (true) or could not look (false); a void return is treated as unknown
+      and never as success. */
+  onRequestsChanged: () => void | Promise<boolean | void>;
+  /** Accepted Purchase Continuity (2026-09-11): fired once an acceptance has
+      COMMITTED, so the workspace can re-run its server read and Listings
+      shows Sale Pending in the same session. */
+  onCommercialStateChanged?: () => void;
 }) {
-  const items = useMemo(() => buildItems(threads, requests), [threads, requests]);
+  /* ── COMMITTED ACCEPTANCES — the RPC's own successful response is truth ──
+     accept_purchase_request is atomic and a 200 IS the commit: the request
+     is accepted, siblings superseded, one transaction minted, the listing
+     reserved. Before 2026-09-11 this room threw that response away and
+     relied on a follow-up refetch; when that read failed the stale Pending
+     row stayed on screen with live-looking Accept / Decline controls on an
+     acceptance that had already happened. Now the committed result is kept
+     here and PROJECTED over the prop until the refetch reconciles — and a
+     failed refetch says so instead of resurrecting Pending. Could-not-look
+     is not old truth. */
+  const [committed, setCommitted] = useState<Record<string, { transactionId: string | null; at: number }>>({});
+  const [reconcileFailedFor, setReconcileFailedFor] = useState<string | null>(null);
+  const effectiveRequests = useMemo(
+    () =>
+      requests.map((r) =>
+        committed[r.id] && r.status === "pending" ? { ...r, status: "accepted" as const } : r
+      ),
+    [requests, committed]
+  );
+  const items = useMemo(() => buildItems(threads, effectiveRequests), [threads, effectiveRequests]);
   const counts = useMemo(() => folderCounts(items), [items]);
 
   const [folder, setFolder] = useState<CommFolder>(folderForModule(module));
@@ -513,8 +540,21 @@ export default function CommunicationsRoom({
          supersession, transaction row, and listing reservation all commit
          or all roll back, so a 200 here IS the whole truth. (The old
          RequestsView checked a transactionCreated flag that predates the
-         RPC and no longer exists in the response.) */
-      onRequestsChanged();
+         RPC and no longer exists in the response.)
+
+         Accepted Purchase Continuity (2026-09-11): keep that truth. The
+         response's transaction id is recorded against the request and the
+         room renders Accepted / Sale Pending from it immediately; the
+         refetch below may reconcile newer truth but is never the only
+         source for the post-click UI, and its failure is reported, not
+         silently shown as the old Pending row. */
+      if (status === "accepted") {
+        const txn = typeof data?.result?.transaction_id === "string" ? data.result.transaction_id : null;
+        setCommitted((prev) => ({ ...prev, [id]: { transactionId: txn, at: Date.now() } }));
+        onCommercialStateChanged?.();
+      }
+      const reconciled = await onRequestsChanged();
+      setReconcileFailedFor(reconciled === false ? id : null);
     } catch {
       setActionError("Could not update this request. Please try again.");
     } finally {
@@ -976,6 +1016,61 @@ export default function CommunicationsRoom({
               {/* Purchase-request summary strip */}
               {selected.kind === "request" && (
                 <div className="shrink-0 border-b border-[var(--border-faint)] px-4 py-3">
+                  {/* ── COMMITTED ACCEPTANCE HANDOFF (2026-09-11) ──
+                      Rendered from the RPC's successful response, the moment
+                      it returns. Stays until the seller leaves the request;
+                      a refetch can only confirm it, never resurrect Pending.
+                      Copy is the founder-locked handoff. */}
+                  {committed[selected.request.id] && (
+                    <div
+                      role="status"
+                      data-acceptance-committed={selected.request.id}
+                      className="mb-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3"
+                    >
+                      <div className="font-display text-[16px] font-light text-[var(--platinum)]">Offer accepted.</div>
+                      <div className="mt-1 text-[13px] leading-[1.6] text-[var(--platinum-dim)]">
+                        This watch is now Sale Pending. The buyer can continue the purchase.
+                      </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-4">
+                        <div className="min-w-0">
+                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Watch</dt>
+                          <dd className="mt-0.5 truncate text-[var(--platinum-dim)]">{requestTitle(selected.request)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Accepted amount</dt>
+                          <dd className="mt-0.5 font-display text-[15px] font-light text-[var(--platinum)]">
+                            {formatMoney(selected.request.proposed_purchase_price, selected.request.proposed_currency)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Request</dt>
+                          <dd className="mt-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--lc-published-badge)]">Accepted</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Listing</dt>
+                          <dd className="mt-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--gold)]">Sale Pending</dd>
+                          <dd className="mt-0.5 text-[11px] leading-[1.5] text-[var(--muted)]">Reserved for this buyer. Not paid, not completed.</dd>
+                        </div>
+                      </dl>
+                      {reconcileFailedFor === selected.request.id && (
+                        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--border-faint)] pt-3 text-[12px] text-[var(--slate)]">
+                          <span>Your list could not be refreshed just now. The acceptance above is committed and stands.</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void (async () => {
+                                const ok = await onRequestsChanged();
+                                setReconcileFailedFor(ok === false ? selected.request.id : null);
+                              })();
+                            }}
+                            className="border border-[var(--border-mid)] px-2.5 py-1 text-[11px] uppercase tracking-[1.3px] text-[var(--platinum)] transition hover:border-[var(--gold-subtle)]"
+                          >
+                            Refresh
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
                     <div className="min-w-0">
                       <div className={INFO_EYEBROW}>

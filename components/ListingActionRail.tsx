@@ -63,6 +63,7 @@ export default function ListingActionRail({
   askingCurrency,
   canRequestInline = false,
   curation,
+  bagHref = null,
 }: {
   /* "bar" is the compact dressing used inside the mobile Listing Detail fixed
      action bar. It renders ONLY the offer action — no price, no dealer card. */
@@ -108,6 +109,12 @@ export default function ListingActionRail({
     state: "none" | "pending" | "completed";
     summary: CurationSummary | null;
   } | null;
+  /* Accepted Purchase Continuity (2026-09-11): resolved by the page through
+     the shared Shopping Bag resolver — non-null ONLY while this viewer's
+     accepted transaction on this listing is a current Bag member. After the
+     watch leaves the Bag (webhook-confirmed payment) the page passes null
+     and no doorway is drawn; a nonmember is never deep-linked. */
+  bagHref?: string | null;
 }) {
   const isReserved = listingStatus === "reserved";
 
@@ -211,8 +218,23 @@ export default function ListingActionRail({
           {requestStatus === "accepted" ? "Your request was accepted" : "Reserved"}
         </div>
         <div className="mt-1 text-[var(--muted)]">
-          Sale pending — this watch is no longer available for new requests.
+          {requestStatus === "accepted"
+            ? "Sale pending — this watch is reserved for you, and your accepted purchase is active."
+            : "Sale pending — this watch is no longer available for new requests."}
         </div>
+        {/* Accepted Purchase Continuity (2026-09-11): the accepted buyer is
+            never stranded at the watch with nothing to do. The doorway exists
+            only while the shared resolver says the transaction is a current
+            Bag member; the page passes null once the watch has left. */}
+        {requestStatus === "accepted" && bagHref && (
+          <Link
+            href={bagHref}
+            data-bag-doorway=""
+            className="mt-3 inline-flex min-h-[40px] items-center border border-[var(--gold)] bg-[var(--cta-fill)] px-4 text-[11px] uppercase tracking-[2px] text-[var(--on-cta)] transition hover:opacity-90"
+          >
+            Continue in your Shopping Bag →
+          </Link>
+        )}
       </div>
     </div>
   ) : (

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import FairWatchTradeLogo from "@/components/FairWatchTradeLogo";
+import ShoppingBagEntrance from "@/components/ShoppingBagEntrance";
+import type { BagHeaderTruth } from "@/lib/purchases/bagMembership";
 
 /* ════════════════════════════════════════════════════════════════════════
    NAV DRAWER — hamburger-triggered site navigation, every page.
@@ -338,11 +340,15 @@ export default function MobileNav({
   authed = false,
   displayName = null,
   isAdmin = false,
+  initialBag = null,
   triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
   authed?: boolean;
+  /* Accepted Purchase Continuity (2026-09-11): the server-resolved Shopping
+     Bag truth, the same value the masthead holds. */
+  initialBag?: BagHeaderTruth | null;
   /* v8.26 — the same session truth the masthead and footer already hold:
      profile display_name (email fallback) resolved server-side in the root
      layout, and the admin predicate resolved there too. Nothing is fetched
@@ -518,6 +524,15 @@ export default function MobileNav({
               onNavigate={onClose}
             />
           ))}
+
+          {/* Shopping Bag — the same utility meaning as the masthead slot
+              (Accepted Purchase Continuity, 2026-09-11): with the signed-in
+              action utilities, immediately after Sell, never in the
+              collector group above the divider. The entrance renders nothing
+              when a successful read proved no members, so the drawer is
+              unchanged for a collector with no Bag; its position is fixed
+              whenever it does appear. */}
+          {authed && <ShoppingBagEntrance initial={initialBag} variant="drawer" onNavigate={onClose} />}
 
           {/* Account — signed in: a link to the workspace. Signed out: the
               preserved join panel, never a /sell bounce. Either way it sits

@@ -36,7 +36,7 @@ export async function GET() {
   // exact request in the Communications room instead of the public listing.
   const { data, error } = await supabase
     .from("notifications")
-    .select("id, type, message, listing_id, purchase_request_id, read, created_at")
+    .select("id, type, message, listing_id, purchase_request_id, transaction_id, read, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);

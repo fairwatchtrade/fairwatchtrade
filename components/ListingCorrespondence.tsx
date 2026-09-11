@@ -238,8 +238,18 @@ export default function ListingCorrespondence({
      arrival. Same openHome(), one more caller; no new message semantics. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("contact") === "1") openHome();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Accepted Purchase Continuity (2026-09-11): the Shopping Bag's
+       Correspondence doorway arrives at #correspondence. Same openHome():
+       the existing thread shows with its history, or the composer opens so
+       the accepted buyer can establish the first one (the messages route
+       admits them on the reserved listing). */
+    /* Scheduled, not synchronous: the open is a response to arrival, and a
+       state write inside the effect body would cascade a render. */
+    const t = window.setTimeout(() => {
+      if (params.get("contact") === "1") openHome();
+      else if (window.location.hash === "#correspondence") openHome();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, []);
 
   async function send() {
@@ -357,7 +367,7 @@ export default function ListingCorrespondence({
       {/* ── SECTION 5 HOME — thread history + composer. Renders when a
              thread exists or after the bar opens it. ── */}
       {eligible && open && (
-        <section ref={sectionRef} className="mt-8">
+        <section ref={sectionRef} id="correspondence" className="mt-8 scroll-mt-32">
           <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
             Correspondence
           </div>

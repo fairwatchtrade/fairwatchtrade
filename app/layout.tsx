@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import MarketBar from "@/components/MarketBar";
 import NavBar from "@/components/NavBar";
+import { resolveBagHeaderTruth } from "@/lib/purchases/shoppingBag";
+import type { BagHeaderTruth } from "@/lib/purchases/bagMembership";
 import HeaderSearchSlot from "@/components/HeaderSearchSlot";
 import SiteFooter from "@/components/SiteFooter";
 import VaultNavigationTransition from "@/components/VaultNavigationTransition";
@@ -81,6 +83,12 @@ export default async function RootLayout({
   // so it stays correct even if the display_name lookup below fails.
   let footerDisplayName: string | null = null;
   let footerIsAdmin = false;
+  /* Accepted Purchase Continuity (2026-09-11): the Shopping Bag's first
+     truth, resolved here so the conditional entrance never flashes. Three
+     values reach the header — none / members(count) / unavailable — and
+     null means this layout could not even ask, which the entrance renders
+     as unavailable. A failed read is NEVER rendered as no Bag. */
+  let initialBag: BagHeaderTruth | null = null;
   /* Appearance resolution order: device cookie → signed-in account
      preference → System (no attribute; CSS resolves it). The cookie wins
      because it is the device's most recent explicit act and it is what the
@@ -119,6 +127,16 @@ export default async function RootLayout({
         .eq("user_id", user.id)
         .eq("read", false);
       initialUnreadCount = count ?? 0;
+
+      /* The Bag read is its own guarded step: a resolver failure must not
+         take the bell or the footer with it, and it must surface as
+         unavailable rather than as absence. */
+      try {
+        initialBag = await resolveBagHeaderTruth(user.id);
+      } catch (e) {
+        console.error("[layout] shopping bag truth unavailable:", e instanceof Error ? e.message : e);
+        initialBag = { status: "unavailable" };
+      }
     }
   } catch {
     // Fail-safe — no bell, no footer status, rather than a broken layout.
@@ -148,6 +166,7 @@ export default async function RootLayout({
             initialUnreadCount={initialUnreadCount}
             displayName={footerDisplayName}
             isAdmin={footerIsAdmin}
+            initialBag={initialBag}
           />
           <MarketBar />
           {/* Correction A — compact Global Search sits BELOW the metals strip,

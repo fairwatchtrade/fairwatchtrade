@@ -14,13 +14,20 @@ Files: `app/api/stripe/checkout/route.ts` · `app/api/stripe/webhook/route.ts` �
 `app/api/stripe/payment-state/route.ts` · `lib/payments/money.ts` ·
 `lib/payments/paymentState.ts` · `lib/payments/stripe/{client,checkout,events}.ts` ·
 `components/BuyerPurchasesPanel.tsx` ·
-`supabase/migrations/20260910210000_stripe_step1_payment_records.sql`
+`supabase/migrations/20260910210000_stripe_step1_payment_records.sql` ·
+Shopping Bag (2026-09-11): `lib/payments/transactionPayability.ts` ·
+`lib/purchases/bagMembership.ts` · `lib/purchases/shoppingBag.ts` ·
+`app/api/shopping-bag/route.ts` · `app/shopping-bag/page.tsx` ·
+`components/ShoppingBag{Icon,Entrance,Room}.tsx` ·
+`supabase/migrations/20260911090000_accepted_purchase_buyer_summons.sql`
 
 Verify current state:
 
 ```bash
 node scripts/stripe-step1.test.mjs
+node scripts/shopping-bag.test.mjs
 # database proof: run scripts/stripe-step1.test.sql as one statement; expect PROOF_OK
+# acceptance + summons proof: run scripts/shopping-bag.test.sql as one statement; expect PROOF_OK
 grep -n "payment_method_types" lib/payments/stripe/checkout.ts
 grep -rn "\* 100\|\*100" lib/payments   # must be empty
 ```
@@ -83,9 +90,10 @@ Session metadata and payment-intent metadata carry `fwt_transaction_id` and
 second database.
 
 Success and cancel URLs both return to
-`/account?module=dashboard&transaction=<id>&payment=return|cancel`. Cancel
-is not failure; the attempt stays `checkout_created` until Stripe says
-otherwise.
+`/shopping-bag?transaction=<id>&payment=return|cancel` (2026-09-11; before
+that, the Overview). Cancel is not failure; the attempt stays
+`checkout_created` until Stripe says otherwise. See "Shopping Bag" below for
+what the Bag page does with that arrival.
 
 ## Webhook (`POST /api/stripe/webhook`)
 
@@ -200,10 +208,84 @@ retries and the original event truth is preserved on the retry. If an event
 arrives for an attempt the lifecycle has already moved past, it is recorded
 as `stale`. If nothing matches, `unresolved`, kept for reconciliation.
 
+## Shopping Bag (Accepted Purchase Continuity, 2026-09-11)
+
+**The misconception this section exists to kill:** "the Shopping Bag is a
+cart the buyer fills." Nothing is added to it. The Bag is an **ephemeral
+projection over accepted transaction + payment truth**: for each transaction
+the buyer owns, the resolver reads `transactions.status` and the active
+`stripe_payment_attempts` row (webhook-written) and decides, at read time,
+whether that accepted purchase is still inside the buyer's payment/funding
+phase. There is no bag table, no bag row, no bag write, and the browser
+cannot author a member. The Bag **owns no commercial truth**; it composes
+truth owned elsewhere (transaction snapshot, request note and asking
+snapshot, listing image/code, public seller identity).
+
+**Bag is not Your Purchases.** Your Purchases (`BuyerPurchasesPanel`, the
+Overview) is persistent transaction/payment history including paid
+purchases and keeps its name. The Bag holds only what is still actionable
+or confirming; a paid watch leaves it. Both surfaces initiate Checkout
+through the same route and the same payability predicate.
+
+Where things live:
+
+| Thing | Location |
+|---|---|
+| transaction-payability predicate (one copy; Checkout, payment-state and the Bag import it) | `lib/payments/transactionPayability.ts` |
+| pure membership mapping, `bagDecisionFor(status, paymentTruth)` | `lib/purchases/bagMembership.ts` |
+| resolver (service role, server-only), `resolveShoppingBag(buyerId)` | `lib/purchases/shoppingBag.ts` |
+| read route (session-identified, 503 on failure) | `app/api/shopping-bag/route.ts` |
+| room + header entrance + locked icon | `components/ShoppingBag{Room,Entrance,Icon}.tsx`, `app/shopping-bag/page.tsx` |
+| buyer acceptance summons (database-owned, fail-open) | `20260911090000_accepted_purchase_buyer_summons.sql` |
+
+Lifecycle mapping (transaction status × active attempt lifecycle):
+
+| Transaction | Attempt | Bag |
+|---|---|---|
+| pending / payment_pending | none or `pending` | member, `awaiting_payment`, Pay |
+| pending / payment_pending | `checkout_created` | member, `checkout_open`, Continue |
+| pending / payment_pending | `failed` / `canceled` / `expired` | member, `retry` |
+| pending / payment_pending | `confirming` / `requires_capture` | member, **Confirming payment remains a member**, no action |
+| any | `succeeded` | **paid/funded removes membership**; later refund/dispute never brings it back |
+| paid / shipped / delivered / under_inspection / completed | any | not a member (post-payment, no resurrection) |
+| cancelled / disputed / refunded / unknown, no confirmed capture | any | **not ruled**: kept as a member in `unruled` state with no action, said plainly. Never silently removed. |
+
+Header truth: a successful read with zero members renders **no icon at
+all**; N members render the icon with N beside the gold check (never over
+it); a **failed membership read is unavailable, never zero** — the icon
+renders with "Unavailable" and no number, and the accessible label says so.
+Placement is fixed: `SELL → Bag → Bell → Username` on desktop, after Sell in
+the drawer's utility group on narrow screens.
+
+Stripe continuity: Checkout's success/cancel URLs return to
+`/shopping-bag?transaction=<id>&payment=return|cancel`. The Bag page
+resolves that arrival against **current** membership: still a member → the
+Bag, focused on that purchase, showing Confirming payment until the webhook
+lands; already gone (the webhook won the race) → forwarded to the same
+transaction in Your Purchases, never resurrected. **The redirect is never
+payment authority; the webhook remains payment authority.**
+
+The one bounded write outside the frozen spine: `accept_purchase_request()`
+now also inserts one `notifications` row for the request row's buyer (type
+`purchase_accepted`, stamped with the minted `transaction_id`, deduped on
+`purchase_accepted:<request_id>`) inside a fail-open block after every
+commercial write. It can neither alter nor roll back acceptance.
+`notificationHref` routes that type to the Bag purchase.
+
+Correspondence repair: the messages route now admits a buyer-initiated
+first thread on a **reserved** listing when the caller is the buyer of an
+**accepted** purchase request for it (authority derived server-side).
+Threads remain (listing, buyer, seller); nothing is transaction-scoped.
+
+Not documented here as fact because not ruled: post-acceptance
+cancellation, legal expiry, seller rescission, and what any terminal
+settlement state means for the Bag.
+
 ## Frozen neighbors
 
-`accept_purchase_request()` (except the currency snapshot), the canonical
-lock order, `transactions_one_per_request`, Purchase Request semantics,
+`accept_purchase_request()` (except the currency snapshot and the bounded
+buyer-summons block above), the canonical lock order,
+`transactions_one_per_request`, Purchase Request semantics,
 `components/usePurchaseRequest.ts`, `app/api/purchase-requests/route.ts`,
 seller acceptance meaning, listing `reserved` meaning.
 

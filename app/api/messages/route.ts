@@ -382,7 +382,37 @@ export async function POST(request: NextRequest) {
     !!listing &&
     listing.status === "private_active" &&
     (listing as { private_buyer_id?: string | null }).private_buyer_id === user.id;
-  if (!listing || (listing.status !== "published" && !privateForMe)) {
+
+  /* Accepted Purchase Continuity (2026-09-11): the accepted buyer on a
+     RESERVED listing. The moment a seller accepts, the listing turns
+     reserved — and this path refused to open a first thread on a reserved
+     listing, so an accepted buyer with no prior correspondence met a
+     composer that could not send. The seller-side seam above (keyed on the
+     request) already proved the reserved-safe shape; this is its mirror.
+
+     Authority is derived HERE, never from the browser: the caller must be
+     the buyer_id of a purchase request on this listing whose status is
+     'accepted'. A superseded, declined or withdrawn buyer has no accepted
+     row and gets the same 404 a stranger gets. Same thread home as always —
+     (listing, buyer → a, seller → b) — no transaction-scoped thread. */
+  let acceptedBuyerOnReserved = false;
+  if (listing && listing.status === "reserved") {
+    const { data: acceptedRow, error: acceptedErr } = await supabase
+      .from("purchase_requests")
+      .select("id")
+      .eq("listing_id", listing.id)
+      .eq("buyer_id", user.id)
+      .eq("status", "accepted")
+      .limit(1)
+      .maybeSingle();
+    if (acceptedErr) {
+      // Could-not-look is not "not the buyer": refuse honestly, never guess.
+      return NextResponse.json({ error: "conversation_unavailable", detail: "Correspondence could not be opened just now. Try again in a moment." }, { status: 503 });
+    }
+    acceptedBuyerOnReserved = !!acceptedRow;
+  }
+
+  if (!listing || (listing.status !== "published" && !privateForMe && !acceptedBuyerOnReserved)) {
     return NextResponse.json({ error: "listing_not_found" }, { status: 404 });
   }
   if (listing.seller_id === user.id) {

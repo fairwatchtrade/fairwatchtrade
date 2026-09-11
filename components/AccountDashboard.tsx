@@ -762,14 +762,19 @@ export default function AccountDashboard({
   // not a new GET API route (per ruling: consistency with the established
   // pattern over introducing a new endpoint). Explicit .eq("seller_id", ...)
   // is defense in depth even though RLS also now enforces this.
-  async function refreshRequests() {
+  /* Accepted Purchase Continuity (2026-09-11): this read now REPORTS whether
+     it succeeded. The Communications room keeps a committed acceptance on
+     screen from the RPC's own response; a refetch that fails must be told
+     apart from one that reconciled, so stale Pending can never be shown as
+     if it were fresh. true = reconciled; false = could not look. */
+  async function refreshRequests(): Promise<boolean> {
     try {
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return false;
 
       const { data, error } = await supabase
         .from("purchase_requests")
@@ -790,9 +795,12 @@ export default function AccountDashboard({
       if (!error && Array.isArray(data)) {
         setRequests(data as unknown as CommRequest[]);
         setRequestsLoaded(true);
+        return true;
       }
+      return false;
     } catch {
       /* badge simply stays absent — never crashes the workspace */
+      return false;
     }
   }
 
@@ -1148,6 +1156,13 @@ export default function AccountDashboard({
               loaded={threadsLoaded && requestsLoaded}
               onThreadsChanged={refreshThreads}
               onRequestsChanged={refreshRequests}
+              /* Accepted Purchase Continuity (2026-09-11): the seller's
+                 listings arrive as a server prop, so a committed acceptance
+                 must re-run the server page or Listings would keep saying
+                 Published while Communications says Accepted in the same
+                 session. router.refresh() is the existing pattern (Remove,
+                 Submit for review); nothing is mutated locally. */
+              onCommercialStateChanged={() => router.refresh()}
             />
           ) : activeModule === "dashboard" ? (
             /* Overview — now on BOTH viewports (v6.95). It hosts the Dealer

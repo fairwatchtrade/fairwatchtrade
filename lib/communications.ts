@@ -242,11 +242,23 @@ export type NotificationRow = {
   message: string;
   listing_id: string | null;
   purchase_request_id?: string | null;
+  /* Accepted Purchase Continuity (2026-09-11): the buyer acceptance summons
+     is stamped with the transaction the acceptance minted, so the bell can
+     land on that exact purchase in the Shopping Bag. */
+  transaction_id?: string | null;
   read: boolean;
   created_at: string;
 };
 
 export function notificationHref(n: NotificationRow): string | null {
+  /* The buyer acceptance summons goes to the accepted purchase in the
+     Shopping Bag — never to the seller's request room, which the
+     purchase_request_id branch below would otherwise choose. A summons
+     without its transaction id (never written by the database, but the
+     type is a string) still lands in the Bag. */
+  if (n.type === "purchase_accepted") {
+    return n.transaction_id ? `/shopping-bag?transaction=${encodeURIComponent(n.transaction_id)}` : "/shopping-bag";
+  }
   if (n.purchase_request_id) {
     return `/account?module=requests&request=${encodeURIComponent(n.purchase_request_id)}`;
   }

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { canStartCheckout, type Lifecycle, type PaymentTruth } from "@/lib/payments/paymentState";
+import { isPayableTransactionStatus } from "@/lib/payments/transactionPayability";
 
 /* ════════════════════════════════════════════════════════════════════════
    GET /api/stripe/payment-state — the buyer's own accepted purchases and
@@ -31,7 +32,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PAYABLE_TRANSACTION_STATUSES = new Set(["pending", "payment_pending"]);
+/* Payable-status predicate: lib/payments/transactionPayability, shared with
+   checkout and the Shopping Bag resolver (2026-09-11). */
 
 type TxnRow = {
   id: string;
@@ -124,7 +126,7 @@ export async function GET(request: NextRequest) {
         }
       : null;
     const canPay =
-      PAYABLE_TRANSACTION_STATUSES.has(t.status ?? "") && !!t.final_purchase_currency && canStartCheckout(truth);
+      isPayableTransactionStatus(t.status) && !!t.final_purchase_currency && canStartCheckout(truth);
     return {
       transactionId: t.id,
       transactionStatus: t.status,
