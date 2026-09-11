@@ -353,8 +353,9 @@ export default function ListingGallery({
   /* The light room's arrows stand in the MARGIN, not on the photograph, so
      they cannot borrow --on-photo-text: that token is a cream (#D9D2BF)
      shaped for sitting over an image, and on a near-white wall it all but
-     disappears. Same geometry and same 44px target as the resting hero's
-     arrows; the ink is the room's own. */
+     disappears. Same geometry and same 44px target as the resting stage's
+     arrows, which since v8.54 also stand beside the photograph and share
+     this ink. */
   /* Quiet, but a control rather than metadata: --platinum-dim on a real
      border, a visible focus ring, and a 32px target. The readability floor
      applies to functional text however small the button is. */
@@ -370,11 +371,15 @@ export default function ListingGallery({
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
     "focus-visible:outline-[var(--gold)]";
 
-  const arrowClass =
+  /* Resting stage arrows: the inspection room's palette (dark mark on the
+     light page surface), anchored to the stage's edges. See the arrow block
+     inside the stage below. */
+  const stageArrowClass =
     "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
-    "text-[var(--on-photo-text)] transition hover:text-[var(--on-photo-gold)] " +
+    "text-[var(--platinum-dim)] transition hover:text-[var(--gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
     "focus-visible:outline-[var(--gold)]";
+  const STAGE_ARROW_HALO = "drop-shadow-[0_0_2px_rgba(255,255,255,0.7)]";
 
   return (
     /* The gallery owns its responsive width; the page grid only tells it the
@@ -393,7 +398,7 @@ export default function ListingGallery({
           padding between the collector and the photograph.
           The photograph itself carries no click
           handler: clicking it still does nothing, by design. */}
-      <div className="flex aspect-square max-h-[60vh] w-full items-center justify-center [container-type:size]">
+      <div data-listing-stage="" className="relative flex aspect-square max-h-[60vh] w-full items-center justify-center [container-type:size]">
         {/* ── THE GOVERNED STAGE ────────────────────────────────────────────
             The stage owns the height. The photograph does not.
 
@@ -432,10 +437,11 @@ export default function ListingGallery({
             NOT solved by cropping, by moving a fact, or by touching a seller
             photo record. The photograph is still whole, still object-contain,
             still full resolution into Inspect. ── */}
-        {/* The inline-flex wrapper shrink-wraps the rendered photograph. It is
-            the arrows' containing block, so their unchanged 12px inset now
-            resolves from the actual image edge instead of the retired
-            full-column shell. */}
+        {/* The wrapper shrink-wraps the rendered photograph. Dial Reveal, the
+            loupe and the desktop Drawer belong to it, because they belong to
+            the picture. The Previous / Next arrows do NOT: they are children
+            of the governed stage above, so their coordinates never change with
+            heroAspect (see the arrow block after this wrapper). */}
         <div
           data-listing-hero=""
           className="relative max-h-full max-w-full"
@@ -460,30 +466,6 @@ export default function ListingGallery({
               alt=""
               className="h-full w-full rounded-lg object-contain"
             />
-          )}
-
-          {/* Previous — rendered only when there is a previous photo. */}
-          {hasPrev && (
-            <button
-              type="button"
-              aria-label="Previous photo"
-              onClick={() => setActive((i) => Math.max(0, i - 1))}
-              className={`${arrowClass} left-3`}
-            >
-              <NavArrowMark flip />
-            </button>
-          )}
-
-          {/* Next — rendered only when there is a next photo. */}
-          {hasNext && (
-            <button
-              type="button"
-              aria-label="Next photo"
-              onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
-              className={`${arrowClass} right-3`}
-            >
-              <NavArrowMark />
-            </button>
           )}
 
           {/* The desktop Drawer belongs to the rendered photograph, not to
@@ -513,6 +495,41 @@ export default function ListingGallery({
             <LoupeIcon size={24} />
           </button>
         </div>
+
+        {/* ── RESTING ARROWS BELONG TO THE STAGE, NOT THE PHOTOGRAPH ─────
+            Founder ruling 2026-09-10: do it like Inspect Photo. The picture
+            changes inside the governed stage; the controls do not. These two
+            buttons are children of the stage, positioned from ITS edges, so
+            their coordinates are independent of heroAspect: a portrait, a
+            square and a landscape photograph in the same listing leave both
+            arrows nailed to the same spots, with air beside a narrow picture
+            rather than an arrow that walks. They still render only when a
+            previous / next photo exists, and they still sit below Dial Reveal
+            (z-10 under z-30) where the two can meet. The palette is the
+            inspection room's, because the arrow now often stands on the page
+            surface beside the photograph rather than on the photograph; the
+            light halo keeps the dark mark readable when a wide picture does
+            reach it. */}
+        {hasPrev && (
+          <button
+            type="button"
+            aria-label="Previous photo"
+            onClick={() => setActive((i) => Math.max(0, i - 1))}
+            className={`${stageArrowClass} left-3`}
+          >
+            <NavArrowMark flip className={STAGE_ARROW_HALO} />
+          </button>
+        )}
+        {hasNext && (
+          <button
+            type="button"
+            aria-label="Next photo"
+            onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+            className={`${stageArrowClass} right-3`}
+          >
+            <NavArrowMark className={STAGE_ARROW_HALO} />
+          </button>
+        )}
       </div>
 
       {/* Reserve the loupe's below-photo lane so thumbnails never collide
