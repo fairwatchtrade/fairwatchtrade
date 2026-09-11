@@ -766,7 +766,19 @@ export default async function ListingDetailPage({
               Drawer's existing containing block. The desktop Drawer is passed
               through to ListingGallery and mounted inside the actual rendered
               hero-image rectangle instead. */}
-          <div className="relative min-[56rem]:col-start-1 min-[56rem]:row-start-1">
+          {/* HERO TERRITORY ENDS WHERE THE RAIL BEGINS (opening geometry repair,
+              2026-09-10). The rail below is pulled 54px inward across a 24px
+              gap, so its painted box starts 30px INSIDE this primary track.
+              That was invisible while the 60vh stage held the photograph well
+              short of the track edge, and a collision the moment a landscape
+              photograph on a tall viewport, or any square photograph at the
+              896px handoff, reached it: the hero, its arrows, Dial Reveal and
+              the loupe all painted under the first rail card. The cell now
+              reserves exactly that strip (pull minus gap), so the gallery's own
+              width formula and the rail's approved position both stand and
+              can no longer share pixels. scripts/watch-detail-opening-geometry
+              .test.mjs holds the reserve to pull minus gap by construction. */}
+          <div className="relative min-[56rem]:col-start-1 min-[56rem]:row-start-1 min-[56rem]:pr-[30px]">
             {/* SECTION 1 — Media gallery */}
             {photoUrls.length > 0 && (
               <ListingGallery
