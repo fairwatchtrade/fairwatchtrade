@@ -23,6 +23,7 @@ import {
   type CommThread,
 } from "@/lib/communications";
 import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
+import { buyerIdentityLabel, type BuyerIdentityState } from "@/lib/displayIdentityPrecedence";
 
 /* ────────────────────────────────────────────────────────────────────────
    COMMUNICATIONS ROOM — components/CommunicationsRoom.tsx  (v5.93)
@@ -215,34 +216,51 @@ export default function CommunicationsRoom({
     [items, folder, search]
   );
 
-  /* ── Requester names — public_seller_profiles, the sanctioned public
-     display-name path. Batched; silence renders the quiet generic. ── */
-  const [names, setNames] = useState<Record<string, string>>({});
+  /* ── Requester identity — the governed account display chain, resolved
+     server-side for the buyers of THIS seller's requests (2026-09-11).
+
+     Before this correction the room read public_seller_profiles (display
+     name only) and printed "FairWatchTrade Member" for everything else —
+     while loading, when the read failed, and for every buyer without a
+     personal display name — so every buyer looked like the same person.
+     The chain is now display_name → business_name → email, walked by
+     /api/buyer-identity through lib/displayIdentityPrecedence, and the
+     room keeps four DISTINCT states per buyer:
+       loading      → "Resolving buyer…"        (never the generic label)
+       resolved     → the governed identity
+       unavailable  → "Buyer identity unavailable"   (a failed lookup)
+       absent       → "FairWatchTrade Member"   (true absence, last resort)
+     The route answers only for buyers of the caller's own requests. ── */
+  const [identities, setIdentities] = useState<Record<string, BuyerIdentityState>>({});
   useEffect(() => {
     const missing = [
       ...new Set(requests.map((r) => r.buyer_id).filter(Boolean) as string[]),
-    ].filter((id) => !(id in names));
+    ].filter((id) => !(id in identities) || identities[id].state === "unavailable");
     if (missing.length === 0) return;
     let cancelled = false;
     (async () => {
+      let next: Record<string, BuyerIdentityState> = {};
       try {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("public_seller_profiles")
-          .select("id, display_name")
-          .in("id", missing);
-        if (cancelled || !Array.isArray(data)) return;
-        setNames((prev) => {
-          const next = { ...prev };
-          for (const row of data as { id: string; display_name: string | null }[]) {
-            if (row.display_name) next[row.id] = row.display_name;
+        const res = await fetch(`/api/buyer-identity?ids=${encodeURIComponent(missing.join(","))}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { ok?: boolean; identities?: Record<string, string | null> };
+        if (!data.ok || !data.identities) throw new Error("bad_payload");
+        for (const id of missing) {
+          if (!(id in data.identities)) {
+            /* Not admitted (not a buyer of this seller's requests) — the
+               route stays silent; the room treats it as absent. */
+            next[id] = { state: "absent" };
+            continue;
           }
-          return next;
-        });
+          const name = data.identities[id];
+          next[id] = name ? { state: "resolved", name } : { state: "absent" };
+        }
       } catch {
-        /* names simply stay generic */
+        /* Could-not-look is not absence. */
+        next = Object.fromEntries(missing.map((id) => [id, { state: "unavailable" as const }]));
       }
+      if (cancelled) return;
+      setIdentities((prev) => ({ ...prev, ...next }));
     })();
     return () => {
       cancelled = true;
@@ -251,7 +269,8 @@ export default function CommunicationsRoom({
   }, [requests]);
 
   function requesterName(r: CommRequest): string {
-    return (r.buyer_id && names[r.buyer_id]) || "FairWatchTrade Member";
+    if (!r.buyer_id) return buyerIdentityLabel({ state: "absent" });
+    return buyerIdentityLabel(identities[r.buyer_id]);
   }
 
   /* ── Selection ───────────────────────────────────────────────────────

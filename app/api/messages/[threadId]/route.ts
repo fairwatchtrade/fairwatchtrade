@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { resolveBuyerIdentities } from "@/lib/buyerDisplayIdentity";
+import { BUYER_IDENTITY_FALLBACK, BUYER_IDENTITY_UNAVAILABLE_LABEL } from "@/lib/displayIdentityPrecedence";
 import {
   SITE_URL,
   escapeHtml,
@@ -115,6 +118,27 @@ export async function GET(
 
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
+  /* Buyer Identity Correction (2026-09-11): when the caller is the seller
+     (participant_b), the counterpart — and every message they sent — is
+     the BUYER, who has no public name unless they set a personal display
+     name. Walk the governed chain server-side for that one id; the seller
+     counterpart (caller is the buyer) keeps the public path unchanged. A
+     failed lookup says unavailable; only true absence says the generic. */
+  const buyerId = thread.participant_b_id === user.id ? thread.participant_a_id : null;
+  let buyerName: string | null | undefined = undefined; // undefined = not applicable
+  if (buyerId) {
+    try {
+      buyerName = (await resolveBuyerIdentities(createServiceClient(), [buyerId])).get(buyerId) ?? null;
+    } catch (e) {
+      console.error("[messages/thread] buyer identity unavailable:", e instanceof Error ? e.message : e);
+      buyerName = BUYER_IDENTITY_UNAVAILABLE_LABEL;
+    }
+  }
+  const nameFor = (id: string | null): string => {
+    if (id && id === buyerId) return buyerName ?? BUYER_IDENTITY_FALLBACK;
+    return (id && nameById.get(id)) || BUYER_IDENTITY_FALLBACK;
+  };
+
   const dial =
     listing && Array.isArray(listing.photos)
       ? ((listing.photos.find((p: { category?: string }) => p?.category === "Dial") ??
@@ -126,7 +150,7 @@ export async function GET(
       id: thread.id,
       subject: thread.subject,
       myRole: thread.participant_a_id === user.id ? "a" : "b",
-      otherName: (otherId && nameById.get(otherId)) || "FairWatchTrade Member",
+      otherName: nameFor(otherId),
       listing: listing
         ? {
             id: listing.id,
@@ -143,7 +167,7 @@ export async function GET(
       senderName:
         m.sender_id === user.id
           ? nameById.get(user.id) || "You"
-          : nameById.get(m.sender_id) || "FairWatchTrade Member",
+          : nameFor(m.sender_id),
       isMine: m.sender_id === user.id,
       body: m.body,
       createdAt: m.created_at,

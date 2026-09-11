@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { resolveBuyerIdentities } from "@/lib/buyerDisplayIdentity";
+import { BUYER_IDENTITY_FALLBACK, BUYER_IDENTITY_UNAVAILABLE_LABEL } from "@/lib/displayIdentityPrecedence";
 import {
   SITE_URL,
   escapeHtml,
@@ -103,6 +106,38 @@ export async function GET() {
   // public-name path. Reading `profiles` directly here silently degraded to
   // "FairWatchTrade Member" for every counterpart once profiles tightened to
   // select-own — the view is what display names are shared through.
+  //
+  // Buyer Identity Correction (2026-09-11): that public path names SELLERS.
+  // When the caller is the seller (participant_b) the counterpart is the
+  // BUYER, and a buyer with no personal display name has no public name at
+  // all — so every buyer collapsed to the generic label. Buyer counterparts
+  // now walk the governed chain (display_name → business_name → email)
+  // server-side; seller counterparts keep the public path unchanged. A
+  // failed buyer lookup is reported as unavailable, never as the generic.
+  const buyerCounterpartIds = [
+    ...new Set(
+      threadList
+        .filter((t) => t.participant_b_id === user.id && t.participant_a_id)
+        .map((t) => t.participant_a_id as string)
+    ),
+  ];
+  let buyerNames: Map<string, string | null> | null = null;
+  if (buyerCounterpartIds.length > 0) {
+    try {
+      buyerNames = await resolveBuyerIdentities(createServiceClient(), buyerCounterpartIds);
+    } catch (e) {
+      console.error("[messages] buyer identity unavailable:", e instanceof Error ? e.message : e);
+      buyerNames = null;
+    }
+  }
+  const counterpartName = (t: { participant_a_id: string | null; participant_b_id: string | null }, otherId: string | null, publicName: string | null | undefined) => {
+    if (otherId && t.participant_b_id === user.id && t.participant_a_id === otherId) {
+      if (buyerNames === null) return BUYER_IDENTITY_UNAVAILABLE_LABEL;
+      return buyerNames.get(otherId) ?? BUYER_IDENTITY_FALLBACK;
+    }
+    return publicName || BUYER_IDENTITY_FALLBACK;
+  };
+
   const [{ data: listings }, { data: profiles }, { data: allMessages }] = await Promise.all([
     listingIds.length > 0
       ? supabase
@@ -164,7 +199,7 @@ export async function GET() {
          participant can already see on the thread row itself; it is never
          rendered in UI. */
       otherId: otherId ?? null,
-      otherName: (otherId && nameById.get(otherId)) || "FairWatchTrade Member",
+      otherName: counterpartName(t, otherId, otherId ? nameById.get(otherId) : null),
       lastMessage: lastByThread.get(t.id) ?? null,
       unreadCount: unreadByThread.get(t.id) ?? 0,
       updatedAt: t.updated_at,

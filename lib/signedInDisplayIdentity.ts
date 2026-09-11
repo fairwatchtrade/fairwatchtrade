@@ -1,24 +1,20 @@
 import "server-only";
 
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import {
+  resolveDisplayIdentityCandidates,
+  SIGNED_IN_IDENTITY_FALLBACK,
+  type DisplayIdentityCandidates,
+} from "@/lib/displayIdentityPrecedence";
 
-type SignedInDisplayIdentityCandidates = {
-  profileDisplayName?: string | null;
-  dealerBusinessName?: string | null;
-  email?: string | null;
-};
+type SignedInDisplayIdentityCandidates = DisplayIdentityCandidates;
 
-export function resolveSignedInDisplayIdentity({
-  profileDisplayName,
-  dealerBusinessName,
-  email,
-}: SignedInDisplayIdentityCandidates): string {
-  for (const candidate of [profileDisplayName, dealerBusinessName, email]) {
-    const trimmed = candidate?.trim();
-    if (trimmed) return trimmed;
-  }
-
-  return "Collector";
+/* The precedence itself — display_name → business_name → email — now lives
+   in lib/displayIdentityPrecedence (pure, importable from any path) so the
+   seller-facing buyer-identity route walks the SAME chain (2026-09-11).
+   This function is that chain plus the shell's own last resort. */
+export function resolveSignedInDisplayIdentity(candidates: SignedInDisplayIdentityCandidates): string {
+  return resolveDisplayIdentityCandidates(candidates) ?? SIGNED_IN_IDENTITY_FALLBACK;
 }
 
 export async function getSignedInDisplayIdentity(
