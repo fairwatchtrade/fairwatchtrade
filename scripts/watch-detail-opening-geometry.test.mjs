@@ -186,12 +186,15 @@ test("the resting arrows are children of the stage, and no arrow is nested in th
   const prev = gallery.indexOf('aria-label="Previous photo"', loupe);
   const next = gallery.indexOf('aria-label="Next photo"', loupe);
   assert.ok(prev > loupe && next > prev, "both resting arrows follow the hero wrapper inside the stage");
-  // Ends behaviour unchanged: Previous gated on hasPrev, Next on hasNext.
+  // v8.55: the resting stage cycles like the room. Both arrows are present
+  // whenever more than one photograph exists, and each end wraps through the
+  // same modular helper the inspection room uses. No clamp survives.
   const afterLoupe = gallery.slice(loupe, next + 400);
-  assert.match(afterLoupe, /\{hasPrev && \(\s*<button[\s\S]*?aria-label="Previous photo"/);
-  assert.match(afterLoupe, /\{hasNext && \(\s*<button[\s\S]*?aria-label="Next photo"/);
-  assert.match(afterLoupe, /setActive\(\(i\) => Math\.max\(0, i - 1\)\)/);
-  assert.match(afterLoupe, /setActive\(\(i\) => Math\.min\(photos\.length - 1, i \+ 1\)\)/);
+  assert.match(afterLoupe, /\{canCycle && \(\s*<button[\s\S]*?aria-label="Previous photo"[\s\S]*?onClick=\{\(\) => cycle\(-1\)\}/);
+  assert.match(afterLoupe, /\{canCycle && \(\s*<button[\s\S]*?aria-label="Next photo"[\s\S]*?onClick=\{\(\) => cycle\(1\)\}/);
+  assert.doesNotMatch(gallery, /hasPrev|hasNext|Math\.max\(0, i - 1\)|Math\.min\(photos\.length - 1, i \+ 1\)/);
+  assert.match(gallery, /const canCycle = photos\.length > 1;/);
+  assert.match(gallery, /\(i \+ step \+ photos\.length\) % photos\.length/);
   assert.match(afterLoupe, /<NavArrowMark flip /);
   // The stage is positioned so absolute children resolve against IT, not the page.
   assert.match(gallery, /data-listing-stage="" className="relative /);

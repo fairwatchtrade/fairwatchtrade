@@ -223,8 +223,9 @@ time a portrait was followed by a landscape.
 Both arrows are always present, because the inspection room **cycles** instead
 of stopping at the ends. In a room whose entire purpose is looking through a
 set, an arrow that dies on the last photograph is a control that stopped
-working — and an arrow that disappears is one more thing moving. The resting
-hero above still clamps at the ends; only the room cycles.
+working — and an arrow that disappears is one more thing moving. Since v8.55
+the resting gallery cycles the same way (founder ruling); before that it
+clamped at the ends.
 
 The same ownership law governs the resting gallery (v8.54). **Resting
 photo-navigation arrows are pinned to the stable governed stage, not the active
@@ -232,8 +233,9 @@ photograph.** They are children of the square `data-listing-stage`, positioned
 from its edges, so a portrait followed by a landscape changes the picture and
 nothing else; the air beside a narrow photograph is intentional. Before v8.54
 they lived inside the aspect-sized `data-listing-hero` wrapper and walked with
-every change of shape. The one difference from the room remains the ends:
-resting Previous is absent on the first photograph and Next on the last.
+every change of shape. Ends behave as in the room since v8.55: both arrows
+are present whenever the listing has more than one photograph, and each end
+wraps. A single photograph shows no arrows.
 
 The hint band under the stage is reserved whether or not the hint is showing,
 for the same reason: its arrival and departure must not move the photograph.

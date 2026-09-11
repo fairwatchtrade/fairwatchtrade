@@ -228,14 +228,15 @@ const VP = { width: 800, height: 600 };
   const gallery = read("components/ListingGallery.tsx");
   ok("P1 the viewport is keyed by the photograph itself",
     /<InspectionViewport\s+key=\{heroUrl\}/.test(gallery));
-  /* The resting hero still clamps at the ends; the inspection room cycles.
-     Both drive the same active photo state, which is the invariant here —
-     an earlier version of these two assertions pinned the clamping FORM
-     rather than the state, and went stale the moment the room learned to
-     cycle. */
+  /* Both the resting stage (since v8.55) and the inspection room cycle
+     through the one modular helper, and thumbnails set the index directly.
+     All drive the same active photo state, which is the invariant here — an
+     earlier version pinned the clamping FORM rather than the state, and went
+     stale the moment each gallery learned to cycle. Two Previous and two
+     Next arrows exist (stage + room), all four on the helper. */
   ok("P1 every navigation path drives that same active photo state",
-    /setActive\(\(i\) => Math\.max\(0, i - 1\)\)/.test(gallery) &&
-    /setActive\(\(i\) => Math\.min\(photos\.length - 1, i \+ 1\)\)/.test(gallery) &&
+    (gallery.match(/onClick=\{\(\) => cycle\(-1\)\}/g) ?? []).length === 2 &&
+    (gallery.match(/onClick=\{\(\) => cycle\(1\)\}/g) ?? []).length === 2 &&
     /onClick=\{\(\) => setActive\(i\)\}/.test(gallery) &&
     /setActive\(\(i\) => \(photos\.length \? \(i \+ step \+ photos\.length\) % photos\.length : 0\)\)/.test(gallery));
   ok("P1 keyboard photo navigation drives it too",

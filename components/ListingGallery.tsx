@@ -267,11 +267,12 @@ export default function ListingGallery({
     }
   }, [inspecting]);
 
-  /* THE INSPECTION ROOM CYCLES; the resting hero above still stops at the
-     ends. In a room whose whole purpose is looking through a set, an arrow
-     that dies at the last photograph is just a control that stopped working.
+  /* BOTH GALLERIES CYCLE (the resting stage since v8.55, founder ruling: the
+     same as Inspect Photo). In a set made for looking through, an arrow that
+     dies at the last photograph is just a control that stopped working.
      Cycling also means both arrows are always present, so neither can appear
-     or vanish — which matters here, where nothing else moves either. */
+     or vanish — which matters where nothing else moves either. A single
+     photograph has nothing to cycle to and shows no arrows at all. */
   const canCycle = photos.length > 1;
   const cycle = useCallback(
     (step: number) =>
@@ -332,9 +333,6 @@ export default function ListingGallery({
      description of the image content would be a visual claim nobody here is
      in a position to make. */
   const inspectionAlt = `${brandLabel} — photograph ${active + 1} of ${photos.length}`;
-
-  const hasPrev = active > 0;
-  const hasNext = active < photos.length - 1;
 
   /* Muted at rest, firmer on hover — legible over a dark caseback or a white
      dial without becoming furniture. Identical for both arrows; only the
@@ -503,28 +501,30 @@ export default function ListingGallery({
             their coordinates are independent of heroAspect: a portrait, a
             square and a landscape photograph in the same listing leave both
             arrows nailed to the same spots, with air beside a narrow picture
-            rather than an arrow that walks. They still render only when a
-            previous / next photo exists, and they still sit below Dial Reveal
-            (z-10 under z-30) where the two can meet. The palette is the
+            rather than an arrow that walks. Since v8.55 they cycle like the
+            room: both are present whenever there is more than one photograph,
+            Previous on the first wraps to the last and Next on the last wraps
+            to the first. They still sit below Dial Reveal (z-10 under z-30)
+            where the two can meet. The palette is the
             inspection room's, because the arrow now often stands on the page
             surface beside the photograph rather than on the photograph; the
             light halo keeps the dark mark readable when a wide picture does
             reach it. */}
-        {hasPrev && (
+        {canCycle && (
           <button
             type="button"
             aria-label="Previous photo"
-            onClick={() => setActive((i) => Math.max(0, i - 1))}
+            onClick={() => cycle(-1)}
             className={`${stageArrowClass} left-3`}
           >
             <NavArrowMark flip className={STAGE_ARROW_HALO} />
           </button>
         )}
-        {hasNext && (
+        {canCycle && (
           <button
             type="button"
             aria-label="Next photo"
-            onClick={() => setActive((i) => Math.min(photos.length - 1, i + 1))}
+            onClick={() => cycle(1)}
             className={`${stageArrowClass} right-3`}
           >
             <NavArrowMark className={STAGE_ARROW_HALO} />
