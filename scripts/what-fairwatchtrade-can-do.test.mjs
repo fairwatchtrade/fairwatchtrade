@@ -36,14 +36,14 @@ assert.deepEqual([...ROOM_IDS], ["browse", "buy", "sell", "dealer"], "four rooms
 assert.deepEqual(ROOMS.map((r) => r.choice), [
   "I want to browse watches", "I might buy a watch", "I might sell once in a while", "I’m a dealer",
 ], "the four audience choices are the supplied ones"); n += 1;
-eq("Browse has 14 ordinary rows", roomBenefitCount("browse"), 14);
-eq("Buy has 12 ordinary rows", roomBenefitCount("buy"), 12);
+eq("Browse has 15 ordinary rows", roomBenefitCount("browse"), 15);
+eq("Buy has 13 ordinary rows", roomBenefitCount("buy"), 13);
 eq("Sell has 14 ordinary rows", roomBenefitCount("sell"), 14);
 eq("Dealer has 13 ordinary rows", roomBenefitCount("dealer"), 13);
 const all = allBenefits();
-eq("53 ordinary rows in total", all.length, 53);
+eq("55 ordinary rows in total", all.length, 55);
 eq("26 LIVE rows", all.filter((x) => x.status === "live").length, 26);
-eq("27 BOUNDED rows", all.filter((x) => x.status === "bounded").length, 27);
+eq("29 BOUNDED rows", all.filter((x) => x.status === "bounded").length, 29);
 ok("every row carries only live or bounded (Tax Time is never an ordinary row)",
   all.every((x) => x.status === "live" || x.status === "bounded"));
 ok("no ordinary row is titled Tax Time", !all.some((x) => /tax time/i.test(x.title)));
@@ -77,6 +77,44 @@ const buy = ROOMS.find((r) => r.id === "buy");
 const sell = ROOMS.find((r) => r.id === "sell");
 const dealer = ROOMS.find((r) => r.id === "dealer");
 const findBenefit = (room, title) => room.groups.flatMap((g) => g.benefits).find((x) => x.title === title);
+
+/* ── Dial Reveal public capability parity (2026-09-11, v2 order) ── */
+{
+  const dialRows = all.filter((x) => x.title === "Dial Reveal");
+  eq("exactly two public Dial Reveal rows", dialRows.length, 2);
+  ok("both Dial Reveal rows are bounded (Available with limits)", dialRows.every((x) => x.status === "bounded"));
+  const bInspect = browse.groups.find((g) => g.heading === "Inspect");
+  const bTitles = bInspect.benefits.map((x) => x.title);
+  assert.deepEqual(bTitles, [
+    "Reviewed before it goes live",
+    "Quick Specs and full-photo inspection",
+    "Dial Reveal",
+    "Specifications without guesswork",
+    "Story, provenance, and Story Photo",
+  ], "Browse → Inspect order: Dial Reveal immediately after Quick Specs and full-photo inspection"); n += 1;
+  eq("Browse Dial Reveal body is the approved wording",
+    bInspect.benefits[2].body,
+    "On supported desktop devices, use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source.");
+  eq("Browse Quick Specs row is present and unchanged",
+    bInspect.benefits[1].body,
+    "Check the facts the listing actually provides, then open the full photographs for a closer look. Zoom only goes as far as the original photo allows—a blurry source does not become new detail.");
+  ok("Browse Quick Specs row stays bounded", bInspect.benefits[1].status === "bounded");
+  const uInspect = buy.groups.find((g) => g.heading === "Inspect the evidence");
+  assert.deepEqual(uInspect.benefits.map((x) => x.title), ["Full-photo inspection", "Dial Reveal"],
+    "Buy → Inspect the evidence order: Dial Reveal immediately after Full-photo inspection"); n += 1;
+  eq("Buyer Dial Reveal body is the approved wording",
+    uInspect.benefits[1].body,
+    "On supported desktop devices, use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch.");
+  eq("Buyer Full-photo inspection row is present and unchanged",
+    uInspect.benefits[0].body,
+    "Inspect the seller’s full photographs without pretending a low-resolution image contains detail it never captured. Zoom can reveal what is there; it cannot create sharpness that was never photographed.");
+  ok("Buyer Full-photo inspection stays bounded", uInspect.benefits[0].status === "bounded");
+  ok("no Dial Reveal row outside the two inspection homes",
+    !sell.groups.some((g) => g.benefits.some((x) => x.title === "Dial Reveal")) &&
+    !dealer.groups.some((g) => g.benefits.some((x) => x.title === "Dial Reveal")));
+  ok("neither Dial Reveal row claims Live", !dialRows.some((x) => x.status === "live"));
+  ok("governed source comment carries the new counts", /55 ordinary benefit rows \(26 live, 29 bounded\)/.test(read("lib/whatFairWatchTradeCanDo/content.ts")));
+}
 
 eq("Browse intro is plain-human", browse.intro,
   "Browse is for collectors who want to explore, inspect, and understand watches—and return to the hunt later—without being pushed to buy.");

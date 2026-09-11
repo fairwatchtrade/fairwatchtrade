@@ -17,7 +17,7 @@
    review, because a public claim is a promise.
 
    CLASSIFICATIONS. `live` and `bounded` are the settled capability basis of
-   the 53 ordinary benefit rows (26 live, 27 bounded). `bounded` is the
+   the 55 ordinary benefit rows (26 live, 29 bounded). `bounded` is the
    INTERNAL class name; its visible label is "Available with limits" — see
    STATUS_LABELS. Tax Time is the one `coming` block and is deliberately
    separate from the ordinary rows. Never promote a bounded row to live here
@@ -123,6 +123,10 @@ export const ROOMS: readonly Room[] = Object.freeze([
             "Every listing is reviewed before it appears in Browse. Its Curation Review shows what FWT could check and what still needs an answer. The review helps decide whether the listing can go live; it does not mean FWT physically inspected or authenticated the watch."),
           b("bounded", "Quick Specs and full-photo inspection",
             "Check the facts the listing actually provides, then open the full photographs for a closer look. Zoom only goes as far as the original photo allows—a blurry source does not become new detail."),
+          /* Dial Reveal public parity (2026-09-11, Jason ruling): bounded,
+             because touch devices receive the ordinary dial photograph. */
+          b("bounded", "Dial Reveal",
+            "On supported desktop devices, use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source."),
           b("bounded", "Specifications without guesswork",
             "See specifications, condition, and documentation as clear watch facts. If FWT cannot confirm something, it can simply leave it unconfirmed instead of guessing."),
           b("live", "Story, provenance, and Story Photo",
@@ -183,6 +187,10 @@ export const ROOMS: readonly Room[] = Object.freeze([
         benefits: [
           b("bounded", "Full-photo inspection",
             "Inspect the seller’s full photographs without pretending a low-resolution image contains detail it never captured. Zoom can reveal what is there; it cannot create sharpness that was never photographed."),
+          /* Dial Reveal public parity (2026-09-11): the buyer wording adds
+             the authentication refusal; classification stays bounded. */
+          b("bounded", "Dial Reveal",
+            "On supported desktop devices, use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch."),
         ],
       },
       {
