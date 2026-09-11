@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   resolveDisplayIdentityCandidates,
+  emailLocalPart,
   usableIdentity,
   buyerIdentityLabel,
   BUYER_IDENTITY_FALLBACK,
@@ -34,6 +35,25 @@ test("dealer / business identity applies when no personal name exists", () => {
 test("governed fallback path reaches the email only after name and business are absent", () => {
   assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: null, dealerBusinessName: null, email: "buyer.one@example.test" }), "buyer.one@example.test");
   assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: undefined, dealerBusinessName: "", email: "e@x.test" }), "e@x.test");
+});
+
+test("privacy correction: on seller-facing surfaces the email step renders its local part only; the domain never leaves", () => {
+  const local = { emailAs: "local-part" };
+  assert.equal(emailLocalPart("buyer.one@example.test"), "buyer.one");
+  assert.equal(emailLocalPart("  Mixed.Case@Example.Test  "), "Mixed.Case");
+  assert.equal(emailLocalPart("@example.test"), null, "an empty local part is absence");
+  assert.equal(emailLocalPart("noatsign"), "noatsign");
+  assert.equal(emailLocalPart("   "), null);
+  assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: null, dealerBusinessName: null, email: "buyer.one@example.test" }, local), "buyer.one");
+  assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: null, dealerBusinessName: null, email: "@example.test" }, local), null, "falls to the governed last resort, never a blank");
+  // precedence preserved: display name and business name still win over the masked email
+  assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: "Morgan L.", dealerBusinessName: null, email: "buyer.one@example.test" }, local), "Morgan L.");
+  assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: null, dealerBusinessName: "Shop", email: "buyer.one@example.test" }, local), "Shop");
+  // the signed-in shell naming its OWN person is unchanged: full address by default
+  assert.equal(resolveDisplayIdentityCandidates({ profileDisplayName: null, dealerBusinessName: null, email: "buyer.one@example.test" }), "buyer.one@example.test");
+  // two buyers sharing a local part at different domains still render (identically) — the domain is never the tie-breaker
+  assert.equal(resolveDisplayIdentityCandidates({ email: "same@one.test" }, local), resolveDisplayIdentityCandidates({ email: "same@two.test" }, local));
+  for (const v of [resolveDisplayIdentityCandidates({ email: "x@y.test" }, local), emailLocalPart("a@b.c")]) assert.ok(!/@/.test(v ?? ""), "no @ or domain in a seller-facing identity");
 });
 
 test("whitespace-only display name is absence, never a blank identity", () => {
@@ -77,7 +97,7 @@ test("one chain: the signed-in resolver consumes the shared precedence; no secon
   assert.ok(!/for \(const candidate of \[profileDisplayName, dealerBusinessName, email\]\)/.test(s), "the loop lives in the shared module only");
   const b = read("lib/buyerDisplayIdentity.ts");
   assert.match(b, /import "server-only"/);
-  assert.match(b, /resolveDisplayIdentityCandidates\(\{\s*profileDisplayName: p\?\.display_name \?\? null,\s*dealerBusinessName: businessById\.get\(id\) \?\? null,\s*email: p\?\.email \?\? null,\s*\}\)/);
+  assert.match(b, /resolveDisplayIdentityCandidates\(\s*\{\s*profileDisplayName: p\?\.display_name \?\? null,\s*dealerBusinessName: businessById\.get\(id\) \?\? null,\s*email: p\?\.email \?\? null,\s*\},[\s\S]*?\{ emailAs: "local-part" \}\s*\)/, "seller-facing resolution asks for the local part only");
   assert.match(b, /throw new Error\(`profiles read failed/, "a failed read throws; it is never absence");
   assert.ok(!/phone|strikes|notify_/.test(code("lib/buyerDisplayIdentity.ts")), "nothing beyond the governed identity is selected");
   assert.match(b, /select\("id, display_name, email"\)/);

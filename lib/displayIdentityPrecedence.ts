@@ -41,16 +41,33 @@ export function usableIdentity(value?: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
+/** The portion of an email before "@", or null when there is none. */
+export function emailLocalPart(email?: string | null): string | null {
+  const usable = usableIdentity(email);
+  if (!usable) return null;
+  const at = usable.indexOf("@");
+  return usableIdentity(at >= 0 ? usable.slice(0, at) : usable);
+}
+
+export type DisplayIdentityOptions = {
+  /** How the email step renders when it is the answer.
+      `full` — the whole address (the signed-in shell naming its own person).
+      `local-part` — only what precedes "@" (seller-facing Purchase Request
+      and Correspondence surfaces, privacy correction 2026-09-11): the
+      domain is never rendered to another party. */
+  emailAs?: "full" | "local-part";
+};
+
 /**
  * The governed chain. Returns the first usable candidate in precedence
  * order, or null when every candidate is absent or unusable.
  */
-export function resolveDisplayIdentityCandidates({
-  profileDisplayName,
-  dealerBusinessName,
-  email,
-}: DisplayIdentityCandidates): string | null {
-  for (const candidate of [profileDisplayName, dealerBusinessName, email]) {
+export function resolveDisplayIdentityCandidates(
+  { profileDisplayName, dealerBusinessName, email }: DisplayIdentityCandidates,
+  options: DisplayIdentityOptions = {}
+): string | null {
+  const emailCandidate = options.emailAs === "local-part" ? emailLocalPart(email) : email;
+  for (const candidate of [profileDisplayName, dealerBusinessName, emailCandidate]) {
     const usable = usableIdentity(candidate);
     if (usable) return usable;
   }

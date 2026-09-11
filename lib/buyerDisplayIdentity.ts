@@ -28,7 +28,8 @@ import { resolveDisplayIdentityCandidates } from "@/lib/displayIdentityPrecedenc
    Nothing beyond the governed identity leaves: no phone, no strikes, no
    preferences. Email is a candidate ONLY as the chain's third step and only
    for a person who has made a commercial offer to, or corresponded with,
-   the caller.
+   the caller — and even then only its LOCAL PART (before "@") is rendered;
+   the domain never leaves the server (privacy correction, 2026-09-11).
    ──────────────────────────────────────────────────────────────────────── */
 
 export async function resolveBuyerIdentities(db: SupabaseClient, ids: string[]): Promise<Map<string, string | null>> {
@@ -50,11 +51,16 @@ export async function resolveBuyerIdentities(db: SupabaseClient, ids: string[]):
     const p = profileById.get(id);
     out.set(
       id,
-      resolveDisplayIdentityCandidates({
-        profileDisplayName: p?.display_name ?? null,
-        dealerBusinessName: businessById.get(id) ?? null,
-        email: p?.email ?? null,
-      })
+      resolveDisplayIdentityCandidates(
+        {
+          profileDisplayName: p?.display_name ?? null,
+          dealerBusinessName: businessById.get(id) ?? null,
+          email: p?.email ?? null,
+        },
+        /* Privacy correction (2026-09-11): on a seller-facing surface the
+           email step renders its local part only; the domain never leaves. */
+        { emailAs: "local-part" }
+      )
     );
   }
   return out;
