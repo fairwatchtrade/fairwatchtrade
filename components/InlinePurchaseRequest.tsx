@@ -194,7 +194,7 @@ export default function InlinePurchaseRequest({
   }
 
   return (
-    <div className={isRail ? "space-y-3" : "space-y-3"}>
+    <div className="space-y-3">
       {/* Founder target (2026-09-12): on narrow the doorway into this form
           lives on the seller row of the decision cluster, so drawing the
           start button here as well would be two controls for one action.

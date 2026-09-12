@@ -123,15 +123,18 @@ test("price, seller and the doorway compose one cluster rather than stacked sect
   /* Seller and action share ONE row. */
   const row = /flex flex-wrap items-baseline[\s\S]*?<\/div>/.exec(cluster)?.[0];
   assert.ok(row, "seller/action row");
-  assert.match(row, /Sold by \{sellerName\}/);
+  assert.match(row, /Sold by \$\{sellerName\}/);
   assert.match(row, /Make an Offer/);
   assert.ok(
     row.indexOf("Sold by") < row.indexOf("Make an Offer"),
     "seller relation leads, the action follows it on the same row",
   );
-  /* The arrow is a literal glyph: written as an entity it becomes its own
-     JSX child and the separating space is trimmed, rendering "Mynatt→". */
-  assert.match(row, /Sold by \{sellerName\} →/);
+  /* The seller line is ONE text child composed in JS. As JSX children this
+     row renders "Mynatt→" with the separating space trimmed away — proven in
+     production against a line byte-identical to the desktop rail's, which
+     does not lose it. Neither a literal glyph nor an entity survives here;
+     a template literal has no child list to trim. */
+  assert.match(row, /\{`Sold by \$\{sellerName\} →`\}/);
   assert.doesNotMatch(row, /&rarr;/);
 
   /* The doorway is drawn ONLY for the open state — never invented for a

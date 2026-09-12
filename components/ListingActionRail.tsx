@@ -355,11 +355,14 @@ export default function ListingActionRail({
               href={sellerHref ?? `/sellers/${sellerId}`}
               className="text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)]"
             >
-              {/* The arrow is a literal glyph on this line, exactly as the
-                  identity block drew it before the move: written as an
-                  entity it becomes its own JSX child and the separating
-                  space is trimmed, which renders "Mynatt→". */}
-              Sold by {sellerName} →
+              {/* ONE text child, composed in JS. Written as JSX children
+                  this line renders "Mynatt" hard against the arrow with the
+                  separating space gone — proven in production, and NOT
+                  reproduced by the byte-identical line in the desktop rail
+                  below, so it is a whitespace-trimming behaviour of this
+                  child list rather than anything visible in the source. A
+                  template literal has no child list to trim. */}
+              {`Sold by ${sellerName} →`}
             </Link>
             {/* The doorway sits ON this row rather than in a block beneath
                 it, so the decision cluster is one object. It is drawn ONLY
