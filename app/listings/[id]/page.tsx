@@ -1029,7 +1029,7 @@ export default async function ListingDetailPage({
             <div className="mt-3 flex items-start gap-3 border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
               <span className="mt-[2px] text-[var(--gold)] opacity-80" aria-hidden="true">🛡️</span>
               <div>
-                <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-on-tint)]">
                   In Hand Verified
                   {listing.verified_at && (
                     <span className="ml-2 text-[var(--muted)]">

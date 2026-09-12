@@ -158,7 +158,7 @@ export default function WantedRequestsModule() {
         </Link>
       </div>
 
-      {note && <p className="mb-4 text-[12px] italic text-[var(--gold-subtle)]">{note}</p>}
+      {note && <p className="mb-4 text-[12px] italic text-[var(--platinum-dim)]">{note}</p>}
 
       {queue.phase === "stale" && (
         <p role="status" className="mb-4 text-[12px] text-[var(--slate)]">

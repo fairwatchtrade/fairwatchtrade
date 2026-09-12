@@ -1381,7 +1381,7 @@ export default function SellFlow({
                   cleared or consistent means silence. ReviewStep itself
                   is untouched. */}
               {refAdvisory && refAdvisory.kind !== "consistent" && (
-                <p className="mb-3 text-[11px] italic text-[var(--gold-subtle)]">
+                <p className="mb-3 text-[11px] italic text-[var(--slate)]">
                   {refAdvisory.message}
                 </p>
               )}
@@ -2172,7 +2172,7 @@ function CurationStep({
             placeholder="e.g. reference number"
           />
           {advisory && advisory.kind !== "consistent" && (
-            <p className="mt-1 text-[11px] italic text-[var(--gold-subtle)]">
+            <p className="mt-1 text-[11px] italic text-[var(--slate)]">
               {advisory.message}
             </p>
           )}
@@ -2333,7 +2333,7 @@ function CurationStep({
                   . Offers will use the same currency.
                 </div>
               ) : (
-                <div className="text-[12px] leading-[1.5] italic text-[var(--gold-subtle)]">
+                <div className="text-[12px] leading-[1.5] italic text-[var(--slate)]">
                   {askingParse.message}
                 </div>
               )}
@@ -2391,7 +2391,7 @@ function CurationStep({
                 {admission?.[c.key] === false && (c.stopsWhenFalse ?? true) && (
                   <p
                     role="alert"
-                    className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]"
+                    className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--danger)]"
                   >
                     {c.stop}
                   </p>

@@ -419,10 +419,10 @@ export default function SavedSearchesModule() {
                       {contextLine(entry.row, counts, newest)}
                     </div>
                     {/* §12 — a condition the watcher doesn't evaluate is said
-                        plainly, never left to look watched. Quiet gold, not
-                        alarm red: nothing is broken, something is deferred. */}
+                        plainly, never left to look watched. Readable neutral,
+                        not alarm red: nothing is broken, something is deferred. */}
                     {unwatched && (
-                      <div className="mt-2 text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+                      <div className="mt-2 text-[11px] leading-[1.5] text-[var(--slate)]">
                         {unwatched}
                       </div>
                     )}

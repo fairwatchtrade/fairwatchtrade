@@ -206,7 +206,7 @@ export default function BrandCombobox({
       )}
 
       {hasBlurred && needsResolution && (
-        <p role="alert" className="mt-1 text-[11px] text-[var(--gold-subtle)]">
+        <p role="alert" className="mt-1 text-[11px] text-[var(--slate)]">
           Choose a complete brand from the list, or type the full name of an unlisted brand.
         </p>
       )}

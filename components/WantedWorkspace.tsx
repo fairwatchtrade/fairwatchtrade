@@ -765,7 +765,7 @@ export default function WantedWorkspace() {
 
                 {closingId === r.id && (
                   <div className="mt-3 border border-[var(--border-gold)] p-3">
-                    <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+                    <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--slate)]">
                       No longer looking? The request is kept, not deleted.
                     </div>
                     <div className="flex flex-wrap gap-2">

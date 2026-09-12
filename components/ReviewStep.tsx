@@ -586,7 +586,7 @@ export default function ReviewStep({
                   {g.detail}
                 </p>
                 {g.correction && (
-                  <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--gold-subtle)]">
+                  <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--danger)]">
                     Required correction: {g.correction}
                   </p>
                 )}

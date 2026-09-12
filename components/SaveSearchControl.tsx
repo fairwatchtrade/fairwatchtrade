@@ -173,7 +173,7 @@ export default function SaveSearchControl({
           View saved searches
         </a>
         {priceUnwatched && (
-          <span className="w-full text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+          <span className="w-full text-[11px] leading-[1.5] text-[var(--slate)]">
             {unwatchedNote}
           </span>
         )}
@@ -236,7 +236,7 @@ export default function SaveSearchControl({
           </span>
         </label>
         {priceUnwatched && (
-          <span className="w-full text-[11px] leading-[1.5] text-[var(--gold-subtle)]">
+          <span className="w-full text-[11px] leading-[1.5] text-[var(--slate)]">
             {unwatchedNote}
           </span>
         )}

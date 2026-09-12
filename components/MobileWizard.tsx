@@ -1459,7 +1459,7 @@ export default function MobileWizard({
                   Offers for this listing will use {askingParse.currency}.
                 </div>
               ) : (
-                <div className="text-[12px] leading-[1.5] italic text-[var(--gold-subtle)]">
+                <div className="text-[12px] leading-[1.5] italic text-[var(--slate)]">
                   {askingParse.message}
                 </div>
               )}

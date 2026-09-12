@@ -230,7 +230,7 @@ export default function ModelCombobox({
       )}
 
       {hasBlurred && needsResolution && (
-        <p role="alert" className="mt-1 text-[11px] text-[var(--gold-subtle)]">
+        <p role="alert" className="mt-1 text-[11px] text-[var(--slate)]">
           Choose a complete model from the list, or type the full name of an unlisted model.
         </p>
       )}

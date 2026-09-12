@@ -1433,7 +1433,7 @@ function AttentionPanel({
               {note && (
                 <p
                   className={`mt-2.5 border-t border-[var(--border-subtle)] pt-2.5 text-[12px] leading-[1.6] ${
-                    note.ok ? "text-[var(--gold-subtle)]" : "text-[var(--muted)]"
+                    note.ok ? "text-[var(--success)]" : "text-[var(--muted)]"
                   }`}
                 >
                   {note.text}
