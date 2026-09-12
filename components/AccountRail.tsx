@@ -148,10 +148,13 @@ const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICON
   { id: "accelerator", label: "Dealer Accelerator", icon: "drafts" },
   { id: "communications", label: "Communications", icon: "messages" },
   { id: "saved", label: "Saved Searches", icon: "saved" },
-  /* Wanted Requests — collector demand this seller may answer. Seller
-     Workspace owns it by founder ruling; Dealer Room may surface the same
-     requests contextually later and is deliberately not a second door. */
-  { id: "wanted", label: "Collector Demand", icon: "wanted" },
+  /* Requests — what other people are looking for that this seller may be
+     able to answer. Seller Workspace owns it by founder ruling; Dealer Room
+     may surface the same requests contextually later and is deliberately not
+     a second door. The module stays keyed `wanted` because the data model,
+     the route and the collector's own room are unchanged — only the name the
+     seller reads is. */
+  { id: "wanted", label: "Requests", icon: "wanted" },
   /* Trade proposals share the offer workspace rather than getting a
      separate Trade dashboard — the packet's ruling. */
   { id: "trades", label: "Trades", icon: "trades" },

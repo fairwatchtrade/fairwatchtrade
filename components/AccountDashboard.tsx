@@ -901,7 +901,7 @@ export default function AccountDashboard({
           : activeModule === "saved"
             ? "Saved Searches"
             : activeModule === "wanted"
-              ? "Collector Demand"
+              ? "Requests"
               : activeModule === "trades"
                 ? "Trades"
                 : activeModule === "tax-time"

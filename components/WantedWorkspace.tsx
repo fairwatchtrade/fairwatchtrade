@@ -32,7 +32,7 @@ import {
 /* ════════════════════════════════════════════════════════════════════════
    WANTED — the collector's workspace — components/WantedWorkspace.tsx
 
-   "Tell FairWatchTrade what you are actively trying to buy."
+   "Tell us what you’re looking to buy."
 
    Identity first, criteria second, private-listing preference third — the
    approved creation sequence. The collector begins with the watch, never
@@ -379,8 +379,8 @@ export default function WantedWorkspace() {
         <div>
           <h1 className="font-display text-[30px] font-light text-[var(--platinum)]">Wanted</h1>
           <p className="mt-1 text-[13px] text-[var(--muted)]">
-            Tell FairWatchTrade what you are actively trying to buy. Eligible sellers can answer
-            with governed inventory or create a private listing for you.
+            Tell us what you&rsquo;re looking to buy. Sellers can see if they already have a match
+            and answer with that listing, or create a private listing just for you.
           </p>
         </div>
         {!composing && (

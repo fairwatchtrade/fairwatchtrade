@@ -19,7 +19,7 @@ import {
   LEG_STATUSES,
 } from "../lib/trade.ts";
 
-/* ── Account Workspace: Collector Demand + Trades + bounded LS-4 truth ──
+/* ── Account Workspace: Requests + Trades + bounded LS-4 truth ─────────
    The laws, exercised; then source pins on every seam the order names.
    Run: node scripts/account-workspace-collector-demand-trades.test.mjs
    ─────────────────────────────────────────────────────────────────────── */
@@ -119,28 +119,52 @@ test("leg status never governs archive — it is not even an input", () => {
 
 /* ════════ 3 · COLLECTOR DEMAND ════════════════════════════════════════ */
 
-test("the Account rail says Collector Demand, and no room is called Wanted Requests", () => {
-  assert.match(rail, /\{ id: "wanted", label: "Collector Demand", icon: "wanted" \}/);
-  assert.match(shell, /activeModule === "wanted"\s*\?\s*"Collector Demand"/);
-  assert.match(read("components/AccountRoomSelector.tsx"), /\{ id: "wanted", label: "Collector Demand" \}/);
+test("the seller room is called Requests everywhere its name is shown", () => {
+  assert.match(rail, /\{ id: "wanted", label: "Requests", icon: "wanted" \}/);
+  assert.match(shell, /activeModule === "wanted"\s*\?\s*"Requests"/);
+  assert.match(read("components/AccountRoomSelector.tsx"), /\{ id: "wanted", label: "Requests" \}/);
+  assert.match(read("app/sell/(entry)/page.tsx"), /Back to Requests/);
+  assert.match(demand, /Requests could not be loaded just now\. Nothing has changed\./,
+    "the failure state carries the room's current name and keeps its LS-4 meaning");
+  /* The retired name is gone from every surface a person reads, including
+     the comments that describe the current room. */
+  for (const [name, src] of [["rail", rail], ["shell", shell], ["room", demand], ["selector", read("components/AccountRoomSelector.tsx")], ["sell", read("app/sell/(entry)/page.tsx")]]) {
+    assert.ok(!/Collector Demand/.test(src), `${name} still says Collector Demand`);
+  }
   for (const [name, src] of [["rail", code("components/AccountRail.tsx")], ["shell", code("components/AccountDashboard.tsx")], ["room", code("components/WantedRequestsModule.tsx")], ["selector", code("components/AccountRoomSelector.tsx")]]) {
     assert.ok(!/Wanted Requests/.test(src), `${name} still renders the retired label`);
   }
 });
 
-test("exactly one Collector Demand title, owned by the shared shell", () => {
+test("exactly one Requests title, owned by the shared shell", () => {
   assert.ok(!/<h2[^>]*>\s*\{?\s*Wanted Requests/.test(demand));
-  assert.ok(!/Collector Demand<\/h2>/.test(demand), "the room renders no page-level title");
+  assert.ok(!/Requests<\/h2>/.test(demand), "the room renders no page-level title");
   assert.ok(!/<h1/.test(demand), "no page-level heading in the module at all");
   /* The shell's one title element. */
   assert.match(shell, /<h2 className="hidden font-display text-\[20px\][^"]*md:block">\s*\{moduleTitle\}/);
 });
 
-test("the locked seller subtitle says what this queue is, and leaks nothing", () => {
-  assert.match(
-    demand,
-    /Open requests from collectors you may be able to answer with a listing you already have, a\s*\n?\s*new one, or a private listing made for that collector alone\./
+test("the locked Requests intro and privacy line ship exactly, and leak nothing", () => {
+  /* Both lines are read with whitespace collapsed: the source wraps them,
+     the person reads one sentence. */
+  const flat = demand.replace(/\s+/g, " ");
+  assert.ok(
+    flat.includes(
+      "Watches people are looking for that you may be able to answer with a listing you already have, a new one, or a private listing made for them alone."
+    ),
+    "the locked intro ships verbatim"
   );
+  assert.ok(
+    flat.includes(
+      "You&rsquo;re never shown their exact budget or who they are — only whether a watch sits within, near, or outside their range. Every answer is a real FairWatchTrade listing, never a message."
+    ),
+    "the locked privacy line ships verbatim"
+  );
+  /* The footing rule, on the two lines that prompted it: the room never
+     narrates its own reader as a role. */
+  const flatCode = code("components/WantedRequestsModule.tsx").replace(/\s+/g, " ");
+  assert.ok(!/requests from collectors/i.test(flatCode), "the retired third-person intro is gone from the rendered copy");
+  assert.ok(!/The collector&rsquo;s exact budget/i.test(flatCode), "the retired third-person privacy line is gone");
   /* Governed seller privacy: none of these ever reach this room. */
   for (const forbidden of ["max_price", "target_price", "requester_id", "private_note", "buyer_email"]) {
     assert.ok(!demand.includes(forbidden), `${forbidden} must never appear in the seller room`);
@@ -157,7 +181,7 @@ test("Create Wanted Request is a door into the collector's own room, never a sec
   assert.match(workspace, /params\.get\("new"\) === "1"/);
 });
 
-test("Collector Demand cannot claim an empty queue from a failed read", () => {
+test("Requests cannot claim an empty queue from a failed read", () => {
   assert.match(demand, /queue\.phase === "unavailable" \?/);
   assert.match(demand, /data-queue-unavailable=""/);
   assert.match(demand, /\) : provenEmpty\(queue\) \? \(/, "genuine-empty is gated on proven emptiness");
@@ -337,6 +361,6 @@ test("LS1 typography and the shared Account shell are untouched by this run", ()
 test("Catalogue keeps Wanted; Account keeps Trades", () => {
   const catalogueRail = read("components/CatalogueRail.tsx");
   assert.match(catalogueRail, /Wanted/);
-  assert.ok(!/Collector Demand/.test(catalogueRail), "seller demand never enters the Catalogue family");
+  assert.ok(!/Requests/.test(catalogueRail), "the seller room name never enters the Catalogue family");
   assert.match(rail, /\{ id: "trades", label: "Trades", icon: "trades" \}/);
 });

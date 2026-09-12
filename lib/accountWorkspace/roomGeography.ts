@@ -13,7 +13,7 @@
    own title, so the first letter of every paragraph sits against the rail
    while the heading above it does not.
 
-   Collector Demand had no origin at all. Trades had two: a subtitle at
+   Requests had no origin at all. Trades had two: a subtitle at
    zero and records at `md:ml-[30px]`, so the room's own sentence and the
    records it introduces disagreed about where the room begins.
 

@@ -240,7 +240,7 @@ function SellPageInner() {
               href="/account?module=wanted"
               className="mt-4 inline-block border border-[var(--border-gold)] px-4 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)] transition hover:bg-[var(--gold-whisper)]"
             >
-              Back to Collector Demand
+              Back to Requests
             </Link>
           </div>
         ) : isPrivate ? (

@@ -25,7 +25,7 @@ import {
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
-   COLLECTOR DEMAND — the Seller Workspace queue
+   REQUESTS — the Seller Workspace queue
 
    Open collector demand a seller may answer, and the three governed ways
    to answer it. Seller Workspace owns this by founder ruling; Dealer Room
@@ -45,12 +45,20 @@ import { formatMoney } from "@/lib/formatMoney";
    response before a governed listing exists is exactly what Wanted was
    designed to replace, and Communications remains listing-bound.
 
-   ── WANTED IS NOT THIS ROOM (2026-09-12) ───────────────────────────────
-   Wanted is what I want. Collector Demand is what other collectors want
-   that I can answer. The same person does both jobs, which is exactly why
-   the two rooms may not share a name — and why the door below is plain
-   navigation into the collector's own room rather than a second composer
-   grown here. This module never writes a Wanted request.
+   ── WANTED IS NOT THIS ROOM ────────────────────────────────────────────
+   Wanted is what I want. Requests is what other people want that I can
+   answer. The same person does both jobs, which is exactly why the two
+   rooms may not share a name — and why the door below is plain navigation
+   into their own Wanted room rather than a second composer grown here.
+   This module never writes a Wanted request.
+
+   ── THE READER IS NOT A THIRD PARTY (2026-09-12) ───────────────────────
+   Both explanatory lines below address the person using the room as "you",
+   and name the other side only where their privacy has to be explained.
+   The room used to narrate its own reader — "requests from collectors you
+   may be able to answer", "the collector's exact budget" — which reads as
+   though the seller were being described to somebody else. See
+   /docs/product-laws/Authenticated_Functional_Copy_Law.md.
 
    ── THE ROOM'S TITLE IS NOT HERE ───────────────────────────────────────
    The shared Account workspace header renders it. This file used to render
@@ -139,8 +147,8 @@ export default function WantedRequestsModule() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         {/* The room title lives in the shared workspace header, once. */}
         <p className="max-w-[650px] text-[12px] leading-[1.55] text-[var(--muted)]">
-          Open requests from collectors you may be able to answer with a listing you already have, a
-          new one, or a private listing made for that collector alone.
+          Watches people are looking for that you may be able to answer with a listing you already
+          have, a new one, or a private listing made for them alone.
         </p>
         {/* The cross-door: ordinary navigation into the collector's own
             Wanted room, which owns creation. Secondary by construction — the
@@ -168,7 +176,7 @@ export default function WantedRequestsModule() {
           data-queue-unavailable=""
         >
           <p role="status" className="text-[13px] text-[var(--slate)]">
-            Collector Demand could not be loaded just now. Nothing has changed.
+            Requests could not be loaded just now. Nothing has changed.
           </p>
           <button type="button" onClick={() => void load()} className={`${quietBtn} mt-3`}>
             Try again
@@ -257,9 +265,9 @@ export default function WantedRequestsModule() {
       )}
 
       <p className="mt-8 text-[11px] leading-relaxed text-[var(--muted)]">
-        The collector&rsquo;s exact budget and identity are never shown here. You are told only
-        whether a watch sits within, near, or outside their range — and every answer is a real
-        FairWatchTrade listing, never a message.
+        You&rsquo;re never shown their exact budget or who they are — only whether a watch sits
+        within, near, or outside their range. Every answer is a real FairWatchTrade listing, never a
+        message.
       </p>
     </div>
   );

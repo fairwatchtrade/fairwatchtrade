@@ -50,12 +50,11 @@ export const ACCOUNT_ROOMS: ReadonlyArray<AccountRoom> = [
   { id: "trades", label: "Trades" },
   { id: "communications", label: "Messages" },
   { id: "saved", label: "Saved" },
-  /* The seller room, by its founder name (2026-09-12). The other entries
-     here are shortened to one word, and this one deliberately is not: the
-     word it would shorten to is "Wanted", which is the COLLECTOR's own room
-     in the Catalogue family. Two different jobs cannot share a label in the
-     one control that says which room you are standing in. */
-  { id: "wanted", label: "Collector Demand" },
+  /* The seller room. One word, like its neighbours, and not the word
+     "Wanted" — that is the COLLECTOR's own room in the Catalogue family, and
+     two different jobs cannot share a label in the one control that says
+     which room you are standing in. */
+  { id: "wanted", label: "Requests" },
   { id: "accelerator", label: "Dealer" },
   { id: "settings", label: "Settings" },
 ];

@@ -400,7 +400,7 @@ const workspace = read("components/WantedWorkspace.tsx");
   );
   ok(
     "Seller Workspace owns the seller entrance",
-    /\{ id: "wanted", label: "Collector Demand"/.test(accountRail) &&
+    /\{ id: "wanted", label: "Requests"/.test(accountRail) &&
       /activeModule === "wanted"[\s\S]{0,400}<WantedRequestsModule \/>/.test(dashboard)
   );
   /* Anchored to the entry itself, not to its position in the list — a later
