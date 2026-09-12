@@ -355,7 +355,11 @@ export default function ListingActionRail({
               href={sellerHref ?? `/sellers/${sellerId}`}
               className="text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)]"
             >
-              Sold by {sellerName} &rarr;
+              {/* The arrow is a literal glyph on this line, exactly as the
+                  identity block drew it before the move: written as an
+                  entity it becomes its own JSX child and the separating
+                  space is trimmed, which renders "Mynatt→". */}
+              Sold by {sellerName} →
             </Link>
             {/* The doorway sits ON this row rather than in a block beneath
                 it, so the decision cluster is one object. It is drawn ONLY

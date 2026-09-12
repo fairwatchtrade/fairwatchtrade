@@ -8,6 +8,8 @@ const drawer = read("components/MobileCollectorsDrawer.tsx");
 const market = read("components/MarketBar.tsx");
 const page = read("app/listings/[id]/page.tsx");
 const specs = read("components/ListingSpecs.tsx");
+const rail = read("components/ListingActionRail.tsx");
+const inlineForm = read("components/InlinePurchaseRequest.tsx");
 
 test("Watch Detail alone suppresses the metals ribbon below the 56rem handoff", () => {
   assert.match(market, /import \{ usePathname \} from "next\/navigation"/);
@@ -96,6 +98,65 @@ test("mobile decision order is identity, the existing price/action owner, then s
   assert.equal(page.split('data-purchase-inline=""').length - 1, 1, "one inline commerce surface");
   assert.match(page, /data-purchase-inline="" className="min-\[56rem\]:hidden"/);
   assert.match(page, /variant="inline"[\s\S]*?requestStatus=\{myLatestRequest\?\.status \?\? null\}[\s\S]*?listingStatus=\{listing\.status\}/);
+});
+
+/* ── Narrow decision cluster, founder target 2026-09-12 ──────────────────
+   Price, seller relation and the commerce doorway are ONE decision. These
+   pins exist because the previous composition was not wrong in content
+   order — it was wrong in composition, and content-order assertions alone
+   passed straight through it. */
+test("price, seller and the doorway compose one cluster rather than stacked sections", () => {
+  const cluster = /data-decision-cluster=""[\s\S]*?\{purchaseBlock\}/.exec(rail)?.[0];
+  assert.ok(cluster, "narrow decision cluster");
+
+  /* The monument and its rule are gone: a price that opens its own section
+     is the defect this target was drawn to kill. */
+  assert.doesNotMatch(cluster, /mt-10/, "the cluster must not reopen a section above the price");
+  assert.doesNotMatch(cluster, /border-t/, "no rule may separate price from the provenance above it");
+  assert.doesNotMatch(cluster, /text-\[36px\]/, "the 36px monument does not return to narrow");
+  assert.match(cluster, /text-\[26px\]/);
+
+  /* The visible label leaves; the meaning stays for a non-visual reader. */
+  assert.match(cluster, /<span className="sr-only">Asking price <\/span>/);
+  assert.doesNotMatch(cluster, /tracking-\[1\.6px\]\S*>\s*Asking Price/);
+
+  /* Seller and action share ONE row. */
+  const row = /flex flex-wrap items-baseline[\s\S]*?<\/div>/.exec(cluster)?.[0];
+  assert.ok(row, "seller/action row");
+  assert.match(row, /Sold by \{sellerName\}/);
+  assert.match(row, /Make an Offer/);
+  assert.ok(
+    row.indexOf("Sold by") < row.indexOf("Make an Offer"),
+    "seller relation leads, the action follows it on the same row",
+  );
+  /* The arrow is a literal glyph: written as an entity it becomes its own
+     JSX child and the separating space is trimmed, rendering "Mynatt→". */
+  assert.match(row, /Sold by \{sellerName\} →/);
+  assert.doesNotMatch(row, /&rarr;/);
+
+  /* The doorway is drawn ONLY for the open state — never invented for a
+     reserved, pending, accepted, superseded or owner view. */
+  assert.match(row, /\{ctaState === "open" &&/);
+});
+
+test("the narrow doorway is drawn once and opens the one form", () => {
+  /* Signed in it asks the in-page form to open through the same event the
+     fixed bar uses; signed out it links to the route whose own auth gate
+     decides identity. Two dressings, one state machine. */
+  assert.match(rail, /<OpenPurchaseRequestButton[\s\S]*?label="Make an Offer"/);
+  assert.match(rail, /canComposeInline \? \([\s\S]*?OpenPurchaseRequestButton/);
+
+  /* The block below must NOT draw the guest's link a second time: that is
+     the duplicate commerce CTA the target forbids. */
+  assert.match(
+    rail,
+    /\) : variant === "inline" \? \([\s\S]*?null/,
+    "the inline block must yield the guest doorway to the cluster",
+  );
+
+  /* The form's own start button draws only while the form is open, where it
+     is the close control — otherwise it is a second trigger for one action. */
+  assert.match(inlineForm, /\{\(isRail \|\| open\) && startButton\}/);
 });
 
 test("mobile has one normal specification flow while desktop keeps its established two-section view", () => {
