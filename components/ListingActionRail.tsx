@@ -4,6 +4,16 @@ import InlinePurchaseRequest from "@/components/InlinePurchaseRequest";
 import TradeDoorway from "@/components/TradeDoorway";
 import OpenPurchaseRequestButton from "@/components/OpenPurchaseRequestButton";
 
+/* The narrow decision cluster's commerce doorway. A real action carrying a
+   real underline, one tier above the seller relation it sits beside so the
+   eye lands on it first — functional text, never decorative-muted. */
+const CLUSTER_ACTION = [
+  "text-[13px] text-[var(--platinum)] underline decoration-[var(--gold-dim)]",
+  "underline-offset-[5px] transition hover:text-[var(--gold)]",
+  "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)]",
+  "focus-visible:outline-offset-2",
+].join(" ");
+
 /* ────────────────────────────────────────────────────────────────────────
    LISTING ACTION RAIL — components/ListingActionRail.tsx  (v2.11)
 
@@ -211,8 +221,13 @@ export default function ListingActionRail({
       </div>
     ) : null;
 
+  /* Whether this viewer can compose the request on the page at all. Hoisted
+     out of the JSX because the narrow decision cluster and the block below
+     must agree on it — one of them draws the doorway and the other must not. */
+  const canComposeInline = canRequestInline && typeof askingPrice === "number";
+
   const purchaseBlock = ctaState === "owner" ? null : ctaState === "reserved" ? (
-    <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
+    <div className={variant === "inline" ? "mt-3 space-y-3" : "space-y-3"}>
       <div className="inline-block border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3 text-[11px] tracking-[0.5px]">
         <div className="uppercase tracking-[2px] text-[var(--gold-dim)]">
           {requestStatus === "accepted" ? "Your request was accepted" : "Reserved"}
@@ -238,7 +253,7 @@ export default function ListingActionRail({
       </div>
     </div>
   ) : (
-    <div className={variant === "inline" ? "mt-6 space-y-3" : "space-y-3"}>
+    <div className={variant === "inline" ? "mt-3 space-y-3" : "space-y-3"}>
       {privateMarker}
       {requestStatus === "declined" && (
         <div className="inline-block border border-[var(--border-mid)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--muted)]">
@@ -264,7 +279,7 @@ export default function ListingActionRail({
         <div className="inline-block border border-[var(--success)] bg-[rgba(120,200,140,0.05)] px-4 py-2 text-[11px] uppercase tracking-[2px] text-[var(--success)]">
           Your request was accepted
         </div>
-      ) : canRequestInline && typeof askingPrice === "number" ? (
+      ) : canComposeInline ? (
         /* The collector composes the request without leaving the watch. Same
            controller, same validation, same POST and same error semantics as
            the dedicated route — only the place it is drawn differs. */
@@ -274,6 +289,11 @@ export default function ListingActionRail({
           askingCurrency={askingCurrency ?? null}
           variant={variant}
         />
+      ) : variant === "inline" ? (
+        /* The narrow cluster below already carries this guest's doorway on
+           the seller row. Drawing it again here would be the duplicate
+           commerce CTA the founder target forbids. */
+        null
       ) : (
         <Link
           href={`/listings/${listingId}/purchase-request`}
@@ -304,21 +324,66 @@ export default function ListingActionRail({
     </div>
   );
 
-  /* ── STACKED LAYOUT — the same request in the narrow content flow. ── */
+  /* ── NARROW DECISION CLUSTER — the same request, composed to the founder's
+     target of 2026-09-12.
+
+     What changed and why: the price used to open with `mt-10 border-t pt-6`
+     and stand at 36px above the word "Asking Price", which made it a
+     monument with a rule over it — a section of its own, separated from the
+     provenance it belongs to. Worse, an owner's view suppresses the whole
+     purchase block, so on the founder's own listing that monument was
+     followed by an empty field all the way to the specifications.
+
+     The target reads price, seller and action as ONE decision the collector
+     takes in a single glance: the price sits immediately under the listing
+     ID at a size that states the number without shouting it, and the seller
+     relation and the commerce doorway share the line beneath it. The label
+     is gone from the page and kept for screen readers — a formatted currency
+     amount directly under the identity of a watch for sale does not need to
+     be told what it is, but a non-visual reader does.
+     ────────────────────────────────────────────────────────────────────── */
   if (variant === "inline") {
     return (
       <>
-        <div className="mt-10 border-t border-[var(--border-faint)] pt-6">
-          <p className="font-display text-[36px] font-light text-[var(--platinum)]">{priceText}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)]">
-            Asking Price
+        <div data-decision-cluster="" className="mt-3">
+          <p className="font-display text-[26px] font-normal leading-[1.15] text-[var(--platinum)]">
+            <span className="sr-only">Asking price </span>
+            {priceText}
           </p>
+          <div className="mt-[7px] flex flex-wrap items-baseline gap-x-5 gap-y-2">
+            <Link
+              href={sellerHref ?? `/sellers/${sellerId}`}
+              className="text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)]"
+            >
+              Sold by {sellerName} &rarr;
+            </Link>
+            {/* The doorway sits ON this row rather than in a block beneath
+                it, so the decision cluster is one object. It is drawn ONLY
+                for the open state: a reserved, pending, accepted or
+                superseded listing keeps its honest explanation in the block
+                below, and an owner gets no action at all. */}
+            {ctaState === "open" &&
+              (canComposeInline ? (
+                <OpenPurchaseRequestButton
+                  listingId={listingId}
+                  label="Make an Offer"
+                  className={CLUSTER_ACTION}
+                />
+              ) : (
+                <Link
+                  href={`/listings/${listingId}/purchase-request`}
+                  className={CLUSTER_ACTION}
+                >
+                  Make an Offer
+                </Link>
+              ))}
+          </div>
           {/* The stacked composition has no rail composer, so the question
               door is a quiet link here — it opens the existing conversation home.
               Authed non-owners only: the listener lives in
               ListingCorrespondence, which owners and guests don't mount. */}
           {!isOwner && canRequestInline && (
-            <div className="mt-3">
+            <div className="mt-[10px]">
               <AskSellerLink />
             </div>
           )}

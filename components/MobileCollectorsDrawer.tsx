@@ -306,9 +306,15 @@ export default function MobileCollectorsDrawer({
         className={[
           "absolute z-[26] flex min-[56rem]:hidden",
           "bottom-0",
-          "h-[44px] w-[64px] items-center justify-center gap-1",
-          "border border-l-0 border-[var(--border-gold)] bg-[var(--surface)] p-0 text-[var(--gold)]",
-          "shadow-[0_5px_12px_rgba(0,0,0,0.18)]",
+          /* Founder target (2026-09-12): the tab stops being a named card and
+             returns to being a mark. The blade alone carries the doorway on
+             narrow — no border, no shadow, no visible noun — so it reads as a
+             quiet gallery-adjacent utility rather than a floating mini-card
+             competing with the identity block directly beneath it. The
+             accessible name is unchanged and still names the Drawer, so
+             removing the visible word costs assistive users nothing. */
+          "h-[44px] w-[38px] items-center justify-center gap-1",
+          "border-0 bg-transparent p-0 text-[var(--gold)]",
           "transition-[left,background-color] duration-[240ms] ease-out",
           "hover:bg-[var(--hover-wash)]",
           "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-2",
@@ -347,9 +353,6 @@ export default function MobileCollectorsDrawer({
           <path d="M23 26 V90" stroke="#E5CE8A" strokeWidth="0.9" />
           <path d="M23 26 L16 56 L23 90 L30 56 Z" fill="none" stroke="#D4B45C" strokeWidth="1" strokeLinejoin="miter" />
         </svg>
-        <span className="text-[11px] font-medium text-[var(--gold-dim)]">
-          Drawer
-        </span>
       </button>
     </>
   );

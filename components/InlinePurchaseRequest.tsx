@@ -194,8 +194,14 @@ export default function InlinePurchaseRequest({
   }
 
   return (
-    <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
-      {startButton}
+    <div className={isRail ? "space-y-3" : "space-y-3"}>
+      {/* Founder target (2026-09-12): on narrow the doorway into this form
+          lives on the seller row of the decision cluster, so drawing the
+          start button here as well would be two controls for one action.
+          While the form is OPEN the button stays — it is the close control,
+          and suppressing it would leave the collector inside a panel with no
+          way out. The rail is unchanged and always draws it. */}
+      {(isRail || open) && startButton}
 
       {open && (
         <div

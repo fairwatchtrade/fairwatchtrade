@@ -41,8 +41,14 @@ const HEADING =
   "text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--gold-dim)]";
 const LABEL = "text-[12px] uppercase tracking-[0.08em] text-[var(--slate)]";
 const VALUE =
-  "mt-1 font-display text-[16px] font-light text-[var(--platinum)] sm:min-h-[1.5rem]";
-const ROW = "grid-cols-1 gap-y-4 border-[var(--border-faint)] sm:grid-cols-3 sm:gap-x-6";
+  "mt-1 font-display text-[16px] font-light text-[var(--platinum)] [overflow-wrap:anywhere] sm:min-h-[1.5rem]";
+/* Founder target (2026-09-12): a phone reads these two-up. A single column
+   turned eight short facts into eight full-width lines and pushed the
+   reference sheet into a brochure. Short values pair; the wide units below
+   keep the full measure, so a long string is never squeezed into half a
+   phone. Desktop keeps its three-column matrix untouched. */
+const ROW =
+  "grid-cols-2 gap-x-5 gap-y-4 border-[var(--border-faint)] sm:grid-cols-3 sm:gap-x-6";
 const WIDE = "grid-cols-1 border-[var(--border-faint)]";
 
 const isPresent = (slot: SpecSlot) => !slot.reserved && slot.value !== "";
@@ -124,8 +130,12 @@ function Units({ units }: { units: Unit[] }) {
 
 function SectionHeading({ children }: { children: string }) {
   return (
-    <div className="pt-8">
-      <div className="mb-6 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    /* One modest transition on narrow, not another monument: the founder
+       target crosses from the decision cluster into the specifications on a
+       single rule with the heading close beneath it. Desktop spacing is
+       restored at `sm` and is unchanged. */
+    <div className="pt-5 sm:pt-8">
+      <div className="mb-4 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent sm:mb-6" />
       <h2 className={HEADING}>{children}</h2>
     </div>
   );
@@ -159,7 +169,7 @@ export default function ListingSpecs({
     <>
       {/* Narrow/mobile: one specification doorway and one continuous factual
           sequence. Collector Snapshot is not a separate mobile destination. */}
-      <section data-mobile-specifications="" className="mt-8 min-[56rem]:hidden">
+      <section data-mobile-specifications="" className="mt-4 min-[56rem]:hidden sm:mt-8">
         <SectionHeading>Technical Specifications</SectionHeading>
         <Units units={mobileUnits} />
       </section>

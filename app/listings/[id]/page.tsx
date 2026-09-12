@@ -893,8 +893,15 @@ export default async function ListingDetailPage({
               rule beneath it starts gold with meaning and fades into the
               graphite. Absent reference omits the whole signature cleanly. */}
           {(reference || fingerprintLines.length > 0) && (
-            <div className="mt-[22px] max-w-[760px] sm:mt-[27px]">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--gold)]">
+            <div className="mt-2 max-w-[760px] sm:mt-[27px]">
+              {/* Founder target (2026-09-12): on narrow the reference facts
+                  read as part of the identity cluster, directly beneath the
+                  model, so the eyebrow that names them becomes a second band
+                  between the title and the facts it introduces. The reference
+                  number leads the row and is self-evidently the reference, so
+                  the phone drops the label and keeps the fact. Desktop keeps
+                  the eyebrow — it is frozen by this order. */}
+              <span className="mb-2 hidden text-[11px] uppercase tracking-[0.24em] text-[var(--gold)] sm:block">
                 Reference
               </span>
               {/* Founder composition ruling (2026-08-12, delivered in MS
@@ -951,7 +958,7 @@ export default async function ListingDetailPage({
           <FwtListingId
             code={listing.public_code ?? null}
             variant="detail"
-            className="mt-[18px] max-w-[760px] sm:mt-5"
+            className="mt-3 max-w-[760px] sm:mt-5"
           />
           {collectorDossier.state === "ready" && (
             <Link
@@ -987,13 +994,15 @@ export default async function ListingDetailPage({
           )}
           {/* v2.11 — RELOCATED, not duplicated: on desktop this same link
               lives in the rail's Dealer Information card. Identical treatment,
-              one home per viewport. */}
-          <Link
-            href={sellerHref}
-            className="mt-1 inline-block text-[11px] text-[var(--slate)] transition hover:text-[var(--gold)] min-[56rem]:hidden"
-          >
-            Sold by {sellerName} →
-          </Link>
+              one home per viewport.
+
+              2026-09-12 — RELOCATED AGAIN on narrow, still not duplicated.
+              The founder target puts seller relation and the commerce action
+              on ONE row directly beneath the price, so the narrow copy of
+              this link now renders inside the decision cluster that
+              ListingActionRail's `inline` variant composes. It is passed the
+              same sellerHref and sellerName and keeps the same treatment;
+              only its position in the flow moved. Desktop is untouched. */}
 
           {/* Stated by the seller, not certified by the platform: a sentence,
               no chip, no checkmark. The outline mark is decoration only. */}
@@ -1058,6 +1067,7 @@ export default async function ListingDetailPage({
               variant="inline"
               listingId={listing.id}
               sellerId={listing.seller_id}
+              sellerHref={sellerHref}
               sellerName={sellerName}
               priceText={priceText}
               isOwner={isOwner}

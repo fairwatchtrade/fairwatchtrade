@@ -16,9 +16,14 @@ import { askToOpenPurchaseRequest } from "@/lib/purchaseRequestOpen";
 export default function OpenPurchaseRequestButton({
   listingId,
   className,
+  /* The bar's compressed wording is the default so that surface is
+     unchanged. The narrow decision cluster passes the founder target's
+     phrasing; both ask the same in-page form to open. */
+  label = "Make Offer",
 }: {
   listingId: string;
   className?: string;
+  label?: string;
 }) {
   return (
     <button
@@ -26,7 +31,7 @@ export default function OpenPurchaseRequestButton({
       onClick={() => askToOpenPurchaseRequest(listingId)}
       className={className}
     >
-      Make Offer
+      {label}
     </button>
   );
 }

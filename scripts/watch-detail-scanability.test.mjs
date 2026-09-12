@@ -201,9 +201,11 @@ test("facts the matrix does not name are never hidden, and never inside a govern
 test("the renderer lays out the composed geography and nothing else", () => {
   assert.match(specs, /composeWatchDetailGeography\(details, year, condition\)/);
   assert.doesNotMatch(specs, /pushSnap|pushTech|snapshotRows|techRows/);
-  // Every governed row is its own three-column grid: a gap in one row can
-  // never be filled by the next row's first fact.
-  assert.match(specs, /const ROW = "grid-cols-1 [^"]*sm:grid-cols-3/);
+  // Every governed row is its own grid: a gap in one row can never be
+  // filled by the next row's first fact. Three columns on desktop; two on a
+  // phone since the founder's narrow target of 2026-09-12, which is why this
+  // no longer pins `grid-cols-1` at the narrow end.
+  assert.match(specs, /const ROW =\s*\n?\s*"grid-cols-2 [^"]*sm:grid-cols-3/);
   assert.match(specs, /<dl key=\{unit\.key\} className=\{className\}>/);
   // Wide rows exist for the long facts.
   assert.match(specs, /const WIDE = "grid-cols-1 /);

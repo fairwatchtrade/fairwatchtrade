@@ -55,16 +55,35 @@ test("mobile gets an in-image position cue and no persistent resting thumbnails"
   assert.match(gallery, /<InspectionPhotoRail/);
 });
 
-test("the mobile Drawer pull is shorter and names its existing purpose", () => {
+/* Founder narrow target, 2026-09-12. The named tab this test used to pin —
+   64px wide, bordered, shadowed, carrying the visible word "Drawer" — read
+   as a floating mini-card competing with the identity block beneath it. The
+   target returns the doorway to a mark. The word does not disappear from the
+   product, it moves entirely into the accessible name, which is why the
+   aria-label assertion below is now load-bearing rather than incidental. */
+test("the mobile Drawer pull is a quiet mark whose name survives for assistive users", () => {
   const opener = /<button\s+type="button"\s+data-mobile-drawer-opener=""[\s\S]*?<\/button>/.exec(drawer)?.[0];
   assert.ok(opener, "mobile Drawer opener");
-  assert.match(opener, /h-\[44px\] w-\[64px\]/);
+  assert.match(opener, /h-\[44px\] w-\[38px\]/);
   assert.match(opener, /bottom-0/, "the 44px tab must occupy the gallery's 44px control lane");
   assert.doesNotMatch(opener, /top-\[calc\(/, "viewport arithmetic must not detach the tab from the rendered stage");
-  assert.match(opener, />\s*Drawer\s*<\/span>/);
-  assert.doesNotMatch(opener, /uppercase|tracking-\[0\.08em\]/, "the label must fit its 64px tab");
+  assert.doesNotMatch(
+    opener,
+    />\s*Drawer\s*<\/span>/,
+    "the visible noun is gone: the blade alone carries the doorway on narrow",
+  );
+  assert.match(
+    opener,
+    /border-0 bg-transparent/,
+    "no border, fill or shadow — a card here competes with the identity block below",
+  );
+  assert.doesNotMatch(opener, /shadow-\[/, "the tab must not cast a floating-panel shadow");
   assert.match(opener, /h-\[34px\] w-\[17px\] shrink-0/, "the watch-hand mark must not flex-shrink");
-  assert.match(opener, /aria-label=\{expanded \? "Close Collector's Drawer" : "Open Collector's Drawer"\}/);
+  assert.match(
+    opener,
+    /aria-label=\{expanded \? "Close Collector's Drawer" : "Open Collector's Drawer"\}/,
+    "with no visible label this is the ONLY name the control has — never remove it",
+  );
   assert.doesNotMatch(opener, /top-\[calc\(71%\+40px\)\]|h-\[90px\]|h-\[96px\]/);
 });
 
@@ -85,7 +104,10 @@ test("mobile has one normal specification flow while desktop keeps its establish
   assert.ok(mobileStart >= 0 && desktopStart > mobileStart, "complementary specification branches");
 
   const mobile = specs.slice(mobileStart, desktopStart);
-  assert.match(mobile, /className="mt-8 min-\[56rem\]:hidden"/);
+  /* Narrow target 2026-09-12: specifications follow the decision cluster on
+     one modest transition, so the narrow top margin tightened while desktop
+     keeps its original mt-8 at `sm`. */
+  assert.match(mobile, /className="mt-4 min-\[56rem\]:hidden sm:mt-8"/);
   assert.match(mobile, /<SectionHeading>Technical Specifications<\/SectionHeading>/);
   assert.match(mobile, /<Units units=\{mobileUnits\}/);
   assert.doesNotMatch(mobile, /Collector Snapshot/);
