@@ -151,7 +151,7 @@ const MODULE_ITEMS: Array<{ id: ModuleId; label: string; icon: keyof typeof ICON
   /* Wanted Requests — collector demand this seller may answer. Seller
      Workspace owns it by founder ruling; Dealer Room may surface the same
      requests contextually later and is deliberately not a second door. */
-  { id: "wanted", label: "Wanted Requests", icon: "wanted" },
+  { id: "wanted", label: "Collector Demand", icon: "wanted" },
   /* Trade proposals share the offer workspace rather than getting a
      separate Trade dashboard — the packet's ruling. */
   { id: "trades", label: "Trades", icon: "trades" },

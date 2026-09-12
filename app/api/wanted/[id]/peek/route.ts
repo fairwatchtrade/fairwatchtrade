@@ -49,7 +49,7 @@ export async function GET(
     return NextResponse.json({ error: "server_misconfigured", detail: "Unavailable." }, { status: 500 });
   }
 
-  const { data } = await service
+  const { data, error } = await service
     .from("wanted_requests")
     .select(
       "id, requester_id, status, display_identity, brand, model_text, reference_text, min_condition, documentation, must_have, preferred, private_listing_ok"
@@ -57,6 +57,18 @@ export async function GET(
     .eq("id", id)
     .maybeSingle();
 
+  /* LS-4 (2026-09-12): could-not-look is not not-found. This read used to
+     discard its error, so a database failure arrived at the seller as an
+     authoritative "No such request." — the one answer that tells them to
+     stop looking. A failed read is the server's problem and says so; only
+     a SUCCESSFUL read that found nothing may say the request is not there. */
+  if (error) {
+    console.error("[wanted:peek] read failed:", error.message);
+    return NextResponse.json(
+      { error: "read_failed", detail: "This request could not be opened just now. Nothing has changed." },
+      { status: 503 }
+    );
+  }
   if (!data) {
     return NextResponse.json({ error: "not_found", detail: "No such request." }, { status: 404 });
   }

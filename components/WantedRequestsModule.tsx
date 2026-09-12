@@ -2,6 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ACCOUNT_ROOM_BODY } from "@/lib/accountWorkspace/roomGeography";
+import {
+  applyRead,
+  established,
+  provenEmpty,
+  readJson,
+  LOADING,
+  UNAVAILABLE_NOTE,
+  STALE_NOTE,
+  type LoadState,
+} from "@/lib/accountWorkspace/readTruth";
 import {
   BUDGET_FIT_LABELS,
   DOCUMENTATION_LABELS,
@@ -14,7 +25,7 @@ import {
 import { formatMoney } from "@/lib/formatMoney";
 
 /* ════════════════════════════════════════════════════════════════════════
-   WANTED REQUESTS — the Seller Workspace queue
+   COLLECTOR DEMAND — the Seller Workspace queue
 
    Open collector demand a seller may answer, and the three governed ways
    to answer it. Seller Workspace owns this by founder ruling; Dealer Room
@@ -33,6 +44,18 @@ import { formatMoney } from "@/lib/formatMoney";
    Requester. There is deliberately no "message the buyer" — a freeform
    response before a governed listing exists is exactly what Wanted was
    designed to replace, and Communications remains listing-bound.
+
+   ── WANTED IS NOT THIS ROOM (2026-09-12) ───────────────────────────────
+   Wanted is what I want. Collector Demand is what other collectors want
+   that I can answer. The same person does both jobs, which is exactly why
+   the two rooms may not share a name — and why the door below is plain
+   navigation into the collector's own room rather than a second composer
+   grown here. This module never writes a Wanted request.
+
+   ── THE ROOM'S TITLE IS NOT HERE ───────────────────────────────────────
+   The shared Account workspace header renders it. This file used to render
+   a second heading reading the same words, so the room announced itself
+   twice; that heading is gone and must not come back.
 
    PFC274 = 62 — the evaluate route is untouched.
    ════════════════════════════════════════════════════════════════════════ */
@@ -70,63 +93,94 @@ const quietBtn =
   "fw-compact-control border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
 
 export default function WantedRequestsModule() {
-  const [rows, setRows] = useState<SellerRequest[] | null>(null);
+  /* LS-4 (2026-09-12): the queue used to be `SellerRequest[] | null`, and
+     every failure — a 500 from the projection, a dropped connection — became
+     `[]`, which this room renders as "No open Wanted requests right now." A
+     seller was told nobody wants anything by a network error. The state now
+     carries its own provenance, and a failed refresh keeps the rows it had. */
+  const [queue, setQueue] = useState<LoadState<SellerRequest[]>>(LOADING);
   const [open, setOpen] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  /* Same shape as the collector workspace: the mount effect commits after
-     the await, and answering refreshes through load(). */
-  const fetchRows = useCallback(async (): Promise<SellerRequest[]> => {
-    try {
-      const res = await fetch("/api/wanted/seller");
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data.requests) ? data.requests : [];
-    } catch {
-      return [];
-    }
-  }, []);
+  const fetchRows = useCallback(
+    () =>
+      readJson<SellerRequest[]>("/api/wanted/seller", (body) => {
+        const requests = (body as { requests?: unknown })?.requests;
+        return Array.isArray(requests) ? (requests as SellerRequest[]) : null;
+      }),
+    []
+  );
 
   const load = useCallback(async () => {
-    setRows(await fetchRows());
+    const result = await fetchRows();
+    setQueue((prev) => applyRead(prev, result));
   }, [fetchRows]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const next = await fetchRows();
-      if (!cancelled) setRows(next);
+      const result = await fetchRows();
+      if (!cancelled) setQueue((prev) => applyRead(prev, result));
     })();
     return () => {
       cancelled = true;
     };
   }, [fetchRows]);
 
+  const rows = established(queue);
+
   const [now] = useState(() => Date.now());
 
   return (
-    <div>
-      <div className="mb-4">
-        <h2 className="font-display text-[22px] font-light text-[var(--platinum)]">
-          Wanted Requests
-        </h2>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">
-          Collectors actively looking for a watch. Answer with a listing you already have, a new
-          one, or a private listing made for that collector alone.
+    /* One origin for the whole room — subtitle, note, every state, the queue,
+       the answer panels and the closing privacy line all measure from here,
+       so no line sits against the rail while its own heading does not. */
+    <div className={ACCOUNT_ROOM_BODY}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        {/* The room title lives in the shared workspace header, once. */}
+        <p className="max-w-[650px] text-[12px] leading-[1.55] text-[var(--muted)]">
+          Open requests from collectors you may be able to answer with a listing you already have, a
+          new one, or a private listing made for that collector alone.
         </p>
+        {/* The cross-door: ordinary navigation into the collector's own
+            Wanted room, which owns creation. Secondary by construction — the
+            seller's job in this room is answering, not asking. */}
+        <Link href="/wanted?new=1" className={`${quietBtn} shrink-0`} data-create-wanted-request="">
+          Create Wanted Request
+        </Link>
       </div>
 
       {note && <p className="mb-4 text-[12px] italic text-[var(--gold-subtle)]">{note}</p>}
 
-      {rows === null ? (
+      {queue.phase === "stale" && (
+        <p role="status" className="mb-4 text-[12px] text-[var(--slate)]">
+          {STALE_NOTE}
+        </p>
+      )}
+
+      {queue.phase === "loading" ? (
         <p className="text-[13px] italic text-[var(--muted)]">Loading open requests…</p>
-      ) : rows.length === 0 ? (
+      ) : queue.phase === "unavailable" ? (
+        /* Never the genuine-empty branch: this room has not established that
+           there are no requests, only that it could not ask. */
+        <div
+          className="border border-[var(--border-subtle)] px-4 py-8 text-center"
+          data-queue-unavailable=""
+        >
+          <p role="status" className="text-[13px] text-[var(--slate)]">
+            Collector Demand could not be loaded just now. Nothing has changed.
+          </p>
+          <button type="button" onClick={() => void load()} className={`${quietBtn} mt-3`}>
+            Try again
+          </button>
+        </div>
+      ) : provenEmpty(queue) ? (
         <p className="border border-[var(--border-subtle)] px-4 py-8 text-center text-[13px] italic text-[var(--muted)]">
           No open Wanted requests right now.
         </p>
       ) : (
         <div className="divide-y divide-[var(--border-faint)] border border-[var(--border-subtle)]">
-          {rows.map((r) => (
+          {(rows ?? []).map((r) => (
             <div key={r.id} className="px-4 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -219,7 +273,11 @@ function AnswerPanel({
   request: SellerRequest;
   onAnswered: (message: string) => void;
 }) {
-  const [listings, setListings] = useState<OwnListing[] | null>(null);
+  /* LS-4 (2026-09-12): a failed listings query used to become `[]`, and the
+     panel then told the seller "You have no listings that could answer this
+     yet." — a statement about their own inventory manufactured from an
+     error. The query's error is now read, and an unestablished shelf says so. */
+  const [inventory, setInventory] = useState<LoadState<OwnListing[]>>(LOADING);
   const [selected, setSelected] = useState<string | null>(null);
   const [report, setReport] = useState<CriteriaReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -228,28 +286,29 @@ function AnswerPanel({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let next: { ok: true; data: OwnListing[] } | { ok: false } = { ok: false };
       try {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) {
-          if (!cancelled) setListings([]);
-          return;
+        if (user) {
+          /* The seller's own answerable inventory. Own-row RLS scopes it;
+             the brand filter is convenience, not a boundary. */
+          const { data, error } = await supabase
+            .from("listings")
+            .select("id, public_code, brand, model, reference, status, asking_price, asking_currency")
+            .eq("seller_id", user.id)
+            .in("status", ["draft", "pending_review", "published"])
+            .order("created_at", { ascending: false });
+          /* An error is not an empty shelf. */
+          if (!error) next = { ok: true, data: (data ?? []) as OwnListing[] };
         }
-        /* The seller's own answerable inventory. Own-row RLS scopes it;
-           the brand filter is convenience, not a boundary. */
-        const { data } = await supabase
-          .from("listings")
-          .select("id, public_code, brand, model, reference, status, asking_price, asking_currency")
-          .eq("seller_id", user.id)
-          .in("status", ["draft", "pending_review", "published"])
-          .order("created_at", { ascending: false });
-        if (!cancelled) setListings((data ?? []) as OwnListing[]);
       } catch {
-        if (!cancelled) setListings([]);
+        /* stays a failure */
       }
+      if (!cancelled) setInventory((prev) => applyRead(prev, next));
     })();
     return () => {
       cancelled = true;
@@ -300,6 +359,7 @@ function AnswerPanel({
     }
   }
 
+  const listings = established(inventory);
   const brandMatches = (listings ?? []).filter(
     (l) => l.brand.toLowerCase() === request.brand.toLowerCase()
   );
@@ -314,9 +374,13 @@ function AnswerPanel({
         <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
           Use an existing listing
         </div>
-        {listings === null ? (
+        {inventory.phase === "loading" ? (
           <p className="text-[12px] italic text-[var(--muted)]">Loading your listings…</p>
-        ) : listings.length === 0 ? (
+        ) : inventory.phase === "unavailable" ? (
+          <p role="status" className="text-[12px] text-[var(--slate)]" data-inventory-unavailable="">
+            {UNAVAILABLE_NOTE} Your listings could not be read, so none can be offered here yet.
+          </p>
+        ) : provenEmpty(inventory) ? (
           <p className="text-[12px] text-[var(--muted)]">
             You have no listings that could answer this yet.
           </p>

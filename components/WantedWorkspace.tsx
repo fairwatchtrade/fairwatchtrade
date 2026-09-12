@@ -18,6 +18,16 @@ import {
   type WantedStatus,
 } from "@/lib/wanted";
 import { formatMoney } from "@/lib/formatMoney";
+import {
+  applyConfirmed,
+  applyRead,
+  established,
+  provenEmpty,
+  readJson,
+  LOADING,
+  STALE_NOTE,
+  type LoadState,
+} from "@/lib/accountWorkspace/readTruth";
 
 /* ════════════════════════════════════════════════════════════════════════
    WANTED — the collector's workspace — components/WantedWorkspace.tsx
@@ -143,7 +153,12 @@ const splitCriteria = (s: string): string[] =>
 export default function WantedWorkspace() {
   const params = useSearchParams();
 
-  const [rows, setRows] = useState<WantedRow[] | null>(null);
+  /* LS-4 (2026-09-12): this was `WantedRow[] | null`, and both failure
+     paths returned `[]` — so a failed read told the collector "Nothing
+     declared yet", which is the sentence that means their requests are
+     gone. Provenance now travels with the data: a first failure is
+     unavailable, a later one keeps the rows already on screen. */
+  const [requests, setRequests] = useState<LoadState<WantedRow[]>>(LOADING);
   const [tab, setTab] = useState<"active" | "answered" | "paused" | "closed">("active");
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -166,31 +181,45 @@ export default function WantedWorkspace() {
   /* Fetch and state-set are separate so the mount effect can commit AFTER
      the await (the repo's established async-load shape), while mutations
      still have a one-call refresh. */
-  const fetchRows = useCallback(async (): Promise<WantedRow[]> => {
-    try {
-      const res = await fetch("/api/wanted");
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data.requests) ? data.requests : [];
-    } catch {
-      return [];
-    }
-  }, []);
+  const fetchRows = useCallback(
+    () =>
+      readJson<WantedRow[]>("/api/wanted", (body) => {
+        const list = (body as { requests?: unknown })?.requests;
+        return Array.isArray(list) ? (list as WantedRow[]) : null;
+      }),
+    []
+  );
 
   const load = useCallback(async () => {
-    setRows(await fetchRows());
+    const result = await fetchRows();
+    setRequests((prev) => applyRead(prev, result));
   }, [fetchRows]);
+
+  /* A mutation the server confirmed is truth this room already owns. Merge
+     it first, so that if the refresh underneath then fails, the collector
+     still sees what they were told happened. */
+  const confirm = useCallback((row: WantedRow | null | undefined) => {
+    if (!row?.id) return;
+    setRequests((prev) =>
+      applyConfirmed(prev, (list) => {
+        const seen = list.some((r) => r.id === row.id);
+        return seen ? list.map((r) => (r.id === row.id ? { ...r, ...row } : r)) : [row, ...list];
+      })
+    );
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const next = await fetchRows();
-      if (!cancelled) setRows(next);
+      const result = await fetchRows();
+      if (!cancelled) setRequests((prev) => applyRead(prev, result));
     })();
     return () => {
       cancelled = true;
     };
   }, [fetchRows]);
+
+  const rows = established(requests);
 
   const [now] = useState(() => Date.now());
 
@@ -259,6 +288,7 @@ export default function WantedWorkspace() {
       setEditingId(null);
       setDraft({ ...EMPTY_DRAFT });
       setNote(activate ? "Your request is live. Eligible sellers can answer it." : "Saved as a draft.");
+      confirm(data?.request as WantedRow | undefined);
       await load();
     } catch {
       setNote("Network error — nothing was saved.");
@@ -278,7 +308,10 @@ export default function WantedWorkspace() {
       });
       const data = await res.json();
       if (!res.ok) setNote(data?.detail ?? "That did not work.");
-      else await load();
+      else {
+        confirm(data?.request as WantedRow | undefined);
+        await load();
+      }
     } catch {
       setNote("Network error.");
     } finally {
@@ -575,12 +608,38 @@ export default function WantedWorkspace() {
         ))}
       </div>
 
-      {rows === null ? (
+      {requests.phase === "stale" && (
+        <p role="status" className="mb-4 text-[12px] text-[var(--slate)]">
+          {STALE_NOTE}
+        </p>
+      )}
+
+      {requests.phase === "loading" ? (
         <p className="text-[13px] italic text-[var(--muted)]">Loading your requests…</p>
+      ) : requests.phase === "unavailable" ? (
+        /* Not the empty state. This room has not established that the
+           collector declared nothing — only that it could not read. */
+        <div
+          className="border border-[var(--border-subtle)] px-4 py-8 text-center"
+          data-requests-unavailable=""
+        >
+          <p role="status" className="text-[13px] text-[var(--slate)]">
+            Your requests could not be loaded just now. Nothing has changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className={`${quietBtn} mt-3`}
+          >
+            Try again
+          </button>
+        </div>
       ) : visible.length === 0 ? (
         <p className="border border-[var(--border-subtle)] px-4 py-8 text-center text-[13px] italic text-[var(--muted)]">
           {tab === "active"
-            ? "Nothing declared yet. Tell FairWatchTrade what you are hunting for."
+            ? provenEmpty(requests)
+              ? "Nothing declared yet. Tell FairWatchTrade what you are hunting for."
+              : "Nothing in this view."
             : `No ${tab} requests.`}
         </p>
       ) : (

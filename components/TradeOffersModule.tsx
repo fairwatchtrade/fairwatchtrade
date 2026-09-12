@@ -6,6 +6,7 @@ import {
   DEAL_STATUS_LABELS,
   LEG_STATUS_LABELS,
   TRADE_STATUS_LABELS,
+  archiveEligibility,
   dealNextStep,
   tradeSummary,
   watchIdentity,
@@ -15,6 +16,15 @@ import {
   type TradeStatus,
 } from "@/lib/trade";
 import { formatMoney } from "@/lib/formatMoney";
+import { ACCOUNT_ROOM_BODY } from "@/lib/accountWorkspace/roomGeography";
+import {
+  applyRead,
+  established,
+  readJson,
+  LOADING,
+  STALE_NOTE,
+  type LoadState,
+} from "@/lib/accountWorkspace/readTruth";
 
 /* ════════════════════════════════════════════════════════════════════════
    TRADES — the editorial exchange record — components/TradeOffersModule.tsx
@@ -35,6 +45,24 @@ import { formatMoney } from "@/lib/formatMoney";
    The page title lives ONCE in the shared workspace header (AccountDashboard
    renders the "Trades" h2). This module owns the locked subtitle and the
    records — never a second title.
+
+   ── ONE CONTENT ORIGIN (2026-09-12) ────────────────────────────────────
+   The subtitle used to start at the pane's own edge while every record was
+   pushed to `md:ml-[30px]`, so the room's sentence and the records it
+   introduces disagreed about where the room begins — and on desktop the
+   first letter sat against the Account rail. Both now root on
+   ACCOUNT_ROOM_BODY, the shared header's own inset. No typography changed:
+   the LS1 recipes this file consumes are untouched.
+
+   ── ARCHIVE IS A VIEW, NOT A STATE OF THE TRADE (2026-09-12) ───────────
+   Active and Archived are two readings of the same room. Archiving is one
+   person's private decision to stop looking at a finished exchange; it
+   writes nothing to the trade, the deal, the legs, the transfer events or
+   the cash, and the counterparty cannot see that it happened. Eligibility
+   is recomputed from live status on every read and again inside the
+   database on every write, so a trade that becomes active again leaves
+   Archived on its own — see lib/trade.archiveEligibility and the
+   trade_archive_preferences migration.
 
    Colour comes from the app's theme-aware tokens, not any static mock's literal
    paper palette, so the record reads correctly in both light and dark.
@@ -113,83 +141,111 @@ function exchangeSides(o: OfferRow, viewer: "proposer" | "recipient") {
     : { receive: offered, give: target };
 }
 
+type Workspace = {
+  offers: OfferRow[];
+  viewerId: string | null;
+  counterpartNames: Record<string, string | null>;
+  deals: Record<string, DealRow>;
+  /** False when the deal read FAILED — not when there are no deals. */
+  dealsOk: boolean;
+  archived: Array<{ kind: "deal" | "offer"; id: string }>;
+  /** False when the archive-preference read FAILED. */
+  archiveOk: boolean;
+};
+
 export default function TradeOffersModule() {
-  const [offers, setOffers] = useState<OfferRow[] | null>(null);
-  const [deals, setDeals] = useState<Record<string, DealRow>>({});
-  const [viewerId, setViewerId] = useState<string | null>(null);
-  /* Counterpart display names by user id — the sanctioned public names the
-     route resolves beside the offers. Read-only presentation state. */
-  const [counterpartNames, setCounterpartNames] = useState<Record<string, string | null>>({});
+  /* LS-4 (2026-09-12). Three separate lies used to live in this component:
+     a failed offers fetch returned `[]` and rendered "No trade proposals
+     yet"; a failed deal query returned `{}`, which is indistinguishable
+     from "this offer has no deal", so an accepted exchange was DOWNGRADED
+     to an ordinary pending offer by a network error; and there was no
+     archive read at all. All three now arrive from one route that reports
+     what it managed to establish, and this room says so rather than
+     inventing the parts it does not have. */
+  const [workspace, setWorkspace] = useState<LoadState<Workspace>>(LOADING);
+  const [view, setView] = useState<"active" | "archived">("active");
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const fetchOffers = useCallback(async (): Promise<{
-    offers: OfferRow[];
-    viewerId: string | null;
-    counterpartNames: Record<string, string | null>;
-  }> => {
-    try {
-      const res = await fetch("/api/trade-offers");
-      if (!res.ok) return { offers: [], viewerId: null, counterpartNames: {} };
-      const data = await res.json();
-      return {
-        offers: Array.isArray(data.offers) ? data.offers : [],
-        viewerId: typeof data.viewerId === "string" ? data.viewerId : null,
-        counterpartNames:
-          data.counterpartNames && typeof data.counterpartNames === "object"
-            ? data.counterpartNames
-            : {},
-      };
-    } catch {
-      return { offers: [], viewerId: null, counterpartNames: {} };
-    }
-  }, []);
-
-  const fetchDeals = useCallback(async (): Promise<Record<string, DealRow>> => {
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      /* RLS scopes both to the two parties. The legs are the per-watch
-         truth; the deal is the agreement they belong to. */
-      const { data } = await supabase
-        .from("trade_deals")
-        .select(
-          "id, trade_offer_id, status, cash_direction, cash_amount, cash_currency, trade_deal_legs ( id, listing_id, from_user_id, to_user_id, leg_status, listing_brand, listing_model, listing_reference, listing_public_code )"
-        );
-      const out: Record<string, DealRow> = {};
-      for (const d of (data ?? []) as unknown as (DealRow & {
-        trade_deal_legs: DealRow["legs"];
-      })[]) {
-        out[d.trade_offer_id] = { ...d, legs: d.trade_deal_legs ?? [] };
-      }
-      return out;
-    } catch {
-      return {};
-    }
-  }, []);
+  const fetchWorkspace = useCallback(
+    () =>
+      readJson<Workspace>("/api/trade-offers", (body) => {
+        const b = body as Partial<Workspace> | null;
+        if (!b || !Array.isArray(b.offers)) return null;
+        return {
+          offers: b.offers as OfferRow[],
+          viewerId: typeof b.viewerId === "string" ? b.viewerId : null,
+          counterpartNames:
+            b.counterpartNames && typeof b.counterpartNames === "object" ? b.counterpartNames : {},
+          deals: (b.deals && typeof b.deals === "object" ? b.deals : {}) as Record<string, DealRow>,
+          dealsOk: b.dealsOk !== false,
+          archived: Array.isArray(b.archived) ? b.archived : [],
+          archiveOk: b.archiveOk !== false,
+        };
+      }),
+    []
+  );
 
   const load = useCallback(async () => {
-    const [o, d] = await Promise.all([fetchOffers(), fetchDeals()]);
-    setOffers(o.offers);
-    setViewerId(o.viewerId);
-    setCounterpartNames(o.counterpartNames);
-    setDeals(d);
-  }, [fetchOffers, fetchDeals]);
+    const result = await fetchWorkspace();
+    setWorkspace((prev) => applyRead(prev, result));
+  }, [fetchWorkspace]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [o, d] = await Promise.all([fetchOffers(), fetchDeals()]);
-      if (cancelled) return;
-      setOffers(o.offers);
-      setViewerId(o.viewerId);
-      setCounterpartNames(o.counterpartNames);
-      setDeals(d);
+      const result = await fetchWorkspace();
+      if (!cancelled) setWorkspace((prev) => applyRead(prev, result));
     })();
     return () => {
       cancelled = true;
     };
-  }, [fetchOffers, fetchDeals]);
+  }, [fetchWorkspace]);
+
+  const data = established(workspace);
+  const offers = data?.offers ?? null;
+  const deals = data?.deals ?? {};
+  const viewerId = data?.viewerId ?? null;
+  const counterpartNames = data?.counterpartNames ?? {};
+  const dealsOk = data?.dealsOk ?? true;
+  const archiveOk = data?.archiveOk ?? true;
+  const archivedKeys = new Set((data?.archived ?? []).map((a) => `${a.kind}:${a.id}`));
+
+  /* Archive or restore one record. The browser sends which record and which
+     intent; participation and eligibility are the database's to decide. A
+     confirmed mutation is merged optimistically so a failing refresh cannot
+     visually undo it, then the refresh reconciles. */
+  async function setArchived(kind: "deal" | "offer", id: string, archived: boolean) {
+    const key = `${kind}:${id}`;
+    setBusy(key);
+    setNote(null);
+    try {
+      const res = await fetch("/api/trades/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordKind: kind, recordId: id, archived }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNote(body?.detail ?? "That could not be saved just now.");
+        return;
+      }
+      setWorkspace((prev) => {
+        const current = established(prev);
+        if (!current || prev.phase === "loading" || prev.phase === "unavailable") return prev;
+        const next = archived
+          ? [...current.archived.filter((a) => `${a.kind}:${a.id}` !== key), { kind, id }]
+          : current.archived.filter((a) => `${a.kind}:${a.id}` !== key);
+        return { phase: prev.phase, data: { ...current, archived: next } };
+      });
+      setNote(archived ? "Filed in Archived. Only you see this." : "Restored to Active.");
+      await load();
+    } catch {
+      setNote("Network error — nothing changed.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   /* ── THE ACTS ────────────────────────────────────────────────────────
      Both reload from the server rather than patching local state. leg_status
@@ -293,26 +349,121 @@ export default function TradeOffersModule() {
     }
   }
 
+  /* Which records belong to the view on screen. Eligibility is live truth
+     recomputed here on every render, so a record that stopped being
+     finished is in Active again without anyone clearing a flag. */
+  const archivedNow = (o: OfferRow) => {
+    const deal = deals[o.id];
+    const key = deal ? `deal:${deal.id}` : `offer:${o.id}`;
+    if (!archivedKeys.has(key)) return false;
+    /* TWO independent guards, and the second is the load-bearing one.
+       The route already retires a preference whose stored generation no
+       longer matches the record. This adds the rule from the other side:
+       Archived shows only records that are CURRENTLY eligible. A deal that
+       went back to settling is actionable, and actionable truth may never
+       sit in a view the collector is not looking at — so it returns to
+       Active whatever any stored preference says. */
+    if (!dealsOk) return false;
+    return archiveEligibility({ dealStatus: deal?.status ?? null, offerStatus: o.status }).eligible;
+  };
+
+  const inView = (offers ?? []).filter((o) => {
+    if (!archiveOk) return true; // cannot classify — see the banner below
+    return view === "archived" ? archivedNow(o) : !archivedNow(o);
+  });
+
   return (
-    <div>
+    /* ONE origin for the room: subtitle, controls, states and records. */
+    <div className={ACCOUNT_ROOM_BODY}>
       {/* Locked founder subtitle (§3) — the single page title lives in the
           shared workspace header, never repeated here. */}
       <p className="max-w-[650px] text-[12px] leading-[1.55] text-[var(--muted)]">
         Looking to trade for another watch—cash can be added to balance the deal.
       </p>
 
+      {/* Active / Archived — a view of this room, not a second room, and
+          never a rail door. Hidden while there is nothing to divide. */}
+      {offers !== null && offers.length > 0 && archiveOk && (
+        <div className="mt-4 flex gap-2" role="tablist" aria-label="Trade views">
+          {(["active", "archived"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              data-trade-view={v}
+              className={`fw-compact-control border px-3 py-1.5 uppercase transition-colors ${
+                view === v
+                  ? "border-[var(--border-gold)] text-[var(--gold)]"
+                  : "border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
+              }`}
+            >
+              {v === "active" ? "Active" : "Archived"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {note && (
         <p className="mt-4 text-[12px] italic text-[var(--gold-subtle)]">{note}</p>
       )}
 
-      {offers === null ? (
+      {workspace.phase === "stale" && (
+        <p role="status" className="mt-4 text-[12px] text-[var(--slate)]">
+          {STALE_NOTE}
+        </p>
+      )}
+
+      {/* Archive truth could not be established. Rather than sort records
+          into two views it cannot justify, the room shows them all and says
+          why — classifying on a failed read would hide a finished trade in
+          a view the collector never chose, or claim Archived is empty. */}
+      {offers !== null && !archiveOk && (
+        <p role="status" className="mt-4 text-[12px] text-[var(--slate)]" data-archive-unavailable="">
+          Your Active and Archived views could not be established just now, so every trade is shown
+          together. Nothing has been archived or restored.
+        </p>
+      )}
+
+      {/* Deal truth could not be established. The offers are real and are
+          shown; what the room will not do is call an accepted exchange an
+          ordinary proposal because the deal read failed. */}
+      {offers !== null && !dealsOk && (
+        <p role="status" className="mt-4 text-[12px] text-[var(--slate)]" data-deals-unavailable="">
+          Current trade state could not be established just now. The exchanges below are real; their
+          progress and the actions that depend on it are unavailable until this can be read.
+        </p>
+      )}
+
+      {workspace.phase === "loading" ? (
         <p className="mt-10 text-[13px] italic text-[var(--muted)]">Loading trades…</p>
-      ) : offers.length === 0 ? (
-        <p className="mt-10 max-w-[840px] border-t border-[var(--border-faint)] px-1 py-10 text-[13px] italic text-[var(--muted)] md:ml-[30px]">
+      ) : workspace.phase === "unavailable" ? (
+        <div
+          className="mt-10 max-w-[840px] border-t border-[var(--border-faint)] py-10"
+          data-trades-unavailable=""
+        >
+          <p role="status" className="text-[13px] text-[var(--slate)]">
+            Your trades could not be loaded just now. Nothing has changed.
+          </p>
+          <button type="button" onClick={() => void load()} className={`${quietBtn} mt-3`}>
+            Try again
+          </button>
+        </div>
+      ) : (offers ?? []).length === 0 ? (
+        /* Reachable only from an ESTABLISHED read: loading and unavailable
+           are handled above, so zero here was proven, never assumed. */
+        <p className="mt-10 max-w-[840px] border-t border-[var(--border-faint)] py-10 text-[13px] italic text-[var(--muted)]">
           No trade proposals yet.
         </p>
+      ) : inView.length === 0 ? (
+        <p className="mt-10 max-w-[840px] border-t border-[var(--border-faint)] py-10 text-[13px] italic text-[var(--muted)]">
+          {view === "archived"
+            ? "Nothing archived yet. A finished trade stays in Active until you file it here."
+            : "Nothing active. Your finished trades are in Archived."}
+        </p>
       ) : (
-        offers.map((o) => {
+        inView.map((o) => {
           const viewer = viewerId === o.proposer_id ? "proposer" : "recipient";
           /* Founder ruling: counterparty identity is profiles.display_name
              through the sanctioned public view, or NOTHING. A null or blank
@@ -352,20 +503,42 @@ export default function TradeOffersModule() {
              does. The history line is the already-shipped truthful next-step
              for a deal, and the plain outcome for a resolved offer — never a
              manufactured phrase. */
+          /* When the deal read FAILED we do not know whether this offer has
+             a deal, so we may not fall through to the offer's own lifecycle:
+             that is the downgrade LS-4 found. An accepted offer with
+             unavailable deal truth says so instead. */
+          const dealTruthMissing = !dealsOk && o.status === "accepted" && !deal;
           const currentState = deal
             ? DEAL_STATUS_LABELS[deal.status]
-            : TRADE_STATUS_LABELS[o.status];
+            : dealTruthMissing
+              ? "Trade state unavailable"
+              : TRADE_STATUS_LABELS[o.status];
           const historyLine = deal
             ? dealNextStep(deal.status)
-            : o.status === "pending"
-              ? "Awaiting a response"
-              : null;
+            : dealTruthMissing
+              ? "This exchange was accepted. Its current state could not be read just now."
+              : o.status === "pending"
+                ? "Awaiting a response"
+                : null;
           const showExplainer = o.status === "pending" || Boolean(deal);
+
+          /* Archive eligibility: the deal governs wherever one exists, the
+             offer only when none does, and leg status never — the helper
+             does not accept legs at all. Unknown deal truth means unknown
+             eligibility, so no control is offered. */
+          const eligibility = dealsOk
+            ? archiveEligibility({ dealStatus: deal?.status ?? null, offerStatus: o.status })
+            : null;
+          const archiveKind: "deal" | "offer" = deal ? "deal" : "offer";
+          const archiveId = deal ? deal.id : o.id;
+          const archiveKey = `${archiveKind}:${archiveId}`;
+          const isArchived = archivedNow(o);
+          const canArchive = archiveOk && !!eligibility?.eligible;
 
           return (
             <section
               key={o.id}
-              className="mt-10 max-w-[840px] px-1 md:ml-[30px]"
+              className="mt-10 max-w-[840px]"
               aria-label="Trade record"
             >
               {/* ── Lifecycle header ── */}
@@ -495,8 +668,9 @@ export default function TradeOffersModule() {
                 </div>
               )}
 
-              {/* ── Transfer record — the aligned per-watch ledger ── */}
-              {deal && (
+              {/* ── Transfer record — the aligned per-watch ledger. Rendered
+                   only from established deal truth; never guessed. ── */}
+              {deal && dealsOk && (
                 <div className="pt-7">
                   <h3 className="font-display text-[18px] font-light text-[var(--platinum)]">
                     Transfer record
@@ -614,6 +788,28 @@ export default function TradeOffersModule() {
                         Cancel trade
                       </button>
                     )}
+                </div>
+              )}
+
+              {/* ── Archive / Restore — quiet, and only where the record is
+                   genuinely finished. Filing changes nothing about the trade
+                   and the other party never learns of it. ── */}
+              {canArchive && (
+                <div className="flex flex-wrap items-center gap-3 pt-5">
+                  <button
+                    type="button"
+                    disabled={busy === archiveKey}
+                    onClick={() => setArchived(archiveKind, archiveId, !isArchived)}
+                    className={quietBtn}
+                    data-archive-control={isArchived ? "restore" : "archive"}
+                  >
+                    {busy === archiveKey ? "Working…" : isArchived ? "Restore" : "Archive"}
+                  </button>
+                  <span className="text-[11px] text-[var(--muted)]">
+                    {isArchived
+                      ? "Only you filed this away. Restoring returns it to Active."
+                      : "Files this out of your Active view. Private to you; the trade itself is unchanged."}
+                  </span>
                 </div>
               )}
 

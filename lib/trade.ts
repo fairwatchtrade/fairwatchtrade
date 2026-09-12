@@ -233,3 +233,49 @@ export function dealNextStep(status: DealStatus): string {
       return "This trade was cancelled.";
   }
 }
+
+/* ── ARCHIVE ELIGIBILITY — who owns "is this finished?" ──────────────────
+   (Account Workspace archive, 2026-09-12)
+
+   THE MISCONCEPTION THIS BLOCK EXISTS TO KILL:
+
+     "A trade is finished when its watches have moved."
+
+   A leg is a watch in motion. The DEAL is the agreement, and only the
+   agreement can be over. A trade whose two legs both read `transferred`
+   is still `settling` until the deal itself says otherwise, and archiving
+   it on leg evidence would file away something the collector still has to
+   act on. So leg status is not an input here — it is not a parameter this
+   function accepts, which is the strongest way to say it never governs.
+
+   Where a deal exists the deal governs, even when the offer still says
+   `accepted`: an accepted offer whose deal was cancelled is finished, and
+   the offer's own word is stale by construction. Where no deal was ever
+   struck, the offer is the only lifecycle there is.
+
+   Archive is a view preference; eligibility is live truth. Both the
+   read path and the mutation recompute it from current status every
+   time, so a record that becomes active again stops being archivable
+   the moment it does. */
+
+export const ARCHIVABLE_DEAL_STATUSES: readonly DealStatus[] = ["completed", "cancelled"];
+export const ARCHIVABLE_OFFER_STATUSES: readonly TradeStatus[] = ["declined", "superseded", "withdrawn"];
+
+export type ArchiveEligibility = {
+  eligible: boolean;
+  /** Which lifecycle answered. Never "leg". */
+  governedBy: "deal" | "offer";
+};
+
+export function archiveEligibility(input: {
+  dealStatus: DealStatus | null | undefined;
+  offerStatus: TradeStatus | null | undefined;
+}): ArchiveEligibility {
+  if (input.dealStatus) {
+    return { eligible: ARCHIVABLE_DEAL_STATUSES.includes(input.dealStatus), governedBy: "deal" };
+  }
+  return {
+    eligible: !!input.offerStatus && ARCHIVABLE_OFFER_STATUSES.includes(input.offerStatus),
+    governedBy: "offer",
+  };
+}

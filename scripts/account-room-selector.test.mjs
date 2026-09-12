@@ -73,7 +73,10 @@ ok("current-room word keeps the display serif ink",
 
 /* ── 5 · destinations + truth unchanged ── */
 {
-  const rooms = ["Overview","Listings","Trades","Messages","Saved","Wanted","Dealer","Settings"];
+  /* "Wanted" became "Collector Demand" (2026-09-12): the collector's own
+     Wanted room lives in the Catalogue family, and the one control that
+     says which Account room you are in may not borrow its name. */
+  const rooms = ["Overview","Listings","Trades","Messages","Saved","Collector Demand","Dealer","Settings"];
   ok("all eight real Account rooms, in the select's original order",
     rooms.every((r) => src.includes(`label: "${r}"`)) &&
       rooms.map((r) => src.indexOf(`label: "${r}"`)).every((v, i, a) => i === 0 || v > a[i - 1]));

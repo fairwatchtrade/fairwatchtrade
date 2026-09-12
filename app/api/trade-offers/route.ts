@@ -87,8 +87,72 @@ export async function GET() {
     );
   }
 
+  /* ── Deals, archive preferences, and their PROVENANCE (LS-4, 2026-09-12) ──
+     These two reads used to happen in the browser, where a failure became
+     `{}` — and `{}` is indistinguishable from "this trade has no deal". An
+     accepted exchange then rendered as an ordinary pending offer, which is
+     a downgrade of commercial state produced by a network error.
+
+     They move here so each can report whether it SUCCEEDED, separately from
+     the offers read that already reports its own. The client renders three
+     different things from those flags, and never guesses the third. */
+  const offerIds = offers.map((o) => o.id as string);
+
+  let dealsOk = true;
+  const deals: Record<string, unknown> = {};
+  if (offerIds.length > 0) {
+    const { data: dealRows, error: dealErr } = await supabase
+      .from("trade_deals")
+      .select(
+        "id, trade_offer_id, status, updated_at, cash_direction, cash_amount, cash_currency, trade_deal_legs ( id, listing_id, from_user_id, to_user_id, leg_status, listing_brand, listing_model, listing_reference, listing_public_code )"
+      )
+      .in("trade_offer_id", offerIds);
+    if (dealErr) {
+      console.error("[trade-offers] deal read failed:", dealErr.message);
+      dealsOk = false;
+    } else {
+      for (const d of (dealRows ?? []) as Array<Record<string, unknown>>) {
+        const legs = (d.trade_deal_legs as unknown[]) ?? [];
+        deals[d.trade_offer_id as string] = { ...d, legs };
+      }
+    }
+  }
+
+  /* An archive preference APPLIES only while the record still carries the
+     generation it was archived at. The comparison lives here, once, beside
+     the rows it judges: a deal retracted back to settling, or completed a
+     second time, moves updated_at and the old preference silently retires —
+     the record returns to Active and the collector may archive it again. */
+  let archiveOk = true;
+  const archived: Array<{ kind: "deal" | "offer"; id: string }> = [];
+  {
+    const { data: prefs, error: prefErr } = await supabase
+      .from("trade_archive_preferences")
+      .select("record_kind, record_id, record_updated_at");
+    if (prefErr) {
+      console.error("[trade-offers] archive preference read failed:", prefErr.message);
+      archiveOk = false;
+    } else {
+      const generation = new Map<string, string>();
+      for (const o of offers) generation.set(`offer:${o.id}`, String(o.updated_at ?? ""));
+      for (const d of Object.values(deals) as Array<Record<string, unknown>>) {
+        generation.set(`deal:${d.id as string}`, String(d.updated_at ?? ""));
+      }
+      for (const p of (prefs ?? []) as Array<{ record_kind: string; record_id: string; record_updated_at: string }>) {
+        const key = `${p.record_kind}:${p.record_id}`;
+        const current = generation.get(key);
+        /* A preference whose record this reader cannot see at all is not
+           dropped silently — it simply has no row to hide, so it is moot. */
+        if (current === undefined) continue;
+        if (new Date(current).getTime() === new Date(p.record_updated_at).getTime()) {
+          archived.push({ kind: p.record_kind as "deal" | "offer", id: p.record_id });
+        }
+      }
+    }
+  }
+
   return NextResponse.json(
-    { offers, viewerId: user.id, counterpartNames },
+    { offers, viewerId: user.id, counterpartNames, deals, dealsOk, archived, archiveOk },
     { status: 200 }
   );
 }

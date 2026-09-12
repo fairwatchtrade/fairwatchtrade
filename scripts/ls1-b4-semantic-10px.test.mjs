@@ -245,7 +245,10 @@ const EXPECTED_FILE_TOTALS = {
   "components/PurchaseRequestForm.tsx": [2, 6, 0, 2, 0, 0],
   "components/SavedSearchesCard.tsx": [1, 0, 0, 0, 1, 0],
   "components/TradeDoorway.tsx": [0, 0, 1, 0, 0, 0],
-  "components/TradeOffersModule.tsx": [0, 0, 8, 0, 1, 0],
+  /* +1 fw-compact-control (2026-09-12): the Active / Archived view tabs
+     bind to the existing recipe rather than declaring their own size — the
+     same treatment WantedWorkspace's status tabs already use. */
+  "components/TradeOffersModule.tsx": [0, 0, 8, 0, 2, 0],
   "components/WantedRequestsModule.tsx": [0, 0, 1, 7, 1, 0],
   "components/WantedWorkspace.tsx": [0, 0, 1, 8, 3, 0],
   "components/AccountRoomSelector.tsx": [0, 0, 0, 0, 1, 0],
