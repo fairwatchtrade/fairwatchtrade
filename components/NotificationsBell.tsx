@@ -165,7 +165,7 @@ export default function NotificationsBell({
               <button
                 type="button"
                 onClick={markAllRead}
-                className="text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)] transition-colors hover:text-[var(--gold)]"
+                className="text-[11px] uppercase tracking-[2px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
               >
                 Mark all read
               </button>

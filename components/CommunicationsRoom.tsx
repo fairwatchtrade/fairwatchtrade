@@ -957,7 +957,7 @@ export default function CommunicationsRoom({
                     />
                   )}
                   <div className="min-w-0">
-                    <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                    <div className="text-[11px] uppercase tracking-[1.6px] text-[var(--comms-semantic)]">
                       {selected.kind === "request" ? "Purchase Request" : "Message"}
                     </div>
                     <h3 className="mt-[2px] truncate font-display text-[18px] font-light text-[var(--platinum)]">
@@ -990,7 +990,7 @@ export default function CommunicationsRoom({
                         type="button"
                         onClick={() => threadStateAction(paneThread.id, "mark_unread")}
                         disabled={toolBusy}
-                        className="border border-[var(--border-faint)] px-2.5 py-1.5 text-[11px] uppercase tracking-[1.2px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)] disabled:opacity-40"
+                        className="border border-[var(--border-faint)] px-2.5 py-1.5 text-[11px] uppercase tracking-[1.2px] text-[var(--comms-semantic)] transition hover:text-[var(--gold)] disabled:opacity-40"
                       >
                         Mark Unread
                       </button>
@@ -1025,7 +1025,7 @@ export default function CommunicationsRoom({
                   </span>
                   <Link
                     href={`/sell?privateThread=${paneThread.id}`}
-                    className="border border-[var(--border-gold)] px-2.5 py-1 text-[11px] uppercase tracking-[1.3px] text-[var(--gold-subtle)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--gold)]"
+                    className="border border-[var(--border-gold)] px-2.5 py-1 text-[11px] uppercase tracking-[1.3px] text-[var(--muted)] transition hover:bg-[var(--gold-whisper)] hover:text-[var(--gold)]"
                   >
                     Create Private Listing for This Buyer
                   </Link>
@@ -1259,7 +1259,7 @@ export default function CommunicationsRoom({
                         <div className="mb-1 flex items-baseline justify-between gap-4">
                           <span
                             className={`text-[11px] uppercase tracking-[1.5px] ${
-                              m.isMine ? "text-[var(--gold-subtle)]" : "text-[var(--slate)]"
+                              m.isMine ? "text-[var(--comms-semantic)]" : "text-[var(--slate)]"
                             }`}
                           >
                             {m.isMine ? "You" : m.senderName}

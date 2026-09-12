@@ -2314,7 +2314,7 @@ function CurationStep({
           </div>
 
           {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
-            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--gold-subtle)]">
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--slate)]">
               <span className="border border-[var(--border-gold)] px-1.5 py-0.5 text-[11px] uppercase tracking-[1.2px]">
                 Recommended
               </span>
@@ -2397,7 +2397,7 @@ function CurationStep({
                   </p>
                 )}
                 {admission?.[c.key] === false && c.stopsWhenFalse === false && (
-                  <p className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--gold-subtle)]">
+                  <p className="mt-2 border-l-2 border-[var(--border-gold)] pl-3 text-[12px] leading-[1.6] text-[var(--slate)]">
                     No original papers — this reference is authorized for
                     the identity-evidence path below instead.
                   </p>

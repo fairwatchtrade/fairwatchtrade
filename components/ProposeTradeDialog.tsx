@@ -166,7 +166,7 @@ export default function ProposeTradeDialog({
   return (
     <div className="border border-[var(--border-gold)] p-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+        <div className="text-[11px] uppercase tracking-[3px] text-[var(--slate)]">
           Propose a trade
         </div>
         <button type="button" onClick={onClose} className="fw-compact-control uppercase text-[var(--slate)] hover:text-[var(--platinum)]">

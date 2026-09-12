@@ -368,7 +368,7 @@ export default function ListingCorrespondence({
              thread exists or after the bar opens it. ── */}
       {eligible && open && (
         <section ref={sectionRef} id="correspondence" className="mt-8 scroll-mt-32">
-          <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
+          <div className="border-t border-[var(--border-faint)] pt-6 text-[11px] uppercase tracking-[1.4px] text-[var(--slate)]">
             Correspondence
           </div>
 
@@ -398,7 +398,7 @@ export default function ListingCorrespondence({
                     <div className="mb-1 flex items-baseline justify-between">
                       <span
                         className={`text-[11px] uppercase tracking-[1.5px] ${
-                          m.isMine ? "text-[var(--gold-subtle)]" : "text-[var(--slate)]"
+                          m.isMine ? "text-[var(--slate)]" : "text-[var(--slate)]"
                         }`}
                       >
                         {m.isMine ? "You" : m.senderName}

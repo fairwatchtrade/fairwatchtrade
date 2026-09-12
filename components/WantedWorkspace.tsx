@@ -404,7 +404,7 @@ export default function WantedWorkspace() {
       {/* ── composer: identity → criteria → how sellers may answer ── */}
       {composing && (
         <section className="mb-8 border border-[var(--border-subtle)] p-4">
-          <div className="mb-4 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mb-4 text-[11px] uppercase tracking-[3px] text-[var(--slate)]">
             {editingId ? "Edit request" : "Identity first"}
           </div>
 
@@ -443,7 +443,7 @@ export default function WantedWorkspace() {
             </p>
           )}
 
-          <div className="mt-6 mb-3 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mt-6 mb-3 text-[11px] uppercase tracking-[3px] text-[var(--slate)]">
             What matters
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -525,7 +525,7 @@ export default function WantedWorkspace() {
             </div>
           </div>
 
-          <div className="mt-6 mb-3 text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <div className="mt-6 mb-3 text-[11px] uppercase tracking-[3px] text-[var(--slate)]">
             How sellers may answer
           </div>
           <label className="flex items-start gap-2 text-[13px] text-[var(--platinum-dim)]">

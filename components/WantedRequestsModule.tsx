@@ -379,7 +379,7 @@ function AnswerPanel({
     <div className="mt-4 border-t border-[var(--border-faint)] pt-4">
       {/* A · existing listing */}
       <div className="mb-5">
-        <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+        <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--slate)]">
           Use an existing listing
         </div>
         {inventory.phase === "loading" ? (
@@ -481,7 +481,7 @@ function AnswerPanel({
 
       {/* B · new listing */}
       <div className="mb-5 border-t border-[var(--border-faint)] pt-4">
-        <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+        <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[var(--slate)]">
           Create a new listing
         </div>
         <p className="mb-2 text-[11px] text-[var(--muted)]">
@@ -496,7 +496,7 @@ function AnswerPanel({
       {/* C · private listing for the requester */}
       {request.private_listing_ok && (
         <div className="border-t border-[var(--border-faint)] pt-4">
-          <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[var(--gold-subtle)]">
+          <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[var(--slate)]">
             Create a private listing for this collector
           </div>
           <p className="mb-2 text-[11px] text-[var(--muted)]">

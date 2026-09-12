@@ -1241,7 +1241,7 @@ export default function BrowseClient({
     <div>
       {/* Filter intro */}
       <div className="mb-5 border-b border-[var(--border-faint)] px-[18px] pb-5">
-        <div className="mb-[6px] text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
+        <div className="mb-[6px] text-[11px] uppercase tracking-[1.4px] text-[var(--slate)]">
           {dealerScope ? `Refine ${dealerScope.businessName}` : "Refine"}
         </div>
         {/* Founder-locked Browse wording. The Dealer Room twin of this line
@@ -1304,7 +1304,7 @@ export default function BrowseClient({
           collector-specific criteria, reusing the identical FacetGroup /
           countBy / toggle-handler pattern as every rail facet above. */}
       <div className="mx-[18px] mb-[22px] border-t border-[var(--border-faint)] pt-5">
-        <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+        <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
           Collector&apos;s Workbench
         </div>
       </div>
@@ -2235,7 +2235,7 @@ export default function BrowseClient({
                           only has to be there when they decide to quote it.
                           Tone carries the distinction — maker gold, code
                           platinum. */}
-                      <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                      <div className="mb-[5px] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
                         {row.brand}
                         <FwtListingId code={row.public_code} />
                       </div>
@@ -2361,7 +2361,7 @@ export default function BrowseClient({
                     <div className="min-w-0 flex-1">
                       <div style={{ maxWidth: 420 }}>
                         <Link href={listingHref(row.id)} className="block">
-                          <div className="mb-[3px] text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                          <div className="mb-[3px] text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
                             {row.brand}
                             <FwtListingId code={row.public_code} />
                           </div>
@@ -2417,7 +2417,7 @@ export default function BrowseClient({
                           type="button"
                           onClick={() => toggleSnapshot(row.id)}
                           aria-expanded={isSnapshotOpen}
-                          className="mt-3 inline-flex items-center gap-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+                          className="mt-3 inline-flex items-center gap-1 text-[11px] uppercase tracking-[1.6px] text-[var(--muted)] transition hover:text-[var(--gold)]"
                         >
                           <span className={`transition-transform ${isSnapshotOpen ? "rotate-180" : ""}`}>▼</span>
                           Collector Snapshot
@@ -2601,7 +2601,7 @@ export default function BrowseClient({
                         }`}
                       >
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
+                          <span className="text-[11px] uppercase tracking-[1.6px] text-[var(--slate)]">
                             Collector Snapshot · {row.model ?? row.brand}
                           </span>
                           <button

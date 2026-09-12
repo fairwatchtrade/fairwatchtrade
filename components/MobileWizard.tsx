@@ -1440,7 +1440,7 @@ export default function MobileWizard({
           </div>
 
           {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
-            <div className="mt-2 flex items-center gap-2 fw-functional-copy text-[var(--gold-subtle)]">
+            <div className="mt-2 flex items-center gap-2 fw-functional-copy text-[var(--slate)]">
               <span className="fw-work-count border border-[var(--border-gold)] px-1.5 py-0.5 uppercase">
                 Recommended
               </span>

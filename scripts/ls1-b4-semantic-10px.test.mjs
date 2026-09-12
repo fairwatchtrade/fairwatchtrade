@@ -125,7 +125,7 @@ const ANCHORS = [
   anchor("components/MobileCollectorsDrawer.tsx", "fw-functional-copy", "collector drawer note", `const noteCls = "{{recipe}} mt-1 block text-[var(--platinum-dim)]";`),
   anchor("components/MobileNav.tsx", "fw-lifecycle-label", "mobile admin state", `<div className="{{recipe}} mt-1 uppercase text-[var(--gold)]"> Admin </div>`),
 
-  anchor("components/MobileWizard.tsx", "fw-functional-copy", "recommended-currency explanation", `<div className="mt-2 flex items-center gap-2 {{recipe}} text-[var(--gold-subtle)]"> <span className="fw-work-count`),
+  anchor("components/MobileWizard.tsx", "fw-functional-copy", "recommended-currency explanation", `<div className="mt-2 flex items-center gap-2 {{recipe}} text-[var(--slate)]"> <span className="fw-work-count`),
   anchor("components/MobileWizard.tsx", "fw-functional-copy", "currency conversion disclosure", `<p className="mt-2 {{recipe}} text-[var(--slate)]"> No conversion is performed.`),
   anchor("components/MobileWizard.tsx", "fw-compact-control", "clear reference control", `className="{{recipe}} border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]" > {label}`),
   anchor("components/NavBar.tsx", "fw-lifecycle-label", "desktop admin state", `<span className="{{recipe}} shrink-0 text-[var(--gold)]"> Admin </span>`),

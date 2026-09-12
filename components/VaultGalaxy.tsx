@@ -2432,7 +2432,7 @@ export default function VaultGalaxy({
               </>
             ) : view === "models" && selectedCollection ? (
               <>
-                <div className="fw-compact-control mb-[10px] uppercase text-[var(--gold-subtle)]">
+                <div className="fw-compact-control mb-[10px] uppercase text-[var(--slate)]">
                   {selectedBrand?.name}
                 </div>
                 <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
@@ -2577,7 +2577,7 @@ export default function VaultGalaxy({
             view !== "brands" ? "max-sm:hidden" : ""
           }`}
         >
-          <label className="mb-[10px] block text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+          <label className="mb-[10px] block text-[11px] uppercase tracking-[3px] text-[var(--slate)]">
             What interests you today?
           </label>
           <div className="flex flex-wrap gap-[10px]">

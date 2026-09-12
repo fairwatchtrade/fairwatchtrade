@@ -163,7 +163,7 @@ export default function SaveSearchControl({
         <strong className="text-[12px] font-medium text-[var(--platinum-dim)]">
           Search saved.
         </strong>
-        <span className="fw-functional-copy text-[var(--gold-subtle)]">
+        <span className="fw-functional-copy text-[var(--platinum-dim)]">
           &ldquo;{savedName}&rdquo;
         </span>
         <a

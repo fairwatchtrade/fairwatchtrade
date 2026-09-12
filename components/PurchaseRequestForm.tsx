@@ -129,7 +129,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
         <div className="mx-auto flex max-w-[1260px] items-center justify-between px-6 py-3 sm:px-8">
           <Link
             href={backToListing}
-            className="text-[11px] tracking-[0.3px] text-[var(--gold-subtle)] transition hover:text-[var(--gold)]"
+            className="text-[11px] tracking-[0.3px] text-[var(--muted)] transition hover:text-[var(--gold)]"
           >
             ← Return to listing
           </Link>
