@@ -285,7 +285,7 @@ export default function DialReveal({
           className={[
             "pointer-events-none absolute bottom-[-2px] right-[24px] whitespace-nowrap",
             "border border-[rgba(232,228,220,0.10)] bg-[rgba(13,15,20,0.96)] px-[9px] py-[7px]",
-            "text-[10px] text-[var(--dim,#BFC5D2)]",
+            "fw-functional-copy text-[var(--dim,#BFC5D2)]",
             "translate-x-[4px] opacity-0 transition-[opacity,transform] duration-150",
             active || tooltipSuppressed
               ? ""

@@ -87,7 +87,7 @@ export default function BrowseQuickAdd({
         />
       )}
 
-      <span className="text-[10px] uppercase tracking-[1.6px] text-[var(--muted)]">
+      <span className="fw-compact-control uppercase text-[var(--muted)]">
         Quick add
       </span>
 
@@ -135,12 +135,12 @@ export default function BrowseQuickAdd({
                         </span>
                         {value}
                       </span>
-                      <span className="shrink-0 text-[10px] text-[var(--muted)]">{n}</span>
+                      <span className="fw-work-count shrink-0 text-[var(--muted)]">{n}</span>
                     </button>
                   );
                 })}
                 {cat.facets.length > PICKER_LIMIT && (
-                  <div className="px-3 pb-1 pt-1.5 text-[10px] text-[var(--muted)]">
+                  <div className="fw-transaction-fact px-3 pb-1 pt-1.5 text-[var(--muted)]">
                     {cat.facets.length - PICKER_LIMIT} more in Refine
                   </div>
                 )}
@@ -150,7 +150,7 @@ export default function BrowseQuickAdd({
                     setOpenKey(null);
                     if (!refineOpen) onOpenRefine();
                   }}
-                  className="mt-1 block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left text-[10px] uppercase tracking-[1.2px] text-[var(--gold-dim)] transition hover:text-[var(--gold)]"
+                  className="fw-compact-control mt-1 block w-full border-t border-[var(--border-faint)] px-3 py-2 text-left uppercase text-[var(--gold-dim)] transition hover:text-[var(--gold)]"
                 >
                   Open full Refine →
                 </button>

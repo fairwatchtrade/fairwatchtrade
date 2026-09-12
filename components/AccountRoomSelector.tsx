@@ -151,7 +151,7 @@ export default function AccountRoomSelector({
             selector shares. Mineral remains the SELECTION language inside
             the open menu (edge, wash, check), per the ruled palette split. */}
         <span className="flex items-baseline gap-3">
-          <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+          <span className="fw-compact-control uppercase text-[var(--muted)]">
             Account
           </span>
           <span className="font-display text-[16px] font-light text-[var(--platinum)]">

@@ -155,7 +155,7 @@ export default function CatalogueRoomSelector() {
         className="flex h-[46px] w-full items-center justify-between border-y border-[var(--border-subtle)] text-left"
       >
         <span className="flex items-baseline gap-3">
-          <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+          <span className="fw-compact-control uppercase text-[var(--muted)]">
             Collector
           </span>
           <span className="font-display text-[16px] font-light text-[var(--platinum)]">

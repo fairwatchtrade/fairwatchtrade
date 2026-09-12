@@ -225,7 +225,7 @@ export default function BrowseSearch({
     >
       <div className={dealerRoomMode ? "w-full" : "mx-auto w-full max-w-[940px]"}>
         {dealerRoomMode && (
-          <div className="mb-1.5 text-[10px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
+          <div className="fw-functional-copy mb-1.5 uppercase text-[var(--gold-dim)]">
             Search inventory
           </div>
         )}
@@ -352,7 +352,7 @@ export default function BrowseSearch({
           <button
             type="button"
             onClick={() => commit(text)}
-            className="border border-[var(--border-subtle)] bg-[var(--ink-deep)] text-[10px] uppercase tracking-[1.4px] text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)]"
+            className="fw-compact-control border border-[var(--border-subtle)] bg-[var(--ink-deep)] uppercase text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--platinum)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-gold)]"
           >
             Go
           </button>
@@ -403,10 +403,10 @@ export default function BrowseSearch({
                 >
                   <span className="flex min-w-0 items-center gap-[7px]">
                     <small
-                      className={`flex-none uppercase tracking-[0.1em] ${
+                      className={`fw-transaction-fact flex-none uppercase ${
                         legibilityMode
-                          ? "text-[10px] text-[var(--slate)]"
-                          : "text-[11px] text-[var(--muted)]"
+                          ? "text-[var(--slate)]"
+                          : "text-[var(--muted)]"
                       }`}
                     >
                       {chip.source === "filter" ? "Filter" : "Search"}
@@ -457,10 +457,10 @@ export default function BrowseSearch({
                         contrastive and earns its place. */}
                     {chip.source === "filter" && (
                       <small
-                      className={`flex-none uppercase tracking-[0.1em] ${
+                      className={`fw-transaction-fact flex-none uppercase ${
                         legibilityMode
-                          ? "text-[10px] text-[var(--slate)]"
-                          : "text-[11px] text-[var(--muted)]"
+                          ? "text-[var(--slate)]"
+                          : "text-[var(--muted)]"
                       }`}
                     >
                       Filter

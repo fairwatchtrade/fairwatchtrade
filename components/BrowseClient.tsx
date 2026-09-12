@@ -1892,7 +1892,7 @@ export default function BrowseClient({
                 </p>
                 <Link
                   href={browseDraftHref(searchParams)}
-                  className="mt-3 inline-block border border-[var(--border-mid)] px-4 py-2 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+                  className="fw-compact-control mt-3 inline-block border border-[var(--border-mid)] px-4 py-2 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
                 >
                   Create Wanted Request →
                 </Link>

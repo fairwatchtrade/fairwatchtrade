@@ -268,7 +268,7 @@ export default function InlinePurchaseRequest({
                 Renamed from "Message" (founder ruling 2026-08-12): this field
                 belongs to the OFFER — questions have their own door now, so
                 this one stops moonlighting as the question box. */}
-            <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
+            <span className="fw-validity-state normal-case text-[var(--muted)]">
               — optional
             </span>
           </label>

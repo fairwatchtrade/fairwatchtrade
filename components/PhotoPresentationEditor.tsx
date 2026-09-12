@@ -439,7 +439,7 @@ export default function PhotoPresentationEditor({
 
             {/* The honest axis note — RESERVED height so its coming and going
                 never moves the modal. Empty when everything is movable. */}
-            <p className="mt-1.5 min-h-[30px] text-[10px] leading-[1.5] text-[var(--muted)]">
+            <p className="mt-1.5 min-h-[30px] fw-functional-copy text-[var(--muted)]">
               {active && !axes.horizontal && axes.vertical
                 ? "This photograph fills the frame exactly side to side, so only up-and-down movement changes this crop. Add a little zoom or a quarter-turn to move it sideways."
                 : active && axes.horizontal && !axes.vertical
@@ -639,7 +639,7 @@ export default function PhotoPresentationEditor({
             >
               {isActiveStory ? "✦ Story Photo" : "Set as Story Photo"}
             </button>
-            <p className="mt-1 text-[10px] leading-[1.45] text-[#8b8578]">
+            <p className="mt-1 fw-functional-copy text-[#8b8578]">
               Shown with Story / Provenance on the listing.
             </p>
 

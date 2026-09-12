@@ -484,7 +484,7 @@ export default function MobileNav({
               {displayName ?? "Welcome back."}
             </div>
             {isAdmin && (
-              <div className="mt-1 text-[10px] uppercase tracking-[2.5px] text-[var(--gold)]">
+              <div className="fw-lifecycle-label mt-1 uppercase text-[var(--gold)]">
                 Admin
               </div>
             )}

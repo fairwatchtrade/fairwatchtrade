@@ -209,7 +209,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 border-t border-[var(--border-gold)] pt-3 text-[10px] leading-[1.55] text-[var(--muted)]">
+                <div className="mt-4 border-t border-[var(--border-gold)] pt-3 fw-functional-copy text-[var(--muted)]">
                   Review these details from the seller before sending your request.
                 </div>
               </div>
@@ -284,7 +284,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   <div className="mb-5">
                     <label htmlFor="message" className="mb-2 block text-[11px] uppercase tracking-[0.8px] text-[var(--platinum-dim)]">
                       Note with your offer{" "}
-                      <span className="text-[10px] normal-case tracking-normal text-[var(--muted)]">
+                      <span className="fw-validity-state normal-case text-[var(--muted)]">
                         — optional
                       </span>
                     </label>

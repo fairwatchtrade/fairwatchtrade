@@ -80,7 +80,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
         {listing.model ?? listing.brand}
       </div>
       {meta && (
-        <div className="mb-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+        <div className="fw-transaction-fact mb-3 text-[var(--muted)]">
           {meta}
         </div>
       )}

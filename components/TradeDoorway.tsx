@@ -112,7 +112,7 @@ export default function TradeDoorway({
         This seller will consider another FairWatchTrade watch, with or without a cash difference.
       </p>
       {myOfferStatus && !live && !accepted && (
-        <p className="mt-1 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+        <p className="mt-1 fw-lifecycle-label uppercase text-[var(--muted)]">
           Your last proposal: {TRADE_STATUS_LABELS[myOfferStatus as TradeStatus] ?? myOfferStatus}
         </p>
       )}

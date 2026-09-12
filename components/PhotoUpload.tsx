@@ -471,7 +471,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                     </div>
                   )}
                   {it.status === "error" && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-red-950/70 px-2 text-center text-[10px] text-red-200">
+                    <div className="absolute inset-0 flex items-center justify-center bg-red-950/70 px-2 text-center fw-functional-copy text-red-200">
                       {it.error}
                     </div>
                   )}
@@ -513,24 +513,24 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                 </div>
 
                 {it.category === "Full watch, strap/bracelet extended" && (
-                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                  <p className="fw-functional-copy text-[var(--muted)]">
                     Show the full strap/bracelet extended in one frame — open any
                     clasp fully, even if it won&apos;t lie flat.
                   </p>
                 )}
 
                 {it.category === "Non-Crown Side" && (
-                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                  <p className="fw-functional-copy text-[var(--muted)]">
                     The side opposite the crown — shows lug-to-lug length and case profile.
                   </p>
                 )}
                 {it.category === "Crown Side" && (
-                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                  <p className="fw-functional-copy text-[var(--muted)]">
                     The crown side — shows the crown, pushers, and case finishing at 3 o&apos;clock.
                   </p>
                 )}
                 {it.category === "Service Evidence" && (
-                  <div className="relative text-[10px] leading-snug text-[var(--muted)]">
+                  <div className="relative fw-functional-copy text-[var(--muted)]">
                     {/* Instructional copy lives in the ONE shared help bubble
                         (design ruling 2026-08-06). The opt-in checkbox and
                         its warning are a CONSENT affordance, not help — they
@@ -666,7 +666,7 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                   </div>
                 )}
                 {it.category === "Extra Links" && (
-                  <p className="text-[10px] leading-snug text-[var(--muted)]">
+                  <p className="fw-functional-copy text-[var(--muted)]">
                     Loose spare links included with the watch. Welcome
                     completeness evidence — never required.
                   </p>

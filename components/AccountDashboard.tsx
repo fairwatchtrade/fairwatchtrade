@@ -363,7 +363,7 @@ function ListingRow({
           founder's bounded note. Shown on drafts only (clarify returns the
           listing to draft); resubmitting answers it and clears the note. */}
       {row.status === "draft" && row.seller_clarification_note != null && (
-        <div className="mt-3 border-l border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
+        <div className="mt-3 border-l border-[var(--border-gold)] bg-[var(--gold-whisper)] px-3 py-2 fw-functional-copy text-[var(--muted)]">
           We need a little more information about one or more photographs before
           the listing can be published.
           {row.seller_clarification_note.trim() !== "" && (
@@ -387,7 +387,7 @@ function ListingRow({
           >
             {submitting ? "Submitting…" : "Submit for Review"}
           </button>
-          <div className="mt-1.5 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+          <div className="mt-1.5 fw-functional-copy text-[var(--muted)]">
             Sends this draft to FairWatchTrade. Nothing publishes until it&apos;s approved.
           </div>
         </div>
@@ -400,7 +400,7 @@ function ListingRow({
           held-state copy instead of the generic submission line. */}
       {row.status === "pending_review" &&
         (row.integrity_hold_reason ? (
-          <div className="mt-3 text-[10px] leading-relaxed tracking-[0.3px] text-[var(--muted)]">
+          <div className="mt-3 fw-functional-copy text-[var(--muted)]">
             Your photographs are receiving an additional authenticity review.
             <span className="mt-1 block">
               Your listing is saved and is not visible to buyers yet. Most
@@ -408,7 +408,7 @@ function ListingRow({
             </span>
           </div>
         ) : (
-          <div className="mt-3 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+          <div className="mt-3 fw-functional-copy text-[var(--muted)]">
             Submitted for review. FairWatchTrade will publish it or send it back —
             no further action needed from you.
           </div>
@@ -416,7 +416,7 @@ function ListingRow({
 
       {/* Failure is reported, never swallowed into a silent no-op. */}
       {submitError && (
-        <div className="mt-2 text-[10px] tracking-[0.3px] text-[var(--danger)]">
+        <div className="mt-2 fw-functional-copy text-[var(--danger)]">
           {submitError}
         </div>
       )}

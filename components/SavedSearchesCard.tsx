@@ -138,7 +138,7 @@ export default function SavedSearchesCard() {
             </div>
           ))}
           {error && (
-            <div className="mt-2 text-[10px] text-[var(--danger)]">{error}</div>
+            <div className="mt-2 fw-functional-copy text-[var(--danger)]">{error}</div>
           )}
         </div>
       )}

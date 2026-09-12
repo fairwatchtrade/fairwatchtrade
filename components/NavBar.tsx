@@ -307,7 +307,7 @@ export default function NavBar({
                     absence is the distinction. shrink-0: like the icon and
                     chevron, the mark never gives way — the name does. */}
                 {isAdmin && (
-                  <span className="shrink-0 text-[10px] tracking-[2px] text-[var(--gold)]">
+                  <span className="fw-lifecycle-label shrink-0 text-[var(--gold)]">
                     Admin
                   </span>
                 )}

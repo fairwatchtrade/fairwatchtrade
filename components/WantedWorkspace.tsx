@@ -105,7 +105,7 @@ const inputCls =
   "w-full border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-3 py-2 text-[13px] text-[var(--platinum)] outline-none focus:border-[var(--border-gold)]";
 const labelCls = "mb-1 block text-[11px] uppercase tracking-[2px] text-[var(--muted)]";
 const quietBtn =
-  "border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
+  "fw-compact-control border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
 
 type Draft = {
   brand: string;
@@ -563,7 +563,7 @@ export default function WantedWorkspace() {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`border px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] transition-colors ${
+            className={`fw-compact-control border px-3 py-1.5 uppercase transition-colors ${
               tab === t.key
                 ? "border-[var(--border-gold)] bg-[var(--surface)] text-[var(--platinum)]"
                 : "border-[var(--border-mid)] text-[var(--slate)] hover:text-[var(--platinum)]"
@@ -829,7 +829,7 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
       <div className="mt-3">
         <Link
           href={`/listings/${l.id}`}
-          className="border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
+          className="fw-compact-control border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]"
         >
           {isPrivate ? "Open private listing" : "View listing"} →
         </Link>

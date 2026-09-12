@@ -468,7 +468,7 @@ export default function ReviewStep({
                 rather than in a separate disclosure block (placement ruling
                 2026-08-07). WHAT TO KNOW is reserved for watch/listing-
                 specific seller/buyer information. */}
-            <p className="mt-1.5 max-w-[560px] text-[10px] leading-[1.6] text-[var(--muted)]">
+            <p className="mt-1.5 max-w-[560px] fw-functional-copy text-[var(--muted)]">
               The amount and currency shown are the exact values attached to the listing.
               FairWatchTrade does not convert the price into another currency, and buyers make
               offers in the same currency you chose.

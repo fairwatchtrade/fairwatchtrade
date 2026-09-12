@@ -46,7 +46,7 @@ const inputCls =
   "w-full border border-[var(--border-subtle)] bg-[rgba(7,8,12,0.4)] px-3 py-2 text-[13px] text-[var(--platinum)] outline-none focus:border-[var(--border-gold)]";
 const labelCls = "mb-1 block text-[11px] uppercase tracking-[2px] text-[var(--muted)]";
 const quietBtn =
-  "border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
+  "fw-compact-control border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
 
 const DIRECTIONS: { value: CashDirection; label: string }[] = [
   { value: "none", label: "Even trade" },
@@ -169,7 +169,7 @@ export default function ProposeTradeDialog({
         <div className="text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
           Propose a trade
         </div>
-        <button type="button" onClick={onClose} className="text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] hover:text-[var(--platinum)]">
+        <button type="button" onClick={onClose} className="fw-compact-control uppercase text-[var(--slate)] hover:text-[var(--platinum)]">
           Cancel
         </button>
       </div>
@@ -272,19 +272,19 @@ export default function ProposeTradeDialog({
             <div className="mt-5 border border-[var(--border-subtle)] p-3">
               <dl className="space-y-1.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                  <dt className="fw-transaction-fact uppercase text-[var(--muted)]">
                     You receive
                   </dt>
                   <dd className="text-[13px] text-[var(--platinum)]">{summary.youReceive}</dd>
                 </div>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                  <dt className="fw-transaction-fact uppercase text-[var(--muted)]">
                     You give
                   </dt>
                   <dd className="text-[13px] text-[var(--platinum)]">{summary.youGive}</dd>
                 </div>
                 <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-[var(--border-faint)] pt-1.5">
-                  <dt className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                  <dt className="fw-transaction-fact uppercase text-[var(--muted)]">
                     Cash
                   </dt>
                   <dd className="text-[13px] text-[var(--gold)]">{summary.cash}</dd>

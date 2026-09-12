@@ -192,12 +192,12 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
               : `Sold for ${formatPrice(ev.priceRealized, ev.currency)}`}
           </div>
           {ev.priceBasis && (
-            <div className="mt-[2px] text-[10px] text-[var(--muted)]">
+            <div className="fw-transaction-fact mt-[2px] text-[var(--muted)]">
               {BASIS_LABELS[ev.priceBasis] ?? ev.priceBasis}
             </div>
           )}
 
-          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--muted)]">
+          <p className="fw-functional-copy mt-2 text-[var(--muted)]">
             One reviewed sale result attached to this exact reference. Evidence
             only — no range or valuation is inferred.
           </p>
@@ -218,7 +218,7 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
             hidden={!sourceOpen}
             className="mt-2 border-l border-[var(--gold-dim)] pl-3"
           >
-            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+            <p className="fw-transaction-fact mb-[6px] text-[var(--muted)]">
               <b className="font-medium text-[var(--platinum-dim)]">Sale:</b>{" "}
               {/* Linked only when a public sale-page URL is rights-eligible;
                   the label names the sale, never the lot. */}
@@ -236,16 +236,16 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
               )}
             </p>
             {ev.saleCode && (
-              <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+              <p className="fw-transaction-fact mb-[6px] text-[var(--muted)]">
                 <b className="font-medium text-[var(--platinum-dim)]">Sale code:</b>{" "}
                 {ev.saleCode}
               </p>
             )}
-            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+            <p className="fw-transaction-fact mb-[6px] text-[var(--muted)]">
               <b className="font-medium text-[var(--platinum-dim)]">Lot:</b>{" "}
               {ev.lotNumber}
             </p>
-            <p className="mb-[6px] text-[10px] leading-[1.5] text-[var(--muted)]">
+            <p className="fw-transaction-fact mb-[6px] text-[var(--muted)]">
               <b className="font-medium text-[var(--platinum-dim)]">
                 Identity source:
               </b>{" "}
@@ -264,7 +264,7 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
                 ev.identitySourceLabel
               )}
             </p>
-            <p className="text-[10px] leading-[1.5] text-[var(--muted)]">
+            <p className="fw-transaction-fact text-[var(--muted)]">
               <b className="font-medium text-[var(--platinum-dim)]">
                 Result source:
               </b>{" "}

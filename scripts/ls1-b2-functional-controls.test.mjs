@@ -91,11 +91,11 @@ const EXPECTED_BINDINGS = {
   "components/HomepageClient.tsx": { "fw-compact-control": 1, "fw-work-count": 0 },
   "components/MarketplaceControl.tsx": { "fw-compact-control": 1, "fw-work-count": 0 },
   "components/MobileNav.tsx": { "fw-compact-control": 1, "fw-work-count": 0 },
-  "components/MobileWizard.tsx": { "fw-compact-control": 0, "fw-work-count": 1 },
+  "components/MobileWizard.tsx": { "fw-compact-control": 1, "fw-work-count": 1 },
   "components/NotificationsBell.tsx": { "fw-compact-control": 1, "fw-work-count": 1 },
   "components/PhotoPresentationEditor.tsx": { "fw-compact-control": 2, "fw-work-count": 0 },
   "components/SavedSearchesCard.tsx": { "fw-compact-control": 1, "fw-work-count": 0 },
-  "components/SellerListingsRoom.tsx": { "fw-compact-control": 0, "fw-work-count": 1 },
+  "components/SellerListingsRoom.tsx": { "fw-compact-control": 1, "fw-work-count": 1 },
   "components/VaultGalaxy.tsx": { "fw-compact-control": 4, "fw-work-count": 0 },
   "components/VaultMarketEvidence.tsx": { "fw-compact-control": 0, "fw-work-count": 1 },
   "components/VaultRoomTabs.tsx": { "fw-compact-control": 1, "fw-work-count": 0 },
@@ -129,7 +129,7 @@ for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
     assert.ok(!tokens.some((token) => /^(?:(?:max|sm|md|lg|xl)[^:]*:)?!?leading-/.test(token)), `${path}: the recipe owns line height`);
   }
 }
-assert.equal(bindingTotal, 18, "all sixteen R03-R05 repairs and two active count roots are governed");
+assert.equal(bindingTotal, 20, "all 18 LS1-B2 bindings and two additive LS1-B4 controls are governed");
 
 /* The approved exclusions are intentionally literal. These are not a site
    census: they are the closed R02/R06/R07 ledger carried by the LS-1 return,
@@ -171,4 +171,4 @@ const vaultTokens = classTokens("components/VaultGalaxy.tsx");
 assert.equal(vaultTokens.filter((token) => token === "max-sm:!text-[8px]").length, 3, "LS1-B5 retains all three forced Vault reductions");
 assert.equal(vaultTokens.filter((token) => token === "max-sm:!tracking-[1px]").length, 3, "LS1-B5 retains their paired tracking overrides");
 
-console.log("ls1-b2-functional-controls: 2 recipes, 18 bindings and 27 protected 8px treatments PASS");
+console.log("ls1-b2-functional-controls: 2 recipes, 18 base + 2 B4 bindings (20 current) and 27 protected 8px treatments PASS");

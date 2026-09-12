@@ -131,18 +131,18 @@ const EXPECTED_BINDINGS = {
   "components/DeleteListingDialog.tsx": 2,
   "components/HomepageClient.tsx": 1,
   "components/ImportedDraftsWorkspace.tsx": 4,
-  "components/ListingCorrespondence.tsx": 3,
+  "components/ListingCorrespondence.tsx": 4,
   "components/MarketplaceControl.tsx": 2,
-  "components/MobileWizard.tsx": 11,
+  "components/MobileWizard.tsx": 13,
   "components/NotificationsBell.tsx": 1,
-  "components/PurchaseRequestForm.tsx": 1,
+  "components/PurchaseRequestForm.tsx": 2,
   "components/rail/catalogueCardStyles.ts": 1,
   "components/RemoveListingDialog.tsx": 1,
-  "components/ReviewStep.tsx": 1,
+  "components/ReviewStep.tsx": 2,
   "components/SavedSearchesModule.tsx": 2,
   "components/SavedSearchQuickLinks.tsx": 1,
   "components/SaveSearchControl.tsx": 1,
-  "components/SellerListingsRoom.tsx": 2,
+  "components/SellerListingsRoom.tsx": 11,
   "components/SellerProfile.tsx": 6,
   "components/SellFlow.tsx": 1,
   "components/ShoppingBagRoom.tsx": 1,
@@ -174,7 +174,7 @@ for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
     }
   }
 }
-assert.equal(bindingTotal, 88, "all 88 R17-R21 functional declaration roots are governed");
+assert.equal(bindingTotal, 102, "all 88 LS1-B3 roots and 14 additive LS1-B4 functional-copy bindings are governed");
 
 const railSource = read("components/rail/catalogueCardStyles.ts");
 assert.match(
@@ -252,4 +252,4 @@ assert.match(read("components/VaultSpecificationUpgrade.tsx"), /Nice try, you wa
 assert.match(read("components/CurrentHomepage.tsx"), /MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE/, "current-homepage identity source remains present");
 assert.match(read("components/CatalogueClient.tsx"), /Every great library begins with a single volume\./, "Catalogue literary maxim remains present");
 
-console.log("ls1-b3-functional-copy: 1 recipe, 88 bindings, 4 rail consumers, 20 protected and 6 dormant treatments PASS");
+console.log("ls1-b3-functional-copy: 1 recipe, 88 base + 14 B4 bindings (102 current), 4 rail consumers, 20 protected and 6 dormant treatments PASS");

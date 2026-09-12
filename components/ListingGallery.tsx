@@ -357,11 +357,12 @@ export default function ListingGallery({
   /* Quiet, but a control rather than metadata: --platinum-dim on a real
      border, a visible focus ring, and a 32px target. The readability floor
      applies to functional text however small the button is. */
-  const zoomBtn =
-    "grid h-8 w-8 place-items-center border border-[var(--border-mid)] text-[13px] " +
+  const zoomBtnBase =
+    "grid h-8 w-8 place-items-center border border-[var(--border-mid)] " +
     "text-[var(--platinum-dim)] transition hover:border-[var(--border-gold)] hover:text-[var(--gold)] " +
     "disabled:cursor-not-allowed disabled:opacity-40 " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]";
+  const zoomIconBtn = `${zoomBtnBase} text-[13px]`;
 
   const roomArrowClass =
     "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
@@ -598,7 +599,7 @@ export default function ListingGallery({
                     onClick={() => zoomControlsRef.current?.zoomOut()}
                     disabled={zoomState.scale <= 1}
                     aria-label="Zoom out"
-                    className={zoomBtn}
+                    className={zoomIconBtn}
                   >
                     −
                   </button>
@@ -607,7 +608,7 @@ export default function ListingGallery({
                     onClick={() => zoomControlsRef.current?.zoomIn()}
                     disabled={zoomState.scale >= zoomState.maxScale - 0.001}
                     aria-label="Zoom in"
-                    className={zoomBtn}
+                    className={zoomIconBtn}
                   >
                     +
                   </button>
@@ -616,7 +617,7 @@ export default function ListingGallery({
                     onClick={() => zoomControlsRef.current?.fit()}
                     disabled={zoomState.scale <= 1}
                     aria-label="Reset the photograph to fit the viewer"
-                    className={`${zoomBtn} w-auto px-2 text-[10px] uppercase tracking-[1.2px]`}
+                    className={`${zoomBtnBase} fw-compact-control w-auto px-2 uppercase`}
                   >
                     Reset
                   </button>

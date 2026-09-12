@@ -67,7 +67,7 @@ type OwnListing = {
 };
 
 const quietBtn =
-  "border border-[var(--border-mid)] px-3 py-1.5 text-[10px] uppercase tracking-[1.5px] text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
+  "fw-compact-control border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";
 
 export default function WantedRequestsModule() {
   const [rows, setRows] = useState<SellerRequest[] | null>(null);

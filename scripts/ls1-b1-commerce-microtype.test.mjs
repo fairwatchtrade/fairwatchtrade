@@ -122,7 +122,7 @@ const EXPECTED_BINDINGS = {
   "components/PurchaseRequestForm.tsx": {
     "fw-transaction-fact": 6,
     "fw-lifecycle-label": 0,
-    "fw-validity-state": 1,
+    "fw-validity-state": 2,
   },
   "components/TradeOffersModule.tsx": {
     "fw-transaction-fact": 0,
@@ -168,6 +168,6 @@ for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
   assert.deepEqual(actual, expected, `${path} binds only its LS1-B1 semantic roles`);
   total += found.length;
 }
-assert.equal(total, 47, "all 47 LS1-B1 commerce microtype bindings are governed");
+assert.equal(total, 48, "all 47 LS1-B1 bindings and the one additive LS1-B4 validity binding are governed");
 
-console.log("ls1-b1-commerce-microtype: 3 recipes and 47 bindings PASS");
+console.log("ls1-b1-commerce-microtype: 3 recipes, 47 base + 1 B4 bindings (48 current) PASS");

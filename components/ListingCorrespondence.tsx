@@ -328,7 +328,7 @@ export default function ListingCorrespondence({
                 <button
                   type="button"
                   onClick={() => openHome()}
-                  className="text-[10px] text-[var(--slate)] underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)]"
+                  className="fw-compact-control text-[var(--slate)] underline decoration-[var(--border-mid)] underline-offset-4 transition hover:text-[var(--gold)]"
                 >
                   View conversation ↓
                 </button>
@@ -346,7 +346,7 @@ export default function ListingCorrespondence({
                   {confirmation}
                 </div>
               )}
-              {error && <div className="mt-2 text-[10px] text-[var(--danger)]">{error}</div>}
+              {error && <div className="mt-2 fw-functional-copy text-[var(--danger)]">{error}</div>}
             </section>
           ) : (
             <section className="border border-[var(--border-mid)] px-[18px] py-[16px]">
@@ -380,7 +380,7 @@ export default function ListingCorrespondence({
             <div className="mt-1 font-display text-[14px] font-light text-[var(--platinum)]">
               {title}
             </div>
-            <div className="text-[10px] tracking-[0.3px] text-[var(--muted)]">
+            <div className="fw-transaction-fact text-[var(--muted)]">
               Reference {reference}
             </div>
           </div>

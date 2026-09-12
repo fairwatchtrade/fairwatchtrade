@@ -1509,7 +1509,7 @@ function Field({
         >
           {label}
         </span>
-        <span className="border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 text-[10px] uppercase tracking-[1px] text-[var(--gold-dim)]">
+        <span className="fw-lifecycle-label border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 uppercase text-[var(--gold-dim)]">
           Imported
         </span>
       </div>

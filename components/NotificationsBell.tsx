@@ -194,7 +194,7 @@ export default function NotificationsBell({
                       >
                         {n.message}
                       </div>
-                      <div className="mt-0.5 text-[10px] text-[var(--muted)]">
+                      <div className="fw-transaction-fact mt-0.5 text-[var(--muted)]">
                         {formatRelativeTime(n.created_at)}
                       </div>
                     </div>

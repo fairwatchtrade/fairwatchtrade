@@ -293,7 +293,7 @@ export default function PhotoRedactionEditor({
             )}
           </div>
 
-          <p className="mt-1.5 min-h-[16px] text-[10px] leading-[1.5] text-[var(--muted)]">
+          <p className="mt-1.5 min-h-[16px] fw-functional-copy text-[var(--muted)]">
             {error && bitmap ? (
               <span className="text-[var(--danger)]">{error}</span>
             ) : (

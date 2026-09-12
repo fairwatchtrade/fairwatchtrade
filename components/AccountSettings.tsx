@@ -619,7 +619,7 @@ export default function AccountSettings({
                 <span className="text-[13px] text-[var(--muted)]">
                   SMS / Text notifications
                 </span>
-                <span className="border border-[var(--border-subtle)] px-1.5 py-[1px] text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">
+                <span className="fw-lifecycle-label border border-[var(--border-subtle)] px-1.5 py-[1px] uppercase text-[var(--muted)]">
                   Coming soon
                 </span>
               </div>

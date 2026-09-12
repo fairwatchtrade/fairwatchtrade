@@ -183,7 +183,7 @@ function SortHeader({
           six arrows across a header that is meant to stay quiet. */}
       <span
         aria-hidden="true"
-        className={`text-[10px] ${
+        className={`fw-compact-control ${
           active ? "text-[var(--gold)]" : "opacity-0 transition-opacity group-hover:opacity-60"
         }`}
       >
@@ -936,7 +936,7 @@ export default function SellerListingsRoom({
                   </div>
 
                   {submitErrorId === row.id && submitErrorMsg && (
-                    <div className="col-span-full text-[10px] text-[var(--danger)]">
+                    <div className="col-span-full fw-functional-copy text-[var(--danger)]">
                       {submitErrorMsg}
                     </div>
                   )}
@@ -995,7 +995,7 @@ export default function SellerListingsRoom({
               <h3 className="mt-1 font-display text-[22px] font-light leading-[1.08] text-[var(--platinum)]">
                 {selected.model ?? selected.brand}
               </h3>
-              <div className="mt-1.5 text-[10px] text-[var(--muted)]">Ref. {selected.reference}</div>
+              <div className="mt-1.5 fw-transaction-fact text-[var(--muted)]">Ref. {selected.reference}</div>
 
               <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3">
                 <div className="col-span-2 border-t border-[rgba(255,255,255,0.035)] pt-2.5">
@@ -1063,7 +1063,7 @@ export default function SellerListingsRoom({
                 {/* v2.24 — locked held-state copy for an integrity-held
                     listing; never names the machinery, never accuses. */}
                 {selected.status === "pending_review" && selected.integrity_hold_reason && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     Your photographs are receiving an additional authenticity review.
                     <span className="mt-1 block">
                       Your listing is saved and is not visible to buyers yet. Most reviews
@@ -1075,7 +1075,7 @@ export default function SellerListingsRoom({
                 {/* v2.24 — clarification round: locked introduction + the
                     founder's bounded note. Resubmitting clears it. */}
                 {selected.status === "draft" && selected.seller_clarification_note != null && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     We need a little more information about one or more photographs before
                     the listing can be published.
                     {selected.seller_clarification_note.trim() !== "" && (
@@ -1090,7 +1090,7 @@ export default function SellerListingsRoom({
                     find their watch on Browse gets the answer here, without
                     needing to know what a dashboard is. */}
                 {selected.status === "pending_review" && !selected.integrity_hold_reason && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     We&apos;ve received this listing and it&apos;s waiting for review.
                     <span className="mt-1 block">
                       It is not public yet. We&apos;ll let you know when it&apos;s approved or
@@ -1107,7 +1107,7 @@ export default function SellerListingsRoom({
                     seller's own panel. Same card grammar as the states around
                     it. */}
                 {selected.status === "private_active" && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     This is a private listing — visible only to{" "}
                     <span className="text-[var(--platinum-dim)]">
                       {privateBuyerName(selected)}
@@ -1126,7 +1126,7 @@ export default function SellerListingsRoom({
                 )}
 
                 {selected.status === "rejected" && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     This listing won&apos;t be going live on FairWatchTrade.
                     {(selected.rejection_reason ?? latestMessage(selected.id, "rejected")) && (
                       <span className="mt-1 block text-[var(--platinum-dim)]">
@@ -1147,7 +1147,7 @@ export default function SellerListingsRoom({
                     stopped. The one thing not yet built is said plainly
                     instead of implied. */}
                 {selected.status === "removed" && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     You paused this listing
                     {selected.removed_at
                       ? ` on ${new Date(selected.removed_at).toLocaleDateString("en-US", {
@@ -1184,7 +1184,7 @@ export default function SellerListingsRoom({
                 {selected.status === "draft" &&
                   selected.seller_clarification_note == null &&
                   latestMessage(selected.id, "returned_to_draft") && (
-                    <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                    <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                       This listing was returned to your drafts so you can make a change.
                       <span className="mt-1 block text-[var(--platinum-dim)]">
                         {latestMessage(selected.id, "returned_to_draft")}
@@ -1200,7 +1200,7 @@ export default function SellerListingsRoom({
                     rewrites an earlier one, so a listing that was clarified
                     and then rejected still shows that both happened. */}
                 {priorDecisions(selected.id).length > 0 && (
-                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left text-[10px] leading-[1.55] text-[var(--muted)]">
+                  <div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left fw-functional-copy text-[var(--muted)]">
                     <span className="block text-[var(--muted)]">Earlier in this review</span>
                     {priorDecisions(selected.id).map((d, i) => (
                       <span key={i} className="mt-1 block">

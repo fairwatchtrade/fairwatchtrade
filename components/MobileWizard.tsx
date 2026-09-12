@@ -1440,7 +1440,7 @@ export default function MobileWizard({
           </div>
 
           {hasStoredPref === false && draft.askingCurrency === RECOMMENDED_CURRENCY && (
-            <div className="mt-2 flex items-center gap-2 text-[10px] text-[var(--gold-subtle)]">
+            <div className="mt-2 flex items-center gap-2 fw-functional-copy text-[var(--gold-subtle)]">
               <span className="fw-work-count border border-[var(--border-gold)] px-1.5 py-0.5 uppercase">
                 Recommended
               </span>
@@ -1479,7 +1479,7 @@ export default function MobileWizard({
               </button>
             </div>
           )}
-          <p className="mt-2 text-[10px] leading-[1.5] text-[var(--slate)]">
+          <p className="mt-2 fw-functional-copy text-[var(--slate)]">
             No conversion is performed. Choose the currency in which this watch is actually being offered.
           </p>
         </Field>
@@ -1678,7 +1678,7 @@ export default function MobileWizard({
                 key={label}
                 type="button"
                 onClick={() => setReferenceInput("")}
-                className="border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[10px] tracking-[1px] text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
+                className="fw-compact-control border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]"
               >
                 {label}
               </button>

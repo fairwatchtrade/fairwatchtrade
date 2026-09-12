@@ -192,17 +192,17 @@ export default function SavedListingDrafts({
                         code yet and shows none. */}
                     <FwtListingId code={boundListingCode(d)} />
                     {isCurrent && (
-                      <span className="text-[10px] uppercase tracking-[1.4px] text-[var(--gold)]">
+                      <span className="fw-lifecycle-label uppercase text-[var(--gold)]">
                         Open now
                       </span>
                     )}
                     {!isCurrent && d.id === newestId && (
-                      <span className="text-[10px] uppercase tracking-[1.4px] text-[var(--slate)]">
+                      <span className="fw-lifecycle-label uppercase text-[var(--slate)]">
                         Most recent
                       </span>
                     )}
                     {setAside && (
-                      <span className="text-[10px] uppercase tracking-[1.4px] text-[var(--slate)]">
+                      <span className="fw-lifecycle-label uppercase text-[var(--slate)]">
                         Set aside
                       </span>
                     )}
