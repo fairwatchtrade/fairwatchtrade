@@ -28,7 +28,7 @@ export default function VaultRoomTabs({
     <div className="mb-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-dim)]">
+          <div className="fw-compact-control uppercase text-[var(--gold-dim)]">
             Internal · Vault
           </div>
           <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">

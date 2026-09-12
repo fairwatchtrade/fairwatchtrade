@@ -179,7 +179,7 @@ export default function VaultMarketEvidence({ referenceId }: { referenceId: stri
               {formatSaleDate(ev.saleDate) ? ` · ${formatSaleDate(ev.saleDate)}` : ""}
               {` · Lot ${ev.lotNumber}`}
             </div>
-            <span className="flex-none border border-[rgba(112,192,144,0.28)] px-[6px] py-[3px] text-[8px] uppercase tracking-[1px] text-[var(--success)]">
+            <span className="fw-work-count flex-none border border-[rgba(112,192,144,0.28)] px-[6px] py-[3px] uppercase text-[var(--success)]">
               Reviewed exact match
             </span>
           </div>

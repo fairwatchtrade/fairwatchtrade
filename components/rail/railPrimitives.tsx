@@ -123,7 +123,7 @@ const RAIL_CSS = `
 .fwt-rail-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .fwt-rail-label{font-size:13px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fwt-rail-chev{justify-self:end;font-size:12px;color:var(--rl-ghost)}
-.fwt-rail-badge{justify-self:end;min-width:18px;height:18px;padding:0 3px;border:1px solid var(--rl-line-strong);display:grid;place-items:center;font-size:11px;color:var(--rl-dim)}
+.fwt-rail-badge{justify-self:end;min-width:18px;height:18px;padding:0 3px;border:1px solid var(--rl-line-strong);display:grid;place-items:center;color:var(--rl-dim)}
 .fwt-rail-soon{justify-self:end;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--rl-ghost);white-space:nowrap}
 .fwt-rail-tip{
   display:none;position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
@@ -309,7 +309,7 @@ export function RailItem({
       {soon ? (
         <span className="fwt-rail-soon">Soon</span>
       ) : showBadge ? (
-        <span className="fwt-rail-badge">{badge}</span>
+        <span className="fwt-rail-badge fw-work-count">{badge}</span>
       ) : chevron ? (
         <span className="fwt-rail-chev" aria-hidden="true">
           ›

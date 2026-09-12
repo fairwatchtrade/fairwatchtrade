@@ -1925,7 +1925,7 @@ export default function MarketplaceControl({
               key={m.k}
               className="border-b border-r border-[var(--border-faint)] px-2.5 py-2 last:border-r-0 sm:px-4 sm:py-3 lg:border-b-0"
             >
-              <div className="text-[8px] uppercase tracking-[1.5px] text-[var(--muted)] sm:text-[9px] sm:tracking-[2px]">
+              <div className="fw-compact-control uppercase text-[var(--muted)]">
                 {m.k}
               </div>
               <div className={`mt-0.5 font-display text-[18px] font-light sm:text-[22px] ${m.cls}`}>

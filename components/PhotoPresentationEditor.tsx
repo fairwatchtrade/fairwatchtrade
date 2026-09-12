@@ -305,7 +305,7 @@ export default function PhotoPresentationEditor({
 
   const stageStyle = frameStyle(frame, STAGE_ASPECT);
   const btn =
-    "border text-[8px] uppercase tracking-[0.1em] transition disabled:opacity-40 " +
+    "fw-compact-control border uppercase transition disabled:opacity-40 " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#ead37e]";
 
   return (
@@ -486,7 +486,7 @@ export default function PhotoPresentationEditor({
             <div className="mt-2.5 h-[46px]">
               <label
                 htmlFor="fw-zoom"
-                className="mb-1.5 flex justify-between text-[8px] uppercase tracking-[0.12em] text-[#bbb5a8]"
+                className="fw-compact-control mb-1.5 flex justify-between uppercase text-[#bbb5a8]"
               >
                 <span>Zoom</span>
                 <span>{frame.zoom.toFixed(2)}×</span>

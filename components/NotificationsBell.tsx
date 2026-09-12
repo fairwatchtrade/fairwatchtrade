@@ -147,7 +147,7 @@ export default function NotificationsBell({
         </svg>
         {hasUnread && (
           <span
-            className="absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full px-1 text-[11px] font-medium leading-none"
+            className="fw-work-count absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full px-1"
             style={{ background: "#C9A84C", color: "var(--ink)", minWidth: 16, height: 16 }}
           >
             {badge}
@@ -158,7 +158,7 @@ export default function NotificationsBell({
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface)]">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
-            <span className="text-[8px] uppercase tracking-[2.5px] text-[var(--muted)]">
+            <span className="fw-compact-control uppercase text-[var(--muted)]">
               Notifications
             </span>
             {hasUnread && (

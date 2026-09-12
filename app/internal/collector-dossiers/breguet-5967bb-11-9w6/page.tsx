@@ -63,7 +63,7 @@ export default async function Breguet5967CanaryDossierPage() {
       <div className="border-b border-[var(--border-subtle)] bg-[var(--surface)]">
         <div className="mx-auto flex max-w-[820px] flex-wrap items-center justify-between gap-4 px-6 py-5">
           <div>
-            <div className="text-[8px] uppercase tracking-[4px] text-[var(--gold-subtle)]">
+            <div className="fw-compact-control uppercase text-[var(--gold-subtle)]">
               Internal · Collector Dossier
             </div>
             <div className="mt-2 text-[12px] tracking-[1px] text-[var(--slate)]">

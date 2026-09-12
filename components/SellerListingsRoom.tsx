@@ -671,7 +671,7 @@ export default function SellerListingsRoom({
                 }`}
               >
                 {tab.label}
-                <span className="ml-1 text-[8px] text-[var(--gold)]">{tab.count}</span>
+                <span className="fw-work-count ml-1 text-[var(--gold)]">{tab.count}</span>
               </button>
             );
           })}

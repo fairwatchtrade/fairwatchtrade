@@ -73,7 +73,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
         )}
       </div>
 
-      <div className="mb-[5px] text-[8px] uppercase tracking-[2.5px] text-[var(--gold-subtle)]">
+      <div className="fw-compact-control mb-[5px] uppercase text-[var(--gold-subtle)]">
         {listing.brand}
       </div>
       <div className="mb-1 font-display text-[15px] font-light leading-[1.25] text-[var(--platinum)]">

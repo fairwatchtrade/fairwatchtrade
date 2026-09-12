@@ -655,7 +655,7 @@ export default function MobileNav({
             {/* Pivot cap */}
             <circle cx="19" cy="20" r="2" style={{ fill: "var(--gold)" }} />
           </svg>
-          <span className="text-[7px] uppercase tracking-[3px] text-[var(--muted)]">
+          <span className="fw-compact-control uppercase text-[var(--muted)]">
             Close
           </span>
         </div>

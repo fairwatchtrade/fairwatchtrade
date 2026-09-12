@@ -2213,7 +2213,7 @@ export default function VaultGalaxy({
                   intercept a galaxy tap. */}
               <span
                 id="vault-wordmark-exit-hint"
-                className="pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap font-sans text-[8px] uppercase tracking-[2px] text-[var(--muted)] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+                className="fw-compact-control pointer-events-none absolute left-0 top-full mt-1.5 whitespace-nowrap uppercase text-[var(--muted)] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
               >
                 Return to homepage — leaves the Vault
               </span>
@@ -2381,7 +2381,7 @@ export default function VaultGalaxy({
                 )}
                 {selectedVariant.vault_references?.length > 0 && (
                   <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
-                    <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+                    <div className="fw-compact-control mb-2 uppercase text-[var(--muted)]">
                       References
                     </div>
                     {selectedVariant.vault_references.map((r) => (
@@ -2430,7 +2430,7 @@ export default function VaultGalaxy({
               </>
             ) : view === "models" && selectedCollection ? (
               <>
-                <div className="mb-[10px] text-[8px] uppercase tracking-[3px] text-[var(--gold-subtle)]">
+                <div className="fw-compact-control mb-[10px] uppercase text-[var(--gold-subtle)]">
                   {selectedBrand?.name}
                 </div>
                 <h2 className="mb-[10px] font-display text-[26px] font-light text-[var(--platinum)] max-sm:mb-0 max-sm:text-[19px]">
@@ -2444,7 +2444,7 @@ export default function VaultGalaxy({
                 {/* Family groupings surfaced here (not as orbital bodies) */}
                 {selectedCollection.vault_families?.length > 0 && (
                   <div className="mt-3 border-t border-[var(--border-faint)] pt-3 max-sm:hidden">
-                    <div className="mb-2 text-[8px] uppercase tracking-[2px] text-[var(--muted)]">
+                    <div className="fw-compact-control mb-2 uppercase text-[var(--muted)]">
                       Families
                     </div>
                     {selectedCollection.vault_families.map((f) => (

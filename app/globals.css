@@ -465,6 +465,24 @@ html, body {
     line-height: 1.4;
     letter-spacing: 0.8px;
   }
+
+  .fw-compact-control {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 1px;
+  }
+
+  .fw-work-count {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.2px;
+  }
 }
 
 .fw-body {
