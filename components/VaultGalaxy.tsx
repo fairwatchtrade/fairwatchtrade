@@ -2409,22 +2409,24 @@ export default function VaultGalaxy({
                     ))}
                   </div>
                 )}
-                {/* v2.66 — mobile: the gold primary was wrapping to a
-                    three-line slab that outweighed the evidence above it.
-                    Compact one-line buttons on the phone card only; desktop
-                    classes untouched (fw-btn-* serve other surfaces). */}
-                <div className="mt-[18px] flex gap-2">
+                {/* v8.64 — keep the established button surfaces and padding,
+                    but let the governed compact-control recipe own the label
+                    typography at every width. The former narrow-only 8px
+                    overrides made these actions fit by making them unreadable. */}
+                <div className="mt-[18px] flex flex-wrap gap-2">
                   <button
                     onClick={resetGalaxy}
-                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px]"
                   >
-                    Return to Galaxy
+                    <span className="fw-compact-control">
+                      Return to Galaxy
+                    </span>
                   </button>
                   <button
                     onClick={historyBack}
-                    className="fw-btn-secondary whitespace-nowrap max-sm:!px-[10px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                    className="fw-btn-secondary whitespace-nowrap max-sm:!px-[10px] max-sm:!py-[8px]"
                   >
-                    Back
+                    <span className="fw-compact-control">Back</span>
                   </button>
                 </div>
               </>
@@ -2495,9 +2497,11 @@ export default function VaultGalaxy({
                 <div className="mt-[18px]">
                   <button
                     onClick={resetGalaxy}
-                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px] max-sm:!text-[8px] max-sm:!tracking-[1px]"
+                    className="fw-btn-primary whitespace-nowrap max-sm:!px-[13px] max-sm:!py-[8px]"
                   >
-                    Return to Galaxy
+                    <span className="fw-compact-control">
+                      Return to Galaxy
+                    </span>
                   </button>
                 </div>
               </>
