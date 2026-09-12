@@ -829,8 +829,9 @@ export default async function ListingDetailPage({
                     already carries. The feature is now worth having: the
                     retired hover-driven reveal was REPLACED inside
                     components/DialReveal.tsx (v2.19), not wrapped or
-                    re-enabled. Touch devices still take the plain <img> path,
-                    gated inside DialReveal pending a mobile Design Gate. */
+                    re-enabled. Touch uses that same filter and control with a
+                    larger tap/drag surface; pointer capability changes only
+                    the control presentation, never whether the feature exists. */
               />
             )}
 

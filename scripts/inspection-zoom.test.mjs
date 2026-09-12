@@ -290,8 +290,14 @@ const VP = { width: 800, height: 600 };
 {
   const vp = read("components/InspectionViewport.tsx");
   const gallery = read("components/ListingGallery.tsx");
-  ok("H1 the hint says what the gesture is",
+  ok("H1 fine pointers get the desktop gesture",
     /Ctrl \+ scroll to zoom · drag to inspect/.test(gallery));
+  ok("H1 touch pointers get the gesture the viewport actually implements",
+    /Pinch to zoom · drag to inspect/.test(gallery));
+  ok("H1 the two hints are selected by pointer capability, not a device name or browser width",
+    /fwt-inspection-hint-pointer/.test(gallery) &&
+    /fwt-inspection-hint-touch/.test(gallery) &&
+    /@media \(hover: hover\) and \(pointer: fine\)/.test(gallery));
   ok("H1 it is no longer drawn on the photograph",
     !/Ctrl \+ scroll/.test(vp));
   ok("H1 it never appears when there is no detail to reach",

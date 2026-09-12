@@ -228,12 +228,12 @@ test("dialog semantics: named, modal, initial focus, Tab contained, Escape close
 
 /* ── Preservation ───────────────────────────────────────────────────── */
 
-test("the public wording is byte-stable (v8.42 baseline + Dial Reveal parity rows, 2026-09-11)", () => {
-  /* Re-pinned once for the two governed Dial Reveal rows (v8.59); every
+test("the public wording is byte-stable (v8.42 baseline + Dial Reveal touch parity, 2026-09-12)", () => {
+  /* Re-pinned for Dial Reveal touch parity; every
      other byte of the public copy is unchanged from the v8.42 baseline,
      which the governed test pins row by row. */
   const sha = createHash("sha256").update(readFileSync(new URL("../lib/whatFairWatchTradeCanDo/content.ts", import.meta.url))).digest("hex");
-  assert.equal(sha, "6bed2db6f3da5d5e22c202a8ab3fb6a3f39adeb7efab54fc9baad4fe2d7846af");
+  assert.equal(sha, "081cdd3361fd1bf599cd8e56fe285abc04776c6e29c5c379d04febf5ea8276a2");
 });
 
 test("robots stay closed", () => {

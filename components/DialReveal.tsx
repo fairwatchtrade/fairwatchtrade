@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 /* ────────────────────────────────────────────────────────────────────────
    DIAL REVEAL — DISCOVERY MODE  (v2.19)
@@ -25,17 +25,18 @@ import { useEffect, useId, useRef, useState } from "react";
    never existed in the old file — verified against the real source, nothing
    to remove.)
 
-   ── THE ONE THING PRESERVED FROM THE OLD FILE ──────────────────────────
-   The `(hover: hover) and (pointer: fine)` matchMedia gate. It is the whole
-   reason touch devices don't get a half-working interaction, and it matters
-   MORE now, not less: a checkbox toggle works fine on tap, so without this
-   gate the new mechanism would SILENTLY ship a mobile Dial Reveal for the
-   first time — a 16px target under every touch-target minimum, with a
-   hover-only tooltip that can never appear. Mobile Dial Reveal is its own
-   Design Gate. Until then, touch devices see the plain dial photograph,
-   exactly as they do today. Starts false (matches server-rendered markup —
-   no window at SSR); if it never resolves true the component is a plain
-   image forever, which is the safe failure.
+   ── TOUCH PARITY ────────────────────────────────────────────────────────
+   The `(hover: hover) and (pointer: fine)` query selects presentation; it
+   no longer gates the capability. A fine pointer keeps the approved 16px
+   anchor and hover/focus tooltip. A coarse pointer gets the same visible
+   mark centred inside a 44px tap target, no hover-only copy, and a 44px-wide
+   fader drag surface. Tap toggles the existing checkbox and the range input
+   drives the same filter, so mobile is parity rather than a second feature.
+
+   `supportsHover` starts false to match the server render, which means the
+   conservative first paint is the larger touch presentation. A fine pointer
+   compacts it after the capability query resolves; no device name or viewport
+   width decides whether Dial Reveal exists.
 
    ── z-30 IS INTEGRATION, NOT DECORATION ────────────────────────────────
    The approved study places the anchor and fader at z-index 9 — correct in
@@ -127,7 +128,15 @@ export default function DialReveal({
   const [active, setActive] = useState(false);
   const [level, setLevel] = useState(FADER_DEFAULT);
   const [tooltipSuppressed, setTooltipSuppressed] = useState(false);
-  const [supportsHover, setSupportsHover] = useState(false);
+  const supportsHover = useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+    () => false
+  );
   // v2.25 · MODE ARBITRATION — the mobile Collector's Drawer and Dial
   // Reveal are mutually exclusive (chain ruling). While the Drawer is open
   // this component SUSPENDS: reveal state resets and the controls unmount
@@ -139,14 +148,6 @@ export default function DialReveal({
   const [suspended, setSuspended] = useState(false);
   const anchorRef = useRef<HTMLLabelElement>(null);
   const faderId = useId();
-
-  useEffect(() => {
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-    setSupportsHover(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setSupportsHover(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   useEffect(() => {
     const onDrawer = (e: Event) => {
@@ -164,11 +165,10 @@ export default function DialReveal({
     return () => window.removeEventListener("fwt:mobile-drawer", onDrawer);
   }, []);
 
-  // Touch / coarse pointer: the plain photograph, same as before this
-  // component existed. No anchor, no fader, no filter, nothing to discover.
-  // v2.25: an open mobile Drawer takes the same path — suspension means the
-  // photograph and ONLY the photograph.
-  if (!supportsHover || suspended) {
+  // v2.25: an open mobile Drawer suspends Dial Reveal completely, so the
+  // photograph is the only remaining surface. Pointer capability does not
+  // take this path: touch gets the same reveal through touch-sized controls.
+  if (suspended) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={photoUrl} alt="" className={className ?? "w-full"} />
@@ -190,7 +190,7 @@ export default function DialReveal({
   return (
     <div className={frameClassName ?? "relative"} data-dial-reveal>
       <style>{`
-        .fwt-dial-fader{-webkit-appearance:none;appearance:none;background:transparent;cursor:ns-resize}
+        .fwt-dial-fader{-webkit-appearance:none;appearance:none;background:transparent;cursor:ns-resize;touch-action:none}
         .fwt-dial-fader::-webkit-slider-runnable-track{height:2px;background:rgba(232,228,220,.20);border:0}
         .fwt-dial-fader::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:8px;margin-top:-3px;border:1px solid rgba(201,168,76,.88);background:#171A21;box-shadow:0 0 0 1px rgba(13,15,20,.55),0 0 10px rgba(201,168,76,.10)}
         .fwt-dial-fader::-moz-range-track{height:2px;background:rgba(232,228,220,.20);border:0}
@@ -211,11 +211,16 @@ export default function DialReveal({
 
       {/* VERTICAL FADER — right edge, above the anchor. Mounted only while
           active, so deactivation removes it immediately rather than fading
-          a still-present control. 36 × 146 plate; the 118px range input
-          rotated -90deg fills it vertically (up = more reveal). z-30: see
-          header. */}
+          a still-present control. Fine pointers keep the approved 36 × 146
+          plate and 18px drag width. Touch widens that surface to 44px without
+          changing the 118px range or its vertical direction. z-30: see header. */}
       {active && (
-        <div className="absolute bottom-[48px] right-[8px] z-30 flex h-[146px] w-[36px] items-center justify-center">
+        <div
+          className={[
+            "absolute bottom-[48px] z-30 flex h-[146px] items-center justify-center",
+            supportsHover ? "right-[8px] w-[36px]" : "right-[4px] w-[44px]",
+          ].join(" ")}
+        >
           {/* smoked-glass plate */}
           <div className="pointer-events-none absolute inset-0 border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim)] shadow-[0_12px_28px_rgba(0,0,0,0.32)] backdrop-blur-[8px]" />
           {/* tick marks — vertical rhythm only. NOT a boundary line: it never
@@ -232,18 +237,26 @@ export default function DialReveal({
             value={level}
             onChange={(e) => setLevel(Number(e.target.value))}
             aria-label="Dial Reveal level"
-            className="fwt-dial-fader relative z-[2] m-0 h-[18px] w-[118px] rotate-[-90deg]"
+            className={[
+              "fwt-dial-fader relative z-[2] m-0 w-[118px] rotate-[-90deg]",
+              supportsHover ? "h-[18px]" : "h-[44px]",
+            ].join(" ")}
           />
         </div>
       )}
 
-      {/* ANCHOR — one 16px square, lower-right. The checkbox is the control;
-          the square is its visible box; the label is the hit area. This gives
-          click-to-toggle, Space/Enter activation, and :focus-visible for
-          free, without inventing a keyboard handler. z-30: see header. */}
+      {/* ANCHOR — one 16px square, lower-right. Fine pointers use the square
+          itself as the established hit area; touch centres it inside a 44px
+          label. The checkbox is the control, so tap/click, Space/Enter and
+          :focus-visible remain one mechanism. z-30: see header. */}
       <label
         ref={anchorRef}
-        className="group absolute bottom-[18px] right-[18px] z-30 h-[16px] w-[16px]"
+        className={[
+          "group absolute z-30",
+          supportsHover
+            ? "bottom-[18px] right-[18px] h-[16px] w-[16px]"
+            : "bottom-[4px] right-[4px] h-[44px] w-[44px]",
+        ].join(" ")}
         onMouseLeave={() => setTooltipSuppressed(false)}
         onBlur={() => {
           if (!anchorRef.current?.matches(":hover")) setTooltipSuppressed(false);
@@ -254,7 +267,7 @@ export default function DialReveal({
           checked={active}
           onChange={toggle}
           aria-label="Dial Reveal"
-          className="peer absolute inset-0 m-0 h-[16px] w-[16px] cursor-pointer opacity-0"
+          className="peer absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
         />
 
         {/* the square itself — resting outline, then full gold with a centred
@@ -262,7 +275,8 @@ export default function DialReveal({
         <span
           aria-hidden="true"
           className={[
-            "pointer-events-none absolute inset-0 border transition-[background,border-color,box-shadow] duration-150",
+            "pointer-events-none absolute border transition-[background,border-color,box-shadow] duration-150",
+            supportsHover ? "inset-0" : "inset-[14px]",
             "peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-[#C9A84C]",
             active
               ? "border-[rgba(201,168,76,0.95)] bg-[rgba(201,168,76,0.16)] shadow-[0_0_12px_rgba(201,168,76,0.28)]"
@@ -280,20 +294,22 @@ export default function DialReveal({
         {/* TOOLTIP — the only copy this feature ever shows, and only from a
             direct hover/focus on the square. Never permanent, never during
             an active reveal, never lingering after deactivation. */}
-        <span
-          role="tooltip"
-          className={[
-            "pointer-events-none absolute bottom-[-2px] right-[24px] whitespace-nowrap",
-            "border border-[rgba(232,228,220,0.10)] bg-[rgba(13,15,20,0.96)] px-[9px] py-[7px]",
-            "fw-functional-copy text-[var(--dim,#BFC5D2)]",
-            "translate-x-[4px] opacity-0 transition-[opacity,transform] duration-150",
-            active || tooltipSuppressed
-              ? ""
-              : "group-hover:translate-x-0 group-hover:opacity-100 peer-focus-visible:translate-x-0 peer-focus-visible:opacity-100",
-          ].join(" ")}
-        >
-          Click for Dial Reveal
-        </span>
+        {supportsHover && (
+          <span
+            role="tooltip"
+            className={[
+              "pointer-events-none absolute bottom-[-2px] right-[24px] whitespace-nowrap",
+              "border border-[rgba(232,228,220,0.10)] bg-[rgba(13,15,20,0.96)] px-[9px] py-[7px]",
+              "fw-functional-copy text-[var(--dim,#BFC5D2)]",
+              "translate-x-[4px] opacity-0 transition-[opacity,transform] duration-150",
+              active || tooltipSuppressed
+                ? ""
+                : "group-hover:translate-x-0 group-hover:opacity-100 peer-focus-visible:translate-x-0 peer-focus-visible:opacity-100",
+            ].join(" ")}
+          >
+            Click for Dial Reveal
+          </span>
+        )}
       </label>
     </div>
   );

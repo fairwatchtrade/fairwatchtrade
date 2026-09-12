@@ -94,7 +94,7 @@ const findBenefit = (room, title) => room.groups.flatMap((g) => g.benefits).find
   ], "Browse → Inspect order: Dial Reveal immediately after Quick Specs and full-photo inspection"); n += 1;
   eq("Browse Dial Reveal body is the approved wording",
     bInspect.benefits[2].body,
-    "On supported desktop devices, use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source.");
+    "Use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source.");
   eq("Browse Quick Specs row is present and unchanged",
     bInspect.benefits[1].body,
     "Check the facts the listing actually provides, then open the full photographs for a closer look. Zoom only goes as far as the original photo allows—a blurry source does not become new detail.");
@@ -104,7 +104,7 @@ const findBenefit = (room, title) => room.groups.flatMap((g) => g.benefits).find
     "Buy → Inspect the evidence order: Dial Reveal immediately after Full-photo inspection"); n += 1;
   eq("Buyer Dial Reveal body is the approved wording",
     uInspect.benefits[1].body,
-    "On supported desktop devices, use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch.");
+    "Use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch.");
   eq("Buyer Full-photo inspection row is present and unchanged",
     uInspect.benefits[0].body,
     "Inspect the seller’s full photographs without pretending a low-resolution image contains detail it never captured. Zoom can reveal what is there; it cannot create sharpness that was never photographed.");

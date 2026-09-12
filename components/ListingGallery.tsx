@@ -390,6 +390,17 @@ export default function ListingGallery({
        contracts. The result is monotonic: removing the rail can never enlarge
        the photo. */
     <div data-listing-gallery="" className="w-full max-w-[518px] min-[56rem]:max-w-[min(974px,calc(100vw_-_378px))]">
+      {/* Inspection gestures follow input capability, not a named device or
+          browser width. The viewport already implements both contracts; this
+          rule only chooses the truthful teaching copy. */}
+      <style>{`
+        .fwt-inspection-hint-pointer{display:none}
+        .fwt-inspection-hint-touch{display:inline}
+        @media (hover: hover) and (pointer: fine){
+          .fwt-inspection-hint-pointer{display:inline}
+          .fwt-inspection-hint-touch{display:none}
+        }
+      `}</style>
       {/* Hero — the photograph is the left-column object. v1.24 retires the
           pale bordered shell that used to sit around this stage. The stage
           still governs height so changing photos cannot move the listing,
@@ -770,7 +781,12 @@ export default function ListingGallery({
               <div className="flex h-6 shrink-0 items-center justify-center px-1 sm:pl-[4.5rem] sm:pr-[4.5rem]">
                 {showZoomHint && (
                   <span className="whitespace-nowrap text-[11px] tracking-[0.4px] text-[var(--muted)]">
-                    Ctrl + scroll to zoom · drag to inspect
+                    <span className="fwt-inspection-hint-pointer">
+                      Ctrl + scroll to zoom · drag to inspect
+                    </span>
+                    <span className="fwt-inspection-hint-touch">
+                      Pinch to zoom · drag to inspect
+                    </span>
                   </span>
                 )}
               </div>

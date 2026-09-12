@@ -123,10 +123,10 @@ export const ROOMS: readonly Room[] = Object.freeze([
             "Every listing is reviewed before it appears in Browse. Its Curation Review shows what FWT could check and what still needs an answer. The review helps decide whether the listing can go live; it does not mean FWT physically inspected or authenticated the watch."),
           b("bounded", "Quick Specs and full-photo inspection",
             "Check the facts the listing actually provides, then open the full photographs for a closer look. Zoom only goes as far as the original photo allows—a blurry source does not become new detail."),
-          /* Dial Reveal public parity (2026-09-11, Jason ruling): bounded,
-             because touch devices receive the ordinary dial photograph. */
+          /* Dial Reveal stays bounded because it needs a designated dial
+             photograph and can only reveal detail the source actually holds. */
           b("bounded", "Dial Reveal",
-            "On supported desktop devices, use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source."),
+            "Use Dial Reveal while exploring a listing to bring out printing, texture, and surface variation already present in the dial photograph. It changes how the existing photo is displayed; it does not add missing detail or sharpen a poor source."),
           b("bounded", "Specifications without guesswork",
             "See specifications, condition, and documentation as clear watch facts. If FWT cannot confirm something, it can simply leave it unconfirmed instead of guessing."),
           b("live", "Story, provenance, and Story Photo",
@@ -190,7 +190,7 @@ export const ROOMS: readonly Room[] = Object.freeze([
           /* Dial Reveal public parity (2026-09-11): the buyer wording adds
              the authentication refusal; classification stays bounded. */
           b("bounded", "Dial Reveal",
-            "On supported desktop devices, use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch."),
+            "Use Dial Reveal on the dial photograph to bring out printing, texture, and surface variation already present in the image. It changes how the existing photo is displayed; it does not add missing detail, sharpen a poor source, or authenticate the watch."),
         ],
       },
       {

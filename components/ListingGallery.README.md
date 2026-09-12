@@ -398,13 +398,17 @@ Different instruments, different rooms, deliberately kept apart:
 | | Dial Reveal | Inspection zoom |
 |---|---|---|
 | Where | resting hero, listing page | opened inspection viewer |
-| Gesture | a tiny gold control, quiet invitation | Ctrl+scroll, drag, pinch |
+| Gesture | a tiny gold control, quiet invitation; tap or click | Ctrl+scroll, drag, pinch |
 | Does | adjusts reveal strength; **the photograph never moves** | moves and scales the photograph |
 | Posture | the photograph stays quiet | the collector has deliberately entered deeper inspection |
 
 Dial Reveal is a resting-hero instrument and does not follow into the overlay.
 Do not merge them; the listing page's quiet is a product law, and the viewer is
 where that quiet is deliberately set aside.
+
+The Dial Reveal mark stays visually quiet on touch, but its tap and fader drag
+surfaces expand to 44px. Pointer capability changes presentation only; it never
+removes the feature.
 
 ## Non-gesture accessible equivalents
 
