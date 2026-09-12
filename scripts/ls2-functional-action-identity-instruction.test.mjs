@@ -264,6 +264,21 @@ assertContext(
   "Communications local semantic token",
   `--comms-semantic: #656058;`,
 );
+const commsSource = normalize(read("components/CommunicationsRoom.tsx"));
+const commsBlockStart = commsSource.indexOf(".comms-slate-ii{");
+const commsBlockEnd = commsSource.indexOf("}", commsBlockStart);
+assert.ok(commsBlockStart >= 0 && commsBlockEnd > commsBlockStart, "Communications local surface-token scope remains identifiable");
+const commsBlock = commsSource.slice(commsBlockStart, commsBlockEnd);
+for (const declaration of [
+  `--comms-reader-head: #ececea;`,
+  `--comms-reader-body: #f2f1ee;`,
+]) {
+  assert.equal(
+    countExact(commsBlock, declaration),
+    1,
+    `Communications .comms-slate-ii surface declaration remains exact: ${declaration}`,
+  );
+}
 
 const surfaceEvidence = [
   ["components/BrowseClient.tsx", "Gallery card surface and hover", `bg-[var(--card-surface)] p-3 transition hover:bg-[var(--hover-wash)]`],
@@ -308,6 +323,7 @@ const palette = {
     slate: rgb(87, 82, 74),
     muted: rgb(107, 101, 91),
     platinumDim: rgb(59, 56, 47),
+    platinumDimMobile: rgb(52, 49, 42),
     goldSubtle: rgba(122, 95, 32, 0.72),
   },
   dark: {
@@ -320,6 +336,7 @@ const palette = {
     slate: rgb(156, 161, 176),
     muted: rgb(129, 135, 153),
     platinumDim: rgb(207, 203, 195),
+    platinumDimMobile: rgb(216, 212, 204),
     goldSubtle: rgba(201, 168, 76, 0.45),
   },
 };
@@ -353,7 +370,7 @@ const measurementLedger = [
   ["Communications own-message author", commsBodyHover, "commsSemantic"],
   ["Notifications Mark all read action", plain("surface"), "muted"],
   ["Purchase Request return action", plain("ink"), "muted"],
-  ["saved-search user-authored name", plain("ink"), "platinumDim"],
+  ["saved-search user-authored name", plain("ink"), ["platinumDim", "platinumDimMobile"]],
   ["Listing Correspondence heading", plain("ink"), "slate"],
   ["Listing Correspondence own-message author", plain("ink"), "slate"],
   ["SearchEmpty related-result brand", hoverOver("surface"), "slate"],
@@ -380,18 +397,21 @@ assert.deepEqual(
 for (const [label, backgroundsFor, token, modes = ["light", "dark"]] of measurementLedger) {
   for (const mode of modes) {
     const colors = palette[mode];
-    const proposed = token === "commsSemantic" ? fixed.commsSemantic : colors[token];
-    for (const [stateIndex, background] of backgroundsFor(colors).entries()) {
-      const currentRatio = contrast(blend(colors.goldSubtle, background), background);
-      const proposedRatio = contrast(proposed, background);
-      assert.ok(
-        proposedRatio > currentRatio,
-        `${label} state ${stateIndex + 1} strictly improves in ${mode}: ${proposedRatio.toFixed(3)} > ${currentRatio.toFixed(3)}`,
-      );
-      assert.ok(
-        proposedRatio >= 4.5,
-        `${label} state ${stateIndex + 1} clears 4.5:1 in ${mode}: ${proposedRatio.toFixed(3)}`,
-      );
+    const tokens = Array.isArray(token) ? token : [token];
+    for (const proposedToken of tokens) {
+      const proposed = proposedToken === "commsSemantic" ? fixed.commsSemantic : colors[proposedToken];
+      for (const [stateIndex, background] of backgroundsFor(colors).entries()) {
+        const currentRatio = contrast(blend(colors.goldSubtle, background), background);
+        const proposedRatio = contrast(proposed, background);
+        assert.ok(
+          proposedRatio > currentRatio,
+          `${label} ${proposedToken} state ${stateIndex + 1} strictly improves in ${mode}: ${proposedRatio.toFixed(3)} > ${currentRatio.toFixed(3)}`,
+        );
+        assert.ok(
+          proposedRatio >= 4.5,
+          `${label} ${proposedToken} state ${stateIndex + 1} clears 4.5:1 in ${mode}: ${proposedRatio.toFixed(3)}`,
+        );
+      }
     }
   }
 }
