@@ -340,21 +340,27 @@ const EXCLUDED_SOURCE_PARTS = new Set([
   "tests",
   "__tests__",
 ]);
-const EXCLUDED_SOURCE_PATHS = new Set(["app/api/evaluate/route.ts"]);
+const EXCLUDED_SOURCE_PATH_PREFIXES = ["app/api/evaluate"];
 
 function toRepoPath(path) {
   return relative(rootPath, path).split(sep).join("/");
 }
 
+function hasExcludedSourcePathBoundary(path) {
+  return EXCLUDED_SOURCE_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
+
 function isExcludedProductionPath(path) {
   const parts = path.split("/");
-  return EXCLUDED_SOURCE_PATHS.has(path) || parts.some((part) => {
+  return hasExcludedSourcePathBoundary(path) || parts.some((part) => {
     const lower = part.toLowerCase();
     return EXCLUDED_SOURCE_PARTS.has(lower) || /canary|scor(?:e|ing)|evaluation/.test(lower);
   }) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
 }
 
-assert.ok(isExcludedProductionPath("app/api/evaluate/route.ts"), "api/evaluate sources are excluded before reading");
+assert.ok(isExcludedProductionPath("app/api/evaluate"), "api/evaluate directory is excluded before recursion");
+assert.ok(isExcludedProductionPath("app/api/evaluate/future-probe.mts"), "api/evaluate descendants are excluded before reading");
+assert.ok(isExcludedProductionPath("app/api/evaluate/route.ts"), "api/evaluate route is excluded before reading");
 
 function productionSourcePaths(directory = rootPath, paths = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
