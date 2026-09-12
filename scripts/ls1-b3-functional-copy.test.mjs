@@ -11,7 +11,7 @@
    not a new census. */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { extname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import postcss from "postcss";
 import ts from "typescript";
@@ -19,6 +19,11 @@ import ts from "typescript";
 const root = new URL("../", import.meta.url);
 const rootPath = fileURLToPath(root);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
+const typescriptResolutionOptions = ts.parseJsonConfigFileContent(
+  JSON.parse(read("tsconfig.json")),
+  ts.sys,
+  rootPath
+).options;
 const RECIPE = "fw-functional-copy";
 
 const css = postcss.parse(read("app/globals.css"));
@@ -340,6 +345,20 @@ const EXCLUDED_SOURCE_PARTS = new Set([
   "tests",
   "__tests__",
 ]);
+const EXCLUDED_SOURCE_ROOTS = new Set([
+  ".claude",
+  ".superpowers",
+  "continuity",
+  "docs",
+  "public",
+  "supabase",
+]);
+const EXCLUDED_SOURCE_FILES = new Set([
+  "eslint.config.mjs",
+  "next-env.d.ts",
+  "next.config.ts",
+  "postcss.config.mjs",
+]);
 const EXCLUDED_SOURCE_PATH_PREFIXES = ["app/api/evaluate"];
 
 function toRepoPath(path) {
@@ -352,7 +371,7 @@ function hasExcludedSourcePathBoundary(path) {
 
 function isExcludedProductionPath(path) {
   const parts = path.split("/");
-  return hasExcludedSourcePathBoundary(path) || parts.some((part) => {
+  return EXCLUDED_SOURCE_FILES.has(path) || EXCLUDED_SOURCE_ROOTS.has(parts[0]) || hasExcludedSourcePathBoundary(path) || parts.some((part) => {
     const lower = part.toLowerCase();
     return EXCLUDED_SOURCE_PARTS.has(lower) || /canary|scor(?:e|ing)|evaluation/.test(lower);
   }) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
@@ -376,20 +395,44 @@ function productionSourcePaths(directory = rootPath, paths = []) {
   return paths.sort();
 }
 
-function resolvedDormantTarget(importer, specifier) {
-  const absoluteBase = specifier.startsWith("@/")
-    ? join(rootPath, specifier.slice(2))
-    : specifier.startsWith(".")
-      ? resolve(dirname(join(rootPath, importer)), specifier)
-      : null;
-  if (!absoluteBase) return null;
+const productionSources = productionSourcePaths();
+for (const path of [
+  "app/what-fairwatchtrade-can-do/page.tsx",
+  "components/CurrentHomepage.tsx",
+  "lib/brands.ts",
+  "marketplace/page.tsx",
+  "middleware.ts",
+  "types/shipping.ts",
+]) {
+  assert.ok(productionSources.includes(path), `${path} remains in the production-source scan`);
+}
+assert.ok(!isExcludedProductionPath("data/future.ts"), "future data source remains eligible for the production-source scan");
+for (const path of [
+  ".claude/settings.json",
+  ".superpowers/sdd/example.mjs",
+  "continuity/derive.mjs",
+  "docs/example.ts",
+  "eslint.config.mjs",
+  "next-env.d.ts",
+  "next.config.ts",
+  "postcss.config.mjs",
+  "supabase/functions/example.ts",
+]) {
+  assert.ok(isExcludedProductionPath(path), `${path} is excluded before traversal or reading`);
+  assert.ok(!productionSources.includes(path), `${path} is absent from the production-source scan`);
+}
 
-  const candidates = [
-    absoluteBase,
-    ...[...SOURCE_EXTENSIONS].map((extension) => `${absoluteBase}${extension}`),
-    ...[...SOURCE_EXTENSIONS].map((extension) => join(absoluteBase, `index${extension}`)),
-  ];
-  return candidates.map(toRepoPath).find((path) => DORMANT_TREATMENT_PATH_KEYS.has(dormantPathKey(path))) ?? null;
+function resolvedDormantTarget(importer, specifier) {
+  if (!specifier.startsWith("@/") && !specifier.startsWith(".")) return null;
+  const resolved = ts.resolveModuleName(
+    specifier,
+    join(rootPath, importer),
+    typescriptResolutionOptions,
+    ts.sys
+  ).resolvedModule?.resolvedFileName;
+  if (!resolved) return null;
+  const path = toRepoPath(resolved);
+  return DORMANT_TREATMENT_PATH_KEYS.has(dormantPathKey(path)) ? path : null;
 }
 
 function moduleSpecifiers(path) {
@@ -413,7 +456,7 @@ function moduleSpecifiers(path) {
   return specifiers;
 }
 
-const dormantRevivalReferences = productionSourcePaths().flatMap((path) =>
+const dormantRevivalReferences = productionSources.flatMap((path) =>
   moduleSpecifiers(path).flatMap((specifier) => {
     const target = resolvedDormantTarget(path, specifier);
     return target ? [{ path, specifier, target }] : [];
