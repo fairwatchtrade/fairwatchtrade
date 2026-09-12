@@ -49,6 +49,13 @@ When building any page from a Studio prototype:
    "correct readability" — match new surfaces to them, not to the dimmest
    prototype values.
 
+## Dormant components and revival
+
+A dormant component is not exempt from the readability floor. When a dormant
+component becomes reachable, its functional text must pass the current governed
+semantic typography contract before shipment. Historical dormant status never
+grants a permanent exception.
+
 ## History (same fix, three times — hence this law)
 
 - Mobile nav (v1.65b): nav text lifted one tier; section labels --ghost→--muted,

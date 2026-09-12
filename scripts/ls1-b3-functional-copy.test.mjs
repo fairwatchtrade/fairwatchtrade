@@ -10,11 +10,14 @@
    editorial and dormant treatments outside these builds. It is deliberately
    not a new census. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import postcss from "postcss";
 import ts from "typescript";
 
 const root = new URL("../", import.meta.url);
+const rootPath = fileURLToPath(root);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const RECIPE = "fw-functional-copy";
 
@@ -48,7 +51,13 @@ assert.deepEqual(
 );
 
 function sourceTree(path) {
-  const kind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const kind = path.endsWith(".tsx")
+    ? ts.ScriptKind.TSX
+    : path.endsWith(".jsx")
+      ? ts.ScriptKind.JSX
+      : /\.(?:js|mjs|cjs)$/.test(path)
+        ? ts.ScriptKind.JS
+        : ts.ScriptKind.TS;
   return ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, kind);
 }
 
@@ -307,6 +316,103 @@ for (const path of [
 ]) {
   assert.doesNotMatch(read(path), new RegExp(`\\b${RECIPE}\\b`), `${path} remains outside LS1-B3`);
 }
+
+const DORMANT_TREATMENT_PATHS = new Set([
+  "components/reassurance/ListingDeclined.tsx",
+  "components/reassurance/ListingSold.tsx",
+  "components/reassurance/NoSearchResults.tsx",
+  "components/reassurance/SignInRequired.tsx",
+  "components/VaultEntrance.tsx",
+  "components/AtlantisVaultEntrance.tsx",
+]);
+const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const EXCLUDED_SOURCE_PARTS = new Set([
+  ".git",
+  ".next",
+  "build",
+  "dist",
+  "node_modules",
+  "out",
+  "scripts",
+  "test",
+  "tests",
+  "__tests__",
+]);
+
+function toRepoPath(path) {
+  return relative(rootPath, path).split(sep).join("/");
+}
+
+function isExcludedProductionPath(path) {
+  const parts = path.split("/");
+  return parts.some((part) => {
+    const lower = part.toLowerCase();
+    return EXCLUDED_SOURCE_PARTS.has(lower) || /canary|scor(?:e|ing)|evaluation/.test(lower);
+  }) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
+}
+
+function productionSourcePaths(directory = rootPath, paths = []) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const absolutePath = join(directory, entry.name);
+    const path = toRepoPath(absolutePath);
+    if (isExcludedProductionPath(path)) continue;
+    if (entry.isDirectory()) {
+      productionSourcePaths(absolutePath, paths);
+    } else if (entry.isFile() && SOURCE_EXTENSIONS.has(extname(entry.name)) && !DORMANT_TREATMENT_PATHS.has(path)) {
+      paths.push(path);
+    }
+  }
+  return paths.sort();
+}
+
+function resolvedDormantTarget(importer, specifier) {
+  const absoluteBase = specifier.startsWith("@/")
+    ? join(rootPath, specifier.slice(2))
+    : specifier.startsWith(".")
+      ? resolve(dirname(join(rootPath, importer)), specifier)
+      : null;
+  if (!absoluteBase) return null;
+
+  const candidates = [
+    absoluteBase,
+    ...[...SOURCE_EXTENSIONS].map((extension) => `${absoluteBase}${extension}`),
+    ...[...SOURCE_EXTENSIONS].map((extension) => join(absoluteBase, `index${extension}`)),
+  ];
+  return candidates.map(toRepoPath).find((path) => DORMANT_TREATMENT_PATHS.has(path)) ?? null;
+}
+
+function moduleSpecifiers(path) {
+  const specifiers = [];
+  const add = (node) => {
+    if (node && ts.isStringLiteralLike(node)) specifiers.push(node.text);
+  };
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      add(node.moduleSpecifier);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+      add(node.moduleReference.expression);
+    } else if (ts.isCallExpression(node)) {
+      const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const isRequire = ts.isIdentifier(node.expression) && node.expression.text === "require";
+      if (isDynamicImport || isRequire) add(node.arguments[0]);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceTree(path));
+  return specifiers;
+}
+
+const dormantRevivalReferences = productionSourcePaths().flatMap((path) =>
+  moduleSpecifiers(path).flatMap((specifier) => {
+    const target = resolvedDormantTarget(path, specifier);
+    return target ? [{ path, specifier, target }] : [];
+  })
+);
+assert.equal(
+  dormantRevivalReferences.length,
+  0,
+  `Dormant revival is blocked: ${dormantRevivalReferences.map(({ path, specifier, target }) => `${path} -> ${specifier} (${target})`).join(", ")}. An external production-source reference means the revived component must be corrected to the current governed semantic typography and this contract reconciled before shipment.`
+);
 
 assert.equal(countExactStatic("components/VaultSpecificationUpgrade.tsx", "mt-2 text-[12px] text-[var(--platinum-dim)]"), 1, "Vault admin aside keeps its inherited 12px parent");
 assert.match(read("components/VaultSpecificationUpgrade.tsx"), /Nice try, you wanker\./, "Vault admin aside copy remains present");
