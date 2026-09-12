@@ -206,7 +206,7 @@ export default function ResetPasswordPage() {
                     className="fw-input"
                   />
                   {showMismatch && (
-                    <p className="mt-2 text-[12px] text-[var(--danger)]">
+                    <p className="mt-2 fw-functional-copy text-[var(--danger)]">
                       Passwords don&apos;t match.
                     </p>
                   )}
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
                 </button>
 
                 {error && (
-                  <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+                  <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 fw-functional-copy text-[var(--danger)]">
                     {error}
                   </div>
                 )}

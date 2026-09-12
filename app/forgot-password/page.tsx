@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
                 </button>
 
                 {error && typeof error === "string" && (
-                  <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 text-[13px] text-[var(--danger)]">
+                  <div className="mb-4 border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.08)] px-3 py-2 fw-functional-copy text-[var(--danger)]">
                     {error}
                   </div>
                 )}

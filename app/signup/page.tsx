@@ -309,7 +309,7 @@ export default function SignUpPage() {
               </button>
 
               {verifyError && (
-                <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 text-[13px] text-[var(--danger)]">
+                <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 fw-functional-copy text-[var(--danger)]">
                   {verifyError}
                 </div>
               )}
@@ -327,7 +327,7 @@ export default function SignUpPage() {
               </div>
 
               {resendMessage && (
-                <div className="mt-3 text-center text-[11px] text-[var(--muted)]">
+                <div className="mt-3 text-center fw-functional-copy text-[var(--muted)]">
                   {resendMessage}
                 </div>
               )}
@@ -453,7 +453,7 @@ export default function SignUpPage() {
                 className="fw-input"
               />
               {showMismatch && (
-                <p className="mt-2 text-[12px] text-[var(--danger)]">
+                <p className="mt-2 fw-functional-copy text-[var(--danger)]">
                   Passwords don&apos;t match.
                 </p>
               )}
@@ -468,7 +468,7 @@ export default function SignUpPage() {
             </button>
 
             {error && (
-              <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 text-[13px] text-[var(--danger)]">
+              <div className="mb-4 border border-[color:light-dark(rgba(160,59,51,0.42),rgba(220,80,80,0.3))] bg-[color:light-dark(rgba(160,59,51,0.07),rgba(220,80,80,0.08))] px-3 py-2 fw-functional-copy text-[var(--danger)]">
                 {error}
               </div>
             )}
