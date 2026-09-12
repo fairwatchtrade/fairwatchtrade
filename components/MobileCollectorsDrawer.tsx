@@ -29,33 +29,30 @@ const MOBILE_DARK_PALETTE = {
    The approved mobile/tablet restoration (Design Gate artifact:
    FairWatchTrade_Collectors_Drawer_Saved_Search_Mobile_Design_Gate_FINAL_
    TOUCH_REFINEMENT.html — geometry and behavior ported, not redesigned).
-   Mounted ONLY below lg (1024): desktop keeps the persistent smoked-glass
-   spine and components/CollectorsDrawer.tsx untouched — this flight's
-   locked boundary. One component per breakpoint side, no shared state
-   needed: only one is ever visible, and each defaults closed.
+   Mounted ONLY below 56rem (896px): desktop keeps the persistent
+   smoked-glass spine and components/CollectorsDrawer.tsx untouched — this
+   flight's locked boundary. One component per breakpoint side, no shared
+   state needed: only one is ever visible, and each defaults closed.
 
-   ── THE GOLD WATCH-HAND PULL (placement is design law) ─────────────────
-   The single control in both states. Its lowered position — top at
-   71% + 40px of the gallery, phone-tested — is intentional and protects
-   three things at once: THUMB REACH (it sits where a one-handed grip
-   actually lands), CONTROL MEANING (a watch hand, not a chevron — the
-   Drawer's own vocabulary), and SEPARATION from gallery/thumbnail
-   navigation (it cannot be mistaken for, or mis-tapped as, a photo
-   control). Do not raise it back toward the gallery's vertical center.
-   Closed: hand points down at the left edge — tapping opens. Open: the
-   hand reverses 180° and rides the Drawer's right edge — tapping closes.
-   The accessible name swaps with state. No other dismissal exists, by
-   design — same philosophy as the desktop spine (none is invented here).
+   ── THE NAMED GOLD WATCH-HAND PULL ──────────────────────────────────────
+   The single control in both states is a short 64×44 edge tab whose top edge
+   begins immediately below the governed gallery stage. The established
+   watch-hand mark keeps the Drawer's visual vocabulary; the visible existing
+   noun “Drawer” makes the doorway legible without inventing new product
+   meaning. Closed: the hand points down at the left edge. Open: it reverses
+   180° and rides the Drawer's right edge. The accessible name swaps with
+   state. No other dismissal exists, by design — the desktop spine is not
+   changed here.
 
    ── GEOMETRY (artifact tiers → production viewports) ───────────────────
    The artifact is a container-query mock; production maps its tiers to
    viewport breakpoints, mobile-first:
-     base  (<470)      overlay 82vw   · rows 67px · hand travel 82vw−21px
+     base  (<470)      overlay 82vw   · rows 67px · tab travel 82vw−32px
                         · foot + "Up to three" hidden
-     ≥470  (<768)      overlay min(360px,84vw) · rows 73px · hand 42×90
-                        (svg 36×78) · travel min(360px,84vw)−21px
-     ≥768  (md, <1024) overlay 390px · rows 84px · hand 46×96 (svg 40×84)
-                        · travel 367px
+     ≥470  (<768)      overlay min(360px,84vw) · rows 73px
+                        · tab travel min(360px,84vw)−32px
+     ≥768  (md, <896)  overlay 390px · rows 84px · tab travel 356px
+   The tab remains 64×44 with a non-shrinking 17×34 hand at every tier.
    The overlay anchors inset-y-0 left-0 in the page's gallery CELL (made
    relative by page.tsx), so its height IS the gallery's height by grid
    construction — ListingGallery keeps ZERO knowledge of the Drawer, the
@@ -210,7 +207,7 @@ export default function MobileCollectorsDrawer({
 
   return (
     <>
-      {/* ── SIDE OVERLAY — no spine below lg (artifact). Anchored to the
+      {/* ── SIDE OVERLAY — no spine below 56rem. Anchored to the
              gallery cell; slides from the left edge. ── */}
       <aside
         id="mobile-collectors-drawer"
@@ -295,26 +292,29 @@ export default function MobileCollectorsDrawer({
         </div>
       </aside>
 
-      {/* ── THE GOLD WATCH-HAND PULL — the only control, both states. The
-             lowered placement (71% + 40px) is design law: thumb reach,
-             control meaning, separation from gallery/thumb navigation. ── */}
+      {/* ── THE GOLD WATCH-HAND PULL — the only control, both states. It now
+             sits as a short, named edge tab immediately below the governed
+             gallery stage. The hand preserves the old visual idea; the visible
+             existing noun tells a collector what the control opens. ── */}
       <button
         type="button"
+        data-mobile-drawer-opener=""
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
         aria-controls="mobile-collectors-drawer"
         aria-label={expanded ? "Close Collector's Drawer" : "Open Collector's Drawer"}
         className={[
-          "absolute z-[26] min-[56rem]:hidden",
-          "top-[calc(71%+40px)] -translate-y-1/2",
-          "h-[90px] w-[42px] md:h-[96px] md:w-[46px]",
-          "border-0 bg-transparent p-0 text-[var(--gold)]",
-          "[filter:drop-shadow(0_5px_7px_rgba(0,0,0,0.5))]",
-          "transition-[left] duration-[240ms] ease-out",
+          "absolute z-[26] flex min-[56rem]:hidden",
+          "bottom-0",
+          "h-[44px] w-[64px] items-center justify-center gap-1",
+          "border border-l-0 border-[var(--border-gold)] bg-[var(--surface)] p-0 text-[var(--gold)]",
+          "shadow-[0_5px_12px_rgba(0,0,0,0.18)]",
+          "transition-[left,background-color] duration-[240ms] ease-out",
+          "hover:bg-[var(--hover-wash)]",
           "focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--gold)] focus-visible:outline-offset-2",
           expanded
-            ? "left-[calc(82vw-21px)] min-[470px]:left-[calc(min(360px,84vw)-21px)] md:left-[367px]"
-            : "left-1",
+            ? "left-[calc(82vw-32px)] min-[470px]:left-[calc(min(360px,84vw)-32px)] md:left-[356px]"
+            : "left-0",
         ].join(" ")}
       >
         {/* v2.25b — artwork sharpened after founder review ("reads like a
@@ -322,15 +322,15 @@ export default function MobileCollectorsDrawer({
             blade — a faceted watch hand. Two long facets (lit + shadowed)
             meet at a hard center spine and a needle point; the counterweight
             ring gains a pinion dot; the drop-shadow blur is tightened so the
-            silhouette stays crisp. Size, placement, travel, and rotation are
-            untouched — ruling-locked; this is artwork only. */}
+            silhouette stays crisp. The blade geometry stays intact while this
+            mobile flight scales it into the shorter named tab. */}
         <svg
           viewBox="0 0 46 96"
           aria-hidden="true"
           className={[
-            "block h-[78px] w-[36px] overflow-visible md:h-[84px] md:w-[40px]",
+            "block h-[34px] w-[17px] shrink-0 overflow-visible",
             "origin-center transition-transform duration-[240ms] ease-out",
-            expanded ? "scale-[0.88] rotate-180" : "scale-[0.88]",
+            expanded ? "rotate-180" : "",
           ].join(" ")}
         >
           {/* counterweight ring + pinion — anchored to the site gold
@@ -347,6 +347,9 @@ export default function MobileCollectorsDrawer({
           <path d="M23 26 V90" stroke="#E5CE8A" strokeWidth="0.9" />
           <path d="M23 26 L16 56 L23 90 L30 56 Z" fill="none" stroke="#D4B45C" strokeWidth="1" strokeLinejoin="miter" />
         </svg>
+        <span className="text-[11px] font-medium text-[var(--gold-dim)]">
+          Drawer
+        </span>
       </button>
     </>
   );

@@ -41,15 +41,17 @@ import { listingMetadata, type ListingMetadataRow } from "@/lib/seo/routeMetadat
    etc.) are NEVER rendered here — they are seller-only. Only buyer-safe
    fields below reach the markup.
 
-   Six-section layout (top → bottom):
-     1. Media gallery (hero w/ brand·model overlay + thumbnail strip)
+   Responsive opening flow (top → bottom):
+     1. Media gallery. Desktop retains arrows + thumbnail strip; narrow uses
+        swipe + compact count.
      2. Identity block — brand+model, Ref., Box & Papers sentence, Collector
-        Fingerprint (unboxed quick-read lines — Design Gate v2)
-     3. Collector Snapshot — fixed 3×3 semantic matrix (facts keep their slots)
-     4. Technical Specifications — remaining specs, never duplicating §3
-     5. From the Seller — full description, mb-8 reserve for the message stream
-     6. Price, then (buyer-only) Start Purchase Request / pending-status badge
-        ← these are now the last in-flow elements
+        Fingerprint (unboxed quick-read lines — Design Gate v2).
+     3. On narrow, the existing price and eligible Purchase Request action.
+     4. Specifications. Narrow uses one Technical Specifications flow; desktop
+        retains Collector Snapshot followed by Technical Specifications.
+     5. From the Seller — full description, mb-8 reserve for the message stream.
+     6. Desktop price/action rail; the same owner is already rendered at step 3
+        on narrow.
    The message bar is position:fixed (viewport-pinned), so it is NOT part of
    the scrolling content flow.
 
@@ -687,14 +689,14 @@ export default async function ListingDetailPage({
           visual gutters on each side; the Drawer's collapsed tab lives at
           left:-65px inside the left gutter, which is why that anchor is not
           decorative and must not be reduced.
-          Mobile/tablet (<896px): the established stacked composition and
-          mobile Drawer, with the existing Purchase Request surface directly
-          after the gallery.
+          Mobile/tablet (<896px): the stacked composition and mobile Drawer,
+          with identity/provenance followed by the existing inline price and
+          Purchase Request surface, then one normal specification flow.
           NO viewport shows both navigation mechanisms.
           Breakpoint = 56rem (896px), where the existing 224px rail and 24px
           gap leave a measured 518px primary after the desktop scrollbar.
           Below it, the existing inline Purchase Request takes over directly
-          after the gallery.
+          after identity/provenance.
           ListingGallery owns the monotonic photo curve itself, so removing a
           neighboring track can never promote the photograph to that track's
           released width.
@@ -851,9 +853,9 @@ export default async function ListingDetailPage({
             )}
           </div>
 
-          {/* CONTENT CELL — col 1, row 2: listing identity. The narrow-layout
-              Purchase Request now follows the seller narrative in lower flow,
-              so the watch is discovered before the offer surface. */}
+          {/* CONTENT CELL — col 1, row 2. Narrow keeps identity/provenance,
+              then the existing price/action owner, then specifications in one
+              early decision sequence. Desktop keeps its established rail. */}
           <div className="w-full max-w-[518px] min-[56rem]:col-start-1 min-[56rem]:row-start-2 min-[56rem]:max-w-none">
 
         {/* DIAL REVEAL — WIRED (v1.58). Was a Phase-2 placeholder ("Activation:
@@ -876,7 +878,7 @@ export default async function ListingDetailPage({
             composed identity — maker, model, reference signature, inclusion
             statement, collector shorthand — rather than as unrelated data
             components stacked in sequence. Nothing here is boxed. */}
-        <section className="mt-6">
+        <section data-listing-identity="" className="mt-6">
           {showMaker && (
             <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[var(--muted)] sm:text-[12px]">
               {maker}
@@ -1045,6 +1047,31 @@ export default async function ListingDetailPage({
               more; this comment marks the old home so the relocation reads as
               deliberate. */}
         </section>
+
+          {/* STACKED PURCHASE HANDOFF (<896px). The existing price and
+              state-eligible action move intact into the early decision
+              cluster: identity / provenance, then price / action, then facts.
+              The provider remains the single owner of open, offer and note
+              state; no second form or commerce branch exists. */}
+          <div data-purchase-inline="" className="min-[56rem]:hidden">
+            <ListingActionRail
+              variant="inline"
+              listingId={listing.id}
+              sellerId={listing.seller_id}
+              sellerName={sellerName}
+              priceText={priceText}
+              isOwner={isOwner}
+              requestStatus={myLatestRequest?.status ?? null}
+              bagHref={bagHref}
+              openToTrades={listing.open_to_trades === true}
+              listingIdentity={tradeIdentity}
+              myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
+              listingStatus={listing.status}
+              askingPrice={listing.asking_price}
+              askingCurrency={listing.asking_currency}
+              canRequestInline={!!user}
+            />
+          </div>
           </div>
           {/* end CONTENT CELL */}
 
@@ -1099,7 +1126,8 @@ export default async function ListingDetailPage({
                minus the 224px rail and 24px gap), capped at its 974px ceiling. ── */}
         <div className="min-[56rem]:max-w-[min(974px,calc(100%_-_248px))]">
 
-        {/* SECTIONS 3 & 4 — Collector Snapshot + Technical Specifications, fixed geography */}
+        {/* SPECIFICATIONS — one normal narrow flow; established desktop
+            geography remains behind the shared renderer's handoff. */}
         <ListingSpecs
           details={details}
           year={listing.year}
@@ -1203,31 +1231,6 @@ export default async function ListingDetailPage({
             )}
           </section>
         )}
-
-        {/* STACKED PURCHASE HANDOFF (<896px). This is the existing inline
-            request, relocated intact after the seller narrative so buyers
-            meet the watch before the offer surface. It still consumes the
-            provider's single live open/offer/note state; no second form or
-            state owner exists. */}
-        <div data-purchase-inline="" className="min-[56rem]:hidden">
-          <ListingActionRail
-            variant="inline"
-            listingId={listing.id}
-            sellerId={listing.seller_id}
-            sellerName={sellerName}
-            priceText={priceText}
-            isOwner={isOwner}
-            requestStatus={myLatestRequest?.status ?? null}
-            bagHref={bagHref}
-            openToTrades={listing.open_to_trades === true}
-            listingIdentity={tradeIdentity}
-            myTradeOfferStatus={myLatestTradeOffer?.status ?? null}
-            listingStatus={listing.status}
-            askingPrice={listing.asking_price}
-            askingCurrency={listing.asking_currency}
-            canRequestInline={!!user}
-          />
-        </div>
 
         {/* CORRESPONDENCE — v2.7, Surface 1 per the final ruling. The
             reserved Section 5 message-stream slot becomes the conversation's

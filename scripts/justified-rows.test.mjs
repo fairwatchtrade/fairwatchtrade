@@ -279,12 +279,13 @@ const rowWidth = (row, gap = 6) =>
 
   ok("C8 the inspection room cycles rather than dead-ending at either end",
     /\(i \+ step \+ photos\.length\) % photos\.length/.test(gallery));
-  ok("C8 so both of its arrows are always present and neither can appear or vanish",
+  ok("C8 both galleries use the one modular cycle rather than dead-ending",
     /const canCycle = photos\.length > 1;/.test(gallery) &&
-    (gallery.match(/\{canCycle && \(/g) ?? []).length === 2);
-  ok("C8 and the resting hero above still stops at the ends, unchanged",
-    /const hasPrev = active > 0;/.test(gallery) &&
-    /const hasNext = active < photos\.length - 1;/.test(gallery));
+    (gallery.match(/onClick=\{\(\) => cycle\(-1\)\}/g) ?? []).length === 2 &&
+    (gallery.match(/onClick=\{\(\) => cycle\(1\)\}/g) ?? []).length === 2 &&
+    !/const hasPrev|const hasNext/.test(gallery));
+  ok("C8 resting arrows remain desktop controls while mobile uses swipe",
+    /const stageArrowClass =\s*"[^"\n]*hidden[^"\n]*min-\[56rem\]:flex/.test(gallery));
 
   ok("C9 the room and the header hang on ONE outer geometry",
     (gallery.match(/max-w-\[1900px\]/g) ?? []).length >= 2);

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import DialReveal from "@/components/DialReveal";
 import FwtListingId from "@/components/FwtListingId";
 import InspectionPhotoRail from "@/components/InspectionPhotoRail";
@@ -8,6 +16,7 @@ import InspectionViewport, { type InspectionControls } from "@/components/Inspec
 import LoupeIcon from "@/components/LoupeIcon";
 import NavArrowMark from "@/components/NavArrowMark";
 import { cardImageSrc } from "@/lib/media/cardImage";
+import { gallerySwipeDirection } from "@/lib/media/gallerySwipe";
 
 /* Geometry the inspection room shares with its own Tailwind classes. Kept
    here so the arithmetic and the paint cannot drift: STAGE_GUTTERS is the
@@ -32,8 +41,9 @@ const WIDE_ROOM = "56rem";
 /* ────────────────────────────────────────────────────────────────────────
    LISTING GALLERY — buyer-facing photo viewer (v1.24)
 
-   Client child of /listings/[id]. Renders a full-width hero and a scrollable
-   strip of the REMAINING photos; clicking a thumbnail swaps it into the hero.
+   Client child of /listings/[id]. Renders a full-width hero. Desktop adds a
+   scrollable strip of the REMAINING photos; narrow screens page by swipe and
+   retain a compact in-image count instead of persistent thumbnails.
    The parent computes the initial hero index (first "Dial" photo, else 0) and
    passes plain public Blob URLs — no category labels are surfaced to buyers.
 
@@ -100,6 +110,7 @@ export default function ListingGallery({
   const safeInitial =
     initialIndex >= 0 && initialIndex < photos.length ? initialIndex : 0;
   const [active, setActive] = useState(safeInitial);
+  const swipeStartRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
 
   /* ── INSPECTION STATE (buyer-facing polish, 2026-08-13) ────────────────
      Condition judgment needs the photograph at inspection scale: dial,
@@ -280,6 +291,68 @@ export default function ListingGallery({
     [photos.length]
   );
 
+  /* Narrow resting-gallery navigation. Pointer capture keeps a deliberate
+     horizontal gesture coherent even if the finger leaves the photograph;
+     touch-action: pan-y leaves vertical movement to the page. Controls — most
+     importantly Dial Reveal — remain their own gesture owners. */
+  const onStagePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        !canCycle ||
+        event.pointerType === "mouse" ||
+        window.matchMedia("(min-width: " + WIDE_ROOM + ")").matches
+      ) {
+        return;
+      }
+
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          'button, a, input, label, select, textarea, [role="button"]',
+        )
+      ) {
+        return;
+      }
+
+      if (swipeStartRef.current) {
+        swipeStartRef.current = null;
+        return;
+      }
+
+      swipeStartRef.current = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [canCycle],
+  );
+
+  const onStagePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      if (!start || start.pointerId !== event.pointerId) return;
+
+      const direction = gallerySwipeDirection(
+        event.clientX - start.x,
+        event.clientY - start.y,
+      );
+      if (direction !== 0) cycle(direction);
+    },
+    [cycle],
+  );
+
+  const onStagePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (swipeStartRef.current?.pointerId === event.pointerId) {
+        swipeStartRef.current = null;
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!inspecting) return;
     const onKey = (e: KeyboardEvent) => {
@@ -374,7 +447,7 @@ export default function ListingGallery({
      light page surface), anchored to the stage's edges. See the arrow block
      inside the stage below. */
   const stageArrowClass =
-    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center " +
+    "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center min-[56rem]:flex " +
     "text-[var(--platinum-dim)] transition hover:text-[var(--gold)] " +
     "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 " +
     "focus-visible:outline-[var(--gold)]";
@@ -408,7 +481,13 @@ export default function ListingGallery({
           padding between the collector and the photograph.
           The photograph itself carries no click
           handler: clicking it still does nothing, by design. */}
-      <div data-listing-stage="" className="relative flex aspect-square max-h-[60vh] w-full items-center justify-center [container-type:size]">
+      <div
+        data-listing-stage=""
+        className="relative flex aspect-square max-h-[60vh] w-full items-center justify-center [container-type:size] [touch-action:pan-y] min-[56rem]:[touch-action:auto]"
+        onPointerDown={onStagePointerDown}
+        onPointerUp={onStagePointerUp}
+        onPointerCancel={onStagePointerCancel}
+      >
         {/* ── THE GOVERNED STAGE ────────────────────────────────────────────
             The stage owns the height. The photograph does not.
 
@@ -478,6 +557,16 @@ export default function ListingGallery({
             />
           )}
 
+          {canCycle && (
+            <div
+              data-mobile-photo-count=""
+              className="pointer-events-none absolute left-3 top-3 z-20 border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim)] px-2 py-1 text-[11px] font-medium tabular-nums tracking-[0.08em] text-[var(--on-photo-text)] min-[56rem]:hidden"
+              aria-label={`Photo ${active + 1} of ${photos.length}`}
+            >
+              <span aria-hidden="true">{active + 1} / {photos.length}</span>
+            </div>
+          )}
+
           {/* The desktop Drawer belongs to the rendered photograph, not to
               the governed stage or the gallery flow beneath it. `contents`
               keeps the hero wrapper as the positioned containing block, so
@@ -514,9 +603,10 @@ export default function ListingGallery({
             square and a landscape photograph in the same listing leave both
             arrows nailed to the same spots, with air beside a narrow picture
             rather than an arrow that walks. Since v8.55 they cycle like the
-            room: both are present whenever there is more than one photograph,
-            Previous on the first wraps to the last and Next on the last wraps
-            to the first. They still sit below Dial Reveal (z-10 under z-30)
+            room: on desktop both are present whenever there is more than one
+            photograph, Previous on the first wraps to the last and Next on the
+            last wraps to the first. Narrow screens swipe instead. The arrows
+            still sit below Dial Reveal (z-10 under z-30)
             where the two can meet. The palette is the
             inspection room's, because the arrow now often stands on the page
             surface beside the photograph rather than on the photograph; the
@@ -546,7 +636,7 @@ export default function ListingGallery({
 
       {/* Reserve the loupe's below-photo lane so thumbnails never collide
           with the icon-only trigger. */}
-      <div aria-hidden="true" className="h-9" />
+      <div aria-hidden="true" className="h-11 min-[56rem]:h-9" />
 
       {/* ── Inspection overlay — the collector's light room ────────────────
           What this replaced: a black field carrying data-immersive-dark. The
@@ -831,9 +921,13 @@ export default function ListingGallery({
         </div>
       )}
 
-      {/* Remaining photos — scrollable horizontal thumbnail strip */}
+      {/* Desktop resting rail. Narrow screens keep every photo reachable by
+          swipe and reserve thumbnails for the deliberate inspection room. */}
       {photos.length > 1 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        <div
+          data-resting-thumbnail-rail=""
+          className="mt-3 hidden gap-2 overflow-x-auto pb-1 min-[56rem]:flex"
+        >
           {photos.map((url, i) => (
             <button
               key={i}

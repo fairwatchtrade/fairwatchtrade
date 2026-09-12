@@ -7,8 +7,8 @@ import {
 } from "@/lib/watchDetailGeography";
 
 /* ────────────────────────────────────────────────────────────────────────
-   LISTING SPECS — §3 Collector Snapshot + §4 Technical Specifications
-   for /listings/[id].
+   LISTING SPECS — the narrow normal specification flow plus the established
+   desktop Snapshot / Technical Specifications geography for /listings/[id].
 
    Fixed semantic geography (Watch Detail scanability, 2026-09-10). The
    matrix itself is composed in lib/watchDetailGeography.ts, which also
@@ -153,21 +153,30 @@ export default function ListingSpecs({
     ...chunkRows(geo.technicalExtras).map((slots, i) => ({ key: `technical-extra-${i}`, slots })),
   ];
 
+  const mobileUnits: Unit[] = [...snapshotUnits, ...technicalUnits];
+
   return (
     <>
-      {/* SECTION 3 — Collector Snapshot: 3 × 3, slots fixed on desktop. */}
-      <section className="mt-8">
-        <SectionHeading>Collector Snapshot</SectionHeading>
-        <Units units={snapshotUnits} />
+      {/* Narrow/mobile: one specification doorway and one continuous factual
+          sequence. Collector Snapshot is not a separate mobile destination. */}
+      <section data-mobile-specifications="" className="mt-8 min-[56rem]:hidden">
+        <SectionHeading>Technical Specifications</SectionHeading>
+        <Units units={mobileUnits} />
       </section>
 
-      {/* SECTION 4 — Technical Specifications: short facts align in two
-          three-column rows, long facts breathe in wide rows beneath. One
-          continuous surface; the disclosure died in v4.26. */}
-      <section className="mt-6">
-        <SectionHeading>Technical Specifications</SectionHeading>
-        <Units units={technicalUnits} />
-      </section>
+      {/* `contents` keeps the established desktop sections as direct layout
+          participants while the complementary narrow branch stays hidden. */}
+      <div data-desktop-specifications="" className="hidden min-[56rem]:contents">
+        <section className="mt-8">
+          <SectionHeading>Collector Snapshot</SectionHeading>
+          <Units units={snapshotUnits} />
+        </section>
+
+        <section className="mt-6">
+          <SectionHeading>Technical Specifications</SectionHeading>
+          <Units units={technicalUnits} />
+        </section>
+      </div>
     </>
   );
 }

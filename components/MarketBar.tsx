@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useMetals } from "@/lib/useMetals";
 import { METAL_DOT_CLASS, type MetalDirection } from "@/lib/metals";
 import { statusOf, type Auction } from "@/lib/auctions";
@@ -38,6 +39,8 @@ function countdown(ms: number) {
 }
 
 export default function MarketBar() {
+  const pathname = usePathname();
+  const isWatchDetail = /^\/listings\/[^/]+\/?$/.test(pathname);
   const metals = useMetals();
   const [auctions, setAuctions] = useState<Auction[]>([]);
   // v2.4z — initialize with REAL time. useState(0) meant the first render
@@ -89,7 +92,10 @@ export default function MarketBar() {
   const list = metals?.metals ?? PLACEHOLDER;
 
   return (
-    <div className="w-full border-b border-[var(--border-mid)] bg-[var(--surface)]">
+    <div
+      data-market-bar=""
+      className={`${isWatchDetail ? "hidden min-[56rem]:block" : ""} w-full border-b border-[var(--border-mid)] bg-[var(--surface)]`}
+    >
       {/* RULED: this strip shares the masthead's outer geometry - no width
           cap, px-6 gutters. It had been capped at max-w-screen-2xl and
           guttered at px-3, so above 1536px it centred as its own island, and

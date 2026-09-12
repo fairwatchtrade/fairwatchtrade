@@ -65,7 +65,7 @@ assert.ok(gal, "gallery wrapper");
 const GALLERY_NARROW_MAX = Number(gal[1]);
 const GALLERY_CAP = Number(gal[2]);
 const GALLERY_VW_MINUS = Number(gal[3]);
-const STAGE_RE = /<div data-listing-stage="" className="relative flex aspect-square max-h-\[(\d+)vh\] w-full items-center justify-center \[container-type:size\]">/;
+const STAGE_RE = /<div\s+data-listing-stage=""\s+className="[^"]*max-h-\[(\d+)vh\][^"]*"/;
 const STAGE_VH = num(STAGE_RE, gallery, "stage ceiling") / 100;
 assert.match(gallery, /width: `min\(100cqw, calc\(100cqh \* \$\{heroAspect\}\)\)`/);
 /* Resting arrows: children of the STAGE (v8.54), inset 12px from ITS edges.
@@ -73,7 +73,7 @@ assert.match(gallery, /width: `min\(100cqw, calc\(100cqh \* \$\{heroAspect\}\)\)
    gallery box alone and never of heroAspect. */
 const ARROW = /className=\{`\$\{stageArrowClass\} (left|right)-3`\}/g;
 assert.equal((gallery.match(ARROW) ?? []).length, 2, "both resting arrows are inset 12px inside the stage");
-assert.match(gallery, /const stageArrowClass =\s*"absolute top-1\/2 z-10 flex h-11 w-11/);
+assert.match(gallery, /const stageArrowClass =\s*"absolute top-1\/2 z-10 hidden h-11 w-11[^"\n]*min-\[56rem\]:flex/);
 const ARROW_INSET = 12, ARROW_SIZE = 44;
 
 /* Measured on production: the classic desktop scrollbar. */
@@ -197,12 +197,12 @@ test("the resting arrows are children of the stage, and no arrow is nested in th
   assert.match(gallery, /\(i \+ step \+ photos\.length\) % photos\.length/);
   assert.match(afterLoupe, /<NavArrowMark flip /);
   // The stage is positioned so absolute children resolve against IT, not the page.
-  assert.match(gallery, /data-listing-stage="" className="relative /);
+  assert.match(gallery, /data-listing-stage=""\s+className="relative /);
   // Inspection-room arrows untouched.
   assert.equal((gallery.match(/className=\{roomArrowClass\}/g) ?? []).length, 2);
   // README states the law.
   const readme = read("components/ListingGallery.README.md");
-  assert.match(readme, /Resting\s+photo-navigation arrows are pinned to the stable governed stage, not the active\s+photograph\./);
+  assert.match(readme, /Desktop resting\s+photo-navigation arrows are pinned to the stable governed stage, not the active\s+photograph\./);
 });
 
 test("the handoff has no band where both systems overlap, and nothing overflows the document", () => {

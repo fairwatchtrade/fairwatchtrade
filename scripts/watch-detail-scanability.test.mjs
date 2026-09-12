@@ -237,10 +237,17 @@ test("below sm absent facts leave; on desktop every slot stays", () => {
   assert.doesNotMatch(specs, /md:grid-cols|lg:grid-cols/);
 });
 
-test("section labels are real headings, visually quiet", () => {
+test("mobile removes the Snapshot heading while desktop keeps its established headings", () => {
   assert.match(specs, /<h2 className=\{HEADING\}>/);
-  assert.match(specs, /<SectionHeading>Collector Snapshot<\/SectionHeading>/);
-  assert.match(specs, /<SectionHeading>Technical Specifications<\/SectionHeading>/);
+  const mobileStart = specs.indexOf('data-mobile-specifications=""');
+  const desktopStart = specs.indexOf('data-desktop-specifications=""');
+  assert.ok(mobileStart >= 0 && desktopStart > mobileStart);
+  const mobile = specs.slice(mobileStart, desktopStart);
+  const desktop = specs.slice(desktopStart);
+  assert.match(mobile, /<SectionHeading>Technical Specifications<\/SectionHeading>/);
+  assert.doesNotMatch(mobile, /Collector Snapshot/);
+  assert.match(desktop, /<SectionHeading>Collector Snapshot<\/SectionHeading>/);
+  assert.match(desktop, /<SectionHeading>Technical Specifications<\/SectionHeading>/);
   assert.match(specs, /text-\[11px\] font-medium uppercase tracking-\[0\.22em\] text-\[var\(--gold-dim\)\]/);
   assert.doesNotMatch(specs, /<span[^>]*>\s*Collector Snapshot/);
 });

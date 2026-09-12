@@ -227,15 +227,22 @@ working — and an arrow that disappears is one more thing moving. Since v8.55
 the resting gallery cycles the same way (founder ruling); before that it
 clamped at the ends.
 
-The same ownership law governs the resting gallery (v8.54). **Resting
+The same ownership law governs the resting gallery (v8.54). **Desktop resting
 photo-navigation arrows are pinned to the stable governed stage, not the active
 photograph.** They are children of the square `data-listing-stage`, positioned
 from its edges, so a portrait followed by a landscape changes the picture and
 nothing else; the air beside a narrow photograph is intentional. Before v8.54
 they lived inside the aspect-sized `data-listing-hero` wrapper and walked with
-every change of shape. Ends behave as in the room since v8.55: both arrows
-are present whenever the listing has more than one photograph, and each end
-wraps. A single photograph shows no arrows.
+every change of shape. Ends behave as in the room since v8.55: on desktop both
+arrows are present whenever the listing has more than one photograph, and each
+end wraps. A single photograph shows no arrows.
+
+On narrow screens the resting stage uses horizontal swipe as its primary
+navigation and carries a compact in-image position count. The exterior arrows
+and persistent resting-thumbnail rail are hidden there, while every photograph
+remains reachable. These narrow rules do not alter the inspection room: its
+arrows and thumbnail rail remain available inside that deliberate full-screen
+state.
 
 The hint band under the stage is reserved whether or not the hint is showing,
 for the same reason: its arrival and departure must not move the photograph.
