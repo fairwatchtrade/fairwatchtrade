@@ -19,11 +19,43 @@ import ts from "typescript";
 const root = new URL("../", import.meta.url);
 const rootPath = fileURLToPath(root);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
-const typescriptResolutionOptions = ts.parseJsonConfigFileContent(
-  JSON.parse(read("tsconfig.json")),
+const JSONC_CONFIG_FIXTURE = `{
+  // TypeScript config comments and trailing commas are legal.
+  "compilerOptions": { "moduleResolution": "bundler", },
+}`;
+const jsoncFixture = ts.parseConfigFileTextToJson("tsconfig.fixture.json", JSONC_CONFIG_FIXTURE);
+assert.equal(jsoncFixture.error, undefined, "TypeScript accepts commented, trailing-comma JSONC config");
+const parsedJsoncFixture = ts.parseJsonConfigFileContent(
+  jsoncFixture.config,
   ts.sys,
-  rootPath
-).options;
+  rootPath,
+  undefined,
+  "tsconfig.fixture.json"
+);
+assert.equal(parsedJsoncFixture.errors.length, 0, "TypeScript accepts the JSONC fixture without config diagnostics");
+
+function formatDiagnostic(diagnostic) {
+  return ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+}
+
+function readTypeScriptResolutionOptions() {
+  const tsconfigPath = fileURLToPath(new URL("tsconfig.json", root));
+  const readResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+  assert.equal(
+    readResult.error,
+    undefined,
+    `tsconfig read/JSONC diagnostic: ${readResult.error ? formatDiagnostic(readResult.error) : "none"}`
+  );
+  const parsed = ts.parseJsonConfigFileContent(readResult.config, ts.sys, rootPath, undefined, tsconfigPath);
+  assert.equal(
+    parsed.errors.length,
+    0,
+    `tsconfig parsed-config diagnostics:\n${parsed.errors.map(formatDiagnostic).join("\n")}`
+  );
+  return parsed.options;
+}
+
+const typescriptResolutionOptions = readTypeScriptResolutionOptions();
 const RECIPE = "fw-functional-copy";
 
 const css = postcss.parse(read("app/globals.css"));
