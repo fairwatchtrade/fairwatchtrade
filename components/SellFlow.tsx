@@ -1661,7 +1661,7 @@ function ProgressBar({
                 <button
                   type="button"
                   onClick={() => onJump(i)}
-                  className="flex cursor-pointer flex-col items-center bg-transparent transition hover:opacity-80 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[var(--gold)]"
+                  className="flex cursor-pointer flex-col items-center bg-transparent transition focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[var(--gold)]"
                 >
                   {inner}
                 </button>
@@ -2458,7 +2458,7 @@ function CurationStep({
       {draft.curationDecision === "fail" && (
         <div className="mt-4 border border-[rgba(220,80,80,0.25)] bg-[rgba(220,80,80,0.06)] px-4 py-3 text-[13px]">
           <div className="mb-1 font-medium text-[var(--danger)]">Not a fit right now.</div>
-          {draft.curationReasoning && <div className="text-[var(--danger)]/80">{draft.curationReasoning}</div>}
+          {draft.curationReasoning && <div className="text-[var(--danger)]">{draft.curationReasoning}</div>}
         </div>
       )}
 

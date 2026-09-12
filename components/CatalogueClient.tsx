@@ -545,7 +545,7 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
         <span className="mx-1.5 opacity-40">•</span>
         <span className="fw-lifecycle-label uppercase">{label}</span>
       </span>
-      {when && <span className="shrink-0 opacity-70">{when}</span>}
+      {when && <span className="shrink-0">{when}</span>}
     </div>
   );
 }
@@ -726,7 +726,7 @@ function WatchOfferGroup({
         {/* Prior requests — quieter history, newest-first, identity NOT repeated */}
         {history.length > 0 && (
           <div className="mt-3 border-t border-[rgba(255,255,255,0.04)] pt-2">
-            <div className="mb-1 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)] opacity-70">
+            <div className="mb-1 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
               Previous requests
             </div>
             {history.map((h) => (
@@ -748,7 +748,7 @@ function WatchOfferGroup({
       {inner}
     </Link>
   ) : (
-    <div className="block cursor-default opacity-70">
+    <div className="block cursor-default">
       {inner}
     </div>
   );

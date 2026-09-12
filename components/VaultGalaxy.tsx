@@ -2727,7 +2727,7 @@ export default function VaultGalaxy({
               <Link
                 href="/browse"
                 aria-label="Return to the marketplace"
-                className="text-[11px] uppercase tracking-[2px] text-[#4A4F5C] transition-colors hover:text-[var(--slate)]"
+                className="text-[11px] uppercase tracking-[2px] text-[var(--muted)] transition-colors hover:text-[var(--slate)]"
               >
                 ← Marketplace
               </Link>
@@ -3065,7 +3065,7 @@ export default function VaultGalaxy({
                   aria-label="Enter the FairWatchTrade Vault"
                 >
                   <div className="h-8 w-px bg-gradient-to-b from-transparent to-[rgba(201,168,76,0.3)]" />
-                  <div className="py-2 text-[11px] uppercase tracking-[6px] text-[rgba(201,168,76,0.55)]">
+                  <div className="py-2 text-[11px] uppercase tracking-[6px] text-[var(--gold)]">
                     Enter
                   </div>
                   <div className="h-5 w-px bg-gradient-to-b from-[rgba(201,168,76,0.25)] to-transparent" />

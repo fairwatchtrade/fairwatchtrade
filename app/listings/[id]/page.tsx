@@ -728,7 +728,7 @@ export default async function ListingDetailPage({
             className={[
               "mb-5 inline-flex items-center gap-1.5 min-[56rem]:hidden",
               "font-display text-[16px] font-light tracking-[0.3px]",
-              "text-[var(--gold)] transition hover:opacity-80",
+              "text-[var(--platinum-dim)] transition hover:text-[var(--platinum)]",
             ].join(" ")}
           >
             <span className="text-[13px] leading-none" aria-hidden="true">

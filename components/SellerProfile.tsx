@@ -199,7 +199,7 @@ export default function SellerProfile({
 
           {/* Correspondence — pinned to bottom */}
           <div className="mt-7 border-t border-[var(--border-faint)] pt-5">
-            <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-70">
+            <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--slate)]">
               Correspondence
             </div>
             <p className="mb-3 fw-functional-copy text-[var(--muted)]">

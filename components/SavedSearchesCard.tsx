@@ -131,7 +131,7 @@ export default function SavedSearchesCard() {
                 type="button"
                 onClick={() => remove(s)}
                 disabled={removingId === s.id}
-                className="fw-compact-control shrink-0 uppercase text-[var(--muted)] opacity-60 transition hover:text-[var(--danger)] hover:opacity-100 disabled:cursor-wait"
+                className="fw-compact-control shrink-0 uppercase text-[var(--muted)] transition hover:text-[var(--danger)] disabled:cursor-wait disabled:opacity-60"
               >
                 {removingId === s.id ? "…" : "Remove"}
               </button>
