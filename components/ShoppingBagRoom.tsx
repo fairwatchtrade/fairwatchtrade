@@ -239,7 +239,7 @@ export default function ShoppingBagRoom({
 
       {list.length === 0 ? (
         <div className="mt-6 border border-dashed border-[var(--border-faint)] px-4 py-8 text-center">
-          <div className="font-display text-[14px] italic text-[var(--platinum-dim)]">Nothing is waiting in your Shopping Bag.</div>
+          <div className="fw-functional-copy text-[var(--platinum-dim)]">Nothing is waiting in your Shopping Bag.</div>
           <div className="mt-2 text-[12px] leading-[1.6] text-[var(--muted)]">
             When a seller accepts one of your purchase requests, the watch appears here.
           </div>

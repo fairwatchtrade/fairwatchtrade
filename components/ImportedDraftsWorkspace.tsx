@@ -692,7 +692,7 @@ export default function ImportedDraftsWorkspace() {
 
   if (loading) {
     return (
-      <div className="px-6 py-10 text-center font-display text-[13px] italic text-[var(--muted)]">
+      <div className="px-6 py-10 text-center fw-functional-copy text-[var(--muted)]">
         Opening your imported drafts…
       </div>
     );
@@ -709,7 +709,7 @@ export default function ImportedDraftsWorkspace() {
   if (rows.length === 0) {
     return (
       <div className="mx-auto mt-5 w-full max-w-[1120px] border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-12 text-center">
-        <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
+        <p className="fw-functional-copy text-[var(--muted)]">
           No imported drafts yet. When FairWatchTrade prepares drafts from your
           existing inventory, they appear here — visible only to you until you
           submit and FairWatchTrade approves them.
@@ -1005,7 +1005,7 @@ export default function ImportedDraftsWorkspace() {
                     className="max-h-[380px] w-full object-contain"
                   />
                 ) : (
-                  <span className="font-display text-[12px] italic text-[var(--muted)]">
+                  <span className="fw-functional-copy text-[var(--muted)]">
                     No photographs
                   </span>
                 )}
@@ -1435,7 +1435,7 @@ export default function ImportedDraftsWorkspace() {
           </div>
         </section>
       ) : (
-        <div className="min-w-0 flex-1 self-start border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-16 text-center font-display text-[13px] italic text-[var(--muted)]">
+        <div className="min-w-0 flex-1 self-start border border-[var(--border-faint)] bg-[var(--surface)] px-6 py-16 text-center fw-functional-copy text-[var(--muted)]">
           Select a draft to review.
         </div>
       )}

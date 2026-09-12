@@ -932,7 +932,7 @@ function MyOffersSection({
         // Quiet loading placeholder — deliberately NOT the empty-state copy, so
         // the buyer is never told "no offers" before the query resolves.
         <div className="border border-[var(--border-subtle)] px-4 py-6 text-center">
-          <div className="font-display text-[11px] italic text-[var(--muted)]">
+          <div className="fw-functional-copy text-[var(--muted)]">
             Loading your offers…
           </div>
         </div>
@@ -940,19 +940,19 @@ function MyOffersSection({
         // Fail honestly and non-destructively — the rest of Catalogue is
         // unaffected; we simply say this one section is unavailable.
         <div className="border border-dashed border-[var(--border-faint)] px-4 py-6 text-center">
-          <div className="font-display text-[11px] italic text-[var(--muted)]">
+          <div className="fw-functional-copy text-[var(--muted)]">
             Your offers are unavailable right now. Please try again shortly.
           </div>
         </div>
       ) : groups.length === 0 ? (
         // Honest empty state — the section is durable and always present.
         <div className="border border-dashed border-[var(--border-faint)] px-4 py-8 text-center">
-          <div className="mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]">
+          <div className="mb-3 fw-functional-copy text-[var(--platinum-dim)]">
             You haven&apos;t made any offers yet.
           </div>
           {/* Functional collector-facing information, and the large empty
               region around it made 11px read as a caption on nothing. */}
-          <div className="mb-6 font-display text-[13px] italic leading-[1.6] text-[var(--muted)]">
+          <div className="mb-6 fw-functional-copy text-[var(--muted)]">
             When you start a purchase request, it will appear here — every offer,
             across every listing, in one place.
           </div>
@@ -1719,7 +1719,7 @@ export default function CatalogueClient({
                       the one that tells a collector what the room is FOR, so
                       it reads at the body floor rather than as a footnote to
                       the sentence it explains. */}
-                  <div className="mb-6 font-display text-[13px] italic leading-[1.6] text-[var(--muted)]">
+                  <div className="mb-6 fw-functional-copy text-[var(--muted)]">
                     Save a watch that speaks to you, and your Catalogue will begin to take shape.
                   </div>
                   <div className="flex flex-col items-center gap-3">

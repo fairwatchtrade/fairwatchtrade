@@ -1238,7 +1238,7 @@ export default function MobileWizard({
         <h1 className="mb-3 font-display text-[24px] font-light leading-[1.3] text-[var(--platinum)]">
           You have an unfinished listing
         </h1>
-        <p className="mb-8 font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
+        <p className="mb-8 fw-functional-copy text-[#8A8F9E]">
           {label
             ? `A draft for ${label} is still in progress on this device. `
             : "A draft is still in progress on this device. "}
@@ -1260,7 +1260,7 @@ export default function MobileWizard({
             Start a new listing
           </button>
         </div>
-        <p className="mt-8 font-display text-[11px] font-light italic leading-[1.7] text-[#6B7080]">
+        <p className="mt-8 fw-functional-copy text-[#6B7080]">
           Starting new clears the previous watch entirely — its photos and
           details won&apos;t carry over.
         </p>
@@ -1298,7 +1298,7 @@ export default function MobileWizard({
             </button>
           ))}
         </div>
-        <p className="mt-8 font-display text-[12px] font-light italic leading-[1.7] text-[#8A8F9E]">
+        <p className="mt-8 fw-functional-copy text-[#8A8F9E]">
           Your answer shapes the photo sequence. Every listing includes a full-length shot.
         </p>
         {draft.brand && (
@@ -1490,7 +1490,7 @@ export default function MobileWizard({
             <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               Before the camera opens
             </div>
-            <p className="mb-4 font-display text-[13px] font-light italic leading-[1.7] text-[#8A8F9E]">
+            <p className="mb-4 fw-functional-copy text-[#8A8F9E]">
               {preflight.reasoning ||
                 "This watch may sit outside FairWatchTrade's curation focus. You can continue — curation reviews every listing before it goes live."}
             </p>
@@ -1550,7 +1550,7 @@ export default function MobileWizard({
             <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               One more try
             </div>
-            <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+            <div className="fw-functional-copy text-[var(--platinum-dim)]">
               {hardFail}
             </div>
           </div>
@@ -1596,7 +1596,7 @@ export default function MobileWizard({
         <h1 className="mb-3 font-display text-[24px] font-light text-[var(--platinum)]">
           {step.instruction}
         </h1>
-        <p className="mb-10 font-display text-[13px] font-light italic leading-[1.7] text-[#8A8F9E]">
+        <p className="mb-10 fw-functional-copy text-[#8A8F9E]">
           {step.subInstruction}
         </p>
         <div className="flex flex-col gap-3">
@@ -1632,7 +1632,7 @@ export default function MobileWizard({
             <div className="mb-1 text-[11px] uppercase tracking-[2px] text-[rgba(201,168,76,0.85)]">
               One more try
             </div>
-            <div className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+            <div className="fw-functional-copy text-[var(--platinum-dim)]">
               {hardFail}
             </div>
           </div>
@@ -1661,7 +1661,7 @@ export default function MobileWizard({
         <h1 className="mb-2 font-display text-[24px] font-light text-[var(--platinum)]">
           Reference number
         </h1>
-        <p className="mb-7 font-display text-[12px] font-light italic leading-[1.7] text-[#8A8F9E]">
+        <p className="mb-7 fw-functional-copy text-[#8A8F9E]">
           A missing reference is honest. A wrong one is a betrayal. Never guess.
         </p>
         <Field label="Reference">
@@ -1815,7 +1815,7 @@ export default function MobileWizard({
             "Submit for Review"
           )}
         </button>
-        <p className="mt-4 text-center font-display text-[11px] font-light italic text-[#8A8F9E]">
+        <p className="mt-4 text-center fw-functional-copy text-[#8A8F9E]">
           Double-taps are safe — publishing is idempotent.
         </p>
         <BackLink onClick={() => setStage("reference")} />
@@ -1834,7 +1834,7 @@ export default function MobileWizard({
             <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
               Saved.
             </div>
-            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
+            <p className="mb-10 max-w-[300px] fw-functional-copy text-[#8A8F9E]">
               Your photographs are receiving an additional authenticity review.
               Your listing is saved and is not visible to buyers yet. Most
               reviews require no action from the seller.
@@ -1848,7 +1848,7 @@ export default function MobileWizard({
             <div className="mb-3 font-display text-[26px] font-light text-[var(--platinum)]">
               Submitted.
             </div>
-            <p className="mb-10 max-w-[300px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
+            <p className="mb-10 max-w-[300px] fw-functional-copy text-[#8A8F9E]">
               Your watch is submitted for review and is not visible to buyers
               yet. It appears in the marketplace once review is complete.
             </p>

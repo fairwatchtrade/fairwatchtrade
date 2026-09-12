@@ -304,7 +304,7 @@ export default function SavedSearchesModule() {
   // ── render ──
   if (entries === null) {
     return (
-      <div className="px-6 py-10 font-display text-[14px] font-light italic text-[var(--muted)]">
+      <div className="px-6 py-10 fw-functional-copy text-[var(--muted)]">
         Opening your saved searches…
       </div>
     );
@@ -510,7 +510,7 @@ export default function SavedSearchesModule() {
                       </button>
                     </div>
                     {entry.presentations === null ? (
-                      <div className="px-4 py-5 font-display text-[13px] font-light italic text-[var(--muted)]">
+                      <div className="px-4 py-5 fw-functional-copy text-[var(--muted)]">
                         Gathering what we found…
                       </div>
                     ) : (

@@ -138,7 +138,7 @@ export default function RemoveListingDialog({
         >
           Pause this listing?
         </h2>
-        <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
+        <p className="mt-1 truncate fw-functional-copy text-[var(--platinum-dim)]">
           {title}
         </p>
         {publicCode && (

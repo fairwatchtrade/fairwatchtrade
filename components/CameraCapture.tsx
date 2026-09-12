@@ -423,7 +423,7 @@ export default function CameraCapture({
         <div className="mb-3 font-display text-[20px] font-light text-[var(--platinum)]">
           {c.title}
         </div>
-        <p className="mb-8 max-w-[320px] font-display text-[14px] font-light italic leading-[1.7] text-[#8A8F9E]">
+        <p className="mb-8 max-w-[320px] fw-functional-copy text-[#8A8F9E]">
           {c.body}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -478,7 +478,7 @@ export default function CameraCapture({
           {instruction}
         </div>
         {subInstruction && (
-          <div className="mt-1 font-display text-[12px] font-light italic text-[#8A8F9E]">
+          <div className="mt-1 fw-functional-copy text-[#8A8F9E]">
             {subInstruction}
           </div>
         )}

@@ -75,7 +75,7 @@ export default function SavedSearchQuickLinks() {
   if (links.length === 0) {
     return (
       <p
-        className="py-3 font-display text-[13px] font-light italic leading-[1.5] text-[var(--platinum)] max-[470px]:text-[11.5px]"
+        className="py-3 fw-functional-copy text-[var(--platinum)]"
       >
         Save a search to keep quick links here.
       </p>

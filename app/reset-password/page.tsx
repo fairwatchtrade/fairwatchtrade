@@ -160,7 +160,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
                   Password updated.
                 </div>
-                <div className="mb-7 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <div className="mb-7 fw-functional-copy text-[var(--muted)]">
                   You&apos;re all set. Sign in with your new password.
                 </div>
                 <Link href="/login" className="fw-btn-primary">
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-[6px] font-display text-[26px] font-light tracking-[0.3px] text-[var(--platinum)]">
                   Choose a new password.
                 </div>
-                <div className="mb-8 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <div className="mb-8 fw-functional-copy text-[var(--muted)]">
                   Make it something you&apos;ll remember.
                 </div>
                 {/* v2.0f: solid 48px gold hash — intentional, not the old

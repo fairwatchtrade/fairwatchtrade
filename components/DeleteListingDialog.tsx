@@ -188,7 +188,7 @@ export default function DeleteListingDialog({
 
         {/* Identity, in full. Three Datejusts on one reference is why the
             listing code is here and not merely the brand and model. */}
-        <p className="mt-1 truncate font-display text-[13px] italic text-[var(--platinum-dim)]">
+        <p className="mt-1 truncate fw-functional-copy text-[var(--platinum-dim)]">
           {title}
         </p>
         {reference && (
@@ -203,7 +203,7 @@ export default function DeleteListingDialog({
         )}
 
         {state.phase === "checking" && (
-          <p className="mt-5 font-display text-[13px] italic text-[var(--muted)]">
+          <p className="mt-5 fw-functional-copy text-[var(--muted)]">
             Checking what&apos;s still unresolved…
           </p>
         )}

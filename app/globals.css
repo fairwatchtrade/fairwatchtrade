@@ -483,6 +483,15 @@ html, body {
     line-height: 1;
     letter-spacing: 0.2px;
   }
+
+  .fw-functional-copy {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.2px;
+  }
 }
 
 .fw-body {

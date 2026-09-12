@@ -61,7 +61,7 @@ export default async function VaultUpgradePage() {
           <h2 className="font-display text-[22px] font-light tracking-[0.3px] text-[var(--platinum)]">
             Specification Upgrade
           </h2>
-          <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="mt-1 fw-functional-copy text-[var(--muted)]">
             Preserve the original. Upgrade the structure. Never invent the
             truth.
           </p>

@@ -46,7 +46,7 @@ export default async function VaultEnrichmentPage() {
           <h2 className="font-display text-[22px] font-light tracking-[0.3px] text-[var(--platinum)]">
             Enrichment Authoring
           </h2>
-          <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="mt-1 fw-functional-copy text-[var(--muted)]">
             Name the source. Quote its words. The room builds the rest.
           </p>
         </div>

@@ -132,7 +132,7 @@ function SellPageInner() {
               <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
                 {buyerName ? `List your watch for ${buyerName}.` : "List your watch for this collector."}
               </h1>
-              <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+              <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                 A private listing — the same real FairWatchTrade listing, for one
                 collector.
               </p>
@@ -159,7 +159,7 @@ function SellPageInner() {
               <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
                 {isWantedPrivate ? "List this watch for one collector." : "Answer a Wanted request."}
               </h1>
-              <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+              <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                 {wantedIdentity}
               </p>
               <div className="mt-4 border border-[var(--border-gold)] px-4 py-3">
@@ -178,7 +178,7 @@ function SellPageInner() {
               <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
                 List your watch.
               </h1>
-              <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+              <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                 Independent and boutique watchmaking is our specialty. Other watches are considered under our curation requirements.
               </p>
 
@@ -207,14 +207,14 @@ function SellPageInner() {
         </div>
 
         {privateState === "resolving" ? (
-          <p className="py-10 text-center font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="py-10 text-center fw-functional-copy text-[var(--muted)]">
             Confirming the private recipient…
           </p>
         ) : privateState === "invalid" ? (
           /* Refuse rather than silently publish publicly — the seller came
              here to list for ONE person. */
           <div className="border border-[var(--border-faint)] px-6 py-8 text-center">
-            <p className="mx-auto max-w-[52ch] font-display text-[15px] font-light italic leading-[1.7] text-[var(--platinum-dim)]">
+            <p className="mx-auto max-w-[52ch] fw-functional-copy text-[var(--platinum-dim)]">
               This private listing must start from one of your own buyer
               conversations, and this one couldn&apos;t be confirmed.
             </p>
@@ -226,14 +226,14 @@ function SellPageInner() {
             </Link>
           </div>
         ) : wantedState === "resolving" ? (
-          <p className="py-10 text-center font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="py-10 text-center fw-functional-copy text-[var(--muted)]">
             Confirming the request…
           </p>
         ) : wantedState === "invalid" ? (
           /* Refuse rather than quietly become an ordinary public listing the
              seller did not intend — the same fail-safe the thread path uses. */
           <div className="border border-[var(--border-faint)] px-6 py-8 text-center">
-            <p className="mx-auto max-w-[52ch] font-display text-[15px] font-light italic leading-[1.7] text-[var(--platinum-dim)]">
+            <p className="mx-auto max-w-[52ch] fw-functional-copy text-[var(--platinum-dim)]">
               That Wanted request is no longer open for answers.
             </p>
             <Link

@@ -151,7 +151,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
               Review the listing details, enter your offer, and add an optional note with your offer.
             </p>
           </div>
-          <div className="font-display text-[13px] italic leading-[1.45] text-[var(--platinum-dim)] md:max-w-[290px] md:text-right">
+          <div className="fw-functional-copy text-[var(--platinum-dim)] md:max-w-[290px] md:text-right">
             No payment is collected at this step.
           </div>
         </header>

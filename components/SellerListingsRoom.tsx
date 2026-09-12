@@ -983,7 +983,7 @@ export default function SellerListingsRoom({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="font-display text-[12px] italic text-[var(--muted)]">
+                  <span className="fw-functional-copy text-[var(--muted)]">
                     No photograph
                   </span>
                 )}
@@ -1357,7 +1357,7 @@ export default function SellerListingsRoom({
             </div>
           </div>
         ) : (
-          <div className="border border-[var(--border-faint)] px-4 py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
+          <div className="border border-[var(--border-faint)] px-4 py-8 text-center fw-functional-copy text-[var(--muted)]">
             No listing selected.
           </div>
         )}

@@ -295,7 +295,7 @@ export default function VaultClusterReview({
                 {(rationale || aliases.length > 0) && (
                   <div className="mt-2 pl-0 sm:pl-1">
                     {rationale && (
-                      <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+                      <p className="fw-functional-copy text-[var(--muted)]">
                         {rationale}
                       </p>
                     )}

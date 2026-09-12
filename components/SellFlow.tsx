@@ -1484,7 +1484,7 @@ export default function SellFlow({
               <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
                 Listing Score
               </div>
-              <div className="mt-2 font-display text-[11px] italic text-[var(--muted)]">
+              <div className="mt-2 fw-functional-copy text-[var(--muted)]">
                 Appears after curation passes.
               </div>
             </div>

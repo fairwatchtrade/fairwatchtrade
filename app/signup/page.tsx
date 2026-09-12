@@ -276,7 +276,7 @@ export default function SignUpPage() {
               <div className="mb-[6px] text-center font-display text-[26px] font-light text-[var(--platinum)]">
                 Check your email.
               </div>
-              <div className="mb-7 text-center font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+              <div className="mb-7 text-center fw-functional-copy text-[var(--muted)]">
                 We sent a confirmation code to{" "}
                 <span className="text-[var(--platinum)]">{email}</span>. Enter it below to
                 finish creating your account.
@@ -353,7 +353,7 @@ export default function SignUpPage() {
             <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
               Join FairWatchTrade.
             </div>
-            <div className="mb-7 font-display text-[14px] font-light italic text-[var(--muted)]">
+            <div className="mb-7 fw-functional-copy text-[var(--muted)]">
               Tell us how you collect.
             </div>
             <div className="mb-7 h-px bg-gradient-to-r from-[rgba(201,168,76,0.2)] to-transparent" />
@@ -401,7 +401,7 @@ export default function SignUpPage() {
                       {chip.label}
                     </span>
                     <span
-                      className={`block font-display text-[11px] italic ${
+                      className={`block fw-functional-copy ${
                         selected ? "text-[var(--slate)]" : "text-[var(--muted)]"
                       }`}
                     >

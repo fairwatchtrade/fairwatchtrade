@@ -1,0 +1,255 @@
+/* LS1-B3 — functional small-display italic.
+
+   Run: node scripts/ls1-b3-functional-copy.test.mjs
+
+   This is the closed implementation contract from the completed LS-1
+   discovery. It proves that all 88 adjudicated R17-R21 functional roots use
+   one readable Inter recipe, that railBody remains the single shared root for
+   its four current render sites, and that the named editorial and dormant
+   treatments stay outside this build. It is deliberately not a new census. */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import postcss from "postcss";
+import ts from "typescript";
+
+const root = new URL("../", import.meta.url);
+const read = (path) => readFileSync(new URL(path, root), "utf8");
+const RECIPE = "fw-functional-copy";
+
+const css = postcss.parse(read("app/globals.css"));
+const recipeRules = [];
+css.walkRules((rule) => {
+  if (rule.selectors?.includes(`.${RECIPE}`)) recipeRules.push(rule);
+});
+assert.equal(recipeRules.length, 1, `.${RECIPE} has one authoritative CSS recipe`);
+const recipeRule = recipeRules[0];
+assert.equal(recipeRule.selector, `.${RECIPE}`, `.${RECIPE} is not coupled to another selector`);
+assert.equal(recipeRule.parent?.type, "atrule", `.${RECIPE} is inside a cascade layer`);
+assert.equal(recipeRule.parent?.name, "layer", `.${RECIPE} is inside @layer`);
+assert.equal(recipeRule.parent?.params, "components", `.${RECIPE} is utility-overridable`);
+const recipeNodes = recipeRule.nodes ?? [];
+assert.ok(recipeNodes.every((node) => node.type === "decl"), `.${RECIPE} contains declarations only`);
+assert.ok(recipeNodes.every((node) => !node.important), `.${RECIPE} does not use !important`);
+const declarations = recipeNodes.map((decl) => [decl.prop, decl.value]);
+assert.equal(new Set(declarations.map(([property]) => property)).size, declarations.length, `.${RECIPE} has no duplicate declarations`);
+assert.deepEqual(
+  Object.fromEntries(declarations),
+  {
+    "font-family": "'Inter', sans-serif",
+    "font-size": "13px",
+    "font-style": "normal",
+    "font-weight": "400",
+    "line-height": "1.5",
+    "letter-spacing": "0.2px",
+  },
+  `.${RECIPE} is the exact governed functional-copy treatment`
+);
+
+function sourceTree(path) {
+  const kind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  return ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, kind);
+}
+
+function staticStrings(path) {
+  const values = [];
+  const visit = (node) => {
+    if (
+      ts.isStringLiteralLike(node) ||
+      node.kind === ts.SyntaxKind.TemplateHead ||
+      node.kind === ts.SyntaxKind.TemplateMiddle ||
+      node.kind === ts.SyntaxKind.TemplateTail
+    ) {
+      values.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceTree(path));
+  return values;
+}
+
+function staticFragments(node) {
+  const values = [];
+  const visit = (child) => {
+    if (
+      ts.isStringLiteralLike(child) ||
+      child.kind === ts.SyntaxKind.TemplateHead ||
+      child.kind === ts.SyntaxKind.TemplateMiddle ||
+      child.kind === ts.SyntaxKind.TemplateTail
+    ) {
+      values.push(child.text);
+    }
+    ts.forEachChild(child, visit);
+  };
+  visit(node);
+  return values;
+}
+
+function classNameBindings(path) {
+  const bindings = [];
+  const visit = (node) => {
+    if (ts.isJsxAttribute(node) && node.name.text === "className" && node.initializer) {
+      bindings.push(staticFragments(node.initializer).join(" "));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceTree(path));
+  return bindings;
+}
+
+function classNameIdentifierReferences(path, identifier) {
+  let count = 0;
+  const visitIdentifier = (node) => {
+    if (ts.isIdentifier(node) && node.text === identifier) count += 1;
+    ts.forEachChild(node, visitIdentifier);
+  };
+  const visit = (node) => {
+    if (ts.isJsxAttribute(node) && node.name.text === "className" && node.initializer) {
+      visitIdentifier(node.initializer);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceTree(path));
+  return count;
+}
+
+const EXPECTED_BINDINGS = {
+  "app/admin/auctions/page.tsx": 1,
+  "app/admin/vault-enrichment/page.tsx": 1,
+  "app/admin/vault-review/page.tsx": 1,
+  "app/admin/vault-upgrade/page.tsx": 1,
+  "app/error.tsx": 1,
+  "app/forgot-password/page.tsx": 2,
+  "app/not-found.tsx": 1,
+  "app/reset-password/page.tsx": 2,
+  "app/sell/(entry)/page.tsx": 7,
+  "app/signup/page.tsx": 3,
+  "components/AccountSettings.tsx": 8,
+  "components/CameraCapture.tsx": 2,
+  "components/CatalogueClient.tsx": 5,
+  "components/CommunicationsRoom.tsx": 6,
+  "components/DeleteListingDialog.tsx": 2,
+  "components/HomepageClient.tsx": 1,
+  "components/ImportedDraftsWorkspace.tsx": 4,
+  "components/ListingCorrespondence.tsx": 3,
+  "components/MarketplaceControl.tsx": 2,
+  "components/MobileWizard.tsx": 11,
+  "components/NotificationsBell.tsx": 1,
+  "components/PurchaseRequestForm.tsx": 1,
+  "components/rail/catalogueCardStyles.ts": 1,
+  "components/RemoveListingDialog.tsx": 1,
+  "components/ReviewStep.tsx": 1,
+  "components/SavedSearchesModule.tsx": 2,
+  "components/SavedSearchQuickLinks.tsx": 1,
+  "components/SaveSearchControl.tsx": 1,
+  "components/SellerListingsRoom.tsx": 2,
+  "components/SellerProfile.tsx": 6,
+  "components/SellFlow.tsx": 1,
+  "components/ShoppingBagRoom.tsx": 1,
+  "components/VaultClusterReview.tsx": 1,
+  "components/VaultGalaxy.tsx": 4,
+};
+
+const localRecipeConflicts = [
+  /^(?:(?:[^:]+):)*!?font-(?:sans|display|thin|extralight|light|normal|medium|semibold|bold)$/,
+  /^(?:(?:[^:]+):)*!?(?:italic|not-italic)$/,
+  /^(?:(?:[^:]+):)*!?text-\[(?:11|11\.5|12|12\.5|13|14|15)px\]$/,
+  /^(?:(?:[^:]+):)*!?leading-/,
+  /^(?:(?:[^:]+):)*!?tracking-/,
+];
+
+let bindingTotal = 0;
+for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
+  const candidates = path === "components/rail/catalogueCardStyles.ts"
+    ? staticStrings(path)
+    : classNameBindings(path);
+  const governed = candidates.filter((value) => value.split(/\s+/).includes(RECIPE));
+  assert.equal(governed.length, expected, `${path} binds only its adjudicated LS1-B3 roots`);
+  bindingTotal += governed.length;
+  for (const value of governed) {
+    const tokens = value.split(/\s+/).filter(Boolean);
+    assert.equal(tokens.filter((token) => token === RECIPE).length, 1, `${path}: the recipe is bound exactly once`);
+    for (const token of tokens) {
+      assert.ok(!localRecipeConflicts.some((pattern) => pattern.test(token)), `${path}: ${token} does not override the governed recipe`);
+    }
+  }
+}
+assert.equal(bindingTotal, 88, "all 88 R17-R21 functional declaration roots are governed");
+
+const railSource = read("components/rail/catalogueCardStyles.ts");
+assert.match(
+  railSource,
+  /export const railBody\s*=\s*["']fw-functional-copy text-\[var\(--muted\)\]["'];/,
+  "railBody is the one governed shared root"
+);
+const catalogueRailReferences = staticStrings("components/CatalogueClient.tsx").filter((value) => value.includes("railBody")).length;
+assert.equal(catalogueRailReferences, 0, "railBody references are expressions, not duplicated strings in Catalogue");
+assert.equal(classNameIdentifierReferences("components/CatalogueClient.tsx", "railBody"), 3, "Catalogue renders railBody exactly three times");
+assert.equal(classNameIdentifierReferences("components/SavedSearchesCard.tsx", "railBody"), 1, "Saved Searches renders railBody exactly once");
+
+function countExactStatic(path, value) {
+  return staticStrings(path).filter((entry) => entry === value).length;
+}
+
+const AUTH_TRIPLET_CLASS = "font-display text-[12px] font-light italic leading-[1.5] text-[var(--muted)]";
+for (const path of [
+  "app/forgot-password/page.tsx",
+  "app/login/page.tsx",
+  "app/reset-password/page.tsx",
+  "app/signup/page.tsx",
+]) {
+  assert.equal(countExactStatic(path, AUTH_TRIPLET_CLASS), 3, `${path} preserves all three auth marketing treatments`);
+}
+
+const PROTECTED_EXACT_CLASSES = [
+  ["app/login/page.tsx", "mb-8 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]", 1, "login contextual welcome"],
+  ["components/BrowseClient.tsx", "font-display text-[14px] font-light italic leading-[1.6] text-[var(--slate)]", 1, "Browse maxim"],
+  ["components/MobileNav.tsx", "mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]", 1, "MobileNav literary greeting"],
+  ["components/CatalogueClient.tsx", "mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]", 1, "Catalogue literary maxim"],
+  ["components/CurrentHomepage.tsx", "mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:hidden", 1, "current-homepage identity"],
+  ["components/VaultGalaxy.tsx", "pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[11px] italic text-[var(--muted)]", 1, "Vault disclosure"],
+  ["components/VaultGalaxy.tsx", "font-display text-[15px] font-light italic leading-[1.8] tracking-[0.2px] text-[var(--muted)]", 1, "Vault archive line"],
+  ["components/VaultSpecificationUpgrade.tsx", "mt-0.5 font-display italic text-[var(--muted)]", 1, "Vault admin aside"],
+  ["components/reassurance/ListingDeclined.tsx", "mx-auto mb-8 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]", 1, "dormant declined reassurance"],
+  ["components/reassurance/ListingSold.tsx", "mx-auto mb-6 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]", 1, "dormant sold reassurance"],
+  ["components/reassurance/NoSearchResults.tsx", "mx-auto mb-6 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]", 1, "dormant no-results reassurance"],
+  ["components/reassurance/SignInRequired.tsx", "mx-auto mb-6 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]", 1, "dormant sign-in reassurance"],
+];
+for (const [path, value, expected, label] of PROTECTED_EXACT_CLASSES) {
+  assert.equal(countExactStatic(path, value), expected, `${label} remains byte-exact`);
+}
+
+for (const [path, label] of [
+  ["components/VaultEntrance.tsx", "dormant Vault entrance"],
+  ["components/AtlantisVaultEntrance.tsx", "dormant Atlantis entrance"],
+]) {
+  const source = read(path);
+  assert.match(source, /fontFamily:\s*["']'Cormorant Garamond', serif["']/, `${label} keeps Cormorant`);
+  assert.match(source, /fontSize:\s*(?:15|["']15px["'])/, `${label} keeps its 15px size`);
+  assert.match(source, /fontWeight:\s*300/, `${label} keeps its light weight`);
+  assert.match(source, /fontStyle:\s*["']italic["']/, `${label} keeps its italic posture`);
+  assert.match(source, /lineHeight:\s*1\.8/, `${label} keeps its line height`);
+  assert.match(source, /letterSpacing:\s*["']0\.2px["']/, `${label} keeps its tracking`);
+  assert.doesNotMatch(source, new RegExp(`\\b${RECIPE}\\b`), `${label} receives no functional binding`);
+}
+
+for (const path of [
+  "app/login/page.tsx",
+  "components/BrowseClient.tsx",
+  "components/MobileNav.tsx",
+  "components/CurrentHomepage.tsx",
+  "components/VaultSpecificationUpgrade.tsx",
+  "components/reassurance/ListingDeclined.tsx",
+  "components/reassurance/ListingSold.tsx",
+  "components/reassurance/NoSearchResults.tsx",
+  "components/reassurance/SignInRequired.tsx",
+]) {
+  assert.doesNotMatch(read(path), new RegExp(`\\b${RECIPE}\\b`), `${path} remains outside LS1-B3`);
+}
+
+assert.equal(countExactStatic("components/VaultSpecificationUpgrade.tsx", "mt-2 text-[12px] text-[var(--platinum-dim)]"), 1, "Vault admin aside keeps its inherited 12px parent");
+assert.match(read("components/VaultSpecificationUpgrade.tsx"), /Nice try, you wanker\./, "Vault admin aside copy remains present");
+assert.match(read("components/CurrentHomepage.tsx"), /MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE/, "current-homepage identity source remains present");
+assert.match(read("components/CatalogueClient.tsx"), /Every great library begins with a single volume\./, "Catalogue literary maxim remains present");
+
+console.log("ls1-b3-functional-copy: 1 recipe, 88 bindings, 4 rail consumers, 20 protected and 6 dormant treatments PASS");

@@ -660,7 +660,7 @@ export default function ReviewStep({
         </p>
       )}
 
-      <p className="mb-4 mt-6 text-center font-display text-[15px] font-light italic text-[var(--muted)]">
+      <p className="mb-4 mt-6 text-center fw-functional-copy text-[var(--muted)]">
         {privateThreadId
           ? "Your watch is ready for its collector."
           : "Your watch is ready for its next collector."}

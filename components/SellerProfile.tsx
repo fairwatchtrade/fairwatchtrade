@@ -164,7 +164,7 @@ export default function SellerProfile({
               <div className="mb-1 text-[11px] uppercase tracking-[1.5px] text-[var(--gold-subtle)]">
                 Listing quality
               </div>
-              <p className="font-display text-[12px] font-light italic leading-[1.5] text-[var(--slate)]">
+              <p className="fw-functional-copy text-[var(--slate)]">
                 {qualityText}
               </p>
             </div>
@@ -193,7 +193,7 @@ export default function SellerProfile({
           <div className="mb-2 text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">
             Collector statement
           </div>
-          <p className="font-display text-[12px] font-light italic leading-[1.8] text-[var(--muted)]">
+          <p className="fw-functional-copy text-[var(--muted)]">
             This seller hasn&apos;t added a statement yet.
           </p>
 
@@ -202,7 +202,7 @@ export default function SellerProfile({
             <div className="mb-2 text-[11px] uppercase tracking-[2px] text-[var(--gold)] opacity-70">
               Correspondence
             </div>
-            <p className="mb-3 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+            <p className="mb-3 fw-functional-copy text-[var(--muted)]">
               Questions about a specific listing are handled through the listing&apos;s
               conversation thread. Serious enquiries only.
             </p>
@@ -232,7 +232,7 @@ export default function SellerProfile({
               <div className="mb-2 font-display text-[18px] font-light text-[var(--platinum)]">
                 No active listings.
               </div>
-              <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+              <p className="fw-functional-copy text-[var(--muted)]">
                 This seller hasn&apos;t listed a watch yet.
               </p>
             </div>
@@ -298,12 +298,12 @@ export default function SellerProfile({
               Transaction history
             </div>
             {completedSales === 0 ? (
-              <p className="font-display text-[13px] font-light italic leading-[1.7] text-[var(--muted)]">
+              <p className="fw-functional-copy text-[var(--muted)]">
                 This seller joined recently. Their listing quality speaks before their
                 transaction history can.
               </p>
             ) : (
-              <p className="font-display text-[13px] font-light italic text-[var(--muted)]">
+              <p className="fw-functional-copy text-[var(--muted)]">
                 {completedSales} completed sales on FairWatchTrade.
               </p>
             )}

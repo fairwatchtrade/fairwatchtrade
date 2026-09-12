@@ -342,7 +342,7 @@ export default function ListingCorrespondence({
                 </button>
               </div>
               {confirmation && (
-                <div className="mt-2 font-display text-[11px] italic text-[var(--success)]">
+                <div className="mt-2 fw-functional-copy text-[var(--success)]">
                   {confirmation}
                 </div>
               )}
@@ -387,7 +387,7 @@ export default function ListingCorrespondence({
 
           {/* History — chronological, no bubbles */}
           {loading ? (
-            <div className="py-6 text-center font-display text-[12px] italic text-[var(--muted)]">
+            <div className="py-6 text-center fw-functional-copy text-[var(--muted)]">
               Opening correspondence…
             </div>
           ) : (
@@ -430,7 +430,7 @@ export default function ListingCorrespondence({
               <span className="text-[11px] text-[var(--muted)]">{body.length}/2000</span>
               <div className="flex items-center gap-3">
                 {confirmation && (
-                  <span className="font-display text-[12px] italic text-[var(--success)]">
+                  <span className="fw-functional-copy text-[var(--success)]">
                     {confirmation}
                   </span>
                 )}

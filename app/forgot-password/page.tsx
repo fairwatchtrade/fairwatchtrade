@@ -150,7 +150,7 @@ export default function ForgotPasswordPage() {
                 <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
                   Check your email.
                 </div>
-                <div className="font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <div className="fw-functional-copy text-[var(--muted)]">
                   We sent a reset link to{" "}
                   <span className="text-[var(--platinum)]">{email}</span>.
                 </div>
@@ -160,7 +160,7 @@ export default function ForgotPasswordPage() {
                 <div className="mb-[6px] font-display text-[26px] font-light tracking-[0.3px] text-[var(--platinum)]">
                   Forgot your password.
                 </div>
-                <div className="mb-8 font-display text-[14px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <div className="mb-8 fw-functional-copy text-[var(--muted)]">
                   Enter your email and we&apos;ll send you a reset link.
                 </div>
                 {/* v2.0f: solid 48px gold hash — intentional, not the old

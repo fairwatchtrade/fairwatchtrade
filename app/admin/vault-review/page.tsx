@@ -66,7 +66,7 @@ export default async function VaultReviewPage() {
           <h2 className="font-display text-[22px] font-light tracking-[0.3px] text-[var(--platinum)]">
             Cluster Review
           </h2>
-          <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="mt-1 fw-functional-copy text-[var(--muted)]">
             Approve each brand&apos;s gravitational home. One home per star.
           </p>
         </div>

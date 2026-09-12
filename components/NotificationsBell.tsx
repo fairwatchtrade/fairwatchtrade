@@ -174,7 +174,7 @@ export default function NotificationsBell({
 
           <div className="max-h-[360px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center font-display text-[13px] italic text-[var(--muted)]">
+              <div className="px-4 py-6 text-center fw-functional-copy text-[var(--muted)]">
                 No notifications yet.
               </div>
             ) : (

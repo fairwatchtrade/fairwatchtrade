@@ -2443,7 +2443,7 @@ export default function MarketplaceControl({
 
                 <div className={loading ? "opacity-60 transition-opacity" : ""}>
                   {payload.rows.length === 0 ? (
-                    <div className="px-4 py-10 text-center font-display text-[13px] italic text-[var(--muted)]">
+                    <div className="px-4 py-10 text-center fw-functional-copy text-[var(--muted)]">
                       {anyFilterActive
                         ? "No listings match these filters."
                         : `Nothing in ${LIFE_META[view.life].name}.`}
@@ -2594,7 +2594,7 @@ export default function MarketplaceControl({
                     <tr>
                       <td
                         colSpan={visibleColumns.length + 1}
-                        className="px-4 py-10 text-center font-display text-[13px] italic text-[var(--muted)]"
+                        className="px-4 py-10 text-center fw-functional-copy text-[var(--muted)]"
                       >
                         {anyFilterActive
                           ? "No listings match these filters."

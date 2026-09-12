@@ -399,7 +399,7 @@ export default function AccountSettings({
                 <div className="text-[13px] text-[var(--platinum-dim)]">
                   Use my business name in my Catalogue greeting
                 </div>
-                <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                   Your Catalogue greets you by your display name. Turn this on to
                   be greeted by your dealer business name instead.
                 </p>
@@ -469,7 +469,7 @@ export default function AccountSettings({
               </button>
             ))}
           </div>
-          <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+          <p className="mt-2 fw-functional-copy text-[var(--muted)]">
             System follows your device&apos;s setting. Choosing Light or Dark keeps
             FairWatchTrade that way on every visit.
           </p>
@@ -549,7 +549,7 @@ export default function AccountSettings({
             )}
           </div>
 
-          <p className="mt-3 font-display text-[12px] font-light italic text-[var(--muted)]">
+          <p className="mt-3 fw-functional-copy text-[var(--muted)]">
             You&apos;ll need to sign in again after changing your password.
           </p>
         </section>
@@ -571,7 +571,7 @@ export default function AccountSettings({
           <div className="flex items-start justify-between gap-6 border-b border-[var(--border-faint)] py-4">
             <div>
               <div className="text-[13px] text-[var(--platinum-dim)]">Email notifications</div>
-              <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+              <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                 Receive an email when a buyer messages you or replies to your message.
               </p>
             </div>
@@ -623,7 +623,7 @@ export default function AccountSettings({
                   Coming soon
                 </span>
               </div>
-              <p className="mt-1 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+              <p className="mt-1 fw-functional-copy text-[var(--muted)]">
                 Receive a text for new correspondence. Not yet available.
               </p>
             </div>
@@ -677,7 +677,7 @@ export default function AccountSettings({
               </option>
             ))}
           </select>
-          <p className="mt-2 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+          <p className="mt-2 fw-functional-copy text-[var(--muted)]">
             Pre-selects the currency when you create a new listing. You confirm it on every
             listing, and changing it here never alters a watch you have already listed.
           </p>
@@ -687,7 +687,7 @@ export default function AccountSettings({
               <div className="mb-1 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-subtle)]">
                 Dealer Room identity
               </div>
-              <p className="mb-5 font-display text-[12px] font-light italic leading-[1.6] text-[var(--muted)]">
+              <p className="mb-5 fw-functional-copy text-[var(--muted)]">
                 Choose the public identity shown in your Dealer Room and on your listings.
                 Management stays here; the public room remains buyer-facing.
               </p>
@@ -843,7 +843,7 @@ export default function AccountSettings({
             </span>
           </div>
 
-          <p className="mt-4 font-display text-[12px] font-light italic text-[var(--muted)]">
+          <p className="mt-4 fw-functional-copy text-[var(--muted)]">
             To change your email address, contact hello@fairwatchtrade.com
           </p>
         </section>

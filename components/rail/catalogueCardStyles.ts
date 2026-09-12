@@ -31,8 +31,9 @@ export const railCard =
    four stacked small + thin + italic + wide tracking at once. Any of those
    alone is elegant. Together they are the failure pattern.
 
-   Raised to the floor, not made loud: the colours are unchanged, the italic
-   editorial voice stays, the whitespace stays. Only microprint goes. ── */
+   Raised to the floor, not made loud: the colours and whitespace are
+   unchanged. Functional reading copy now uses the governed body recipe;
+   editorial display treatments elsewhere remain untouched. ── */
 
 /** Card headings. Uppercase labels, so 11px is the floor rather than 13px.
     --slate measures 7.2:1. */
@@ -40,10 +41,9 @@ export const railHeading =
   "text-[11px] uppercase tracking-[2.5px] text-[var(--slate)]";
 
 /** Descriptive and empty-state copy — this is reading text, not a label, so
-    it takes the 13px body floor. --muted measures 5.4:1. Italic kept: the
-    order permits the editorial voice, it forbids microprint. */
+    it takes the governed 13px Inter body floor. --muted measures 5.4:1. */
 export const railBody =
-  "font-display text-[13px] italic leading-[1.6] text-[var(--muted)]";
+  "fw-functional-copy text-[var(--muted)]";
 
 /** An action that genuinely goes somewhere. Full gold rather than the 45%
     --gold-subtle, plus an underline so the affordance never rests on colour

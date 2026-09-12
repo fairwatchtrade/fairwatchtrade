@@ -2324,7 +2324,7 @@ export default function VaultGalaxy({
              canvas, which was the whole reason the original had no max-h. */
           <div className="fixed z-[7] border border-[var(--border-subtle)] bg-[rgba(12,17,30,0.55)] p-5 backdrop-blur-md max-sm:right-3 max-sm:top-[64px] max-sm:max-h-[calc(100dvh-150px)] max-sm:w-[210px] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:p-3 sm:right-7 sm:top-[90px] sm:w-[330px]">
             {loading ? (
-              <p className="font-display text-[14px] font-light italic text-[var(--muted)]">
+              <p className="fw-functional-copy text-[var(--muted)]">
                 Illuminating the constellation…
               </p>
             ) : view === "detail" && selectedVariant ? (
@@ -2358,7 +2358,7 @@ export default function VaultGalaxy({
                   </p>
                 )}
                 {selectedVariant.notes && (
-                  <p className="mb-3 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                  <p className="mb-3 fw-functional-copy text-[var(--muted)]">
                     {selectedVariant.notes}
                   </p>
                 )}
@@ -2374,7 +2374,7 @@ export default function VaultGalaxy({
                     acceptable in the Vault. Invented data is not. */}
                 {(selectedVariant.vault_references?.length ?? 0) === 0 && (
                   <div className="mt-3 border-t border-[var(--border-faint)] pt-3">
-                    <p className="font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                    <p className="fw-functional-copy text-[var(--muted)]">
                       Reference details for this variant are still being mapped.
                     </p>
                   </div>
@@ -2487,7 +2487,7 @@ export default function VaultGalaxy({
                 <p className="mb-3 font-display text-[15px] font-light leading-[1.65] text-[var(--slate)]">
                   This constellation is still being mapped.
                 </p>
-                <p className="mb-1 font-display text-[13px] font-light italic leading-[1.6] text-[var(--muted)]">
+                <p className="mb-1 fw-functional-copy text-[var(--muted)]">
                   Every house in the Vault is charted by hand —{" "}
                   {selectedBrand.name}
                   &apos;s collections are still to come.

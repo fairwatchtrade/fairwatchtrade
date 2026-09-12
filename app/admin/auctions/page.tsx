@@ -67,7 +67,7 @@ export default async function AdminAuctionsPage() {
           <h1 className="mt-2 font-display text-[28px] font-light tracking-[0.3px] text-[var(--platinum)]">
             Auction Operations
           </h1>
-          <p className="mt-1 font-display text-[14px] font-light italic text-[var(--muted)]">
+          <p className="mt-1 fw-functional-copy text-[var(--muted)]">
             Upcoming sales for the public strip. Completed results for Market Intel. Two jobs, one
             room.
           </p>

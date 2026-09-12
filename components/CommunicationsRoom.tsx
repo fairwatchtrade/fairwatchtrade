@@ -791,7 +791,7 @@ export default function CommunicationsRoom({
           <div className="min-h-0 flex-1 overflow-y-auto max-md:max-h-[46vh]">
             {rows.length === 0 ? (
               <div className="px-6 py-10 text-center">
-                <p className="mx-auto max-w-[42ch] font-display text-[14px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+                <p className="mx-auto max-w-[42ch] fw-functional-copy text-[var(--platinum-dim)]">
                   {search.trim() ? "No correspondence matches your search." : FOLDER_EMPTY[folder]}
                 </p>
               </div>
@@ -849,7 +849,7 @@ export default function CommunicationsRoom({
                             )}
                             {t.listing?.publicCode && t.lastMessage && " · "}
                             {t.lastMessage && (
-                              <span className="font-display font-light italic">
+                              <span className="fw-functional-copy">
                                 &ldquo;{t.lastMessage.body.slice(0, 70)}
                                 {t.lastMessage.body.length > 70 ? "…" : ""}&rdquo;
                               </span>
@@ -932,7 +932,7 @@ export default function CommunicationsRoom({
 
           {!selected ? (
             <div className="flex flex-1 items-center justify-center px-8 py-14">
-              <p className="max-w-[40ch] text-center font-display text-[14px] font-light italic leading-[1.6] text-[var(--platinum-dim)]">
+              <p className="max-w-[40ch] text-center fw-functional-copy text-[var(--platinum-dim)]">
                 Select correspondence to read it here.
               </p>
             </div>
@@ -1232,18 +1232,18 @@ export default function CommunicationsRoom({
                 )}
 
                 {threadLoading ? (
-                  <div className="py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
+                  <div className="py-8 text-center fw-functional-copy text-[var(--muted)]">
                     Opening correspondence…
                   </div>
                 ) : threadMsgs.length === 0 ? (
                   selected.kind === "thread" || selected.request.notes ? (
                     selected.kind === "thread" ? (
-                      <div className="py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
+                      <div className="py-8 text-center fw-functional-copy text-[var(--muted)]">
                         No messages yet.
                       </div>
                     ) : null
                   ) : (
-                    <div className="py-8 text-center font-display text-[12px] italic text-[var(--muted)]">
+                    <div className="py-8 text-center fw-functional-copy text-[var(--muted)]">
                       No correspondence on this request yet. A reply below starts it.
                     </div>
                   )

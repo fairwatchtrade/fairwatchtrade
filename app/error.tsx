@@ -38,7 +38,7 @@ export default function ErrorBoundary({
           We are taking care of something.
         </h1>
         <div className="mx-auto mb-4 h-px w-[28px] bg-[var(--gold-subtle)]" />
-        <p className="mx-auto mb-8 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]">
+        <p className="mx-auto mb-8 max-w-[460px] fw-functional-copy text-[var(--slate)]">
           Something went wrong on our end, and we&apos;re on it. Your catalogue, listings,
           conversations, and saved watches are safe and will be exactly as you left them.
         </p>

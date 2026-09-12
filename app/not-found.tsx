@@ -26,7 +26,7 @@ export default function NotFound() {
           We lost our frame of reference.
         </h1>
         <div className="mx-auto mb-4 h-px w-[28px] bg-[var(--gold-subtle)]" />
-        <p className="mx-auto mb-8 max-w-[460px] font-display text-[15px] font-light italic leading-[1.8] text-[var(--slate)]">
+        <p className="mx-auto mb-8 max-w-[460px] fw-functional-copy text-[var(--slate)]">
           The page you were looking for has been removed or renamed. If you followed a link, it
           may be outdated. Everything else on FairWatchTrade is exactly where it should be.
         </p>
