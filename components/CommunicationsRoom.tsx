@@ -1052,21 +1052,21 @@ export default function CommunicationsRoom({
                       </div>
                       <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-4">
                         <div className="min-w-0">
-                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Watch</dt>
+                          <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Watch</dt>
                           <dd className="mt-0.5 truncate text-[var(--platinum-dim)]">{requestTitle(selected.request)}</dd>
                         </div>
                         <div>
-                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Accepted amount</dt>
+                          <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Accepted amount</dt>
                           <dd className="mt-0.5 font-display text-[15px] font-light text-[var(--platinum)]">
                             {formatMoney(selected.request.proposed_purchase_price, selected.request.proposed_currency)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Request</dt>
+                          <dt className="fw-lifecycle-label uppercase text-[var(--muted)]">Request</dt>
                           <dd className="mt-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--lc-published-badge)]">Accepted</dd>
                         </div>
                         <div>
-                          <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Listing</dt>
+                          <dt className="fw-lifecycle-label uppercase text-[var(--muted)]">Listing</dt>
                           <dd className="mt-0.5 text-[11px] uppercase tracking-[1.2px] text-[var(--gold)]">Sale Pending</dd>
                           <dd className="mt-0.5 text-[11px] leading-[1.5] text-[var(--muted)]">Reserved for this buyer. Not paid, not completed.</dd>
                         </div>

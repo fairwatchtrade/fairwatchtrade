@@ -174,13 +174,13 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 <div className="mt-1.5 font-display text-[22px] font-light leading-[1.08] text-[var(--platinum)]">
                   {listing.model ?? listing.brand}
                 </div>
-                <div className="mt-1.5 text-[10px] text-[var(--muted)]">Ref. {listing.reference}</div>
+                <div className="mt-1.5 fw-transaction-fact text-[var(--muted)]">Ref. {listing.reference}</div>
                 <div className="mt-4 border-t border-[var(--border-faint)] pt-3 text-[11px] text-[var(--platinum-dim)]">
                   {listing.sellerName}
                 </div>
                 <div className="mt-2 font-display text-[22px] font-light text-[var(--platinum)]">
                   {askingText}
-                  <span className="mt-1 block text-[7px] font-medium uppercase tracking-[1.3px] text-[var(--muted)]">
+                  <span className="mt-1 block fw-transaction-fact uppercase text-[var(--muted)]">
                     Seller&apos;s asking price
                   </span>
                 </div>
@@ -193,7 +193,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
             <details open className="border border-[var(--border-faint)] bg-[var(--surface)] lg:border-t-0">
               <summary className="flex cursor-pointer items-end justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
                 <h2 className="font-display text-[19px] font-light text-[var(--platinum)]">Listing details</h2>
-                <span className="text-[7px] uppercase tracking-[1.5px] text-[var(--muted)]">From the seller&apos;s listing</span>
+                <span className="fw-transaction-fact uppercase text-[var(--muted)]">From the seller&apos;s listing</span>
               </summary>
               <div className="px-5 pb-5">
                 <div className="grid">
@@ -269,7 +269,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                       />
                     </div>
                     {showOfferError ? (
-                      <div id="offerError" className="mt-2 text-[10px] leading-[1.45]" style={{ color: BAD }}>
+                      <div id="offerError" className="mt-2 fw-validity-state" style={{ color: BAD }}>
                         {offerErrorText}
                       </div>
                     ) : (
@@ -435,7 +435,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                 <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[var(--border-faint)] py-4 sm:grid-cols-[1fr_auto]">
                   <div className="font-display text-[16px] font-light text-[var(--platinum)]">
                     {title}
-                    <small className="mt-1 block font-sans text-[10px] not-italic text-[var(--muted)]">
+                    <small className="mt-1 block fw-transaction-fact text-[var(--muted)]">
                       Reference {listing.reference} · {listing.sellerName}
                     </small>
                   </div>
@@ -512,13 +512,13 @@ function Preserved({
   return (
     <div className="mt-5 grid grid-cols-1 gap-4 border-y border-[var(--border-faint)] py-4 sm:grid-cols-2">
       <div>
-        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--muted)]">Preserved offer</b>
+        <b className="block fw-transaction-fact uppercase text-[var(--muted)]">Preserved offer</b>
         <span className="mt-1.5 block break-words font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {shown.ok ? formatMoney(shown.amount, currency) : "—"}
         </span>
       </div>
       <div>
-        <b className="block text-[7px] font-medium uppercase tracking-[1.2px] text-[var(--muted)]">Preserved message</b>
+        <b className="block fw-transaction-fact uppercase text-[var(--muted)]">Preserved message</b>
         <span className="mt-1.5 block break-words font-display text-[16px] font-light text-[var(--platinum-dim)]">
           {message.trim() !== "" ? message : "—"}
         </span>

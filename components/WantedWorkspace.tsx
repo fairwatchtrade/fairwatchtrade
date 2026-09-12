@@ -611,7 +611,7 @@ export default function WantedWorkspace() {
                         .join(" · ")}
                     </div>
                     {money && (
-                      <div className="mt-1 text-[10px] text-[var(--muted)]">
+                      <div className="fw-validity-state mt-1 text-[var(--muted)]">
                         Your figure stays private — sellers see only within / near / outside.
                       </div>
                     )}
@@ -619,7 +619,7 @@ export default function WantedWorkspace() {
                       {(r.must_have ?? []).map((m) => (
                         <span
                           key={`m-${m}`}
-                          className="border border-[var(--border-mid)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+                          className="fw-validity-state border border-[var(--border-mid)] px-2 py-1 uppercase text-[var(--platinum-dim)]"
                         >
                           Must · {m}
                         </span>
@@ -627,20 +627,20 @@ export default function WantedWorkspace() {
                       {(r.preferred ?? []).map((p) => (
                         <span
                           key={`p-${p}`}
-                          className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+                          className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--muted)]"
                         >
                           Pref · {p}
                         </span>
                       ))}
                       {r.private_listing_ok && (
-                        <span className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]">
+                        <span className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--muted)]">
                           Private listing OK
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="text-[9px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                    <div className="fw-lifecycle-label uppercase text-[var(--gold-dim)]">
                       {r.status === "draft" ? "Draft" : STATUS_LABELS[r.status]}
                     </div>
                     <div className="mt-1 text-[11px] text-[var(--muted)]">
@@ -796,7 +796,7 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
           {met.map((m) => (
             <span
               key={`ok-${m}`}
-              className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+              className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--platinum-dim)]"
             >
               ✓ {m}
             </span>
@@ -804,7 +804,7 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
           {failed.map((m) => (
             <span
               key={`no-${m}`}
-              className="border border-[#880015] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+              className="fw-validity-state border border-[#880015] px-2 py-1 uppercase text-[var(--platinum-dim)]"
             >
               ✗ {m}
             </span>
@@ -812,7 +812,7 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
           {unknown.map((m) => (
             <span
               key={`un-${m}`}
-              className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+              className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--muted)]"
             >
               ? {m} — unconfirmed
             </span>
@@ -821,7 +821,7 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
       )}
 
       {report.budgetFit && (
-        <div className="mt-2 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+        <div className="fw-validity-state mt-2 uppercase text-[var(--muted)]">
           {BUDGET_FIT_LABELS[report.budgetFit]}
         </div>
       )}

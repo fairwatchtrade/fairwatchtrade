@@ -371,7 +371,7 @@ export default function TradeOffersModule() {
               {/* ── Lifecycle header ── */}
               <div className="grid grid-cols-[1fr_auto] items-start gap-6 border-b border-[var(--border-gold)] pb-4">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     Trade
                   </div>
                   <div className="mt-1.5 font-display text-[26px] font-light leading-tight text-[var(--platinum)]">
@@ -392,7 +392,7 @@ export default function TradeOffersModule() {
                     </div>
                   )}
                 </div>
-                <div className="pt-1 text-[9px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+                <div className="fw-lifecycle-label pt-1 uppercase text-[var(--gold-dim)]">
                   {currentState}
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function TradeOffersModule() {
               {/* ── The exchange — the primary object ── */}
               <div className="grid grid-cols-1 items-center gap-5 border-b border-[var(--border-faint)] py-7 sm:grid-cols-[1fr_auto_1fr]">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.17em] text-[var(--muted)]">
+                  <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     You receive
                   </div>
                   <div className="mt-2 font-display text-[20px] font-light leading-tight text-[var(--platinum)]">
@@ -419,7 +419,7 @@ export default function TradeOffersModule() {
                   ⇄
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.17em] text-[var(--muted)]">
+                  <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     You give
                   </div>
                   <div className="mt-2 font-display text-[20px] font-light leading-tight text-[var(--platinum)]">
@@ -434,7 +434,7 @@ export default function TradeOffersModule() {
               {/* ── Cash adjustment — its own beat ── */}
               {hasCash ? (
                 <div className="grid grid-cols-1 gap-3 border-b border-[var(--border-faint)] py-5 sm:grid-cols-[180px_1fr]">
-                  <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                  <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     Cash adjustment
                   </div>
                   <div>
@@ -543,7 +543,7 @@ export default function TradeOffersModule() {
                           className="border-t border-[var(--border-faint)] py-3 last:border-b"
                         >
                           <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[110px_minmax(0,1fr)_auto]">
-                            <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                            <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                               {iReceive ? "To you" : "To them"}
                             </div>
                             <div className="text-[11px] text-[var(--platinum-dim)]">
@@ -554,7 +554,7 @@ export default function TradeOffersModule() {
                                 publicCode: leg.listing_public_code,
                               })}
                             </div>
-                            <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--gold-dim)] sm:text-right">
+                            <div className="fw-lifecycle-label uppercase text-[var(--gold-dim)] sm:text-right">
                               {LEG_STATUS_LABELS[leg.leg_status]}
                             </div>
                           </div>
@@ -620,7 +620,7 @@ export default function TradeOffersModule() {
               {/* ── Acceptance explainer, integrated into the record (§9) ── */}
               {showExplainer && (
                 <div className="mt-7 grid grid-cols-1 gap-4 border-t border-[var(--border-gold)] pt-5 sm:grid-cols-[180px_1fr]">
-                  <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                  <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     What acceptance means
                   </div>
                   <p className="max-w-[630px] text-[11px] leading-[1.62] text-[var(--muted)]">

@@ -539,11 +539,11 @@ function HistoryRow({ offer }: { offer: MyOfferRow }) {
   const price = offerPrice(offer);
   const when = relativeTime(offer.created_at);
   return (
-    <div className="flex items-center justify-between gap-3 py-1 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+    <div className="flex items-center justify-between gap-3 py-1 fw-transaction-fact text-[var(--muted)]">
       <span className="min-w-0 truncate">
         {price != null ? formatPrice(Number(price), offer.proposed_currency) : "Offer"}
         <span className="mx-1.5 opacity-40">•</span>
-        <span className="uppercase tracking-[1.5px]">{label}</span>
+        <span className="fw-lifecycle-label uppercase">{label}</span>
       </span>
       {when && <span className="shrink-0 opacity-70">{when}</span>}
     </div>
@@ -629,7 +629,7 @@ function WatchOfferGroup({
           <div className="min-w-0">
             <div className="truncate text-[13px] text-[var(--platinum)]">{title}</div>
             {reference && (
-              <div className="mt-0.5 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+              <div className="mt-0.5 fw-transaction-fact text-[var(--muted)]">
                 Ref. {reference}
               </div>
             )}
@@ -657,13 +657,13 @@ function WatchOfferGroup({
             )}
           </div>
           {currentWhen && (
-            <div className="shrink-0 text-[10px] tracking-[0.3px] text-[var(--muted)]">
+            <div className="shrink-0 fw-transaction-fact text-[var(--muted)]">
               Submitted {currentWhen}
             </div>
           )}
         </div>
         {note && (
-          <div className="mt-0.5 text-[10px] leading-snug text-[var(--muted)]">{note}</div>
+          <div className="mt-0.5 fw-lifecycle-label text-[var(--muted)]">{note}</div>
         )}
 
         {/* v2.86 — Withdraw Offer: pending requests only. A deliberate text
@@ -1577,7 +1577,7 @@ export default function CatalogueClient({
                       {title}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="text-[10px] text-[var(--muted)]">
+                      <span className="fw-lifecycle-label text-[var(--muted)]">
                         {unread
                           ? t.unreadCount === 1
                             ? "New reply"

@@ -155,7 +155,7 @@ export default function ShoppingBagEntrance({
           {truth.count}
         </span>
       ) : (
-        <span className="text-[10px] uppercase tracking-[1.2px] text-[var(--muted)]" data-shopping-bag-unavailable="">
+        <span className="fw-lifecycle-label uppercase text-[var(--muted)]" data-shopping-bag-unavailable="">
           Unavailable
         </span>
       )}

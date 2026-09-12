@@ -296,21 +296,21 @@ export default function ShoppingBagRoom({
 
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-3">
                     <div>
-                      <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Asking</dt>
+                      <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Asking</dt>
                       <dd className="mt-0.5 text-[var(--platinum-dim)]">
                         {m.askingAmount != null && m.askingCurrency ? formatMoney(m.askingAmount, m.askingCurrency) : <span className="italic text-[var(--muted)]">not recorded</span>}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">Accepted</dt>
+                      <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Accepted</dt>
                       <dd className="mt-0.5 font-display text-[16px] font-light text-[var(--platinum)]">{formatMoney(m.acceptedAmount, m.acceptedCurrency)}</dd>
                     </div>
                     <div>
-                      <dt className="text-[10px] uppercase tracking-[1.4px] text-[var(--muted)]">State</dt>
+                      <dt className="fw-lifecycle-label uppercase text-[var(--muted)]">State</dt>
                       <dd className={`mt-0.5 text-[11px] uppercase tracking-[1.2px] ${tone}`} data-bag-label="">
                         {p.label}
                       </dd>
-                      {p.chips.length > 0 && <dd className="mt-0.5 text-[10px] uppercase tracking-[1.2px] text-[var(--muted)]">{p.chips.join(" · ")}</dd>}
+                      {p.chips.length > 0 && <dd className="fw-lifecycle-label mt-0.5 uppercase text-[var(--muted)]">{p.chips.join(" · ")}</dd>}
                     </div>
                   </dl>
 

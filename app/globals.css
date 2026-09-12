@@ -438,6 +438,35 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
 }
 
+@layer components {
+  .fw-transaction-fact {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.45;
+    letter-spacing: 0.4px;
+  }
+
+  .fw-lifecycle-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 1px;
+  }
+
+  .fw-validity-state {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0.8px;
+  }
+}
+
 .fw-body {
   line-height: 2.1;
 }

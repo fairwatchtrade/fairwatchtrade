@@ -149,7 +149,7 @@ export default function WantedRequestsModule() {
                     {(r.must_have ?? []).map((m) => (
                       <span
                         key={`m-${m}`}
-                        className="border border-[var(--border-mid)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+                        className="fw-validity-state border border-[var(--border-mid)] px-2 py-1 uppercase text-[var(--platinum-dim)]"
                       >
                         Must · {m}
                       </span>
@@ -157,7 +157,7 @@ export default function WantedRequestsModule() {
                     {(r.preferred ?? []).map((p) => (
                       <span
                         key={`p-${p}`}
-                        className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+                        className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--muted)]"
                       >
                         Pref · {p}
                       </span>
@@ -166,11 +166,11 @@ export default function WantedRequestsModule() {
                 </div>
                 <div className="shrink-0 text-right">
                   {/* The entire seller-visible surface of the buyer's budget. */}
-                  <div className="text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                  <div className="fw-validity-state uppercase text-[var(--gold-dim)]">
                     {r.budget_fit ? BUDGET_FIT_LABELS[r.budget_fit] : "No comparable listing"}
                   </div>
                   {r.answered_by_me && (
-                    <div className="mt-1 text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">
+                    <div className="fw-lifecycle-label mt-1 uppercase text-[var(--muted)]">
                       You answered
                     </div>
                   )}
@@ -361,7 +361,7 @@ function AnswerPanel({
                   {report.requiredMet.map((m) => (
                     <span
                       key={`ok-${m}`}
-                      className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+                      className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--platinum-dim)]"
                     >
                       ✓ {m}
                     </span>
@@ -369,7 +369,7 @@ function AnswerPanel({
                   {report.requiredFailed.map((m) => (
                     <span
                       key={`no-${m}`}
-                      className="border border-[#880015] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--platinum-dim)]"
+                      className="fw-validity-state border border-[#880015] px-2 py-1 uppercase text-[var(--platinum-dim)]"
                     >
                       ✗ {m}
                     </span>
@@ -377,14 +377,14 @@ function AnswerPanel({
                   {report.requiredUnknown.map((m) => (
                     <span
                       key={`un-${m}`}
-                      className="border border-[var(--border-faint)] px-2 py-1 text-[9px] uppercase tracking-[1px] text-[var(--muted)]"
+                      className="fw-validity-state border border-[var(--border-faint)] px-2 py-1 uppercase text-[var(--muted)]"
                     >
                       ? {m}
                     </span>
                   ))}
                 </div>
                 {report.budgetFit && (
-                  <div className="mt-2 text-[10px] uppercase tracking-[1.5px] text-[var(--gold-dim)]">
+                  <div className="fw-validity-state mt-2 uppercase text-[var(--gold-dim)]">
                     {BUDGET_FIT_LABELS[report.budgetFit]}
                   </div>
                 )}
