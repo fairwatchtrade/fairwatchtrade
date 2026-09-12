@@ -882,7 +882,7 @@ export default async function ListingDetailPage({
               {maker}
             </div>
           )}
-          <h1 className="font-display text-[35px] font-light leading-[1.03] tracking-[-0.018em] text-[var(--platinum)] sm:text-[48px] sm:leading-[1.06]">
+          <h1 className="font-display text-[30px] font-light leading-[1.03] tracking-[-0.018em] text-[var(--platinum)] sm:text-[48px] sm:leading-[1.06]">
             {headingText}
           </h1>
 
