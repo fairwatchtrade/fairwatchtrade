@@ -48,6 +48,18 @@ test("mobile gets an in-image position cue and no persistent resting thumbnails"
   assert.match(count[1], /left-3 top-3/, "the count must stay clear of the right-edge Dial Reveal fader");
   assert.doesNotMatch(count[1], /right-3/);
 
+  /* Founder/design correction 2026-09-12: the cue is smoke on the
+     photograph, not a security-camera plate. A bordered near-black chip
+     pulled the eye to the corner before the watch. */
+  assert.doesNotMatch(count[1], /\bborder\b/, "no border — an edge makes it a plate");
+  assert.doesNotMatch(count[1], /shadow-/, "no shadow — it does not float above the image");
+  assert.doesNotMatch(count[1], /rounded-full/, "not a pill: a pill reads as a pressable button");
+  assert.match(count[1], /rounded-lg/, "same corner the photograph itself carries");
+  assert.match(count[1], /bg-\[var\(--on-photo-scrim-soft\)\]/, "the soft scrim, never the panel scrim");
+  assert.doesNotMatch(count[1], /bg-\[var\(--on-photo-scrim\)\]/);
+  assert.match(count[1], /backdrop-blur-/, "smoke reads as haze over the image, not a flat chip");
+  assert.match(count[1], /text-\[var\(--on-photo-text\)\]/, "light text on the photograph");
+
   const rail = /<div\s+data-resting-thumbnail-rail=""\s+className="([^"]+)"/.exec(gallery);
   assert.ok(rail, "resting thumbnail rail");
   assert.match(rail[1], /hidden/);

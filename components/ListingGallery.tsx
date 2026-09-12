@@ -558,9 +558,19 @@ export default function ListingGallery({
           )}
 
           {canCycle && (
+            /* The count is a whisper on the photograph, not a plate bolted to
+               it. A bordered 65% near-black chip read as a security-camera
+               timestamp and pulled the eye to the corner before the watch. It
+               is now smoke: a lighter scrim with a backdrop blur so the image
+               shows through, no border and no shadow to draw an edge, tighter
+               padding, and the same corner radius the photograph itself
+               carries so it belongs to the image rather than floating over it.
+               Deliberately NOT a pill — a pill would read as a button, and
+               this is not pressable. Placement, breakpoint and count semantics
+               are unchanged. */
             <div
               data-mobile-photo-count=""
-              className="pointer-events-none absolute left-3 top-3 z-20 border border-[var(--on-photo-line)] bg-[var(--on-photo-scrim)] px-2 py-1 text-[11px] font-medium tabular-nums tracking-[0.08em] text-[var(--on-photo-text)] min-[56rem]:hidden"
+              className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-[var(--on-photo-scrim-soft)] px-[7px] py-[3px] text-[11px] font-medium tabular-nums tracking-[0.08em] text-[var(--on-photo-text)] backdrop-blur-[6px] min-[56rem]:hidden"
               aria-label={`Photo ${active + 1} of ${photos.length}`}
             >
               <span aria-hidden="true">{active + 1} / {photos.length}</span>

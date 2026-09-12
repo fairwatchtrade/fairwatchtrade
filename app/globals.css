@@ -348,6 +348,12 @@ html[data-theme="dark"] { color-scheme: dark; }
      which reads brown-on-black here. */
   --on-photo-scrim:      rgba(12,11,9,0.65);
   --on-photo-scrim-deep: rgba(12,11,9,0.77);
+  /* Smoke, not a plate. For a small always-on marker that sits ON the
+     photograph and must never compete with it: light enough to read the
+     watch through, and paired with a backdrop blur so it reads as haze over
+     the image rather than a hard chip laid on top of it. The two scrims
+     above back real panels and stay where they are. */
+  --on-photo-scrim-soft: rgba(12,11,9,0.34);
   --on-photo-gold:       #C9A84C;
   --on-photo-gold-line:  rgba(201,168,76,0.5);
   --on-photo-text:       #D9D2BF;
