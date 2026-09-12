@@ -129,7 +129,7 @@ export default function NotificationsBell({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="relative flex items-center transition-colors"
-        style={{ color: hasUnread ? "#C9A84C" : "var(--ghost)" }}
+        style={{ color: hasUnread ? "#C9A84C" : "var(--muted)" }}
       >
         <svg
           width="18"

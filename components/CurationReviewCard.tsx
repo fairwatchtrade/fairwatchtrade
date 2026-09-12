@@ -123,7 +123,7 @@ export default function CurationReviewCard({
         <p className="mt-3 border-t border-[var(--border-faint)] pt-3 text-[12px] leading-relaxed text-[var(--muted)]">
           {REVIEW_SCOPE_EXPLANATION}
         </p>
-        <p className="fw-transaction-fact mt-2 uppercase text-[var(--ghost)]">
+        <p className="fw-transaction-fact mt-2 uppercase text-[var(--muted)]">
           Updated{" "}
           {new Date(summary.updated).toLocaleDateString("en-US", {
             year: "numeric",

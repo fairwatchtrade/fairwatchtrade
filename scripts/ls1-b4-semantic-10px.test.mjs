@@ -111,7 +111,7 @@ const ANCHORS = [
   anchor("components/BrowseSearch.tsx", "fw-transaction-fact", "filter-chip provenance", '<small className={`{{recipe}} flex-none uppercase ${ legibilityMode ? "text-[var(--slate)]" : "text-[var(--muted)]" }`} > Filter </small>'),
 
   anchor("components/CatalogueRoomSelector.tsx", "fw-compact-control", "collector room control", `<span className="{{recipe}} uppercase text-[var(--muted)]"> Collector </span>`),
-  anchor("components/CurationReviewCard.tsx", "fw-transaction-fact", "review timestamp", `<p className="{{recipe}} mt-2 uppercase text-[var(--ghost)]"> Updated{" "}`),
+  anchor("components/CurationReviewCard.tsx", "fw-transaction-fact", "review timestamp", `<p className="{{recipe}} mt-2 uppercase text-[var(--muted)]"> Updated{" "}`),
   anchor("components/DialReveal.tsx", "fw-functional-copy", "dial-reveal tooltip", `"{{recipe}} text-[var(--dim,#BFC5D2)]", "translate-x-[4px] opacity-0`),
   anchor("components/HomepageClient.tsx", "fw-transaction-fact", "listing metadata", `<div className="{{recipe}} mb-3 text-[var(--muted)]"> {meta} </div>`),
   anchor("components/ImportedDraftsWorkspace.tsx", "fw-lifecycle-label", "imported field state", `<span className="{{recipe}} border border-[rgba(201,168,76,0.3)] px-1.5 py-0.5 uppercase text-[var(--gold-dim)]"> Imported </span>`),
