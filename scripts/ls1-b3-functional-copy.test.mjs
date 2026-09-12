@@ -325,7 +325,9 @@ const DORMANT_TREATMENT_PATHS = new Set([
   "components/VaultEntrance.tsx",
   "components/AtlantisVaultEntrance.tsx",
 ]);
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const dormantPathKey = (path) => process.platform === "win32" ? path.toLowerCase() : path;
+const DORMANT_TREATMENT_PATH_KEYS = new Set([...DORMANT_TREATMENT_PATHS].map(dormantPathKey));
+const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 const EXCLUDED_SOURCE_PARTS = new Set([
   ".git",
   ".next",
@@ -338,6 +340,7 @@ const EXCLUDED_SOURCE_PARTS = new Set([
   "tests",
   "__tests__",
 ]);
+const EXCLUDED_SOURCE_PATHS = new Set(["app/api/evaluate/route.ts"]);
 
 function toRepoPath(path) {
   return relative(rootPath, path).split(sep).join("/");
@@ -345,11 +348,13 @@ function toRepoPath(path) {
 
 function isExcludedProductionPath(path) {
   const parts = path.split("/");
-  return parts.some((part) => {
+  return EXCLUDED_SOURCE_PATHS.has(path) || parts.some((part) => {
     const lower = part.toLowerCase();
     return EXCLUDED_SOURCE_PARTS.has(lower) || /canary|scor(?:e|ing)|evaluation/.test(lower);
   }) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
 }
+
+assert.ok(isExcludedProductionPath("app/api/evaluate/route.ts"), "api/evaluate sources are excluded before reading");
 
 function productionSourcePaths(directory = rootPath, paths = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -378,7 +383,7 @@ function resolvedDormantTarget(importer, specifier) {
     ...[...SOURCE_EXTENSIONS].map((extension) => `${absoluteBase}${extension}`),
     ...[...SOURCE_EXTENSIONS].map((extension) => join(absoluteBase, `index${extension}`)),
   ];
-  return candidates.map(toRepoPath).find((path) => DORMANT_TREATMENT_PATHS.has(path)) ?? null;
+  return candidates.map(toRepoPath).find((path) => DORMANT_TREATMENT_PATH_KEYS.has(dormantPathKey(path))) ?? null;
 }
 
 function moduleSpecifiers(path) {
