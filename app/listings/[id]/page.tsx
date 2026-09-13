@@ -13,6 +13,7 @@ import FwtListingId from "@/components/FwtListingId";
 import CollectorsDrawer from "@/components/CollectorsDrawer";
 import MobileCollectorsDrawer from "@/components/MobileCollectorsDrawer";
 import ListingActionRail from "@/components/ListingActionRail";
+import CurationReviewCard from "@/components/CurationReviewCard";
 import { resolveShoppingBag } from "@/lib/purchases/shoppingBag";
 import type { CurationSummary } from "@/lib/curationReview";
 import ListingPurchaseRequestProvider from "@/components/ListingPurchaseRequestProvider";
@@ -1119,7 +1120,6 @@ export default async function ListingDetailPage({
               askingPrice={listing.asking_price}
               askingCurrency={listing.asking_currency}
               canRequestInline={!!user}
-              curation={curation}
             />
             {/* Ask-the-Seller slot (founder ruling 2026-08-12): the rail's
                 dead space below the Purchase Request card. ListingCorrespondence
@@ -1127,6 +1127,33 @@ export default async function ListingDetailPage({
                 dressing. empty:hidden keeps the grid gap honest when nothing
                 is portaled (owner view before hydration). */}
             <div id="rail-ask-slot" className="empty:hidden" />
+            {/* Curation Review — LAST, and that is the ruling (2026-09-12).
+
+                It used to render inside ListingActionRail, between seller
+                identity and the purchase decision, which broke the rail's
+                commercial sentence in half: seller → price/action →
+                conversation is one relationship, and a permanent review
+                report was sitting in the middle of it.
+
+                It is composed HERE rather than inside any of those
+                components so it follows the Ask-the-Seller slot in normal
+                document flow. That is the whole point of the position: when
+                a real conversation makes the composer taller, Curation
+                travels down with it. It must never be given absolute or
+                fixed positioning to hold a vertical coordinate — that would
+                reintroduce exactly the overlap this ordering removes.
+
+                Same resolved truth the page already computed; no second
+                server resolution. Inside the desktop-only aside, so the
+                narrow composition never receives this doorway. */}
+            {curation && (
+              <CurationReviewCard
+                listingId={listing.id}
+                signedIn={curation.signedIn}
+                initialState={curation.state}
+                summary={curation.summary}
+              />
+            )}
           </aside>
         </div>
         {/* end OPENING */}

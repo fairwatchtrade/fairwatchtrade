@@ -18,9 +18,15 @@ const CLUSTER_ACTION = [
    LISTING ACTION RAIL — components/ListingActionRail.tsx  (v2.11)
 
    The 276px right-hand column of the approved two-column composition:
-   Dealer Information above Purchase Request, staggered 112px down from the
+   Seller Information above Purchase Request, staggered 112px down from the
    gallery's top edge (the stagger itself is applied by page.tsx, since it
    belongs to the grid, not to this component).
+
+   This component owns TWO rail blocks and no more. Ask the Seller is
+   portaled into #rail-ask-slot beneath it, and Curation Review renders
+   after that slot — both composed by page.tsx, giving the founder-ruled
+   order: Seller Information → Purchase Request → Ask the Seller →
+   Curation Review.
 
    ── RELOCATED, NOT REBUILT ─────────────────────────────────────────────
    The isOwner / myLatestRequest / purchase-request logic below is the exact
@@ -44,17 +50,19 @@ const CLUSTER_ACTION = [
    display:none, so the inactive variant leaves the accessibility tree
    entirely. Exactly one is ever exposed to a screen reader.
 
-   ── DEALER CARD ────────────────────────────────────────────────────────
+   ── SELLER CARD ────────────────────────────────────────────────────────
    The "Sold by {seller} →" link is RELOCATED from the identity block into
    the rail on desktop, per ruling: relocate, don't redesign or duplicate.
-   On mobile it stays in the identity block, where it is today. Its
-   --muted → hover:--gold treatment is unchanged from the original.
+   On narrow it lives in the decision cluster this component composes for
+   the `inline` variant. Its --muted → hover:--gold treatment is unchanged.
+
+   The word is SELLER, not dealer. A dealer is a seller; a seller is not
+   necessarily a dealer, and nothing on this surface proves which one is
+   listing the watch.
 
    Canary: PFC274 = 62 — /api/evaluate untouched.
    ──────────────────────────────────────────────────────────────────────── */
 
-import CurationReviewCard from "@/components/CurationReviewCard";
-import type { CurationSummary } from "@/lib/curationReview";
 
 export default function ListingActionRail({
   variant,
@@ -72,17 +80,16 @@ export default function ListingActionRail({
   askingPrice,
   askingCurrency,
   canRequestInline = false,
-  curation,
   bagHref = null,
 }: {
   /* "bar" is the compact dressing used inside the mobile Listing Detail fixed
-     action bar. It renders ONLY the offer action — no price, no dealer card. */
+     action bar. It renders ONLY the offer action — no price, no seller card. */
   variant: "rail" | "inline" | "bar";
   listingId: string;
   sellerId: string;
-  /** Canonical dealer path, resolved by the page. A dealer's room lives at
+  /** Canonical seller path, resolved by the page. A seller's room lives at
       its slug; linking by raw UUID still arrives, but only after a redirect
-      hop, and it puts a non-canonical dealer URL on the page beside the
+      hop, and it puts a non-canonical seller URL on the page beside the
       canonical one. Optional so a caller without the resolution falls back
       to the id it does have. */
   sellerHref?: string;
@@ -111,14 +118,6 @@ export default function ListingActionRail({
      visitor keeps the link, so the route's server-side auth gate can send
      them to sign in and bring them back — identity is never decided here. */
   canRequestInline?: boolean;
-  /* Curation Review V1 — resolved by the page (requester-only pending is a
-     per-viewer fact, so it cannot be computed in this component). Absent
-     means the card does not render at all. */
-  curation?: {
-    signedIn: boolean;
-    state: "none" | "pending" | "completed";
-    summary: CurationSummary | null;
-  } | null;
   /* Accepted Purchase Continuity (2026-09-11): resolved by the page through
      the shared Shopping Bag resolver — non-null ONLY while this viewer's
      accepted transaction on this listing is a current Bag member. After the
@@ -403,10 +402,24 @@ export default function ListingActionRail({
   /* ── DESKTOP RAIL — two stacked cards, 14px apart (gap owned by page.tsx). ── */
   return (
     <>
-      {/* Dealer Information */}
+      {/* Seller Information.
+
+          The heading was "Dealer Information" and that was a false claim
+          about a person. A dealer is a seller; a seller is not necessarily a
+          dealer. This heading renders for whoever listed the watch — a
+          private collector, an estate, a family member selling a husband's
+          watch — and called every one of them a dealer. Nothing in the
+          product proves dealer status here, and none of the available
+          proxies prove it either: not having a listing, not having many
+          listings, not prior sales, not a seller-profile row. Dealer status
+          may appear one day as a separately proven attribute; it may never
+          be assumed from the act of selling. "Seller" is the neutral
+          marketplace role and is what this heading says now.
+
+          The link beneath it is unchanged in destination and treatment. */}
       <section className="border border-[var(--border-gold)] bg-[linear-gradient(180deg,rgba(201,168,76,0.045),rgba(255,255,255,0.012))] px-[18px] pb-[18px] pt-[18px]">
         <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
-          Dealer Information
+          Seller Information
         </div>
         <Link
           href={sellerHref ?? `/sellers/${sellerId}`}
@@ -416,17 +429,15 @@ export default function ListingActionRail({
         </Link>
       </section>
 
-      {/* Curation utility sits between dealer identity and the transaction:
-          Dealer Information → Curation → Purchase Request. Informational and
-          deliberately quieter than the purchase card; never merged into it. */}
-      {curation && (
-        <CurationReviewCard
-          listingId={listingId}
-          signedIn={curation.signedIn}
-          initialState={curation.state}
-          summary={curation.summary}
-        />
-      )}
+      {/* Curation Review used to render HERE, between seller identity and
+          the transaction, holding a full permanent review report open in the
+          middle of the commercial sentence. Founder ruling 2026-09-12 moved
+          it to the END of the rail, after the Ask-the-Seller slot, as a
+          compact doorway whose contents open in the governed Help Bubble.
+          The page composes that order — see app/listings/[id]/page.tsx — so
+          that Curation travels downward in normal flow when the conversation
+          surface grows. This comment marks the old home so the move reads as
+          deliberate rather than as a lost card. */}
 
       {/* Purchase Request — or, for the listing's own seller, plain price
           truth. The owner card previously kept the "Purchase Request" header
