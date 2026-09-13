@@ -55,12 +55,13 @@ function jsxAncestors(node) {
 
 const curation = read("components/CurationReviewCard.tsx");
 const bell = read("components/NotificationsBell.tsx");
+const bellButtonSource = read("components/NotificationBellButton.tsx");
 const rail = read("components/ListingActionRail.tsx");
 const listingPage = read("app/listings/[id]/page.tsx");
 const nav = read("components/NavBar.tsx");
 
 assert.match(normalized(curation), /<p className="fw-transaction-fact mt-2 uppercase text-\[var\(--muted\)\]"> Updated/, "completed public Curation timestamp uses --muted, not below-floor Ghost");
-assert.match(normalized(bell), /style=\{\{ color: hasUnread \? "#C9A84C" : "var\(--muted\)" \}\}/, "enabled zero-unread Bell uses --muted, not below-floor Ghost");
+assert.match(normalized(bellButtonSource), /style=\{\{ color: hasUnread \? "#C9A84C" : "var\(--muted\)" \}\}/, "enabled zero-unread Bell uses --muted, not below-floor Ghost");
 
 // Catches removal/rerouting or any inserted dimming wrapper on the actual
 // ordinary-user Curation chain, derived from JSX ancestry rather than copies.
@@ -102,14 +103,16 @@ for (const [opening, expected] of navChain.map((opening, index) => [opening, ["h
   assertPaintSafe(nav, opening, `Bell ancestor ${jsxName(opening)}`);
 }
 const bellTree = tree("components/NotificationsBell.tsx");
-const bellButton = findOpening(bellTree, (node) => jsxName(node) === "button" && attrText(bell, node, "aria-expanded") === "{open}");
-const bellChain = jsxAncestors(bellButton);
-assert.deepEqual(bellChain.map(jsxName), ["div"], "Bell button has exactly its wrapper ancestor");
+const bellMount = findOpening(bellTree, (node) => jsxName(node) === "NotificationBellButton" && attrText(bell, node, "expanded") === "{open}");
+const bellChain = jsxAncestors(bellMount);
+assert.deepEqual(bellChain.map(jsxName), ["div"], "Bell presentation has exactly its live wrapper ancestor");
 assert.equal(classText(bell, bellChain[0]), "relative", "Bell wrapper keeps its exact source class");
 assertPaintSafe(bell, bellChain[0], "Bell wrapper");
-assert.equal(classText(bell, bellButton), "relative flex items-center transition-colors", "Bell button keeps its exact source class");
-assertPaintSafe(bell, bellButton, "Bell button", { allowColorStyle: true });
-assert.equal(attrText(bell, bellButton, "style"), '{{ color: hasUnread ? "#C9A84C" : "var(--muted)" }}', "Bell button pins only its intended color style");
+const bellButtonTree = tree("components/NotificationBellButton.tsx");
+const bellButton = findOpening(bellButtonTree, (node) => jsxName(node) === "button" && attrText(bellButtonSource, node, "aria-expanded") === "{expanded}");
+assert.equal(classText(bellButtonSource, bellButton), "relative flex items-center transition-colors", "Bell button keeps its exact source class");
+assertPaintSafe(bellButtonSource, bellButton, "Bell button", { allowColorStyle: true });
+assert.equal(attrText(bellButtonSource, bellButton, "style"), '{{ color: hasUnread ? "#C9A84C" : "var(--muted)" }}', "Bell button pins only its intended color style");
 
 const globals = read("app/globals.css");
 function lightDark(name) {
@@ -177,7 +180,8 @@ const voidLaw = read("docs/product-laws/Void-Token-Governance.md");
 assert.match(voidLaw, /may never be used for information the user needs to read/, "existing Void law carries the readable-role boundary");
 assert.equal(readdirSync(new URL("docs/product-laws/", root)).filter((name) => /void.*token|token.*void/i.test(name)).length, 1, "no parallel Void-token law exists");
 
-for (const pattern of [/const hasUnread = unreadCount > 0;/, /const badge = unreadCount > 9 \? "9\+" : String\(unreadCount\);/, /aria-label=\{hasUnread \? `Notifications, \$\{unreadCount\} unread` : "Notifications"\}/, /aria-expanded=\{open\}/, /onClick=\{\(\) => setOpen\(\(o\) => !o\)\}/, /setInterval\(load, POLL_MS\)/, /method: "PATCH"/, /\{hasUnread && \(/, /\{badge\}/, /background: "#C9A84C", color: "var\(--ink\)"/]) assert.match(bell, pattern, `Bell behavior survives correction: ${pattern}`);
+for (const pattern of [/const hasUnread = unreadCount > 0;/, /expanded=\{open\}/, /onToggle=\{\(\) => setOpen\(\(o\) => !o\)\}/, /setInterval\(load, POLL_MS\)/, /method: "PATCH"/, /\{hasUnread && \(/]) assert.match(bell, pattern, `Bell behavior survives correction: ${pattern}`);
+for (const pattern of [/notificationCountPresentation\(unreadCount\)/, /aria-label=\{ariaLabel\}/, /aria-expanded=\{expanded\}/, /onClick=\{onToggle\}/, /\{hasUnread && \(/, /\{visibleBadge\}/, /background: "#C9A84C", color: "var\(--ink\)"/]) assert.match(bellButtonSource, pattern, `Bell presentation survives extraction: ${pattern}`);
 for (const pattern of [/const \[state, setState\] = useState\(initialState\);/, /const \[busy, setBusy\] = useState\(false\);/, /const \[error, setError\] = useState<string \| null>\(null\);/, /fetch\(`\/api\/listings\/\$\{listingId\}\/curation-request`, \{ method: "POST" \}\)/, /router\.push\(`\/login\?callbackUrl=/, /router\.refresh\(\);/, /if \(state === "completed" && summary\)/]) assert.match(curation, pattern, `Curation behavior survives correction: ${pattern}`);
 
 console.log("ls2-ghost-void-revival-safety: 2 corrected anchors, 5 lawful Ghost, 9 lawful/inert Void, 3 dormant B8-protected violations PASS");

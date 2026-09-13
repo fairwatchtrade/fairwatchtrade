@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notificationHref, type NotificationRow } from "@/lib/communications";
+import NotificationBellButton from "@/components/NotificationBellButton";
+import NotificationRowPresentation from "@/components/NotificationRowPresentation";
 
 /* ────────────────────────────────────────────────────────────────────────
    NOTIFICATIONS BELL — components/NotificationsBell.tsx  (v1.92)
@@ -119,41 +121,10 @@ export default function NotificationsBell({
   }
 
   const hasUnread = unreadCount > 0;
-  const badge = unreadCount > 9 ? "9+" : String(unreadCount);
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : "Notifications"}
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="relative flex items-center transition-colors"
-        style={{ color: hasUnread ? "#C9A84C" : "var(--muted)" }}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        {hasUnread && (
-          <span
-            className="fw-work-count absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full px-1"
-            style={{ background: "#C9A84C", color: "var(--ink)", minWidth: 16, height: 16 }}
-          >
-            {badge}
-          </span>
-        )}
-      </button>
+      <NotificationBellButton unreadCount={unreadCount} expanded={open} onToggle={() => setOpen((o) => !o)} />
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface)]">
@@ -180,25 +151,7 @@ export default function NotificationsBell({
             ) : (
               notifications.map((n) => {
                 const inner = (
-                  <div className="flex items-start gap-2.5 px-4 py-3">
-                    <span
-                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: n.read ? "transparent" : "#C9A84C" }}
-                      aria-hidden="true"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className={`truncate text-[12px] ${
-                          n.read ? "text-[var(--muted)]" : "text-[var(--platinum)]"
-                        }`}
-                      >
-                        {n.message}
-                      </div>
-                      <div className="fw-transaction-fact mt-0.5 text-[var(--muted)]">
-                        {formatRelativeTime(n.created_at)}
-                      </div>
-                    </div>
-                  </div>
+                  <NotificationRowPresentation notification={n} timeLabel={formatRelativeTime(n.created_at)} />
                 );
 
                 const href = notificationHref(n);

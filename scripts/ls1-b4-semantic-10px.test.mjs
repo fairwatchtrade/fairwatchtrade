@@ -129,7 +129,8 @@ const ANCHORS = [
   anchor("components/MobileWizard.tsx", "fw-functional-copy", "currency conversion disclosure", `<p className="mt-2 {{recipe}} text-[var(--slate)]"> No conversion is performed.`),
   anchor("components/MobileWizard.tsx", "fw-compact-control", "clear reference control", `className="{{recipe}} border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[var(--slate)] transition-colors hover:text-[var(--platinum-dim)]" > {label}`),
   anchor("components/NavBar.tsx", "fw-lifecycle-label", "desktop admin state", `<span className="{{recipe}} shrink-0 text-[var(--gold)]"> Admin </span>`),
-  anchor("components/NotificationsBell.tsx", "fw-transaction-fact", "notification timestamp", `<div className="{{recipe}} mt-0.5 text-[var(--muted)]"> {formatRelativeTime(n.created_at)} </div>`),
+  anchor("components/NotificationRowPresentation.tsx", "fw-validity-state", "notification unread state", `<span className="{{recipe}} uppercase" style={{ color: "light-dark(var(--gold-dim), var(--gold))" }} data-notification-unread-cue="" > Unread </span>`),
+  anchor("components/NotificationRowPresentation.tsx", "fw-transaction-fact", "notification timestamp", `<span className="{{recipe}} text-[var(--muted)]" data-notification-time=""> {timeLabel} </span>`),
 
   anchor("components/PhotoPresentationEditor.tsx", "fw-functional-copy", "crop-axis help", `<p className="mt-1.5 min-h-[30px] {{recipe}} text-[var(--muted)]"> {active && !axes.horizontal`),
   anchor("components/PhotoPresentationEditor.tsx", "fw-functional-copy", "story-photo help", `<p className="mt-1 {{recipe}} text-[#8b8578]"> Shown with Story / Provenance on the listing. </p>`),
@@ -186,18 +187,18 @@ const ANCHORS = [
   anchor("components/WantedWorkspace.tsx", "fw-compact-control", "answer listing link", `className="{{recipe}} border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]" > {isPrivate ? "Open private listing" : "View listing"} →`),
 ];
 
-assert.equal(ANCHORS.length, 79, "the explicit LS1-B4 ledger contains 79 unique anchors");
+assert.equal(ANCHORS.length, 80, "the explicit LS1-B4 ledger contains 80 unique anchors after the governed unread cue");
 assert.deepEqual(
   Object.fromEntries(RECIPES.map((recipe) => [recipe, ANCHORS.filter((item) => item.recipe === recipe).length])),
   {
     "fw-functional-copy": 33,
     "fw-transaction-fact": 18,
     "fw-lifecycle-label": 8,
-    "fw-validity-state": 2,
+    "fw-validity-state": 3,
     "fw-compact-control": 17,
     "fw-work-count": 1,
   },
-  "the 79 anchors preserve the adjudicated B4 semantic split"
+  "the 80 anchors preserve the adjudicated B4 semantic split plus the governed unread cue"
 );
 
 function assertAnchorBinding(item, source = read(item.path)) {
@@ -266,7 +267,9 @@ const EXPECTED_FILE_TOTALS = {
   "components/MobileCollectorsDrawer.tsx": [1, 0, 0, 0, 0, 0],
   "components/MobileNav.tsx": [0, 0, 1, 0, 1, 0],
   "components/NavBar.tsx": [0, 0, 1, 0, 0, 0],
-  "components/NotificationsBell.tsx": [1, 1, 0, 0, 1, 1],
+  "components/NotificationBellButton.tsx": [0, 0, 0, 0, 0, 1],
+  "components/NotificationRowPresentation.tsx": [0, 1, 0, 1, 0, 0],
+  "components/NotificationsBell.tsx": [1, 0, 0, 0, 1, 0],
   "components/CurationReviewCard.tsx": [0, 1, 0, 0, 0, 0],
   "components/VaultMarketEvidence.tsx": [1, 6, 0, 0, 0, 1],
 };
@@ -318,4 +321,4 @@ for (const path of PROTECTED_R15) {
   );
 }
 
-console.log("ls1-b4-semantic-10px: 79 bindings, 6 existing recipes and 3 protected R15 treatments PASS");
+console.log("ls1-b4-semantic-10px: 80 bindings, 6 existing recipes and 3 protected R15 treatments PASS");
