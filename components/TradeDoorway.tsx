@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import ProposeTradeDialog from "@/components/ProposeTradeDialog";
-import { TRADE_STATUS_LABELS, type TradeStatus } from "@/lib/trade";
+import { TradeStateBadge } from "@/components/TradeWantedStateBadge";
+import { TRADE_STATUSES, TRADE_STATUS_LABELS, type TradeStatus } from "@/lib/trade";
 
 /* ════════════════════════════════════════════════════════════════════════
    TRADE DOORWAY — components/TradeDoorway.tsx
@@ -40,21 +41,31 @@ export default function TradeDoorway({
 
   const live = myOfferStatus === "pending";
   const accepted = myOfferStatus === "accepted";
+  const historicalStatus =
+    myOfferStatus && (TRADE_STATUSES as readonly string[]).includes(myOfferStatus)
+      ? (myOfferStatus as TradeStatus)
+      : null;
 
   if (accepted) {
     return (
-      <div className="mt-3 border border-[var(--success,#78c88c)] px-3 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--success,#78c88c)]">
-        Your trade was accepted
-      </div>
+      <TradeStateBadge
+        kind="offer"
+        status="accepted"
+        label="Your trade was accepted"
+        className="mt-3 w-full justify-center px-3 py-2 tracking-[1.6px]"
+      />
     );
   }
 
   if (sent || live) {
     return (
       <div className="mt-3">
-        <div className="border border-[var(--border-gold)] px-3 py-2 text-[11px] uppercase tracking-[1.6px] text-[var(--gold-dim)]">
-          Trade proposal pending
-        </div>
+        <TradeStateBadge
+          kind="offer"
+          status="pending"
+          label="Trade proposal pending"
+          className="w-full justify-center px-3 py-2 tracking-[1.6px]"
+        />
         <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
           The seller has your proposal. You can follow it in{" "}
           <Link href="/account?module=trades" className="underline decoration-[var(--border-mid)] underline-offset-2 hover:text-[var(--platinum)]">
@@ -111,11 +122,18 @@ export default function TradeDoorway({
       <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
         This seller will consider another FairWatchTrade watch, with or without a cash difference.
       </p>
-      {myOfferStatus && !live && !accepted && (
-        <p className="mt-1 fw-lifecycle-label uppercase text-[var(--muted)]">
-          Your last proposal: {TRADE_STATUS_LABELS[myOfferStatus as TradeStatus] ?? myOfferStatus}
+      {historicalStatus && !live && !accepted ? (
+        <TradeStateBadge
+          kind="offer"
+          status={historicalStatus}
+          label={`Your last proposal: ${TRADE_STATUS_LABELS[historicalStatus]}`}
+          className="mt-1"
+        />
+      ) : myOfferStatus && !live && !accepted ? (
+        <p className="fw-lifecycle-label mt-1 uppercase text-[var(--muted)]">
+          Your last proposal: {myOfferStatus}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

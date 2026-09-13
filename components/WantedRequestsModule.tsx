@@ -23,6 +23,7 @@ import {
   type DocumentationLevel,
 } from "@/lib/wanted";
 import { formatMoney } from "@/lib/formatMoney";
+import { wantedBudgetFitPresentation } from "@/lib/tradeWantedStatePresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
    REQUESTS — the Seller Workspace queue
@@ -228,7 +229,10 @@ export default function WantedRequestsModule() {
                 </div>
                 <div className="shrink-0 text-right">
                   {/* The entire seller-visible surface of the buyer's budget. */}
-                  <div className="fw-validity-state uppercase text-[var(--gold-dim)]">
+                  <div
+                    className="fw-validity-state uppercase"
+                    style={{ color: wantedBudgetFitPresentation.text }}
+                  >
                     {r.budget_fit ? BUDGET_FIT_LABELS[r.budget_fit] : "No comparable listing"}
                   </div>
                   {r.answered_by_me && (
@@ -456,7 +460,10 @@ function AnswerPanel({
                   ))}
                 </div>
                 {report.budgetFit && (
-                  <div className="fw-validity-state mt-2 uppercase text-[var(--gold-dim)]">
+                  <div
+                    className="fw-validity-state mt-2 uppercase"
+                    style={{ color: wantedBudgetFitPresentation.text }}
+                  >
                     {BUDGET_FIT_LABELS[report.budgetFit]}
                   </div>
                 )}

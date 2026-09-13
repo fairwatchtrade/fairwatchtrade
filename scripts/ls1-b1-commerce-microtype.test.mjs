@@ -126,13 +126,18 @@ const EXPECTED_BINDINGS = {
   },
   "components/TradeOffersModule.tsx": {
     "fw-transaction-fact": 0,
-    "fw-lifecycle-label": 8,
+    "fw-lifecycle-label": 7,
     "fw-validity-state": 0,
   },
   "components/WantedWorkspace.tsx": {
     "fw-transaction-fact": 0,
-    "fw-lifecycle-label": 1,
+    "fw-lifecycle-label": 0,
     "fw-validity-state": 8,
+  },
+  "components/TradeWantedStateBadge.tsx": {
+    "fw-transaction-fact": 0,
+    "fw-lifecycle-label": 2,
+    "fw-validity-state": 0,
   },
   "components/WantedRequestsModule.tsx": {
     "fw-transaction-fact": 0,

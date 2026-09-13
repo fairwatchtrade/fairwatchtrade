@@ -9,7 +9,6 @@ import {
   CLOSE_REASONS,
   DOCUMENTATION_LABELS,
   DOCUMENTATION_LEVELS,
-  STATUS_LABELS,
   ageLabel,
   availableActions,
   displayIdentity,
@@ -28,6 +27,8 @@ import {
   STALE_NOTE,
   type LoadState,
 } from "@/lib/accountWorkspace/readTruth";
+import { WantedStateBadge } from "@/components/TradeWantedStateBadge";
+import { wantedBudgetFitPresentation } from "@/lib/tradeWantedStatePresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
    WANTED — the collector's workspace — components/WantedWorkspace.tsx
@@ -699,9 +700,7 @@ export default function WantedWorkspace() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="fw-lifecycle-label uppercase text-[var(--gold-dim)]">
-                      {r.status === "draft" ? "Draft" : STATUS_LABELS[r.status]}
-                    </div>
+                    <WantedStateBadge status={r.status} />
                     <div className="mt-1 text-[11px] text-[var(--muted)]">
                       {r.answer_count === 0
                         ? "No answers yet"
@@ -880,7 +879,10 @@ function AnswerCard({ answer }: { answer: AnswerRow }) {
       )}
 
       {report.budgetFit && (
-        <div className="fw-validity-state mt-2 uppercase text-[var(--muted)]">
+        <div
+          className="fw-validity-state mt-2 uppercase"
+          style={{ color: wantedBudgetFitPresentation.text }}
+        >
           {BUDGET_FIT_LABELS[report.budgetFit]}
         </div>
       )}

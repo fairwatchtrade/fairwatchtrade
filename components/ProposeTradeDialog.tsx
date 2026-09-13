@@ -9,6 +9,7 @@ import {
   type CashDirection,
 } from "@/lib/trade";
 import { formatMoney } from "@/lib/formatMoney";
+import { tradeCashPresentation } from "@/lib/tradeWantedStatePresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
    PROPOSE A TRADE — components/ProposeTradeDialog.tsx
@@ -287,7 +288,12 @@ export default function ProposeTradeDialog({
                   <dt className="fw-transaction-fact uppercase text-[var(--muted)]">
                     Cash
                   </dt>
-                  <dd className="text-[13px] text-[var(--gold)]">{summary.cash}</dd>
+                  <dd
+                    className="text-[13px]"
+                    style={{ color: tradeCashPresentation.text }}
+                  >
+                    {summary.cash}
+                  </dd>
                 </div>
               </dl>
             </div>

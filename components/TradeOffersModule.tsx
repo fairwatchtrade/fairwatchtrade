@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   DEAL_STATUS_LABELS,
-  LEG_STATUS_LABELS,
   TRADE_STATUS_LABELS,
   archiveEligibility,
   dealNextStep,
@@ -25,6 +24,11 @@ import {
   STALE_NOTE,
   type LoadState,
 } from "@/lib/accountWorkspace/readTruth";
+import { TradeStateBadge } from "@/components/TradeWantedStateBadge";
+import {
+  tradeCashPresentation,
+  tradeStatePresentation,
+} from "@/lib/tradeWantedStatePresentation";
 
 /* ════════════════════════════════════════════════════════════════════════
    TRADES — the editorial exchange record — components/TradeOffersModule.tsx
@@ -513,6 +517,11 @@ export default function TradeOffersModule() {
             : dealTruthMissing
               ? "Trade state unavailable"
               : TRADE_STATUS_LABELS[o.status];
+          const currentStatePresentation = deal
+            ? tradeStatePresentation({ kind: "deal", status: deal.status })
+            : dealTruthMissing
+              ? null
+              : tradeStatePresentation({ kind: "offer", status: o.status });
           const historyLine = deal
             ? dealNextStep(deal.status)
             : dealTruthMissing
@@ -542,7 +551,12 @@ export default function TradeOffersModule() {
               aria-label="Trade record"
             >
               {/* ── Lifecycle header ── */}
-              <div className="grid grid-cols-[1fr_auto] items-start gap-6 border-b border-[var(--border-gold)] pb-4">
+              <div
+                className="grid grid-cols-[1fr_auto] items-start gap-6 border-b pb-4"
+                style={{
+                  borderColor: currentStatePresentation?.line ?? "var(--lc-neutral-line)",
+                }}
+              >
                 <div>
                   <div className="fw-lifecycle-label uppercase text-[var(--muted)]">
                     Trade
@@ -565,8 +579,20 @@ export default function TradeOffersModule() {
                     </div>
                   )}
                 </div>
-                <div className="fw-lifecycle-label pt-1 uppercase text-[var(--gold-dim)]">
-                  {currentState}
+                <div className="pt-1">
+                  {deal ? (
+                    <TradeStateBadge kind="deal" status={deal.status} />
+                  ) : dealTruthMissing ? (
+                    <span
+                      className="fw-lifecycle-label inline-flex border bg-[var(--surface)] px-2 py-1 uppercase text-[var(--platinum-dim)]"
+                      style={{ borderColor: "var(--lc-neutral-line)" }}
+                      data-state-governance="ls4-adjacent"
+                    >
+                      {currentState}
+                    </span>
+                  ) : (
+                    <TradeStateBadge kind="offer" status={o.status} />
+                  )}
                 </div>
               </div>
 
@@ -611,7 +637,10 @@ export default function TradeOffersModule() {
                     Cash adjustment
                   </div>
                   <div>
-                    <div className="font-display text-[18px] font-light text-[var(--gold)]">
+                    <div
+                      className="font-display text-[18px] font-light"
+                      style={{ color: tradeCashPresentation.text }}
+                    >
                       {summary.cash}
                     </div>
                     {o.note && (
@@ -728,9 +757,11 @@ export default function TradeOffersModule() {
                                 publicCode: leg.listing_public_code,
                               })}
                             </div>
-                            <div className="fw-lifecycle-label uppercase text-[var(--gold-dim)] sm:text-right">
-                              {LEG_STATUS_LABELS[leg.leg_status]}
-                            </div>
+                            <TradeStateBadge
+                              kind="leg"
+                              status={leg.leg_status}
+                              className="justify-self-start sm:justify-self-end"
+                            />
                           </div>
                           {(canMarkSent || canUndoSent || canConfirm) && (
                             <div className="mt-2 flex flex-wrap gap-2">

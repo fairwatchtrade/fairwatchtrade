@@ -169,7 +169,7 @@ const ANCHORS = [
   anchor("components/SellerListingsRoom.tsx", "fw-functional-copy", "selected returned-to-draft state", `<div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left {{recipe}} text-[var(--muted)]"> This listing was returned to your drafts`),
   anchor("components/SellerListingsRoom.tsx", "fw-functional-copy", "prior review decisions", `<div className="border border-[var(--border-faint)] bg-[rgba(255,255,255,0.008)] px-3 py-2.5 text-left {{recipe}} text-[var(--muted)]"> <span className="block text-[var(--muted)]">Earlier in this review</span>`),
 
-  anchor("components/TradeDoorway.tsx", "fw-lifecycle-label", "last proposal state", `<p className="mt-1 {{recipe}} uppercase text-[var(--muted)]"> Your last proposal:`),
+  anchor("components/TradeDoorway.tsx", "fw-lifecycle-label", "unknown last-proposal fallback", `<p className="{{recipe}} mt-1 uppercase text-[var(--muted)]"> Your last proposal:`),
   anchor("components/TradeOffersModule.tsx", "fw-compact-control", "quiet offer controls", `const quietBtn = "{{recipe}} border border-[var(--border-mid)] px-3 py-1.5 uppercase text-[var(--slate)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--platinum)]";`),
 
   anchor("components/VaultMarketEvidence.tsx", "fw-transaction-fact", "price-basis fact", `<div className="{{recipe}} mt-[2px] text-[var(--muted)]"> {BASIS_LABELS[ev.priceBasis] ?? ev.priceBasis} </div>`),
@@ -248,9 +248,12 @@ const EXPECTED_FILE_TOTALS = {
   /* +1 fw-compact-control (2026-09-12): the Active / Archived view tabs
      bind to the existing recipe rather than declaring their own size — the
      same treatment WantedWorkspace's status tabs already use. */
-  "components/TradeOffersModule.tsx": [0, 0, 8, 0, 2, 0],
+  "components/TradeOffersModule.tsx": [0, 0, 7, 0, 2, 0],
+  /* LS2 centralizes the known Trade and Wanted lifecycle emitters here;
+     the original leaf-level fallbacks remain independently governed. */
+  "components/TradeWantedStateBadge.tsx": [0, 0, 2, 0, 0, 0],
   "components/WantedRequestsModule.tsx": [0, 0, 1, 7, 1, 0],
-  "components/WantedWorkspace.tsx": [0, 0, 1, 8, 3, 0],
+  "components/WantedWorkspace.tsx": [0, 0, 0, 8, 3, 0],
   "components/AccountRoomSelector.tsx": [0, 0, 0, 0, 1, 0],
   "components/AccountSettings.tsx": [8, 0, 1, 0, 0, 0],
   "components/BrowseClient.tsx": [0, 0, 0, 0, 1, 0],
