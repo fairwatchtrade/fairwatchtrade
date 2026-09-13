@@ -455,6 +455,26 @@ assert.match(gallery, /data-payment-mixed-stop="bag-departure"/, "gallery dispos
 
 const renderer = read(rendererPath);
 assert.match(renderer, /return \{ color: `light-dark\(/, "shared marker owns semantic color");
+assert.match(
+  renderer,
+  /color-mix\(in srgb, \$\{presentation\.text\} 65%, var\(--platinum\) 35%\)/,
+  "Light markers use the Human-approved 65/35 semantic expression",
+);
+assert.match(
+  renderer,
+  /color-mix\(in srgb, \$\{lightHue\} 85%, black 15%\)/,
+  "Light markers darken the approved semantic hue by the bounded 15% optical clamp",
+);
+assert.match(
+  renderer,
+  /light-dark\(\$\{lightText\}, \$\{presentation\.text\}\)/,
+  "Dark markers remain the byte-identical governed semantic token arm",
+);
+assert.doesNotMatch(
+  renderer,
+  /color-mix\(in srgb, \$\{presentation\.text\} 45%, var\(--platinum\) 55%\)/,
+  "the too-faint 45/55 Light expression cannot return",
+);
 assert.doesNotMatch(renderer, /(?:fontSize|fontWeight|fontStyle|lineHeight|letterSpacing|textTransform|backgroundColor|opacity|filter)\s*:/, "shared marker cannot override caller typography, surface, opacity or filters");
 
 const packageJson = JSON.parse(read("package.json"));

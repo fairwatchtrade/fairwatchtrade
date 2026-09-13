@@ -129,7 +129,8 @@ try {
         const chain = paintChain(element);
         const key = elementStateKey(element);
         const expected = presentationLedger[key];
-        const expectedColor = resolveColor(`light-dark(color-mix(in srgb, ${expected.text} 45%, var(--platinum) 55%), ${expected.text})`);
+        const lightHue = `color-mix(in srgb, ${expected.text} 65%, var(--platinum) 35%)`;
+        const expectedColor = resolveColor(`light-dark(color-mix(in srgb, ${lightHue} 85%, black 15%), ${expected.text})`);
         const cardStyle = card ? getComputedStyle(card) : null;
         const cardBackground = card ? effectiveBackground(card) : null;
         const cardBorder = cardStyle ? parseColor(cardStyle.borderTopColor) : null;
@@ -258,7 +259,7 @@ try {
       assert.deepEqual(marker.filteredAncestors, [], `${fixture.name} ${marker.axis}:${marker.state} has no filtered ancestor`);
       assert.ok(
         marker.contrast >= (fixture.appearance === "light" ? 7 : 4.5),
-        `${fixture.name} ${marker.axis}:${marker.state} clears its readability floor (actual ${marker.contrast.toFixed(3)})`,
+        `${fixture.name} ${marker.axis}:${marker.state} on ${marker.surface} clears its readability floor (actual ${marker.contrast.toFixed(3)}; color ${marker.color}; background ${marker.background})`,
       );
     }
 

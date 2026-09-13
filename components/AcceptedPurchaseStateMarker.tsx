@@ -13,7 +13,8 @@ function markerStyle(presentation: AcceptedPurchaseStatePresentation): CSSProper
   /* State markers are compact 11px functional text. Match the shipped LS-2
      daylight treatment without altering global tokens; Dark resolves to the
      exact governed token arm. */
-  const lightText = `color-mix(in srgb, ${presentation.text} 45%, var(--platinum) 55%)`;
+  const lightHue = `color-mix(in srgb, ${presentation.text} 65%, var(--platinum) 35%)`;
+  const lightText = `color-mix(in srgb, ${lightHue} 85%, black 15%)`;
   return { color: `light-dark(${lightText}, ${presentation.text})` };
 }
 
