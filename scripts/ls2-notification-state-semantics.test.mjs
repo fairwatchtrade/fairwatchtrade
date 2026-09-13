@@ -61,6 +61,7 @@ assert.deepEqual(notificationCountPresentation(27), {
 const bell = normalized("components/NotificationsBell.tsx");
 const bellButton = normalized("components/NotificationBellButton.tsx");
 const row = normalized("components/NotificationRowPresentation.tsx");
+const typography = normalized("app/globals.css");
 const galleryPath = "app/internal/ls2-notification-state-gallery/page.tsx";
 const gallery = normalized(galleryPath);
 const prebuild = normalized("package.json");
@@ -81,6 +82,12 @@ assert.match(row, /data-notification-read-state=\{state\}/);
 assert.match(row, /\{state === "unread" && \(/);
 assert.match(row, /data-notification-unread-cue=""/);
 assert.match(row, />\s*Unread\s*<\/span>/);
+assert.match(row, /className="fw-notification-state uppercase"/);
+assert.match(
+  typography,
+  /\.fw-notification-state \{ font-family: 'Inter', sans-serif; font-size: 12px; font-style: normal; font-weight: 500; line-height: 1\.4; letter-spacing: 0\.8px; \}/,
+  "the notification state has one owner-specific governed recipe at the stronger human floor",
+);
 assert.doesNotMatch(row, /data-notification-unread-cue=""[^>]*aria-hidden/s);
 assert.match(row, /aria-hidden="true"/, "the dot may remain decorative, never semantic");
 assert.match(

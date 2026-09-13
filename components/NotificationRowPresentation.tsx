@@ -26,7 +26,7 @@ export default function NotificationRowPresentation({
       />
       <div className="min-w-0 flex-1">
         <div
-          className={`truncate text-[12px] ${
+          className={`truncate fw-functional-copy ${
             state === "read" ? "text-[var(--muted)]" : "text-[var(--platinum)]"
           }`}
           title={notification.message}
@@ -37,7 +37,7 @@ export default function NotificationRowPresentation({
         <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           {state === "unread" && (
             <span
-              className="fw-validity-state uppercase"
+              className="fw-notification-state uppercase"
               style={{ color: "light-dark(var(--gold-dim), var(--gold))" }}
               data-notification-unread-cue=""
             >

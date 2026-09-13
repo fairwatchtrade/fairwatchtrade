@@ -108,6 +108,7 @@ try {
       const scenarios = [...document.querySelectorAll("[data-notification-scenario]")];
       const scenarioKeys = scenarios.map((node) => node.getAttribute("data-notification-scenario")).sort();
       const cues = [...document.querySelectorAll("[data-notification-unread-cue]")];
+      const messages = [...document.querySelectorAll("[data-notification-message]")];
       const unreadRows = [...document.querySelectorAll('[data-notification-read-state="unread"]')];
       const readRows = [...document.querySelectorAll('[data-notification-read-state="read"]')];
       const cueDetails = cues.map((cue) => {
@@ -131,6 +132,8 @@ try {
         return {
           text: cue.textContent?.trim(),
           state: row?.getAttribute("data-notification-read-state"),
+          fontSize: Number.parseFloat(style.fontSize),
+          fontWeight: Number.parseInt(style.fontWeight, 10),
           color: style.color,
           background: panelStyle?.backgroundColor ?? "",
           visible: rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none" && effectiveOpacity > 0,
@@ -143,6 +146,13 @@ try {
         (sum, row) => sum + row.querySelectorAll("[data-notification-unread-cue]").length,
         0,
       );
+      const messageDetails = messages.map((message) => {
+        const style = getComputedStyle(message);
+        return {
+          fontSize: Number.parseFloat(style.fontSize),
+          fontWeight: Number.parseInt(style.fontWeight, 10),
+        };
+      });
       const panelsWithinViewport = [...document.querySelectorAll("[data-notification-panel]")].every((panel) => {
         const rect = panel.getBoundingClientRect();
         return rect.left >= -0.5 && rect.right <= document.documentElement.clientWidth + 0.5;
@@ -154,11 +164,13 @@ try {
       return {
         scenarioKeys,
         cueDetails,
+        messageDetails,
         unreadRows: unreadRows.length,
         readRows: readRows.length,
         readCueCount,
         panelsWithinViewport,
         noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+        browserZoom: window.visualViewport?.scale ?? 1,
         oneAria: bell("one-unread")?.getAttribute("aria-label"),
         nineVisual: bell("nine-unread")?.querySelector("[data-notification-visible-count]")?.textContent?.trim(),
         nineAria: bell("nine-unread")?.getAttribute("aria-label"),
@@ -215,12 +227,18 @@ try {
     for (const cue of result.cueDetails) {
       assert.equal(cue.text, "Unread", `${fixture.appearance} ${fixture.name}: literal noncolor cue`);
       assert.equal(cue.state, "unread", `${fixture.appearance} ${fixture.name}: cue belongs only to unread`);
+      assert.ok(cue.fontSize >= 12, `${fixture.appearance} ${fixture.name}: unread cue holds the 12px human floor`);
+      assert.ok(cue.fontWeight >= 500, `${fixture.appearance} ${fixture.name}: unread cue has medium functional weight`);
       assert.ok(cue.visible, `${fixture.appearance} ${fixture.name}: cue is visible at rest`);
       assert.equal(cue.effectiveOpacity, 1, `${fixture.appearance} ${fixture.name}: cue and ancestors are fully opaque`);
       assert.equal(cue.hiddenFromAccessibility, false, `${fixture.appearance} ${fixture.name}: cue remains in accessibility tree`);
       assert.equal(cue.overlapsMessage, false, `${fixture.appearance} ${fixture.name}: cue does not collide with message`);
       const ratio = contrast(cue.color, cue.background);
       assert.ok(ratio >= 4.5, `${fixture.appearance} ${fixture.name}: cue contrast ${ratio.toFixed(2)}:1`);
+    }
+    for (const message of result.messageDetails) {
+      assert.ok(message.fontSize >= 13, `${fixture.appearance} ${fixture.name}: notification message holds the 13px functional-copy floor`);
+      assert.ok(message.fontWeight >= 400, `${fixture.appearance} ${fixture.name}: notification message keeps readable functional weight`);
     }
     assert.equal(result.oneAria, "Notifications, 1 unread");
     assert.equal(result.nineVisual, "9");
@@ -240,6 +258,7 @@ try {
     assert.ok(result.longRowWithinPanel, `${fixture.appearance} ${fixture.name}: long row stays inside panel`);
     assert.ok(result.panelsWithinViewport, `${fixture.appearance} ${fixture.name}: panels stay within viewport`);
     assert.ok(result.noHorizontalOverflow, `${fixture.appearance} ${fixture.name}: no horizontal overflow`);
+    assert.equal(result.browserZoom, 1, `${fixture.appearance} ${fixture.name}: browser zoom is 100%`);
     assert.equal(focused.tag, "A", `${fixture.appearance} ${fixture.name}: routable row receives focus`);
     const focusedBackground = composite(focused.rowBackground, focused.panelBackground);
     const focusedContrast = contrastRgba(parseColor(focused.cueColor), focusedBackground);
@@ -251,7 +270,10 @@ try {
     assert.deepEqual(pageErrors, [], `${fixture.appearance} ${fixture.name}: no page errors`);
 
     const minCueContrast = Math.min(...result.cueDetails.map((cue) => contrast(cue.color, cue.background)));
-    results.push(`${fixture.appearance} ${fixture.name}: ${result.cueDetails.length} cues, rest ${minCueContrast.toFixed(2)}:1, focus ${focusedContrast.toFixed(2)}:1, hover ${hoveredContrast.toFixed(2)}:1, opacity 1, no overflow`);
+    const minCueSize = Math.min(...result.cueDetails.map((cue) => cue.fontSize));
+    const minCueWeight = Math.min(...result.cueDetails.map((cue) => cue.fontWeight));
+    const minMessageSize = Math.min(...result.messageDetails.map((message) => message.fontSize));
+    results.push(`${fixture.appearance} ${fixture.name}: messages ${minMessageSize}px; ${result.cueDetails.length} cues ${minCueSize}px/${minCueWeight}, rest ${minCueContrast.toFixed(2)}:1, focus ${focusedContrast.toFixed(2)}:1, hover ${hoveredContrast.toFixed(2)}:1, browser 100%, opacity 1, no overflow`);
     await page.close();
   }
 } finally {
