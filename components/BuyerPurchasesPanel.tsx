@@ -3,6 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatMoney } from "@/lib/formatMoney";
+import { AcceptedPurchaseStateMarker } from "@/components/AcceptedPurchaseStateMarker";
+import {
+  ACCEPTED_PURCHASE_FOCUSED_ROW_CLASS,
+  ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES,
+  acceptedPurchasePaymentLifecycleState,
+  buyerPurchasePrimaryStateInput,
+  type AcceptedPurchaseStateInput,
+} from "@/lib/payments/acceptedPurchaseStatePresentation";
+import type { DisputeState, RefundState } from "@/lib/payments/paymentState";
 
 /* ────────────────────────────────────────────────────────────────────────
    YOUR PURCHASES — the buyer's accepted purchases and their payment truth
@@ -40,9 +49,9 @@ type Purchase = {
      the browser, and this component needs none. */
   payment: {
     lifecycle: string;
-    refundState: "none" | "partial" | "full";
+    refundState: RefundState;
     refundedAmountMinor: number;
-    disputeState: "none" | "open" | "won" | "lost";
+    disputeState: DisputeState;
     checkoutExpiresAt: string | null;
     updatedAt: string;
   } | null;
@@ -84,29 +93,60 @@ const CHECKOUT_ERRORS: Record<string, string> = {
   checkout_creation_failed: "Stripe could not open a checkout just now. Try again in a moment.",
 };
 
-function describe(p: Purchase, returned: string | null, waitedOut: boolean) {
-  const lc = p.payment?.lifecycle ?? null;
-  const chips: string[] = [];
-  if (p.payment?.refundState === "partial") chips.push("Partially refunded");
-  if (p.payment?.refundState === "full") chips.push("Refunded");
-  if (p.payment?.disputeState === "open") chips.push("Disputed");
-  if (p.payment?.disputeState === "lost") chips.push("Dispute lost");
-  if (p.payment?.disputeState === "won") chips.push("Dispute won");
+type Presentation = {
+  label: string;
+  input: AcceptedPurchaseStateInput;
+  action: "pay" | "continue" | "retry" | "refresh" | null;
+  note: string | null;
+  chips: { label: string; input: AcceptedPurchaseStateInput }[];
+};
 
-  if (lc === "succeeded") return { label: "Paid", tone: "paid", action: null as string | null, note: null as string | null, chips };
-  if (lc === "requires_capture") return { label: "Authorized", tone: "wait", action: null, note: "Your card was authorized and is awaiting capture.", chips };
+function describe(p: Purchase, returned: string | null, waitedOut: boolean): Presentation {
+  const rawLifecycle = p.payment?.lifecycle ?? null;
+  const lc = acceptedPurchasePaymentLifecycleState(rawLifecycle);
+  const input = buyerPurchasePrimaryStateInput({
+    transactionStatus: p.transactionStatus,
+    paymentLifecycle: rawLifecycle,
+    hasPayment: p.payment !== null,
+    canPay: p.canPay,
+    returned: returned === "return" || returned === "cancel" ? returned : null,
+  });
+  const chips: Presentation["chips"] = [];
+  if (p.payment?.refundState === "partial") chips.push({ label: "Partially refunded", input: { axis: "refund", state: "partial" } });
+  if (p.payment?.refundState === "full") chips.push({ label: "Refunded", input: { axis: "refund", state: "full" } });
+  if (p.payment?.disputeState === "open") chips.push({ label: "Disputed", input: { axis: "dispute", state: "open" } });
+  if (p.payment?.disputeState === "lost") chips.push({ label: "Dispute lost", input: { axis: "dispute", state: "lost" } });
+  if (p.payment?.disputeState === "won") chips.push({ label: "Dispute won", input: { axis: "dispute", state: "won" } });
+
+  if (lc === "succeeded") return { label: "Paid", input, action: null, note: null, chips };
+  if (lc === "requires_capture") return { label: "Authorized", input, action: null, note: "Your card was authorized and is awaiting capture.", chips };
   if (lc === "confirming" || (lc === "checkout_created" && returned === "return")) {
     return waitedOut
-      ? { label: "Confirming payment", tone: "wait", action: "refresh", note: "Stripe has not confirmed this payment yet. Refresh in a moment.", chips }
-      : { label: "Confirming payment", tone: "wait", action: null, note: "FairWatchTrade is confirming your payment with Stripe. This updates on its own.", chips };
+      ? { label: "Confirming payment", input, action: "refresh", note: "Stripe has not confirmed this payment yet. Refresh in a moment.", chips }
+      : { label: "Confirming payment", input, action: null, note: "FairWatchTrade is confirming your payment with Stripe. This updates on its own.", chips };
   }
-  if (lc === "checkout_created" && returned === "cancel") return { label: "Payment not completed", tone: "open", action: "retry", note: "You left Stripe before paying. Nothing was charged.", chips };
-  if (lc === "checkout_created") return { label: "Checkout open", tone: "open", action: "continue", note: null, chips };
-  if (lc === "failed") return { label: "Payment failed", tone: "open", action: "retry", note: "Stripe could not complete the payment.", chips };
-  if (lc === "canceled") return { label: "Payment canceled", tone: "open", action: "retry", note: null, chips };
-  if (lc === "expired") return { label: "Checkout expired", tone: "open", action: "retry", note: "The Stripe checkout expired before payment.", chips };
-  if (p.canPay) return { label: "Awaiting payment", tone: "open", action: "pay", note: null, chips };
-  return { label: p.transactionStatus ?? "Accepted", tone: "wait", action: null, note: null, chips };
+  if (lc === "checkout_created" && returned === "cancel") return { label: "Payment not completed", input, action: "retry", note: "You left Stripe before paying. Nothing was charged.", chips };
+  if (lc === "checkout_created") return { label: "Checkout open", input, action: "continue", note: null, chips };
+  if (lc === "failed") return { label: "Payment failed", input, action: "retry", note: "Stripe could not complete the payment.", chips };
+  if (lc === "canceled") return { label: "Payment canceled", input, action: "retry", note: null, chips };
+  if (lc === "expired") return { label: "Checkout expired", input, action: "retry", note: "The Stripe checkout expired before payment.", chips };
+  if (p.payment && lc === null) return { label: p.transactionStatus ?? "Accepted", input, action: null, note: null, chips };
+  if (p.canPay) {
+    return {
+      label: "Awaiting payment",
+      input,
+      action: "pay",
+      note: null,
+      chips,
+    };
+  }
+  return {
+    label: p.transactionStatus ?? "Accepted",
+    input,
+    action: null,
+    note: null,
+    chips,
+  };
 }
 
 export default function BuyerPurchasesPanel() {
@@ -193,7 +233,9 @@ export default function BuyerPurchasesPanel() {
     return (
       <section aria-label="Your purchases" className="px-6 pt-6">
         <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">Your Purchases</div>
-        <p role="status" className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>
+        <p role="status" className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES["availability-13-buyer"]}>
+          <AcceptedPurchaseStateMarker input={{ axis: "availability", state: "read_unavailable" }}>{UNAVAILABLE}</AcceptedPurchaseStateMarker>
+        </p>
         <button
           type="button"
           onClick={() => void load()}
@@ -210,18 +252,18 @@ export default function BuyerPurchasesPanel() {
     <section aria-label="Your purchases" className="px-6 pt-6">
       <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--muted)]">Your Purchases</div>
       {unavailable && (
-        <p role="status" className="mt-2 text-[13px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>
+        <p role="status" className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES["availability-13-buyer"]}>
+          <AcceptedPurchaseStateMarker input={{ axis: "availability", state: "read_unavailable" }}>{UNAVAILABLE}</AcceptedPurchaseStateMarker>
+        </p>
       )}
       <div className="mt-2 border border-[var(--border-faint)]">
         {purchases.map((p) => {
           const d = describe(p, p.transactionId === focusId ? returned : null, waitedOut);
           const focused = p.transactionId === focusId;
-          const tone =
-            d.tone === "paid" ? "text-[var(--lc-published-badge)]" : d.tone === "wait" ? "text-[var(--gold)]" : "text-[var(--platinum-dim)]";
           return (
             <div
               key={p.transactionId}
-              className={`grid gap-3 border-b border-[var(--border-faint)] px-4 py-4 last:border-b-0 md:grid-cols-[1.4fr_auto_auto] md:items-center md:gap-6 ${focused ? "bg-[var(--gold-whisper)]" : ""}`}
+              className={`grid gap-3 border-b border-[var(--border-faint)] px-4 py-4 last:border-b-0 md:grid-cols-[1.4fr_auto_auto] md:items-center md:gap-6 ${focused ? ACCEPTED_PURCHASE_FOCUSED_ROW_CLASS : ""}`}
             >
               <div className="min-w-0">
                 <div className="truncate font-display text-[16px] font-light text-[var(--platinum)]">
@@ -232,9 +274,18 @@ export default function BuyerPurchasesPanel() {
               </div>
               <div className="md:text-right">
                 <div className="font-display text-[16px] font-light text-[var(--platinum)]">{formatMoney(p.amount, p.currency)}</div>
-                <div className={`mt-0.5 text-[11px] uppercase tracking-[1.2px] ${tone}`}>{d.label}</div>
+                <div className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES.primary}>
+                  <AcceptedPurchaseStateMarker input={d.input}>{d.label}</AcceptedPurchaseStateMarker>
+                </div>
                 {d.chips.length > 0 && (
-                  <div className="mt-1 text-[11px] uppercase tracking-[1.2px] text-[var(--muted)]">{d.chips.join(" · ")}</div>
+                  <div className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES["buyer-chip"]}>
+                    {d.chips.map((chip, index) => (
+                      <span key={`${chip.input.axis}:${chip.input.state}`}>
+                        {index > 0 && <span className="text-[var(--muted)]"> · </span>}
+                        <AcceptedPurchaseStateMarker input={chip.input}>{chip.label}</AcceptedPurchaseStateMarker>
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex flex-col items-start gap-1.5 md:items-end">

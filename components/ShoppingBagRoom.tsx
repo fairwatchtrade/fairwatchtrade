@@ -7,6 +7,13 @@ import { cardImageSrc } from "@/lib/media/cardImage";
 import FwtListingId from "@/components/FwtListingId";
 import ShoppingBagIcon from "@/components/ShoppingBagIcon";
 import { announceBagChanged } from "@/components/ShoppingBagEntrance";
+import { AcceptedPurchaseStateMarker } from "@/components/AcceptedPurchaseStateMarker";
+import {
+  ACCEPTED_PURCHASE_FOCUSED_ROW_CLASS,
+  ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES,
+  shoppingBagPrimaryStateInput,
+  type AcceptedPurchaseStateInput,
+} from "@/lib/payments/acceptedPurchaseStatePresentation";
 import type { BagMember } from "@/lib/purchases/shoppingBag";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -70,48 +77,67 @@ async function fetchBag(): Promise<Read> {
 
 type Presentation = {
   label: string;
-  tone: "open" | "wait" | "unruled";
+  input: AcceptedPurchaseStateInput;
   action: "pay" | "continue" | "retry" | "refresh" | null;
   note: string | null;
-  chips: string[];
+  chips: { label: string; input: AcceptedPurchaseStateInput }[];
 };
 
 function present(m: BagMember, returned: "return" | "cancel" | null, waitedOut: boolean): Presentation {
-  const chips: string[] = [];
-  if (m.payment?.refundState === "partial") chips.push("Partially refunded");
-  if (m.payment?.refundState === "full") chips.push("Refunded");
-  if (m.payment?.disputeState === "open") chips.push("Disputed");
-  if (m.payment?.disputeState === "lost") chips.push("Dispute lost");
-  if (m.payment?.disputeState === "won") chips.push("Dispute won");
+  const chips: Presentation["chips"] = [];
+  if (m.payment?.refundState === "partial") chips.push({ label: "Partially refunded", input: { axis: "refund", state: "partial" } });
+  if (m.payment?.refundState === "full") chips.push({ label: "Refunded", input: { axis: "refund", state: "full" } });
+  if (m.payment?.disputeState === "open") chips.push({ label: "Disputed", input: { axis: "dispute", state: "open" } });
+  if (m.payment?.disputeState === "lost") chips.push({ label: "Dispute lost", input: { axis: "dispute", state: "lost" } });
+  if (m.payment?.disputeState === "won") chips.push({ label: "Dispute won", input: { axis: "dispute", state: "won" } });
   const lc = m.payment?.lifecycle ?? null;
+  const input = shoppingBagPrimaryStateInput({
+    memberState: m.state,
+    transactionStatus: m.transactionStatus,
+    paymentLifecycle: lc,
+    hasPayment: m.payment !== null,
+    canPay: m.canPay,
+    returned,
+  });
 
   if (m.state === "unruled") {
     return {
       label: "Payment state unavailable",
-      tone: "unruled",
+      input,
       action: null,
       note: "FairWatchTrade has not established what happens next for this purchase. It stays here until it has. Nothing has been removed.",
       chips,
     };
   }
   if (m.state === "confirming" || (m.state === "checkout_open" && returned === "return")) {
-    if (lc === "requires_capture") return { label: "Authorized", tone: "wait", action: null, note: "Your card was authorized and is awaiting capture.", chips };
+    if (lc === "requires_capture") return { label: "Authorized", input, action: null, note: "Your card was authorized and is awaiting capture.", chips };
     return waitedOut
-      ? { label: "Confirming payment", tone: "wait", action: "refresh", note: "Stripe has not confirmed this payment yet. Refresh in a moment.", chips }
-      : { label: "Confirming payment", tone: "wait", action: null, note: "FairWatchTrade is confirming your payment with Stripe. This updates on its own.", chips };
+      ? { label: "Confirming payment", input, action: "refresh", note: "Stripe has not confirmed this payment yet. Refresh in a moment.", chips }
+      : { label: "Confirming payment", input, action: null, note: "FairWatchTrade is confirming your payment with Stripe. This updates on its own.", chips };
   }
   if (m.state === "checkout_open" && returned === "cancel") {
-    return { label: "Payment not completed", tone: "open", action: "retry", note: "You left Stripe before paying. Nothing was charged.", chips };
+    return { label: "Payment not completed", input, action: "retry", note: "You left Stripe before paying. Nothing was charged.", chips };
   }
-  if (m.state === "checkout_open") return { label: "Checkout open", tone: "open", action: "continue", note: null, chips };
+  if (m.state === "checkout_open") return { label: "Checkout open", input, action: "continue", note: null, chips };
   if (m.state === "retry") {
-    if (lc === "failed") return { label: "Payment failed", tone: "open", action: "retry", note: "Stripe could not complete the payment.", chips };
-    if (lc === "expired") return { label: "Checkout expired", tone: "open", action: "retry", note: "The Stripe checkout expired before payment.", chips };
-    return { label: "Payment canceled", tone: "open", action: "retry", note: null, chips };
+    if (lc === "failed") return { label: "Payment failed", input, action: "retry", note: "Stripe could not complete the payment.", chips };
+    if (lc === "expired") return { label: "Checkout expired", input, action: "retry", note: "The Stripe checkout expired before payment.", chips };
+    if (lc === "canceled") return { label: "Payment canceled", input, action: "retry", note: null, chips };
+    /* Resolver invariants admit only failed/canceled/expired here. Preserve
+       the historical fallback copy/action if an unknown runtime value still
+       reaches it, but keep its color neutral and axis-qualified. */
+    return { label: "Payment canceled", input, action: "retry", note: null, chips };
   }
-  return m.canPay
-    ? { label: "Accepted · awaiting payment", tone: "open", action: "pay", note: null, chips }
-    : { label: "Accepted · payment unavailable", tone: "unruled", action: null, note: "This purchase is accepted, but a payment cannot be started right now.", chips };
+  if (m.canPay) {
+    return {
+      label: "Accepted · awaiting payment",
+      input,
+      action: "pay",
+      note: null,
+      chips,
+    };
+  }
+  return { label: "Accepted · payment unavailable", input, action: null, note: "This purchase is accepted, but a payment cannot be started right now.", chips };
 }
 
 export default function ShoppingBagRoom({
@@ -206,7 +232,9 @@ export default function ShoppingBagRoom({
     return (
       <section aria-label="Shopping Bag" data-shopping-bag-room="unavailable" className="mx-auto max-w-[900px]">
         {heading}
-        <p role="status" className="mt-4 text-[14px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>
+        <p role="status" className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES["availability-14"]}>
+          <AcceptedPurchaseStateMarker input={{ axis: "availability", state: "read_unavailable" }}>{UNAVAILABLE}</AcceptedPurchaseStateMarker>
+        </p>
         <button
           type="button"
           onClick={() => void load()}
@@ -226,7 +254,11 @@ export default function ShoppingBagRoom({
       <p className="mt-2 text-[13px] leading-[1.6] text-[var(--muted)]">
         Accepted purchases, ready to continue. A watch leaves here once its payment is confirmed; the record stays in Your Purchases.
       </p>
-      {unavailable && <p role="status" className="mt-3 text-[13px] leading-[1.6] text-[var(--slate)]">{UNAVAILABLE}</p>}
+      {unavailable && (
+        <p role="status" className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES["availability-13-bag"]}>
+          <AcceptedPurchaseStateMarker input={{ axis: "availability", state: "read_unavailable" }}>{UNAVAILABLE}</AcceptedPurchaseStateMarker>
+        </p>
+      )}
 
       {departed.length > 0 && (
         <p role="status" className="mt-4 border-l-2 border-[var(--gold)] pl-3 text-[13px] leading-[1.6] text-[var(--platinum)]">
@@ -253,13 +285,12 @@ export default function ShoppingBagRoom({
             const p = present(m, m.transactionId === focusTransactionId ? returned : null, waitedOut);
             const focused = m.transactionId === focusTransactionId;
             const title = [m.brand, m.model].filter(Boolean).join(" ") || "Watch";
-            const tone = p.tone === "wait" ? "text-[var(--gold)]" : p.tone === "unruled" ? "text-[var(--slate)]" : "text-[var(--platinum-dim)]";
             return (
               <article
                 key={m.transactionId}
                 data-bag-member={m.transactionId}
                 data-bag-state={m.state}
-                className={`grid gap-4 border-b border-[var(--border-faint)] px-4 py-5 last:border-b-0 md:grid-cols-[88px_1fr_auto] md:gap-6 ${focused ? "bg-[var(--gold-whisper)]" : ""}`}
+                className={`grid gap-4 border-b border-[var(--border-faint)] px-4 py-5 last:border-b-0 md:grid-cols-[88px_1fr_auto] md:gap-6 ${focused ? ACCEPTED_PURCHASE_FOCUSED_ROW_CLASS : ""}`}
               >
                 {/* the watch */}
                 <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden bg-[var(--image-well)]">
@@ -307,10 +338,19 @@ export default function ShoppingBagRoom({
                     </div>
                     <div>
                       <dt className="fw-lifecycle-label uppercase text-[var(--muted)]">State</dt>
-                      <dd className={`mt-0.5 text-[11px] uppercase tracking-[1.2px] ${tone}`} data-bag-label="">
-                        {p.label}
+                      <dd className={ACCEPTED_PURCHASE_STATE_CONTEXT_CLASSES.primary} data-bag-label="">
+                        <AcceptedPurchaseStateMarker input={p.input}>{p.label}</AcceptedPurchaseStateMarker>
                       </dd>
-                      {p.chips.length > 0 && <dd className="fw-lifecycle-label mt-0.5 uppercase text-[var(--muted)]">{p.chips.join(" · ")}</dd>}
+                      {p.chips.length > 0 && (
+                        <dd className="fw-lifecycle-label mt-0.5 uppercase">
+                          {p.chips.map((chip, index) => (
+                            <span key={`${chip.input.axis}:${chip.input.state}`}>
+                              {index > 0 && <span className="text-[var(--muted)]"> · </span>}
+                              <AcceptedPurchaseStateMarker input={chip.input}>{chip.label}</AcceptedPurchaseStateMarker>
+                            </span>
+                          ))}
+                        </dd>
+                      )}
                     </div>
                   </dl>
 

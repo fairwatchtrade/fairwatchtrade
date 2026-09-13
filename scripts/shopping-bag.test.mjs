@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { bagDecisionFor, bagHeaderTruthFor, BAG_MEMBER_STATES } from "../lib/purchases/bagMembership.ts";
-import { PAYABLE_TRANSACTION_STATUSES, POST_PAYMENT_TRANSACTION_STATUSES, isPayableTransactionStatus } from "../lib/payments/transactionPayability.ts";
+import { PAYABLE_TRANSACTION_STATUSES, POST_PAYMENT_TRANSACTION_STATUSES, TRANSACTION_LIFECYCLE, isPayableTransactionStatus } from "../lib/payments/transactionPayability.ts";
 import { LIFECYCLE } from "../lib/payments/paymentState.ts";
 import { returnUrls } from "../lib/payments/stripe/checkout.ts";
 import { notificationHref } from "../lib/communications.ts";
@@ -27,7 +27,7 @@ const truth = (lifecycle, over = {}) => ({
   ...over,
 });
 
-const DB_TRANSACTION_STATUSES = ["pending", "payment_pending", "paid", "shipped", "delivered", "under_inspection", "completed", "cancelled", "disputed", "refunded"];
+const DB_TRANSACTION_STATUSES = TRANSACTION_LIFECYCLE;
 
 /* ── 1 · Bag resolver mapping ──────────────────────────────────────────── */
 

@@ -23,20 +23,51 @@
    Bag is an unruled product question the resolver answers conservatively.
    ════════════════════════════════════════════════════════════════════════ */
 
-/** transactions.status values from which Step 1 Checkout may begin. */
-export const PAYABLE_TRANSACTION_STATUSES: ReadonlySet<string> = new Set(["pending", "payment_pending"]);
-
-/** transactions.status values that can only be reached after the buyer's
-    payment/funding phase is complete. A Bag never contains these: the
-    watch has left it and nothing downstream (shipment, inspection,
-    completion) may bring it back. */
-export const POST_PAYMENT_TRANSACTION_STATUSES: ReadonlySet<string> = new Set([
+/** Exact transactions.status vocabulary. This is the product-owned source
+    for exhaustive read/presentation coverage; it does not assign payability
+    or merge transaction truth with any provider axis. */
+export const TRANSACTION_LIFECYCLE = [
+  "pending",
+  "payment_pending",
   "paid",
   "shipped",
   "delivered",
   "under_inspection",
   "completed",
-]);
+  "cancelled",
+  "disputed",
+  "refunded",
+] as const;
+export type TransactionLifecycle = (typeof TRANSACTION_LIFECYCLE)[number];
+
+const TRANSACTION_LIFECYCLE_SET: ReadonlySet<string> = new Set(TRANSACTION_LIFECYCLE);
+
+/** Narrow untrusted database/browser text at the product boundary. Unknown
+    future values remain unresolved until their meaning is governed. */
+export function transactionLifecycleState(
+  status: string | null | undefined,
+): TransactionLifecycle | null {
+  return status && TRANSACTION_LIFECYCLE_SET.has(status)
+    ? status as TransactionLifecycle
+    : null;
+}
+
+/** transactions.status values from which Step 1 Checkout may begin. */
+const PAYABLE_TRANSACTION_LIFECYCLE = ["pending", "payment_pending"] as const satisfies readonly TransactionLifecycle[];
+export const PAYABLE_TRANSACTION_STATUSES: ReadonlySet<string> = new Set(PAYABLE_TRANSACTION_LIFECYCLE);
+
+/** transactions.status values that can only be reached after the buyer's
+    payment/funding phase is complete. A Bag never contains these: the
+    watch has left it and nothing downstream (shipment, inspection,
+    completion) may bring it back. */
+const POST_PAYMENT_TRANSACTION_LIFECYCLE = [
+  "paid",
+  "shipped",
+  "delivered",
+  "under_inspection",
+  "completed",
+] as const satisfies readonly TransactionLifecycle[];
+export const POST_PAYMENT_TRANSACTION_STATUSES: ReadonlySet<string> = new Set(POST_PAYMENT_TRANSACTION_LIFECYCLE);
 
 export function isPayableTransactionStatus(status: string | null | undefined): boolean {
   return PAYABLE_TRANSACTION_STATUSES.has(status ?? "");
