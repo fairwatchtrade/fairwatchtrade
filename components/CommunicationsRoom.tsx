@@ -22,6 +22,7 @@ import {
   type CommRequest,
   type CommThread,
 } from "@/lib/communications";
+import { purchaseRequestLifecycleColor } from "@/lib/purchaseRequestPresentation";
 import { formatMoney, hasMoneyTruth } from "@/lib/formatMoney";
 import { buyerIdentityLabel, type BuyerIdentityState } from "@/lib/displayIdentityPrecedence";
 
@@ -104,18 +105,7 @@ function timeAgo(iso: string): string {
 /* Request state colors — the same --lc-* families the Listings room and
    the buyer's My Offers resolve to (Account Status Colorway Parity). */
 function requestColor(r: CommRequest): string {
-  if (r.status === "cancelled" && r.closure_cause === "listing_removed_by_seller") {
-    return "var(--muted)";
-  }
-  const map: Record<CommRequest["status"], string> = {
-    pending: "var(--lc-pending_review-badge)",
-    accepted: "var(--lc-published-badge)",
-    declined: "var(--lc-rejected-badge)",
-    cancelled: "var(--slate)",
-    superseded: "var(--muted)",
-    expired: "var(--muted)",
-  };
-  return map[r.status] ?? "var(--muted)";
+  return purchaseRequestLifecycleColor(r.status, r.closure_cause) ?? (r.status === "cancelled" ? "var(--slate)" : "var(--muted)");
 }
 
 const FOLDER_LABEL: Record<CommFolder, string> = {

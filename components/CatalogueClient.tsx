@@ -15,6 +15,10 @@ import {
 } from "@/components/rail/catalogueCardStyles";
 import { offerPrice } from "@/lib/offerPresentation";
 import { formatMoney } from "@/lib/formatMoney";
+import {
+  isPurchaseRequestLifecycleStatus,
+  purchaseRequestLifecycleColor,
+} from "@/lib/purchaseRequestPresentation";
 import { documentationState, inlineDocumentation } from "@/lib/listingDocumentation";
 import { publiclyDisplayablePhotos } from "@/lib/servicePhotoPrivacy";
 import { cardImageSrc } from "@/lib/media/cardImage";
@@ -182,44 +186,32 @@ type MyOffersState =
 // rejected — another request was accepted and the watch is no longer
 // available. Copy is non-judgmental across the board and never implies the
 // seller personally rejected the buyer.
-// Account Status Colorway Parity — tones are named for the LIFECYCLE FAMILY
-// they resolve to, not for a color word, and they resolve to the same --lc-*
-// tokens the seller sees in Requests. One underlying state, one color, both
-// sides of the transaction. (Before this, pending read gold to the buyer and
-// grey to the seller; declined read muted to the buyer and red to the seller.)
-type OfferTone = "pending" | "accepted" | "declined" | "withdrawn" | "ghost";
-
 // 'cancelled' is deliberately absent: it is the one status whose copy cannot
 // be decided from the status alone. See CLOSURE_LABELS below. The Exclude<>
 // is what makes that a compile error rather than a convention.
 const STATUS_LABELS: Record<
   Exclude<OfferStatus, "cancelled">,
-  { label: string; note: string; tone: OfferTone }
+  { label: string; note: string }
 > = {
   pending: {
     label: "Pending",
     note: "Awaiting the seller's response.",
-    tone: "pending",
   },
   accepted: {
     label: "Accepted",
     note: "The seller accepted your request.",
-    tone: "accepted",
   },
   declined: {
     label: "Declined",
     note: "The seller declined this request.",
-    tone: "declined",
   },
   superseded: {
     label: "No longer available",
     note: "Another purchase request for this watch was accepted.",
-    tone: "ghost",
   },
   expired: {
     label: "Expired",
     note: "This request expired before it was answered.",
-    tone: "ghost",
   },
 };
 
@@ -237,12 +229,11 @@ const STATUS_LABELS: Record<
    'cancelled'. It simply is no longer the only case. */
 const CLOSURE_LABELS: Record<
   string,
-  { label: string; note: string; tone: OfferTone }
+  { label: string; note: string }
 > = {
   buyer_withdrew: {
     label: "Withdrawn",
     note: "You withdrew this offer.",
-    tone: "withdrawn",
   },
   /* Carries the SAME weight as declined, by Jason's ruling on seeing it
      live. It first shipped in the quiet tone on the reasoning that the buyer
@@ -259,7 +250,6 @@ const CLOSURE_LABELS: Record<
   listing_removed_by_seller: {
     label: "Listing removed",
     note: "The seller removed this listing. Your request is no longer active.",
-    tone: "declined",
   },
   /* Stage 8. Distinguished from the Pause case in the DATA so the record
      stays truthful, but the buyer is told the same thing either way: the
@@ -268,7 +258,6 @@ const CLOSURE_LABELS: Record<
   listing_deleted_by_seller: {
     label: "Listing no longer available",
     note: "The seller deleted this listing. Your request is no longer active.",
-    tone: "declined",
   },
 };
 
@@ -281,7 +270,6 @@ function offerLabel(
 ): {
   label: string;
   note: string;
-  tone: OfferTone;
 } {
   if (status === "cancelled") {
     const attributed = closureCause ? CLOSURE_LABELS[closureCause] : undefined;
@@ -292,31 +280,15 @@ function offerLabel(
     return {
       label: "Closed",
       note: "This request is no longer active.",
-      tone: "ghost" as const,
     };
   }
   return (
     STATUS_LABELS[status as Exclude<OfferStatus, "cancelled">] ?? {
       label: status,
       note: "",
-      tone: "ghost" as const,
     }
   );
 }
-
-// CSS colors rather than utility classes: --lc-* are custom properties, so the
-// value is applied via style, matching how SellerListingsRoom consumes them.
-// Subdued tier matches RequestsView exactly: --lc-neutral-line is a BORDER
-// token and unreadable as text; --ghost is 3.4:1 and reserved for
-// disabled/placeholder. Withdrawn --slate (7.1:1), quieter terminal states
-// --muted (5.1:1). Both clear AA on --ink and --surface.
-const TONE_COLOR: Record<OfferTone, string> = {
-  pending: "var(--lc-pending_review-badge)",
-  accepted: "var(--lc-published-badge)",
-  declined: "var(--lc-rejected-badge)",
-  withdrawn: "var(--slate)",
-  ghost: "var(--muted)",
-};
 
 /* The greeting is local-clock knowledge, and the server does not have the
    collector's clock.
@@ -585,7 +557,7 @@ function WatchOfferGroup({
   onDismiss: (requestId: string) => void;
 }) {
   const { listing: l, current, history } = group;
-  const { label, note, tone } = offerLabel(current.status, current.closure_cause);
+  const { label, note } = offerLabel(current.status, current.closure_cause);
   // Identity prefers the live joined listing; when RLS denies it (a reserved
   // listing hidden from an unsuccessful buyer), fall back to the request's own
   // authoritative snapshot so the watch identity is never lost — only the
@@ -640,7 +612,15 @@ function WatchOfferGroup({
           </div>
           {/* Current status — the dominant state */}
           <div className="shrink-0 text-right">
-            <div className="text-[11px] uppercase tracking-[1.6px]" style={{ color: TONE_COLOR[tone] }}>
+            <div
+              className="text-[11px] uppercase tracking-[1.6px]"
+              style={{
+                color:
+                  (isPurchaseRequestLifecycleStatus(current.status)
+                    ? purchaseRequestLifecycleColor(current.status, current.closure_cause)
+                    : undefined) ?? "var(--muted)",
+              }}
+            >
               {label}
             </div>
           </div>

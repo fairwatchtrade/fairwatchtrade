@@ -6,6 +6,11 @@ import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
 import { useListingPurchaseRequest } from "@/components/ListingPurchaseRequestProvider";
 import {
+  PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR,
+  purchaseRequestOutcomePresentation,
+  purchaseRequestPresentation,
+} from "@/lib/purchaseRequestPresentation";
+import {
   OPEN_PURCHASE_REQUEST,
   type OpenPurchaseRequestDetail,
 } from "@/lib/purchaseRequestOpen";
@@ -31,9 +36,6 @@ import {
    the caseback, come back — the amount and message are still there. It is
    session-scoped and listing-scoped, so it never leaks into another watch.
    ──────────────────────────────────────────────────────────────────────── */
-
-const BAD = "#d8a171"; // approved soft-amber validation colour (not alarm red)
-const BAD_BORDER = "rgba(216,161,113,0.65)";
 
 export default function InlinePurchaseRequest({
   listingId,
@@ -113,10 +115,14 @@ export default function InlinePurchaseRequest({
   /* A resolved state replaces the form but never the page — the watch, the
      gallery and the Drawer are all still right there behind this card. */
   if (view !== "form") {
+    const outcome = purchaseRequestOutcomePresentation(view);
     return (
       <div className={isRail ? "space-y-3" : "mt-6 space-y-3"}>
-        <div className="border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3">
-          <div className="text-[11px] uppercase tracking-[2px] text-[var(--gold-dim)]">
+        <div
+          className={outcome ? "border bg-[var(--surface)] px-4 py-3" : "border border-[var(--border-gold)] bg-[var(--gold-whisper)] px-4 py-3"}
+          style={outcome ? { borderColor: outcome.border } : undefined}
+        >
+          <div className="text-[11px] uppercase tracking-[2px]" style={{ color: outcome?.text ?? "var(--gold-dim)" }}>
             {view === "success"
               ? "Request sent"
               : view === "changed"
@@ -248,7 +254,7 @@ export default function InlinePurchaseRequest({
               aria-invalid={showOfferError ? true : undefined}
               className="h-[46px] w-full border bg-[var(--surface-2)] pr-3 font-display text-[19px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[var(--surface)]"
               style={{
-                borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
+                borderColor: showOfferError ? purchaseRequestPresentation.validation.border : "var(--border-mid)",
                 paddingLeft: `calc(0.75rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
               }}
             />
@@ -256,7 +262,7 @@ export default function InlinePurchaseRequest({
           <div
             id={`${panelId}-help`}
             className="mt-2 text-[11px] leading-[1.5]"
-            style={{ color: showOfferError ? BAD : "var(--muted)" }}
+            style={{ color: showOfferError ? purchaseRequestPresentation.validation.text : "var(--muted)" }}
           >
             {showOfferError
               ? offerErrorText
@@ -293,7 +299,7 @@ export default function InlinePurchaseRequest({
           />
 
           {formError && (
-            <div className="mt-3 text-[11px] leading-[1.45]" style={{ color: BAD }}>
+            <div className="mt-3 text-[11px] leading-[1.45]" style={{ color: PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR }}>
               {formError}
             </div>
           )}

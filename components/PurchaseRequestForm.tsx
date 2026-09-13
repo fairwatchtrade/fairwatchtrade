@@ -5,6 +5,11 @@ import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
 import { usePurchaseRequest } from "@/components/usePurchaseRequest";
+import {
+  PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR,
+  purchaseRequestOutcomePresentation,
+  purchaseRequestPresentation,
+} from "@/lib/purchaseRequestPresentation";
 
 /* ────────────────────────────────────────────────────────────────────────
    BUYER PURCHASE REQUEST — approved Design Gate implementation (v2.28)
@@ -52,9 +57,6 @@ type ListingContext = {
   included: string | null;
   strap: string;
 };
-
-const BAD = "#d8a171"; // approved soft-amber validation colour (not alarm red)
-const BAD_BORDER = "rgba(216,161,113,0.65)";
 
 export default function PurchaseRequestForm({ listing }: { listing: ListingContext }) {
   /* One controller, shared with the listing page's in-place surfaces: same
@@ -263,13 +265,13 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                         aria-invalid={showOfferError ? true : undefined}
                         className="h-[54px] w-full border bg-[#10131a] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
                         style={{
-                          borderColor: showOfferError ? BAD_BORDER : "var(--border-mid)",
+                          borderColor: showOfferError ? purchaseRequestPresentation.validation.border : "var(--border-mid)",
                           paddingLeft: `calc(0.875rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,
                         }}
                       />
                     </div>
                     {showOfferError ? (
-                      <div id="offerError" className="mt-2 fw-validity-state" style={{ color: BAD }}>
+                      <div id="offerError" className="mt-2 fw-validity-state" style={{ color: purchaseRequestPresentation.validation.text }}>
                         {offerErrorText}
                       </div>
                     ) : (
@@ -308,7 +310,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                   </div>
 
                   {formError && (
-                    <div className="mb-4 text-[11px] leading-[1.45]" style={{ color: BAD }}>
+                    <div className="mb-4 text-[11px] leading-[1.45]" style={{ color: PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR }}>
                       {formError}
                     </div>
                   )}
@@ -359,7 +361,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
             {view === "changed" && changed && (
               <StatePanel
                 mark="!"
-                markTone="gold"
+                markTone="changed"
                 eyebrow="Listing updated"
                 heading="The seller updated the asking price."
               >
@@ -387,7 +389,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
             {view === "unavailable" && (
               <StatePanel
                 mark="—"
-                markTone="platinum"
+                markTone="unavailable"
                 eyebrow="Listing status changed"
                 heading="This watch is no longer available for a new purchase request."
               >
@@ -424,7 +426,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
             {view === "success" && (
               <StatePanel
                 mark="✓"
-                markTone="ok"
+                markTone="success"
                 eyebrow="Request sent"
                 heading="Your purchase request was sent to the seller."
               >
@@ -474,15 +476,15 @@ function StatePanel({
   children,
 }: {
   mark: string;
-  markTone: "gold" | "platinum" | "ok";
+  markTone: "gold" | "platinum" | "changed" | "unavailable" | "success";
   eyebrow: string;
   heading: string;
   children: React.ReactNode;
 }) {
-  const markColor =
-    markTone === "ok" ? "var(--success)" : markTone === "platinum" ? "var(--platinum)" : "var(--gold)";
-  const markBorder =
-    markTone === "ok" ? "rgba(112,192,144,0.42)" : markTone === "platinum" ? "var(--border-subtle)" : "var(--border-gold)";
+  const outcome = purchaseRequestOutcomePresentation(markTone);
+  const markColor = outcome?.text ?? (markTone === "platinum" ? "var(--platinum)" : "var(--gold)");
+  const markBorder = outcome?.border ?? (markTone === "platinum" ? "var(--border-subtle)" : "var(--border-gold)");
+  const eyebrowColor = outcome?.text ?? "var(--gold)";
   return (
     <div className="pt-1">
       <div
@@ -492,7 +494,9 @@ function StatePanel({
       >
         {mark}
       </div>
-      <div className="text-[11px] uppercase tracking-[1.4px] text-[var(--gold)]">{eyebrow}</div>
+      <div className="text-[11px] uppercase tracking-[1.4px]" style={{ color: eyebrowColor }}>
+        {eyebrow}
+      </div>
       <h3 className="mt-2 font-display text-[26px] font-light leading-[1.1] text-[var(--platinum)] sm:text-[28px]">{heading}</h3>
       {children}
     </div>
