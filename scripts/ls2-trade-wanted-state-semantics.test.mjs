@@ -134,8 +134,26 @@ const badge = normalized("components/TradeWantedStateBadge.tsx");
 assert.match(badge, /tradeStatePresentation\(/, "Trade badge resolves the real Trade owner");
 assert.match(badge, /wantedStatePresentation\(/, "Wanted badge resolves the real Wanted owner");
 assert.match(badge, /backgroundColor: presentation\.surface/, "badge mounts the measured surface");
-assert.match(badge, /borderColor: presentation\.line/, "badge mounts the governed state edge");
-assert.match(badge, /color: presentation\.text/, "badge mounts readable semantic text");
+assert.equal(
+  countExact(badge, "style={stateBadgeStyle(presentation)}"),
+  2,
+  "Trade and Wanted badges share one bounded optical expression",
+);
+assert.match(
+  badge,
+  /color: `light-dark\(\$\{lightText\}, \$\{presentation\.text\}\)`/,
+  "Dark keeps the exact governed state text while Light receives only an optical lift",
+);
+assert.match(
+  badge,
+  /const lightLine = `color-mix\(in srgb, \$\{presentation\.line\}[^`]+\$\{lightText\}\)`/,
+  "Light deepens the governed line mapping rather than replacing its semantic source",
+);
+assert.match(
+  badge,
+  /borderColor: `light-dark\(\$\{lightLine\}, \$\{presentation\.line\}\)`/,
+  "Dark keeps the exact governed state edge while Light receives only the mapped optical lift",
+);
 
 const liveConsumers = {
   "components/TradeOffersModule.tsx": ["<TradeStateBadge", "tradeCashPresentation"],

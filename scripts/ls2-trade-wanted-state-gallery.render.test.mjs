@@ -52,10 +52,12 @@ const expectedStateTokens = {
 const expectedStatePairs = Object.keys(expectedStateTokens).sort();
 
 const fixtures = [
-  { appearance: "light", name: "Dell 4K @125%", width: 3072, height: 1728, scale: 1.25 },
-  { appearance: "dark", name: "Dell 4K @125%", width: 3072, height: 1728, scale: 1.25 },
-  { appearance: "light", name: "synthetic XCover-width", width: 360, height: 800, scale: 3 },
-  { appearance: "dark", name: "synthetic XCover-width", width: 360, height: 800, scale: 3 },
+  { appearance: "light", name: "Dell 4K @125% / browser 100%", width: 3072, height: 1728, scale: 1.25, browserZoom: 1 },
+  { appearance: "dark", name: "Dell 4K @125% / browser 100%", width: 3072, height: 1728, scale: 1.25, browserZoom: 1 },
+  { appearance: "light", name: "Dell 4K @125% / browser 110%", width: 2793, height: 1571, scale: 1.375, browserZoom: 1.1 },
+  { appearance: "dark", name: "Dell 4K @125% / browser 110%", width: 2793, height: 1571, scale: 1.375, browserZoom: 1.1 },
+  { appearance: "light", name: "synthetic XCover-width", width: 360, height: 800, scale: 3, browserZoom: 1 },
+  { appearance: "dark", name: "synthetic XCover-width", width: 360, height: 800, scale: 3, browserZoom: 1 },
 ];
 
 const browser = await puppeteer.launch({
@@ -89,7 +91,9 @@ try {
       const parseColor = (value) => {
         const channels = value.match(/[\d.]+/g)?.map(Number) ?? [];
         return {
-          rgb: channels.slice(0, 3),
+          rgb: value.startsWith("color(srgb")
+            ? channels.slice(0, 3).map((channel) => channel * 255)
+            : channels.slice(0, 3),
           alpha: channels.length > 3 ? channels[3] : 1,
           raw: value,
         };
@@ -105,6 +109,10 @@ try {
       const contrast = (a, b) =>
         (Math.max(luminance(a), luminance(b)) + 0.05) /
         (Math.min(luminance(a), luminance(b)) + 0.05);
+      const composite = (foreground, background) =>
+        foreground.rgb.map((channel, index) =>
+          channel * foreground.alpha + background.rgb[index] * (1 - foreground.alpha),
+        );
       const resolvedTokenCache = new Map();
       const resolveColorToken = (token) => {
         if (resolvedTokenCache.has(token)) return resolvedTokenCache.get(token);
@@ -134,6 +142,7 @@ try {
         const style = getComputedStyle(element);
         const foreground = parseColor(style.color);
         const background = parseColor(style.backgroundColor);
+        const border = parseColor(style.borderTopColor);
         const chain = paintChain(element);
         const pair = `${element.dataset.stateDomain}:${element.dataset.state}`;
         const [textToken, lineToken] = stateTokens[pair];
@@ -152,9 +161,16 @@ try {
           borderStyle: style.borderTopStyle,
           borderWidth: Number.parseFloat(style.borderTopWidth),
           fontSize: Number.parseFloat(style.fontSize),
+          physicalBorderPx: Number.parseFloat(style.borderTopWidth) * devicePixelRatio,
+          physicalFontPx: Number.parseFloat(style.fontSize) * devicePixelRatio,
+          fontWeight: style.fontWeight,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          letterSpacing: Number.parseFloat(style.letterSpacing),
+          textTransform: style.textTransform,
           effectiveOpacity: chain.reduce((product, item) => product * item.opacity, 1),
           filteredAncestors: chain.filter((item) => item.filter !== "none"),
           contrast: contrast(foreground.rgb, background.rgb),
+          renderedBorderContrast: contrast(composite(border, background), background.rgb),
         };
       };
 
@@ -185,7 +201,11 @@ try {
         dataTheme: document.documentElement.dataset.theme ?? null,
         colorScheme: getComputedStyle(document.documentElement).colorScheme,
         devicePixelRatio,
-        width: { viewport: innerWidth, document: document.documentElement.scrollWidth },
+        geometry: {
+          viewportWidth: innerWidth,
+          viewportHeight: innerHeight,
+          documentWidth: document.documentElement.scrollWidth,
+        },
         badges,
         budgets,
         cash: {
@@ -197,6 +217,7 @@ try {
         },
         expectedBudgetColor: resolveColorToken("--muted"),
         expectedCashColor: resolveColorToken("--platinum-dim"),
+        expectedBadgeSurface: resolveColorToken("--surface"),
         /* Next dev mounts a portal for its small tools button even when the
            page is healthy. Only error-dialog text is a failing overlay. */
         errorOverlay: /Unhandled Runtime Error|Build Error|Runtime Error/.test(
@@ -209,7 +230,9 @@ try {
     assert.equal(result.dataTheme, fixture.appearance, `${fixture.appearance} cookie reaches the server theme`);
     assert.equal(result.colorScheme, fixture.appearance, `${fixture.appearance} arm resolves exactly`);
     assert.equal(result.devicePixelRatio, fixture.scale, `${fixture.name} uses the intended device scale`);
-    assert.equal(result.width.document, result.width.viewport, `${fixture.name} has no horizontal overflow`);
+    assert.equal(result.geometry.viewportWidth, fixture.width, `${fixture.name} resolves the intended CSS width`);
+    assert.equal(result.geometry.viewportHeight, fixture.height, `${fixture.name} resolves the intended CSS height`);
+    assert.equal(result.geometry.documentWidth, result.geometry.viewportWidth, `${fixture.name} has no horizontal overflow`);
     assert.equal(result.errorOverlay, false, `${fixture.name} has no Next error overlay`);
     assert.deepEqual(pageErrors, [], `${fixture.name} has no browser runtime errors`);
     assert.equal(result.badges.length, 26, `${fixture.name} renders the complete gallery badge set`);
@@ -226,17 +249,45 @@ try {
       `${fixture.name} resolves distinct state lines instead of one collapsed edge`,
     );
     for (const badge of result.badges) {
-      assert.ok(badge.fontSize >= 11, `${fixture.name} ${badge.domain}:${badge.state} keeps the text floor`);
-      assert.equal(badge.color, badge.expectedColor, `${fixture.name} ${badge.domain}:${badge.state} resolves its exact text token`);
+      assert.equal(badge.fontSize, 11, `${fixture.name} ${badge.domain}:${badge.state} keeps the governed text size`);
+      assert.ok(
+        Math.abs(badge.physicalFontPx - 11 * fixture.scale) < 0.01,
+        `${fixture.name} ${badge.domain}:${badge.state} resolves the intended physical glyph scale`,
+      );
+      assert.equal(badge.fontWeight, "400", `${fixture.name} ${badge.domain}:${badge.state} keeps the governed text weight`);
+      assert.ok(Math.abs(badge.lineHeight - 15.4) < 0.01, `${fixture.name} ${badge.domain}:${badge.state} keeps the governed line height`);
+      assert.equal(badge.letterSpacing, 1, `${fixture.name} ${badge.domain}:${badge.state} keeps the governed tracking`);
+      assert.equal(badge.textTransform, "uppercase", `${fixture.name} ${badge.domain}:${badge.state} keeps the governed casing`);
+      assert.equal(badge.background, result.expectedBadgeSurface, `${fixture.name} ${badge.domain}:${badge.state} keeps the established badge plane`);
       assert.equal(badge.colorAlpha, 1, `${fixture.name} ${badge.domain}:${badge.state} text is opaque`);
       assert.equal(badge.backgroundAlpha, 1, `${fixture.name} ${badge.domain}:${badge.state} surface is opaque`);
-      assert.equal(badge.border, badge.expectedBorder, `${fixture.name} ${badge.domain}:${badge.state} resolves its exact line token`);
+      if (fixture.appearance === "dark") {
+        assert.equal(badge.color, badge.expectedColor, `${fixture.name} ${badge.domain}:${badge.state} preserves the approved Dark text arm`);
+        assert.equal(badge.border, badge.expectedBorder, `${fixture.name} ${badge.domain}:${badge.state} preserves the approved Dark line arm`);
+      }
       assert.ok(badge.borderAlpha > 0, `${fixture.name} ${badge.domain}:${badge.state} line resolves visibly`);
       assert.notEqual(badge.borderStyle, "none", `${fixture.name} ${badge.domain}:${badge.state} line has a painted style`);
       assert.ok(badge.borderWidth > 0, `${fixture.name} ${badge.domain}:${badge.state} line has nonzero width`);
+      assert.ok(
+        Math.abs(badge.physicalBorderPx - badge.borderWidth * fixture.scale) < 0.01,
+        `${fixture.name} ${badge.domain}:${badge.state} resolves the intended physical edge scale`,
+      );
       assert.equal(badge.effectiveOpacity, 1, `${fixture.name} ${badge.domain}:${badge.state} has no compounded dimming`);
       assert.deepEqual(badge.filteredAncestors, [], `${fixture.name} ${badge.domain}:${badge.state} has no filtered ancestor`);
-      assert.ok(badge.contrast >= 4.5, `${fixture.name} ${badge.domain}:${badge.state} clears 4.5:1`);
+      assert.ok(
+        badge.contrast >= (fixture.appearance === "light" ? 7 : 4.5),
+        `${fixture.name} ${badge.domain}:${badge.state} clears its appearance-specific text floor`,
+      );
+      if (fixture.appearance === "light") {
+        assert.ok(
+          badge.renderedBorderContrast >= 3,
+          `${fixture.name} ${badge.domain}:${badge.state} carries a scannable rendered edge`,
+        );
+        assert.ok(
+          badge.contrast > badge.renderedBorderContrast,
+          `${fixture.name} ${badge.domain}:${badge.state} keeps the state word dominant over its edge`,
+        );
+      }
     }
 
     assert.equal(result.budgets.length, 4, `${fixture.name} renders every advisory budget projection`);
@@ -256,8 +307,10 @@ try {
 
     results.push({
       appearance: fixture.appearance,
+      browserZoom: fixture.browserZoom,
       viewport: `${fixture.width}x${fixture.height}`,
       minimumBadgeContrast: Math.min(...result.badges.map((badge) => badge.contrast)).toFixed(2),
+      minimumRenderedBorderContrast: Math.min(...result.badges.map((badge) => badge.renderedBorderContrast)).toFixed(2),
       budgetContrast: result.budgets[0].contrast.toFixed(2),
       cashContrast: result.cash.contrast.toFixed(2),
       resolvedStateLines: new Set(result.badges.map((badge) => badge.border)).size,

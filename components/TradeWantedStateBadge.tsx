@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   DEAL_STATUS_LABELS,
   LEG_STATUS_LABELS,
@@ -8,6 +8,7 @@ import { STATUS_LABELS, type WantedStatus } from "@/lib/wanted";
 import {
   tradeStatePresentation,
   wantedStatePresentation,
+  type StatePresentation,
   type TradeStateInput,
 } from "@/lib/tradeWantedStatePresentation";
 
@@ -22,6 +23,23 @@ type SharedProps = {
 };
 
 type TradeStateBadgeProps = SharedProps & TradeStateInput;
+
+/* Human SEE-it found the compact marker too faint in Daylight even though
+   its glyphs technically cleared AA. Deepen only this badge's Light arm:
+   the typed semantic source still owns the hue, while Dark resolves to the
+  exact shipped text and line tokens. The neutral governance stops use a
+  slightly quieter edge so an unruled state cannot outrank settled truth. */
+function stateBadgeStyle(presentation: StatePresentation): CSSProperties {
+  const lightText = `color-mix(in srgb, ${presentation.text} 65%, var(--platinum) 35%)`;
+  const mappedLineShare = presentation.governance === "settled" ? 35 : 45;
+  const lightLine = `color-mix(in srgb, ${presentation.line} ${mappedLineShare}%, ${lightText})`;
+
+  return {
+    color: `light-dark(${lightText}, ${presentation.text})`,
+    borderColor: `light-dark(${lightLine}, ${presentation.line})`,
+    backgroundColor: presentation.surface,
+  };
+}
 
 function tradeLabel(input: TradeStateInput): string {
   switch (input.kind) {
@@ -39,11 +57,7 @@ export function TradeStateBadge(props: TradeStateBadgeProps) {
   return (
     <span
       className={`fw-lifecycle-label inline-flex border px-2 py-1 uppercase ${props.className ?? ""}`}
-      style={{
-        color: presentation.text,
-        borderColor: presentation.line,
-        backgroundColor: presentation.surface,
-      }}
+      style={stateBadgeStyle(presentation)}
       data-state-domain={`trade-${props.kind}`}
       data-state={props.status}
       data-state-governance={presentation.governance}
@@ -62,11 +76,7 @@ export function WantedStateBadge({
   return (
     <span
       className={`fw-lifecycle-label inline-flex border px-2 py-1 uppercase ${className ?? ""}`}
-      style={{
-        color: presentation.text,
-        borderColor: presentation.line,
-        backgroundColor: presentation.surface,
-      }}
+      style={stateBadgeStyle(presentation)}
       data-state-domain="wanted"
       data-state={status}
       data-state-governance={presentation.governance}
