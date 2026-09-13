@@ -169,9 +169,9 @@ export default function ListingStatusControls({
   };
   const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" };
   const select: React.CSSProperties = {
-    background: "#0F1115",
-    color: "#E6E8EC",
-    border: "1px solid #303642",
+    background: "var(--input-bg)",
+    color: "var(--platinum)",
+    border: "1px solid var(--input-line)",
     padding: "8px 10px",
     minWidth: 180,
     fontSize: 12,

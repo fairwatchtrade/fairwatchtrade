@@ -8,7 +8,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 import { randomUUID } from "@/lib/uuid";
 import HelpBubble from "@/components/HelpBubble";
@@ -16,17 +15,7 @@ import { uploadPhoto } from "@/lib/storage";
 import { type PhotoCategory } from "@/lib/scoring";
 import WatchSpinner from "@/components/WatchSpinner";
 import { MISSING_REQUIRED_CLS } from "@/lib/sellValidation";
-
-/* Native <option> elements don't inherit the form's dark styling — when a
-   <select> opens, the browser renders the option list with defaults (often a
-   white menu), making our light --platinum option text invisible
-   (white-on-white). Explicit hex bg + text fixes it; CSS variables are ignored
-   for <option> in some browsers, so we use concrete values matching
-   --surface / --platinum. */
-const OPTION_STYLE: CSSProperties = {
-  backgroundColor: "#141821",
-  color: "#E8E4DC",
-};
+import { NATIVE_OPTION_STYLE } from "@/lib/nativeOptionPresentation";
 
 export type UploadedPhotoMeta = {
   url: string;
@@ -503,9 +492,9 @@ const PhotoUpload = forwardRef<PhotoUploadHandle, {
                     it.category || it.isWristShot ? "border-[var(--border-subtle)]" : "border-[var(--border-gold)]"
                   }`}
                 >
-                  <option value="" style={OPTION_STYLE}>Tag photo…</option>
+                  <option value="" style={NATIVE_OPTION_STYLE}>Tag photo…</option>
                   {categoryOptions.map((c) => (
-                    <option key={c.value} value={c.value} style={OPTION_STYLE}>
+                    <option key={c.value} value={c.value} style={NATIVE_OPTION_STYLE}>
                       {(c.label ?? c.value) + (c.required ? " *" : "")}
                     </option>
                   ))}

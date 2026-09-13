@@ -325,7 +325,7 @@ const blend = (foreground, alpha, background) => foreground.map((channel, index)
 const rounded = (value) => Number(value.toFixed(3));
 
 includes(fullForm, 'min-h-[560px] border border-[var(--border-subtle)] bg-[var(--surface-2)]', "full StatePanel sits on --surface-2");
-includes(fullForm, 'className="h-[54px] w-full border bg-[#10131a]', "full validation boundary sits on its fixed-dark input");
+includes(fullForm, 'className="h-[54px] w-full border bg-[var(--input-bg)]', "full validation boundary stays on its LS-3-governed input surface");
 includes(inlineForm, '"border border-[var(--border-gold)] bg-[rgba(201,168,76,0.03)] px-4 py-4"', "inline validation text sits on the 3% gold form wash");
 includes(inlineForm, 'className="h-[46px] w-full border bg-[var(--surface-2)]', "inline validation boundary sits on themed --surface-2");
 

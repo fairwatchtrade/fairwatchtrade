@@ -23,6 +23,7 @@ import { type OverlayVariant } from "@/components/AlignmentOverlay";
 import WatchSpinner from "@/components/WatchSpinner";
 import { randomUUID } from "@/lib/uuid";
 import { canonicalKeyStillValid } from "@/lib/identity/canonicalIdentity";
+import { NATIVE_OPTION_STYLE } from "@/lib/nativeOptionPresentation";
 import PhotoPresentationEditor, {
   PhotoPresentationEntry,
 } from "@/components/PhotoPresentationEditor";
@@ -1431,10 +1432,10 @@ export default function MobileWizard({
               onChange={(e) =>
                 setDraft((d) => ({ ...d, askingCurrency: e.target.value, askingConfirmed: false }))
               }
-              className="fw-input [&>option]:bg-[#141821] [&>option]:text-[#E8E4DC]"
+              className="fw-input"
             >
               {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.code}</option>
+                <option key={c.code} value={c.code} style={NATIVE_OPTION_STYLE}>{c.code}</option>
               ))}
             </select>
           </div>

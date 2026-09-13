@@ -263,7 +263,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                         aria-describedby="offerHelp offerError"
                         aria-label={`Your offer in ${currency.displayName}`}
                         aria-invalid={showOfferError ? true : undefined}
-                        className="h-[54px] w-full border bg-[#10131a] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[#11151c]"
+                        className="h-[54px] w-full border bg-[var(--input-bg)] pr-4 font-display text-[23px] text-[var(--platinum)] outline-none transition placeholder:text-[var(--muted)] focus:bg-[var(--surface)]"
                         style={{
                           borderColor: showOfferError ? purchaseRequestPresentation.validation.border : "var(--border-mid)",
                           paddingLeft: `calc(0.875rem + ${currency.displayPrefix.trim().length}ch + 0.4rem)`,

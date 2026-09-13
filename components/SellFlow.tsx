@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   emptyDraft,
   toScoringState,
@@ -79,19 +79,11 @@ import {
   canonicalIdentityKey,
   canonicalKeyStillValid,
 } from "@/lib/identity/canonicalIdentity";
+import { NATIVE_OPTION_STYLE } from "@/lib/nativeOptionPresentation";
 
 const STEPS = ["Curation", "Photos", "Details", "Description", "Review"] as const;
 const CONDITIONS: Condition[] = ["Unworn", "Mint", "Excellent", "Very Good", "Good", "Fair"];
 const ROMAN = ["I", "II", "III", "IV", "V"] as const;
-
-/* Native <option> elements don't reliably inherit the form's styling. Keep the
-   values concrete (CSS variables are ignored for <option> in some browsers),
-   but let light-dark() resolve them against the page's owned color-scheme so
-   the browser popup follows Daylight, Dark, and System without a JS theme copy. */
-const OPTION_STYLE: CSSProperties = {
-  backgroundColor: "light-dark(#FAF7F0, #141821)",
-  color: "light-dark(#25231F, #E8E4DC)",
-};
 
 /* ── Curation call ───────────────────────────────────────────────────────
    /api/evaluate confirmed working (returns score + decision). Defensive reads
@@ -2283,9 +2275,9 @@ function CurationStep({
             value={draft.condition}
             onChange={(e) => patch({ condition: e.target.value as Condition })}
           >
-            <option value="" style={OPTION_STYLE}>Select…</option>
+            <option value="" style={NATIVE_OPTION_STYLE}>Select…</option>
             {CONDITIONS.map((c) => (
-              <option key={c} value={c} style={OPTION_STYLE}>{c}</option>
+              <option key={c} value={c} style={NATIVE_OPTION_STYLE}>{c}</option>
             ))}
           </select>
         </div>
@@ -2308,7 +2300,7 @@ function CurationStep({
               onChange={(e) => patch({ askingCurrency: e.target.value, askingConfirmed: false })}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code} style={OPTION_STYLE}>{c.code}</option>
+                <option key={c.code} value={c.code} style={NATIVE_OPTION_STYLE}>{c.code}</option>
               ))}
             </select>
           </div>

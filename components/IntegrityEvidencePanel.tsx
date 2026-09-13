@@ -713,7 +713,8 @@ const PANEL_CSS = `
 .clarify-input{margin-top:10px;display:flex;flex-direction:column;gap:6px}
 .clarify-label{color:var(--muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
 .note-wrap{position:relative}
-.reviewer-note{width:100%;min-height:108px;resize:vertical;background:#0D1015;border:1px solid #303642;color:var(--platinum);padding:10px;outline:none;line-height:1.55;font-size:12px}
+.reviewer-note{width:100%;min-height:108px;resize:vertical;background:var(--input-bg);border:1px solid var(--input-line);color:var(--platinum);padding:10px;outline:none;line-height:1.55;font-size:12px}
+.reviewer-note:focus{border-color:var(--input-line-focus)}
 .note-foot{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:9px;margin-top:6px}
 .prior-decision{margin-bottom:10px;padding:10px;border:1px solid var(--line);background:#0E1117}
 .prior-decision b{display:block;font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:400;margin-bottom:5px}
