@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import ListingStatusControls from "@/components/ListingStatusControls";
+import AdminListingStatusMarker from "@/components/AdminListingStatusMarker";
+import AdminPurchaseRequestStatus from "@/components/AdminPurchaseRequestStatus";
 import CanonicalReferenceControl from "@/components/CanonicalReferenceControl";
 import {
   blockerAdminLine,
@@ -180,18 +182,6 @@ type SellerContext = {
     code: string | null;
   }[];
 };
-
-/* The founder-facing sentence for each closure. Distinct from the seller's
-   and the buyer's wording on purpose: this surface is diagnostic, so it names
-   the actor plainly rather than softening it, and an unattributed legacy
-   closure is shown AS unattributed instead of being guessed. */
-function closureSentence(r: LifecycleRequest): string {
-  if (r.status !== "cancelled") return "";
-  if (r.closure_cause === "buyer_withdrew") return "closed by the buyer";
-  if (r.closure_cause === "listing_removed_by_seller")
-    return "closed by the seller removing the listing";
-  return "closed — cause not recorded";
-}
 
 const REMOVAL_REASON: Record<string, string> = {
   sold_in_store: "Sold in my store / privately",
@@ -952,18 +942,7 @@ export default async function ListingReviewPage({
               ) : null}
             </div>
             <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  border: `1px solid ${C.border}`,
-                  background: C.page,
-                  color: C.gold,
-                  padding: "3px 9px",
-                  fontSize: 11,
-                }}
-              >
-                {adminLabel(currentStatus)}
-              </span>
+              <AdminListingStatusMarker status={currentStatus} />
               {isPrivateIntended && (
                 <span
                   style={{
@@ -1457,21 +1436,10 @@ export default async function ListingReviewPage({
                         : "—"}
                     </td>
                     <td style={{ padding: "6px 8px" }}>
-                      <span
-                        style={{
-                          color:
-                            r.status === "accepted"
-                              ? C.green
-                              : r.status === "pending"
-                                ? C.gold
-                                : C.muted,
-                        }}
-                      >
-                        {r.status}
-                      </span>
-                      {closureSentence(r) && (
-                        <span style={{ color: C.faint }}> · {closureSentence(r)}</span>
-                      )}
+                      <AdminPurchaseRequestStatus
+                        status={r.status}
+                        closureCause={r.closure_cause}
+                      />
                     </td>
                   </tr>
                 ))}

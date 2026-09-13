@@ -16,16 +16,26 @@ const SUBMIT_OUTCOME_PRESENTATION: Record<SubmitOutcome, OutcomePresentation> = 
   unavailable: { text: "var(--platinum)", border: "var(--border-subtle)" },
 };
 
+export const PURCHASE_REQUEST_LIFECYCLE_STATUSES = [
+  "pending",
+  "accepted",
+  "declined",
+  "expired",
+  "cancelled",
+  "superseded",
+] as const;
 export type PurchaseRequestLifecycleStatus =
-  | "pending"
-  | "accepted"
-  | "declined"
-  | "expired"
-  | "cancelled"
-  | "superseded";
-type ClosureCause = "buyer_withdrew" | "listing_removed_by_seller" | "listing_deleted_by_seller";
+  (typeof PURCHASE_REQUEST_LIFECYCLE_STATUSES)[number];
 
-const CANCELLED_LIFECYCLE_COLORS: Record<ClosureCause, string> = {
+export const PURCHASE_REQUEST_CLOSURE_CAUSES = [
+  "buyer_withdrew",
+  "listing_removed_by_seller",
+  "listing_deleted_by_seller",
+] as const;
+export type PurchaseRequestClosureCause =
+  (typeof PURCHASE_REQUEST_CLOSURE_CAUSES)[number];
+
+const CANCELLED_LIFECYCLE_COLORS: Record<PurchaseRequestClosureCause, string> = {
   buyer_withdrew: "var(--slate)",
   listing_removed_by_seller: "var(--lc-rejected-badge)",
   listing_deleted_by_seller: "var(--lc-rejected-badge)",
@@ -48,14 +58,7 @@ export function purchaseRequestOutcomePresentation(
 }
 
 export function isPurchaseRequestLifecycleStatus(status: string): status is PurchaseRequestLifecycleStatus {
-  return (
-    status === "pending" ||
-    status === "accepted" ||
-    status === "declined" ||
-    status === "expired" ||
-    status === "cancelled" ||
-    status === "superseded"
-  );
+  return (PURCHASE_REQUEST_LIFECYCLE_STATUSES as readonly string[]).includes(status);
 }
 
 export function purchaseRequestLifecycleColor(

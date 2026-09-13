@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/ls1-b3-functional-copy.test.mjs && node scripts/ls2-accepted-purchase-payment-state-semantics.test.mjs && node --experimental-strip-types scripts/ls2-notification-state-semantics.test.mjs",
+    "prebuild": "node scripts/ls1-b3-functional-copy.test.mjs && node scripts/ls2-accepted-purchase-payment-state-semantics.test.mjs && node --experimental-strip-types scripts/ls2-notification-state-semantics.test.mjs && node --experimental-strip-types scripts/ls2-admin-status-parity.test.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

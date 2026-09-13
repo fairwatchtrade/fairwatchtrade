@@ -58,6 +58,9 @@
          inspecting a watch is standing at a silvered gallery wall, not
          sitting in a cinema, so that surface pins LIGHT while the page
          around it may be either.
+   - [data-admin-dark] is the separate route-family owner for /admin/*.
+     Admin has no Light product: its layout pins the entire operational
+     subtree dark without broadening the immersive-surface registry.
 
    Dark values are the original FairWatchTrade palette, unchanged.
    Light values follow the appearance order's targets: warm ivory
@@ -89,13 +92,18 @@ html[data-theme="dark"] { color-scheme: dark; }
   color: var(--platinum);
 }
 
+[data-admin-dark] {
+  color-scheme: dark;
+  color: var(--platinum);
+}
+
 /* light-dark() inside a CUSTOM PROPERTY resolves against the color-scheme
    of the element where the property is DECLARED — not where var() uses it
    (proven live on /vault: the wrapper's color-scheme alone left root-
-   declared tokens resolving light). So the token block is declared on the
-   immersive boundary as well: same single block, second declaring scope,
-   which re-resolves every token against the surface's pinned dark scheme. */
-:root, [data-immersive-dark], [data-inspection-light] {
+   declared tokens resolving light). So the same single token block is also
+   declared at each governed appearance boundary, where it re-resolves every
+   token against that surface or route family's pinned scheme. */
+:root, [data-immersive-dark], [data-inspection-light], [data-admin-dark] {
 
   /* ── READABILITY FLOOR RULES (v1.71 — global legibility pass) ──
      The bar is outdoor sunlight at full brightness, not a dark room.
@@ -893,7 +901,7 @@ html, body {
 
 /* ── MOBILE TYPOGRAPHY FLOOR ── */
 @media (max-width: 520px) {
-  :root, [data-immersive-dark], [data-inspection-light] {
+  :root, [data-immersive-dark], [data-inspection-light], [data-admin-dark] {
     /* Mobile legibility bump: each arm moves AWAY from its background —
        dark arm brighter (original #D8D4CC), light arm deeper. */
     --platinum-dim: light-dark(#34312A, #D8D4CC);

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { WRITABLE_STATUSES, isWritableStatus, type WritableStatus } from "@/lib/listingStatus";
+import AdminListingStatusMarker from "@/components/AdminListingStatusMarker";
+import {
+  WRITABLE_STATUSES,
+  adminLabel,
+  isWritableStatus,
+  type WritableStatus,
+} from "@/lib/listingStatus";
 
 /* ════════════════════════════════════════════════════════════════════════
    ListingStatusControls — components/ListingStatusControls.tsx
@@ -73,7 +79,7 @@ export default function ListingStatusControls({
     setStatus(currentStatus);
     setSelected(isStatusOption(currentStatus) ? currentStatus : "published");
     setFeedback((existing) =>
-      existing?.kind === "ok" && existing.text === `Status changed to "${currentStatus}".`
+      existing?.kind === "ok" && existing.text === `Status changed to "${adminLabel(currentStatus)}".`
         ? existing
         : null
     );
@@ -128,7 +134,7 @@ export default function ListingStatusControls({
         const applied = data.status ?? next;
         setStatus(applied);
         if (isStatusOption(applied)) setSelected(applied);
-        setFeedback({ kind: "ok", text: `Status changed to "${applied}".` });
+        setFeedback({ kind: "ok", text: `Status changed to "${adminLabel(applied)}".` });
         /* Founder finding (2026-08-12): this control and the adjudication
            panel below act on the same listing but each only updated itself,
            so the page header, the other panel, and the next-in-queue link
@@ -202,7 +208,7 @@ export default function ListingStatusControls({
         }}
       >
         <span style={label}>Listing status controls</span>
-        <span style={{ color: "#C9A84C", fontSize: 11 }}>{status}</span>
+        <AdminListingStatusMarker status={status} />
       </div>
 
       <div style={row}>
@@ -214,14 +220,14 @@ export default function ListingStatusControls({
         >
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {adminLabel(s)}
             </option>
           ))}
         </select>
 
         <button
           type="button"
-          onClick={() => apply(selected, `Change status to "${selected}"?`)}
+          onClick={() => apply(selected, `Change status to "${adminLabel(selected)}"?`)}
           disabled={applyDisabled}
           style={applyDisabled ? { ...btn, ...disabledBtn } : btn}
         >
