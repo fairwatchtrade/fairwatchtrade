@@ -153,7 +153,7 @@ assert.equal(prOwner.purchaseRequestLifecycleColor("cancelled", "listing_removed
 assert.equal(prOwner.purchaseRequestLifecycleColor("cancelled", "listing_deleted_by_seller"), "var(--lc-rejected-badge)");
 assert.equal(prOwner.purchaseRequestLifecycleColor("cancelled", null), undefined);
 assert.equal(prOwner.purchaseRequestLifecycleColor("expired", null), undefined);
-assert.equal(prOwner.PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR, "#d8a171");
+assert.equal("PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR" in prOwner, false);
 
 const prMarker = normalized("components/AdminPurchaseRequestStatus.tsx");
 assert.match(prMarker, /isPurchaseRequestLifecycleStatus\(status\)/);

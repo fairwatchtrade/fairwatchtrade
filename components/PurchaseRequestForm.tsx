@@ -4,9 +4,9 @@ import Link from "next/link";
 import { parsePrice } from "@/lib/parsePrice";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
+import PurchaseRequestFailureTruth from "@/components/PurchaseRequestFailureTruth";
 import { usePurchaseRequest } from "@/components/usePurchaseRequest";
 import {
-  PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR,
   purchaseRequestOutcomePresentation,
   purchaseRequestPresentation,
 } from "@/lib/purchaseRequestPresentation";
@@ -70,7 +70,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
     setMessage,
     busy,
     view,
-    formError,
+    failure,
     changed,
     submittedOffer,
     offerRef,
@@ -331,11 +331,7 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
                     </div>
                   </div>
 
-                  {formError && (
-                    <div className="mb-4 text-[11px] leading-[1.45]" style={{ color: PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR }}>
-                      {formError}
-                    </div>
-                  )}
+                  {failure && <PurchaseRequestFailureTruth failure={failure} className="mb-4" />}
 
                   {/* submit row: OUTLINED gold action + non-checkout truth */}
                   <div className="flex flex-col gap-4 border-t border-[var(--border-faint)] pt-5 sm:flex-row sm:items-center">

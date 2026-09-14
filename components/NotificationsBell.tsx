@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notificationHref, type NotificationRow } from "@/lib/communications";
+import {
+  applyConfirmedNotificationRead,
+  notificationLoadFailureState,
+  resolveNotificationLoad,
+  type NotificationLoadState,
+} from "@/lib/notificationFailureTruth";
 import NotificationBellButton from "@/components/NotificationBellButton";
 import NotificationRowPresentation from "@/components/NotificationRowPresentation";
 
@@ -52,29 +58,60 @@ function formatRelativeTime(iso: string): string {
 export default function NotificationsBell({
   initialUnreadCount,
 }: NotificationsBellProps) {
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [inbox, setInbox] = useState<{
+    notifications: Notification[];
+    unreadCount: number;
+  }>({ notifications: [], unreadCount: initialUnreadCount });
+  const [loadState, setLoadState] = useState<NotificationLoadState>("loading");
+  const [mutationNotice, setMutationNotice] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hasConfirmedLoad = useRef(false);
+  const loadSequence = useRef(0);
+  const notificationMutationGeneration = useRef(0);
+  const notificationMutationInFlight = useRef(false);
+  const { notifications, unreadCount } = inbox;
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
+    const mutationGeneration = notificationMutationGeneration.current;
+    const isCurrentTruthRequest = () =>
+      sequence === loadSequence.current &&
+      mutationGeneration === notificationMutationGeneration.current;
     try {
       const res = await fetch("/api/notifications", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("notifications_unavailable");
       const data = await res.json();
-      if (Array.isArray(data.notifications)) setNotifications(data.notifications);
-      if (typeof data.unread_count === "number") setUnreadCount(data.unread_count);
+      const result = resolveNotificationLoad<Notification>(
+        Array.isArray(data.notifications) ? data.notifications : null,
+        typeof data.unread_count === "number" ? data.unread_count : null,
+        null,
+        null,
+      );
+      if (!result.ok) throw new Error(result.error);
+      if (!isCurrentTruthRequest()) return;
+      setInbox({
+        notifications: result.notifications,
+        unreadCount: result.unreadCount,
+      });
+      hasConfirmedLoad.current = true;
+      setLoadState("ready");
+      setMutationNotice(null);
     } catch {
-      // A failed poll just means we try again in 30s.
+      if (!isCurrentTruthRequest()) return;
+      setLoadState(notificationLoadFailureState(hasConfirmedLoad.current));
     }
   }, []);
 
   // Populate the list on mount, then poll every 30s. The badge starts from the
   // server prop, so the mount fetch corrects rather than flashes.
   useEffect(() => {
-    load();
+    const initialId = window.setTimeout(load, 0);
     const id = setInterval(load, POLL_MS);
-    return () => clearInterval(id);
+    return () => {
+      window.clearTimeout(initialId);
+      clearInterval(id);
+    };
   }, [load]);
 
   // Close on outside click.
@@ -91,32 +128,56 @@ export default function NotificationsBell({
 
   async function markRead(ids: string[]) {
     if (ids.length === 0) return;
-    setNotifications((prev) =>
-      prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
-    );
-    setUnreadCount((c) => Math.max(0, c - ids.length));
+    if (notificationMutationInFlight.current) return;
+    notificationMutationInFlight.current = true;
+    notificationMutationGeneration.current += 1;
     try {
-      await fetch("/api/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       });
+      if (!res.ok) throw new Error("notification_update_unconfirmed");
+      notificationMutationGeneration.current += 1;
+      setInbox((current) =>
+        applyConfirmedNotificationRead(
+          current.notifications,
+          current.unreadCount,
+          ids,
+        ),
+      );
     } catch {
-      // Optimistic — the next poll reconciles.
+      notificationMutationGeneration.current += 1;
+      setMutationNotice("Couldn't confirm that change. Notifications will refresh.");
+    } finally {
+      notificationMutationInFlight.current = false;
     }
   }
 
   async function markAllRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnreadCount(0);
+    if (notificationMutationInFlight.current) return;
+    notificationMutationInFlight.current = true;
+    notificationMutationGeneration.current += 1;
     try {
-      await fetch("/api/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ all: true }),
       });
+      if (!res.ok) throw new Error("notification_update_unconfirmed");
+      notificationMutationGeneration.current += 1;
+      setInbox((current) =>
+        applyConfirmedNotificationRead(
+          current.notifications,
+          current.unreadCount,
+          "all",
+        ),
+      );
     } catch {
-      // Optimistic — the next poll reconciles.
+      notificationMutationGeneration.current += 1;
+      setMutationNotice("Couldn't confirm that change. Notifications will refresh.");
+    } finally {
+      notificationMutationInFlight.current = false;
     }
   }
 
@@ -143,12 +204,50 @@ export default function NotificationsBell({
             )}
           </div>
 
+          {loadState === "stale" && (
+            <div className="border-b border-[var(--border-faint)] px-4 py-3" role="status">
+              <p className="fw-functional-copy text-[var(--platinum-dim)]">
+                Couldn&apos;t refresh notifications. Showing the last loaded list.
+              </p>
+              <button
+                type="button"
+                onClick={load}
+                className="mt-2 fw-compact-control uppercase text-[var(--gold)]"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {mutationNotice && (
+            <div className="border-b border-[var(--border-faint)] px-4 py-3 fw-functional-copy text-[var(--platinum-dim)]" role="status">
+              {mutationNotice}
+            </div>
+          )}
+
           <div className="max-h-[360px] overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loadState === "loading" ? (
+              <div className="px-4 py-6 text-center fw-functional-copy text-[var(--muted)]">
+                Loading notifications…
+              </div>
+            ) : loadState === "failed_initial" ? (
+              <div className="px-4 py-6 text-center" role="alert">
+                <p className="fw-functional-copy text-[var(--platinum-dim)]">
+                  Notifications couldn&apos;t be loaded right now.
+                </p>
+                <button
+                  type="button"
+                  onClick={load}
+                  className="mt-3 fw-compact-control uppercase text-[var(--gold)]"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : loadState === "ready" && notifications.length === 0 ? (
               <div className="px-4 py-6 text-center fw-functional-copy text-[var(--muted)]">
                 No notifications yet.
               </div>
-            ) : (
+            ) : notifications.length > 0 ? (
               notifications.map((n) => {
                 const inner = (
                   <NotificationRowPresentation notification={n} timeLabel={formatRelativeTime(n.created_at)} />
@@ -160,7 +259,7 @@ export default function NotificationsBell({
                     key={n.id}
                     href={href}
                     onClick={() => {
-                      if (!n.read) markRead([n.id]);
+                      if (!n.read) void markRead([n.id]);
                       setOpen(false);
                     }}
                     className="block border-b border-[var(--border-faint)] transition-colors last:border-b-0 hover:bg-[var(--hover-wash)]"
@@ -172,7 +271,7 @@ export default function NotificationsBell({
                     key={n.id}
                     type="button"
                     onClick={() => {
-                      if (!n.read) markRead([n.id]);
+                      if (!n.read) void markRead([n.id]);
                     }}
                     className="block w-full border-b border-[var(--border-faint)] text-left transition-colors last:border-b-0 hover:bg-[var(--hover-wash)]"
                   >
@@ -180,7 +279,7 @@ export default function NotificationsBell({
                   </button>
                 );
               })
-            )}
+            ) : null}
           </div>
         </div>
       )}

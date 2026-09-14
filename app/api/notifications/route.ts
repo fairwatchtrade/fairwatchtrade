@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveNotificationLoad } from "@/lib/notificationFailureTruth";
 import { createClient } from "@/lib/supabase/server";
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -42,19 +43,23 @@ export async function GET() {
     .limit(20);
 
   // Accurate total unread — separate from the recent-20 window above.
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
     .eq("read", false);
 
-  if (error) {
-    return NextResponse.json({ notifications: [], unread_count: count ?? 0 });
+  const result = resolveNotificationLoad(data, count, error, countError);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: "notifications_unavailable" },
+      { status: 503 },
+    );
   }
 
   return NextResponse.json({
-    notifications: data ?? [],
-    unread_count: count ?? 0,
+    notifications: result.notifications,
+    unread_count: result.unreadCount,
   });
 }
 

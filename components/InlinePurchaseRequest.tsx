@@ -4,9 +4,9 @@ import { useEffect, useId, useRef } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/formatMoney";
 import { currencyMeta } from "@/lib/supportedCurrencies";
+import PurchaseRequestFailureTruth from "@/components/PurchaseRequestFailureTruth";
 import { useListingPurchaseRequest } from "@/components/ListingPurchaseRequestProvider";
 import {
-  PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR,
   purchaseRequestOutcomePresentation,
   purchaseRequestPresentation,
 } from "@/lib/purchaseRequestPresentation";
@@ -56,7 +56,7 @@ export default function InlinePurchaseRequest({
      during render. */
   const {
     offer, setOffer, message, setMessage, busy, view, open, setOpen,
-    formError, changed, submittedOffer, offerRef, parsed,
+    failure, changed, submittedOffer, offerRef, parsed,
     showOfferError, offerErrorText, submit, keepEditing, restoreDraft,
   } = useListingPurchaseRequest(listingId);
   const currency = currencyMeta(askingCurrency);
@@ -298,11 +298,7 @@ export default function InlinePurchaseRequest({
             className="fw-correspondence h-[86px] resize-y"
           />
 
-          {formError && (
-            <div className="mt-3 text-[11px] leading-[1.45]" style={{ color: PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR }}>
-              {formError}
-            </div>
-          )}
+          {failure && <PurchaseRequestFailureTruth failure={failure} className="mt-3" />}
 
           <p className="mt-4 text-[11px] leading-[1.55] text-[var(--muted)]">
             No payment is collected at this step. Sending a purchase request does not complete the

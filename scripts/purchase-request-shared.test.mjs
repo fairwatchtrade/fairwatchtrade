@@ -16,7 +16,6 @@ import { readFileSync } from "node:fs";
 import {
   classifyPurchaseResponse,
   draftKeyFor,
-  GENERIC_SUBMIT_ERROR,
 } from "../lib/purchaseRequest.ts";
 
 let passed = 0;
@@ -63,17 +62,17 @@ check("404 and 409 listing_unavailable mean the same thing", () => {
   );
 });
 
-check("duplicate, own-listing and currency-unset are form-level truths", () => {
+check("duplicate, own-listing and currency-unset are known product rejections", () => {
   const dup = classifyPurchaseResponse(409, { error: "duplicate_request" }, 9000);
-  assert.equal(dup.kind, "form_error");
+  assert.equal(dup.kind, "product_rejection");
   assert.match(dup.detail, /already have a pending request/i);
 
   const own = classifyPurchaseResponse(403, null, 9000);
-  assert.equal(own.kind, "form_error");
+  assert.equal(own.kind, "product_rejection");
   assert.match(own.detail, /your own listing/i);
 
   const cur = classifyPurchaseResponse(409, { error: "listing_currency_unset" }, 9000);
-  assert.equal(cur.kind, "form_error");
+  assert.equal(cur.kind, "product_rejection");
   assert.match(cur.detail, /currency/i);
 });
 
@@ -90,10 +89,13 @@ check("a server detail overrides the default wording", () => {
   assert.equal(out.detail, "You already asked about this watch on 3 August.");
 });
 
-check("an unrecognised failure is honest, not silent", () => {
+check("an unrecognised failure is submission-unconfirmed truth", () => {
   const out = classifyPurchaseResponse(500, null, 9000);
-  assert.deepEqual(out, { kind: "form_error", detail: GENERIC_SUBMIT_ERROR });
-  assert.equal(classifyPurchaseResponse(418, { error: "teapot" }, 9000).kind, "form_error");
+  assert.deepEqual(out, { kind: "submission_unconfirmed" });
+  assert.equal(
+    classifyPurchaseResponse(418, { error: "teapot" }, 9000).kind,
+    "submission_unconfirmed"
+  );
 });
 
 check("drafts are listing-scoped", () => {
@@ -270,7 +272,7 @@ check("the seller's real name is read from the public view, not profiles", () =>
 check("the optional helper is no longer an 8px ghost", () => {
   for (const f of ["components/InlinePurchaseRequest.tsx", "components/PurchaseRequestForm.tsx"]) {
     const src = read(f);
-    const m = src.match(/text-\[(\d+)px\][^>]*>\s*— optional/);
+    const m = src.match(/text-\[(\d+)px\][^>]*>[\s\S]{0,700}?— optional/);
     assert.ok(m, `${f}: optional helper not found`);
     assert.ok(Number(m[1]) >= 10, `${f}: optional helper still ${m[1]}px`);
   }

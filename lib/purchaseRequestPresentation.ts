@@ -1,7 +1,3 @@
-/* formError still mixes product rejections with network/unknown-outcome
-   failure, so its legacy color remains an LS-4-adjacent stop. */
-export const PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR = "#d8a171";
-
 export const purchaseRequestPresentation = {
   validation: { text: "var(--slate)", border: "var(--gold-dim)" },
 } as const;

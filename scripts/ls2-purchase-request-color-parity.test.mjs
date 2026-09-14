@@ -24,19 +24,14 @@ const controller = "components/usePurchaseRequest.ts";
 const classifier = "lib/purchaseRequest.ts";
 
 /* One Purchase Request-specific owner governs field validation on both form
-   surfaces. The amber literal survives exactly once for the stopped mixed
-   formError family; it no longer owns field validation text or borders. */
-includes(
-  owner,
-  'export const PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR = "#d8a171";',
-  "keeps the LS4-adjacent mixed formError color byte-for-byte",
-);
+   surfaces. LS-4 retired the mixed formError bucket and its amber debt; that
+   removal must not alter the governed validation or lifecycle recipes. */
 includes(
   owner,
   'validation: { text: "var(--slate)", border: "var(--gold-dim)" }',
   "owns the exact restrained validation text and boundary recipe",
 );
-assert.equal(occurrences(owner, "#d8a171"), 1, "the sole owner amber literal is the stopped mixed formError color");
+assert.equal(occurrences(owner, "#d8a171"), 0, "the retired mixed formError amber does not survive LS-4");
 assert.ok(!source(owner).includes("PURCHASE_REQUEST_LEGACY_FULL_FIELD_BORDER"), "no legacy full-form field border remains");
 
 const validationConsumers = {
@@ -76,7 +71,7 @@ for (const [surface, { path, neutralBorder, textBinding }] of Object.entries(val
   );
   assert.equal((read(path).match(/#d8a171/gi) ?? []).length, 0, `${path}: has no component-local amber literal`);
   assert.ok(!source(path).includes("PURCHASE_REQUEST_LEGACY_FULL_FIELD_BORDER"), `${path}: has no legacy full-border escape hatch`);
-  includes(path, "PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR", `${surface} mixed formError remains on the explicit stop constant`);
+  assert.ok(!source(path).includes("PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR"), `${path}: retired mixed error color is absent`);
 }
 
 /* The semantic owner has exactly three governed submit outcomes. Expiry and
@@ -169,60 +164,55 @@ for (const component of ["components/CatalogueClient.tsx", "components/Communica
 assert.ok(!source("components/CatalogueClient.tsx").includes("type OfferTone"), "Catalogue has no inert local tone map");
 assert.ok(!source("components/CommunicationsRoom.tsx").includes('listing_removed_by_seller") { return "var(--muted)"'), "Communications has no local muted seller-removal drift");
 
-/* Error-taxonomy proof. There are exactly two error-shaped controller
-   outcomes: field_error is distinct; form_error intentionally mixes product
-   rejections with the generic/unknown fallback. A network catch bypasses the
-   classifier but feeds the same formError state. No distinct system,
-   network, or transaction failure emitter exists for LS2 to recolor. */
+/* LS-4 resolved the taxonomy debt without reopening LS-2 color semantics:
+   field validation remains governed here, while structurally distinct
+   product-rejection and unconfirmed-delivery truth stay neutral. */
 const outcomeTypeBody = read(classifier).match(
-  /export type PurchaseRequestOutcome\s*=([\s\S]*?);\r?\n\r?\nexport const GENERIC_SUBMIT_ERROR/,
+  /export type PurchaseRequestOutcome\s*=([\s\S]*?);\r?\n\r?\nexport type PurchaseRequestFailure/,
 );
 assert.ok(outcomeTypeBody, `${classifier}: PurchaseRequestOutcome union is present`);
 const outcomeKinds = [...outcomeTypeBody[1].matchAll(/kind:\s*"([a-z_]+)"/g)].map((match) => match[1]);
 assert.deepEqual(
   outcomeKinds,
-  ["success", "expired", "unavailable", "changed", "form_error", "field_error"],
-  "controller outcome taxonomy is exact and has no system/network/transaction failure kind",
-);
-assert.deepEqual(
-  outcomeKinds.filter((kind) => kind.endsWith("_error")),
-  ["form_error", "field_error"],
-  "field_error is the only error outcome distinct from the mixed form_error family",
+  ["success", "expired", "unavailable", "changed", "product_rejection", "submission_unconfirmed", "field_error"],
+  "controller outcome taxonomy keeps LS-2 governed states and the LS-4 truth split exact",
 );
 
-const formErrorClassifierBranches = {
-  duplicate_request: 'if (status === 409 && err === "duplicate_request") { return { kind: "form_error"',
-  own_listing: 'if (status === 403) { return { kind: "form_error"',
-  currency_unset: 'if (status === 409 && err === "listing_currency_unset") { return { kind: "form_error"',
-  unknown_http: 'return { kind: "form_error", detail: GENERIC_SUBMIT_ERROR };',
+const failureClassifierBranches = {
+  duplicate_request: 'if (status === 409 && err === "duplicate_request") { return { kind: "product_rejection"',
+  own_listing: 'if (status === 403) { return { kind: "product_rejection"',
+  currency_unset: 'if (status === 409 && err === "listing_currency_unset") { return { kind: "product_rejection"',
+  unknown_http: 'return { kind: "submission_unconfirmed" };',
 };
 assert.deepEqual(
-  Object.keys(formErrorClassifierBranches),
+  Object.keys(failureClassifierBranches),
   ["duplicate_request", "own_listing", "currency_unset", "unknown_http"],
-  "the mixed classifier branch ledger is exact",
+  "the LS-4 classifier branch ledger is exact",
 );
-for (const [failure, branch] of Object.entries(formErrorClassifierBranches)) {
-  includes(classifier, branch, `${failure} feeds form_error`);
+for (const [failure, branch] of Object.entries(failureClassifierBranches)) {
+  includes(classifier, branch, `${failure} feeds its truthful outcome`);
 }
 includes(
   classifier,
   'if (status === 400 && err === "invalid_amount") { return { kind: "field_error"',
   "server invalid_amount is the distinct field_error branch",
 );
-includes(controller, 'case "form_error": setFormError(outcome.detail);', "classified form_error feeds formError");
+includes(controller, 'case "product_rejection": setFailure(outcome);', "known rejection remains explicit in the failure union");
+includes(
+  controller,
+  'case "submission_unconfirmed": persistDraft(); setFailure(outcome);',
+  "unconfirmed delivery remains explicit and preserves the verification handoff draft",
+);
 includes(controller, 'case "field_error": setFieldError(outcome.detail);', "classified field_error feeds fieldError");
-includes(controller, "const [formError, setFormError] = useState<string | null>(null);", "controller exposes one mixed formError state");
+includes(controller, "const [failure, setFailure] = useState<PurchaseRequestFailure | null>(null);", "controller exposes the explicit failure union");
 includes(controller, "const [fieldError, setFieldError] = useState<string | null>(null);", "controller exposes one distinct fieldError state");
 includes(controller, 'if (!p.ok) { setFieldError(', "client parsing feeds the distinct fieldError state");
 includes(
   controller,
-  '} catch { setFormError("Something went wrong sending your request. Please try again.");',
-  "network failure feeds the same mixed formError state",
+  '} catch { apply({ kind: "submission_unconfirmed" });',
+  "network failure feeds unconfirmed-delivery truth",
 );
-assert.ok(
-  !/(systemError|networkError|transactionError|system_error|network_error|transaction_error)/.test(`${source(classifier)} ${source(controller)}`),
-  "there is no separately emitted system/network/transaction failure state",
-);
+assert.ok(!source(controller).includes("formError"), "the mixed formError state is retired");
 
 /* Protected controller/classifier/copy and global-token anchors. Exact token
    values also bind the actual-surface arithmetic below to production CSS. */
@@ -252,14 +242,9 @@ for (const declaration of [
   "--lc-rejected-badge:",
 ]) includes("app/globals.css", declaration, `global token remains unchanged: ${declaration}`);
 
-/* Exact stop ledger: the same two unresolved state families appear on both
-   rendering surfaces. They are stopped for different reasons and are not
-   counted as governed outcomes. */
+/* Exact stop ledger: LS-4 retired the mixed-error stop. Governance-pending
+   expiry remains the sole unresolved color-semantic family. */
 const stopLedger = {
-  ls4_adjacent_mixed_form_error: {
-    full: [fullForm, "PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR"],
-    inline: [inlineForm, "PURCHASE_REQUEST_LEGACY_FORM_ERROR_COLOR"],
-  },
   governance_pending_expired: {
     full: [fullForm, 'view === "expired"'],
     inline: [inlineForm, 'view === "expired"'],
@@ -267,17 +252,16 @@ const stopLedger = {
 };
 assert.deepEqual(
   Object.keys(stopLedger),
-  ["ls4_adjacent_mixed_form_error", "governance_pending_expired"],
-  "the exact stop families are mixed formError and governance-pending expiry",
+  ["governance_pending_expired"],
+  "governance-pending expiry is the sole remaining stop family",
 );
 for (const [family, surfaces] of Object.entries(stopLedger)) {
   assert.deepEqual(Object.keys(surfaces), ["full", "inline"], `${family}: stop applies to exactly both form surfaces`);
   for (const [surface, [path, expected]] of Object.entries(surfaces)) includes(path, expected, `${family}: ${surface} stop remains`);
 }
 
-/* Exact fixture/Human SEE-it debt. Each surface needs controlled coverage for
-   all four post-submit views. The mixed formError entry includes its
-   system/network-shaped members precisely because no distinct emitter exists. */
+/* Exact fixture debt. LS-4 adds distinct product-rejection and unconfirmed
+   delivery fixtures on each renderer without changing the LS-2 states. */
 const fixtureLedger = {
   full: {
     field_validation: [fullForm, "showOfferError ?"],
@@ -285,7 +269,8 @@ const fixtureLedger = {
     changed: [fullForm, 'view === "changed"'],
     unavailable: [fullForm, 'view === "unavailable"'],
     expired: [fullForm, 'view === "expired"'],
-    mixed_form_error_including_system_failure: [fullForm, "formError &&"],
+    product_rejection: [fullForm, "failure &&"],
+    submission_unconfirmed: [fullForm, "failure &&"],
   },
   inline: {
     field_validation: [inlineForm, "showOfferError ?"],
@@ -293,14 +278,15 @@ const fixtureLedger = {
     changed: [inlineForm, 'view === "changed"'],
     unavailable: [inlineForm, 'view === "unavailable"'],
     expired: [inlineForm, 'view === "expired"'],
-    mixed_form_error_including_system_failure: [inlineForm, "formError &&"],
+    product_rejection: [inlineForm, "failure &&"],
+    submission_unconfirmed: [inlineForm, "failure &&"],
   },
 };
 assert.deepEqual(Object.keys(fixtureLedger), ["full", "inline"], "fixture debt covers exactly both Purchase Request renderers");
 for (const [surface, states] of Object.entries(fixtureLedger)) {
   assert.deepEqual(
     Object.keys(states),
-    ["field_validation", "success", "changed", "unavailable", "expired", "mixed_form_error_including_system_failure"],
+    ["field_validation", "success", "changed", "unavailable", "expired", "product_rejection", "submission_unconfirmed"],
     `${surface}: exact fixture state ledger`,
   );
   for (const [state, [path, expected]] of Object.entries(states)) {
@@ -492,5 +478,5 @@ assert.ok(
 );
 
 console.log(
-  "LS2 Purchase Request color parity contract PASS: 3 governed submit states across 2 surfaces; 2 stopped state families; 12 fixture-bound surface/state entries.",
+  "LS2 Purchase Request color parity contract PASS: 3 governed submit states across 2 surfaces; expiry remains stopped; LS-4 failure truth stays neutral.",
 );

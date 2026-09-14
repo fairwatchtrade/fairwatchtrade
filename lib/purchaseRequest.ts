@@ -23,13 +23,17 @@ export type PurchaseRequestOutcome =
   | { kind: "unavailable" }
   /** The seller moved the asking price mid-session. Nothing was sent. */
   | { kind: "changed"; old: number; current: number }
-  /** A form-level truth — duplicate request, own listing, currency unset. */
-  | { kind: "form_error"; detail: string }
+  /** The server proved the request was refused before creation. */
+  | { kind: "product_rejection"; detail: string }
+  /** Delivery/creation could not be established either way. */
+  | { kind: "submission_unconfirmed" }
   /** Belongs beside the amount field, which takes focus. */
   | { kind: "field_error"; detail: string };
 
-export const GENERIC_SUBMIT_ERROR =
-  "Something went wrong sending your request. Please try again.";
+export type PurchaseRequestFailure = Extract<
+  PurchaseRequestOutcome,
+  { kind: "product_rejection" | "submission_unconfirmed" }
+>;
 
 /** Session-scoped, listing-scoped. Never carries across listings or sessions. */
 export function draftKeyFor(listingId: string): string {
@@ -81,14 +85,14 @@ export function classifyPurchaseResponse(
 
   if (status === 409 && err === "duplicate_request") {
     return {
-      kind: "form_error",
+      kind: "product_rejection",
       detail: detailOf(data) ?? "You already have a pending request on this listing.",
     };
   }
 
   if (status === 403) {
     return {
-      kind: "form_error",
+      kind: "product_rejection",
       detail: detailOf(data) ?? "You can't request your own listing.",
     };
   }
@@ -97,7 +101,7 @@ export function classifyPurchaseResponse(
      rather than a fault with the amount the buyer typed. */
   if (status === 409 && err === "listing_currency_unset") {
     return {
-      kind: "form_error",
+      kind: "product_rejection",
       detail:
         detailOf(data) ??
         "This listing's currency has not been recorded yet, so it can't receive an offer.",
@@ -111,5 +115,5 @@ export function classifyPurchaseResponse(
     };
   }
 
-  return { kind: "form_error", detail: GENERIC_SUBMIT_ERROR };
+  return { kind: "submission_unconfirmed" };
 }

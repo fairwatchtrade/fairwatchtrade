@@ -5,6 +5,7 @@ import { parsePrice } from "@/lib/parsePrice";
 import {
   classifyPurchaseResponse,
   draftKeyFor,
+  type PurchaseRequestFailure,
   type PurchaseRequestOutcome,
 } from "@/lib/purchaseRequest";
 
@@ -61,7 +62,7 @@ export function usePurchaseRequest(
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<PurchaseRequestView>("form");
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<PurchaseRequestFailure | null>(null);
   const [changed, setChanged] = useState<{ old: number; current: number } | null>(null);
   const [submittedOffer, setSubmittedOffer] = useState<number | null>(null);
   const offerRef = useRef<HTMLInputElement>(null);
@@ -167,8 +168,12 @@ export function usePurchaseRequest(
           setChanged({ old: outcome.old, current: outcome.current });
           setView("changed");
           return;
-        case "form_error":
-          setFormError(outcome.detail);
+        case "product_rejection":
+          setFailure(outcome);
+          return;
+        case "submission_unconfirmed":
+          persistDraft();
+          setFailure(outcome);
           return;
         case "field_error":
           setFieldError(outcome.detail);
@@ -181,7 +186,7 @@ export function usePurchaseRequest(
 
   const submit = useCallback(async () => {
     setFieldError(null);
-    setFormError(null);
+    setFailure(null);
     const p = parsePrice(offer, listing.askingCurrency);
     if (!p.ok) {
       setFieldError(p.reason === "empty" ? "Enter your offer." : p.message);
@@ -204,7 +209,7 @@ export function usePurchaseRequest(
       const data = res.status === 401 ? null : await res.json().catch(() => null);
       apply(classifyPurchaseResponse(res.status, data, p.amount));
     } catch {
-      setFormError("Something went wrong sending your request. Please try again.");
+      apply({ kind: "submission_unconfirmed" });
     } finally {
       setBusy(false);
     }
@@ -223,7 +228,7 @@ export function usePurchaseRequest(
     busy,
     view,
     fieldError,
-    formError,
+    failure,
     changed,
     submittedOffer,
     offerRef,

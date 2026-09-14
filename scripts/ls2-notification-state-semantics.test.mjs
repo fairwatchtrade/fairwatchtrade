@@ -72,7 +72,7 @@ assert.match(bell, /<NotificationBellButton unreadCount=\{unreadCount\} expanded
 assert.match(bellButton, /const \{ hasUnread, visibleBadge, ariaLabel \} = notificationCountPresentation\(unreadCount\);/);
 assert.match(bellButton, /aria-label=\{ariaLabel\}/);
 assert.match(bellButton, /\{visibleBadge\}/);
-assert.match(bell, /if \(!n\.read\) markRead\(\[n\.id\]\)/, "row activation still owns mark-read in the live bell");
+assert.match(bell, /if \(!n\.read\) void markRead\(\[n\.id\]\)/, "row activation still owns mark-read in the live bell");
 assert.match(bell, /const href = notificationHref\(n\)/, "routing remains in the live bell");
 assert.match(bell, /setInterval\(load, POLL_MS\)/, "30-second polling remains in the live bell");
 assert.match(bell, /method: "PATCH"/, "PATCH remains in the live bell");
@@ -107,7 +107,7 @@ for (const anchor of [
   "NotificationRowPresentation",
   "NotificationBellButton",
   "COUNT_CUE_MISMATCH",
-  "LS-4-ADJACENT / NO DISTINCT USER STATE",
+  "LS-4 RESOLVED SEPARATELY",
 ]) assert.ok(gallery.includes(anchor), `${galleryPath}: ${anchor}`);
 
 assert.doesNotMatch(

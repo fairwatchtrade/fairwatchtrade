@@ -238,7 +238,7 @@ export default async function NotificationStateGalleryPage() {
             The aggregate count covers every unread notification, while the panel shows only its 20 most recent rows. The deliberate mismatch card proves that older unread truth can sit outside that visible window without becoming a contradiction. Use <Link className="underline underline-offset-2 hover:text-[var(--platinum)]" href="/account/settings">Account Settings</Link> for Light/Dark inspection and this URL on the physical XCover for narrow proof.
           </p>
           <p className="mt-2 max-w-3xl text-[12px] leading-relaxed text-[var(--muted)]">
-            LS-4-ADJACENT / NO DISTINCT USER STATE: fetch and Mark-all failures are currently swallowed and reconciled by polling. This LS-2 gallery invents no error copy or color.
+            LS-4 RESOLVED SEPARATELY: the live bell now distinguishes initial-load failure, stale refresh, and unconfirmed read mutations. This LS-2 gallery remains limited to read/unread semantic presentation and invents no failure color.
           </p>
         </header>
 
