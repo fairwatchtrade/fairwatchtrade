@@ -203,7 +203,7 @@ export default function NavBar({
             a flex item defaults to min-width:auto and will refuse to go below
             its content, which is what forced the fixed cap on the name
             below. */}
-        <div className="hidden min-w-0 items-center gap-6 shell:flex">
+        <div data-desktop-navigation="" className="hidden min-w-0 items-center gap-6 shell:flex">
           {/* Four words, identical in both auth states.
 
               The label size is 13.7px: the 12px this row carried for its
@@ -381,6 +381,7 @@ export default function NavBar({
         {/* Mobile hamburger */}
         <button
           ref={hamburgerRef}
+          data-mobile-navigation-trigger=""
           type="button"
           aria-label="Open menu"
           aria-expanded={open}

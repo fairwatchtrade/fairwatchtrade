@@ -11,14 +11,18 @@ const specs = read("components/ListingSpecs.tsx");
 const rail = read("components/ListingActionRail.tsx");
 const inlineForm = read("components/InlinePurchaseRequest.tsx");
 
-test("Watch Detail alone suppresses the metals ribbon below the 56rem handoff", () => {
+test("MarketBar is Home-only below sm and Watch Detail stays absent below 56rem", () => {
   assert.match(market, /import \{ usePathname \} from "next\/navigation"/);
   assert.ok(
     market.includes('const isWatchDetail = /^\\/listings\\/[^/]+\\/?$/.test(pathname);'),
     "the route gate is limited to a concrete listing detail path",
   );
+  assert.ok(market.includes('const isHome = pathname === "/";'), "the route gate recognizes Home exactly");
   assert.match(market, /data-market-bar=""/);
-  assert.match(market, /isWatchDetail \? "hidden min-\[56rem\]:block" : ""/);
+  assert.match(
+    market,
+    /isWatchDetail\s*\? "hidden min-\[56rem\]:block"\s*:\s*isHome\s*\? ""\s*:\s*"hidden sm:block"/,
+  );
   assert.match(market, /setInterval\(\(\) => setNow\(Date\.now\(\)\), 30000\)/);
 });
 

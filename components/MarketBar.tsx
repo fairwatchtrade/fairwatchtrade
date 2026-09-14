@@ -40,7 +40,16 @@ function countdown(ms: number) {
 
 export default function MarketBar() {
   const pathname = usePathname();
+  const isHome = pathname === "/";
   const isWatchDetail = /^\/listings\/[^/]+\/?$/.test(pathname);
+  /* LS-5 route geography. Below sm the metals strip is Home-only; ordinary
+     non-Home routes regain their existing strip at sm, while Watch Detail's
+     stronger 56rem handoff remains the owner of that route at every width. */
+  const visibilityClass = isWatchDetail
+    ? "hidden min-[56rem]:block"
+    : isHome
+      ? ""
+      : "hidden sm:block";
   const metals = useMetals();
   const [auctions, setAuctions] = useState<Auction[]>([]);
   // v2.4z — initialize with REAL time. useState(0) meant the first render
@@ -94,7 +103,7 @@ export default function MarketBar() {
   return (
     <div
       data-market-bar=""
-      className={`${isWatchDetail ? "hidden min-[56rem]:block" : ""} w-full border-b border-[var(--border-mid)] bg-[var(--surface)]`}
+      className={`${visibilityClass} w-full border-b border-[var(--border-mid)] bg-[var(--surface)]`}
     >
       {/* RULED: this strip shares the masthead's outer geometry - no width
           cap, px-6 gutters. It had been capped at max-w-screen-2xl and
