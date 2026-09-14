@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import {
   dealerProfileMetadata,
   individualSellerMetadata,
   unknownSellerMetadata,
+  unpublishedDealerProfileMetadata,
 } from "@/lib/seo/routeMetadata";
 import BrowseClient, {
   type DealerBrowseScope,
@@ -22,6 +24,7 @@ type DealerProfile = {
   logo_url: string | null;
   location: string | null;
   tagline: string | null;
+  public_room_enabled: boolean;
 };
 
 function qualityTextFor(scores: number[]): string | null {
@@ -42,28 +45,33 @@ function isUuid(value: string): boolean {
 
 type SellerDb = Awaited<ReturnType<typeof createClient>>;
 
-// A Dealer Room is the dealer branch of the existing public seller route.
-// UUID links remain compatible, but resolve to the stable public slug.
-// Shared by the page and generateMetadata so both answer "is this seller a
-// dealer?" from the one governed row — dealer_profiles — and from nothing
-// else: not a business-sounding name, not imported media, not volume.
+const ADMIN_USER_ID = "77a6893a-54fe-4373-9bf7-3327d0ba69cf";
+
+// Session RLS reads public rooms and the owner's private identity. Only the
+// authenticated founder may fall back to a trusted read for private preview.
 async function resolveDealer(supabase: SellerDb, id: string): Promise<DealerProfile | null> {
-  const dealerQuery = supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  const readDealer = async (db: SellerDb) => {
+    const dealerQuery = db
     .from("dealer_profiles")
-    .select("seller_id,slug,business_name,logo_url,location,tagline");
-  const { data } = isUuid(id)
+    .select("seller_id,slug,business_name,logo_url,location,tagline,public_room_enabled");
+    const { data, error } = isUuid(id)
     ? await dealerQuery.eq("seller_id", id).maybeSingle()
     : await dealerQuery.eq("slug", id.toLowerCase()).maybeSingle();
-  return (data as DealerProfile | null) ?? null;
+    if (error) throw new Error("Dealer Room identity could not be confirmed");
+    return (data as DealerProfile | null) ?? null;
+  };
+  let dealer = await readDealer(supabase);
+  if (!dealer && user?.id === ADMIN_USER_ID) {
+    dealer = await readDealer(createServiceClient());
+  }
+  if (!dealer) return null;
+  return dealer.public_room_enabled === true || user?.id === dealer.seller_id || user?.id === ADMIN_USER_ID
+    ? dealer : null;
 }
 
-/* Robots Readiness GRS-005/006 — the seller-profile privacy ruling, made
-   mechanical. A seller backed by a governed dealer_profiles row is a public
-   business identity: indexable, canonical on its slug route, sitemap-
-   eligible. An ordinary individual seller does not become a permanently
-   indexed identity by listing a watch: the page stays reachable at its
-   clean URL, but it is noindex, its title carries no name, and it is never
-   in the sitemap. An unknown id is a neutral noindex. */
+// Row existence proves admission. Only publication permits indexable dealer
+// metadata. Private previews and ordinary Sellers remain noindex.
 export async function generateMetadata({
   params,
 }: {
@@ -73,7 +81,9 @@ export async function generateMetadata({
   const supabase = await createClient();
   const dealer = await resolveDealer(supabase, id);
   if (dealer) {
-    return dealerProfileMetadata({ slug: dealer.slug, business_name: dealer.business_name });
+    return dealer.public_room_enabled === true
+      ? dealerProfileMetadata(dealer)
+      : unpublishedDealerProfileMetadata();
   }
   if (!isUuid(id)) return unknownSellerMetadata();
   const { data: seller } = await supabase
@@ -94,7 +104,7 @@ export default async function SellerProfilePage({
   const dealer = await resolveDealer(supabase, id);
 
   if (dealer) {
-    if (id !== dealer.slug) redirect(`/sellers/${dealer.slug}`);
+    if (dealer.public_room_enabled === true && id !== dealer.slug) redirect(`/sellers/${dealer.slug}`);
 
     // This is the normal public catalogue query with one immutable owner
     // constraint. BrowseClient owns search, filtering, facets, cards, view
@@ -122,6 +132,12 @@ export default async function SellerProfilePage({
 
     return (
       <main className="min-h-screen bg-[var(--ink)] px-6 py-5 text-[var(--platinum)]">
+        {dealer.public_room_enabled !== true && (
+          <aside className="mb-6 border border-[var(--border-subtle)] p-4 text-[var(--slate)]" aria-label="Private Dealer Room preview">
+            <p className="font-medium">Dealer Room not public</p>
+            <p className="mt-2 text-sm">Only you and FairWatchTrade can view this Dealer Room until FairWatchTrade publishes it.</p>
+          </aside>
+        )}
         <BrowseClient
           listings={(!error && Array.isArray(listingRows) ? listingRows : []) as BrowseListingRow[]}
           dealerScope={scope}

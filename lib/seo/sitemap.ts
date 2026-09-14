@@ -17,7 +17,7 @@ import {
    MEMBERSHIP IS THE SAME RULE AS INDEXABILITY. A listing enters only when
    listingIsIndexable(status) — the exact predicate its own page uses to
    decide index/noindex — so a row can never be in the sitemap while its
-   page says noindex. A seller enters only as a governed dealer slug; an
+   page says noindex. A seller enters only as a published Dealer Room slug; an
    individual seller never does, whatever URL they are reachable at.
 
    Entries are the canonical URLs and nothing else: no /vault/galaxy, no
@@ -28,7 +28,7 @@ import {
    ════════════════════════════════════════════════════════════════════════ */
 
 export type SitemapListingRow = { id: string; status: string | null; updated_at: string | null };
-export type SitemapDealerRow = { slug: string | null };
+export type SitemapDealerRow = { slug: string | null; public_room_enabled: boolean };
 
 /** Sitemap protocol ceiling is 50,000 URLs per file; this stays well under
     it and makes the failure mode at scale a deliberate truncation. */
@@ -58,6 +58,7 @@ export function buildSitemapEntries(input: {
 
   const seen = new Set<string>();
   for (const dealer of input.dealers) {
+    if (dealer.public_room_enabled !== true) continue;
     const slug = typeof dealer.slug === "string" ? dealer.slug.trim() : "";
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);

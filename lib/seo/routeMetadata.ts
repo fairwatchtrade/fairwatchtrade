@@ -264,15 +264,15 @@ export function listingMetadata(row: ListingMetadataRow | null, requestedId: str
 
 /* ── Seller profiles ────────────────────────────────────────────────────── */
 
-export type DealerIdentity = { slug: string; business_name: string };
+export type DealerIdentity = { slug: string; business_name: string; public_room_enabled: boolean };
 
 export function dealerCanonical(slug: string): string {
   return canonicalUrl(`/sellers/${slug}`);
 }
 
-/** A seller backed by a governed dealer_profiles row: indexable, canonical
-    on the existing public slug route, sitemap-eligible. */
+/** Only a published Dealer Room is a public, indexable business identity. */
 export function dealerProfileMetadata(dealer: DealerIdentity): Metadata {
+  if (dealer.public_room_enabled !== true) return unpublishedDealerProfileMetadata();
   const name = nonEmpty(dealer.business_name) ?? SITE_NAME;
   return {
     title: `${name} | ${SITE_NAME}`,
@@ -280,6 +280,10 @@ export function dealerProfileMetadata(dealer: DealerIdentity): Metadata {
     alternates: { canonical: dealerCanonical(dealer.slug) },
     robots: INDEX_FOLLOW,
   };
+}
+
+export function unpublishedDealerProfileMetadata(): Metadata {
+  return { title: `Dealer Room Preview | ${SITE_NAME}`, robots: NOINDEX };
 }
 
 /** An ordinary individual seller: directly reachable, never indexed, never

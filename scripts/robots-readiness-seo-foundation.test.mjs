@@ -155,7 +155,9 @@ const gone = listingMetadata(null, "nope");
 ok("unknown/invisible listing is a neutral noindex", gone.robots.index === false && gone.alternates === undefined && gone.title === "Listing | FairWatchTrade");
 
 /* ── 7 · seller indexing: dealer row vs ordinary individual ── */
-const dealer = dealerProfileMetadata({ slug: "the-collector-identity", business_name: "The Collector Identity" });
+const dealer = dealerProfileMetadata({ slug: "the-collector-identity", business_name: "The Collector Identity", public_room_enabled: true });
+const preview = dealerProfileMetadata({ slug: "private-dealer", business_name: "Private Business", public_room_enabled: false });
+ok("private Dealer Room is neutral noindex without dealer identity", preview.robots.index === false && preview.title === "Dealer Room Preview | FairWatchTrade" && preview.alternates === undefined && preview.description === undefined);
 eq("dealer title", dealer.title, "The Collector Identity | FairWatchTrade");
 eq("dealer description", dealer.description, "View the FairWatchTrade seller profile for The Collector Identity.");
 eq("dealer canonical is the existing slug route", dealer.alternates.canonical, `${O}/sellers/the-collector-identity`);
@@ -180,9 +182,10 @@ const rows = [
   { id: "99999999-9999-4999-8999-999999999999", status: "pending_review", updated_at: null },
   { id: "88888888-8888-4888-8888-888888888888", status: "rejected", updated_at: null },
 ];
-const dealers = [{ slug: "the-collector-identity" }, { slug: "william-mynatt" }, { slug: "william-mynatt" }, { slug: "" }, { slug: null }];
+const dealers = [{ slug: "the-collector-identity", public_room_enabled: true }, { slug: "william-mynatt", public_room_enabled: true }, { slug: "william-mynatt", public_room_enabled: true }, { slug: "", public_room_enabled: true }, { slug: null, public_room_enabled: true }, { slug: "private-dealer", public_room_enabled: false }, { slug: "missing-publication" }];
 const entries = buildSitemapEntries({ listings: rows, dealers });
 const urls = entries.map((e) => e.url);
+ok("private or missing-publication dealers never enter sitemap", !urls.some((u) => u.includes("private-dealer") || u.includes("missing-publication")));
 for (const path of EXPECTED_STATIC) ok(`sitemap includes static ${path}`, urls.includes(canonicalUrl(path)));
 ok("sitemap includes the published listing", urls.includes(`${O}/listings/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`));
 ok("published listing carries its trigger-maintained lastModified", entries.find((e) => e.url.endsWith("aaaaaaaaaaaa")).lastModified instanceof Date);
@@ -244,7 +247,7 @@ const sellerPage = read("app/sellers/[id]/page.tsx");
 ok("seller page exports generateMetadata", sellerPage.includes("export async function generateMetadata("));
 ok("seller metadata branches on the governed dealer row", sellerPage.includes("dealerProfileMetadata(") && sellerPage.includes("individualSellerMetadata(") && sellerPage.includes("unknownSellerMetadata()"));
 ok("dealer truth is resolved from dealer_profiles by one shared function", sellerPage.includes("async function resolveDealer(") && (sellerPage.match(/resolveDealer\(supabase, id\)/g) || []).length === 2);
-ok("seller page keeps the uuid → slug redirect", sellerPage.includes("if (id !== dealer.slug) redirect(`/sellers/${dealer.slug}`);"));
+ok("only published Dealer Rooms redirect uuid → slug", sellerPage.includes("if (dealer.public_room_enabled === true && id !== dealer.slug) redirect(`/sellers/${dealer.slug}`);"));
 ok("no new role, flag or seller type was introduced", !/is_dealer|seller_type|dealer_flag/.test(sellerPage));
 
 const rootLayout = read("app/layout.tsx");
@@ -256,6 +259,7 @@ const sitemapRoute = read("app/sitemap.ts");
 ok("sitemap route is always current", sitemapRoute.includes('export const dynamic = "force-dynamic"'));
 ok("sitemap reads through the anonymous client, never the session client", sitemapRoute.includes("createDiscoveryClient()") && !sitemapRoute.includes("@/lib/supabase/server"));
 ok("sitemap listing read is published-only", sitemapRoute.includes('.eq("status", "published")'));
+ok("sitemap dealer read is publication-only", sitemapRoute.includes('.eq("public_room_enabled", true)'));
 ok("sitemap membership is decided by the pure composer", sitemapRoute.includes("buildSitemapEntries({ listings, dealers })"));
 
 /* ── 10 · robots: the LAUNCH posture, executed rather than grepped ──

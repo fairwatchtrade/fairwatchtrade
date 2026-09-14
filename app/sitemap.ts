@@ -16,17 +16,14 @@ import {
    tells a crawler where to look; the page-level directive on each resource
    decides whether it may be indexed after its lifecycle changes.
 
-   A seller enters ONLY as a governed dealer slug, and that slug is a public,
-   indexable identity the moment it exists — there is no second gate between
-   "has a dealer_profiles row" and "is advertised to search engines". Admit a
-   dealer whose business_name is a natural person's name and that person's
-   name becomes a search result. That is a deliberate property, not an
-   oversight; see lib/seo/README.md.
+   A seller enters ONLY as a published Dealer Room slug. Admission is row
+   existence; public_room_enabled is the separate publication decision.
+   Both this reader and the pure composer enforce that decision.
 
    Two reads, on the ANONYMOUS client — never the cookie-bound session
    client, so a signed-in seller's own drafts can never widen a public
    document. Under RLS the anonymous role sees only status='published'
-   listings (listings_select_public_or_own) and every dealer_profiles row
+   listings (listings_select_public_or_own) and published dealer_profiles rows
    (dealer_profiles_public_read); the explicit filters below restate that
    truth rather than relying on it. Membership itself is decided in
    lib/seo/sitemap.ts, which the test exercises with in-memory rows.
@@ -54,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .eq("status", "published")
         .order("updated_at", { ascending: false })
         .limit(SITEMAP_LISTING_CEILING),
-      db.from("dealer_profiles").select("slug").order("slug"),
+      db.from("dealer_profiles").select("slug,public_room_enabled").eq("public_room_enabled", true).order("slug"),
     ]);
     if (listingRead.error) {
       console.error("[sitemap] listing read failed:", listingRead.error.message);

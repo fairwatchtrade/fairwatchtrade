@@ -36,7 +36,7 @@ each resource's own directive still decides what may be indexed.
 | The serving origin for every canonical | `CANONICAL_ORIGIN` — deliberately equal to `SITE_URL` in `lib/discovery/publicDiscovery.ts`; the test pins them together |
 | Listing indexability | `INDEXABLE_LISTING_STATUSES` = `["published"]`; everything else is noindex by construction |
 | Listing title/description composition | `listingTitle` / `listingDescription` — own fields only, no placeholders, nothing borrowed from the Vault |
-| Seller indexability | `dealerProfileMetadata` (dealer row → index) vs `individualSellerMetadata` (no dealer row → noindex, no name in title) |
+| Seller indexability | `dealerProfileMetadata` requires publication; `unpublishedDealerProfileMetadata` and `individualSellerMetadata` emit noindex without a business/person name |
 | Sitemap membership | `buildSitemapEntries` in `sitemap.ts` — pure; `app/sitemap.ts` only performs the reads |
 | Homepage title/description | **Not here.** `app/layout.tsx` keeps the governed specialty copy; `app/page.tsx` adds only the canonical |
 | Client-component pages that need metadata | A pass-through `layout.tsx` in that segment (`/login`, `/signup`, `/forgot-password`, `/reset-password`), or a route group (`app/sell/(entry)/`) when a plain segment layout would be inherited by noindex children |
@@ -63,6 +63,25 @@ each resource's own directive still decides what may be indexed.
   ordinary individual seller stays reachable at `/sellers/{uuid}` but is
   `noindex`, carries no name in the title, and is never in the sitemap.
   This is a privacy ruling, not a query convenience.
+- **Public Dealer Room truth is `public_room_enabled`.** Admission alone
+  never advertises a Dealer. The boolean defaults false; existing public rooms
+  were deliberately backfilled in the publication migration. Only true rows
+  receive indexable dealer metadata and enter the sitemap (explicit read filter
+  plus pure composer guard). Robots posture is separate and unchanged.
+- **Private Dealer identity remains owner-readable and owner-editable.**
+  Public SELECT requires publication; owner SELECT preserves Level 2 workspace
+  and Tax Time access. Column grants exclude publication from owner UPDATE.
+  Only the founder-gated `/api/admin/dealers/publication` service write changes
+  the boolean. Admission and its provenance are not changed by publication.
+- **Private previews are not public identities.** `/sellers/[id]` resolves the
+  session first; only the verified founder can use a trusted fallback. Owner
+  and founder see “Dealer Room not public” with neutral noindex metadata and
+  no dealer canonical. Other slug visitors get 404; UUID visitors may see only
+  the existing ordinary Seller view, still noindex. Service keys stay server-side.
+- **The human control lives at `/admin/dealers`.** Marketplace Control links
+  to Dealer Rooms. Publish/Make Private requires confirmation, changes one
+  targeted row, and refreshes authoritative state. Unconfirmed outcomes block
+  retry until a full authoritative reload. No admission or listing actions live here.
 - **Auth doors** (`/login`, `/signup`, `/forgot-password`) are
   `noindex, follow` with a clean canonical. Personal, admin, internal and
   action surfaces are `noindex, nofollow` with no canonical.
@@ -88,14 +107,19 @@ each resource's own directive still decides what may be indexed.
 - **No Open Graph / Twitter card work.** Out of scope for this cluster.
 - **No slug migration for seller URLs.** The existing public route identity
   (dealer slug, individual UUID) is the canonical.
-- **No new role, flag or seller type.** Dealer-vs-individual is read from
-  the existing governed row.
+- **No new role or seller type.** Admission is the existing governed row;
+  publication is a separate boolean on that row.
 
 ## Verify current state
 
 ```bash
 # the whole policy, pure functions + source pins
 node scripts/robots-readiness-seo-foundation.test.mjs
+node scripts/dealer-room-publication-governance.test.mjs
+node scripts/dealer-room-publication-runtime.test.mjs
+
+# Database schema, grants and RLS behavior (transaction-local; rolls back)
+# Run scripts/dealer-room-publication.test.sql against the target database.
 
 # every route that declares policy, and which helper it uses
 grep -rn "RouteMetadata\|Metadata()" app --include=*.tsx --include=*.ts | grep -v "^app/api"

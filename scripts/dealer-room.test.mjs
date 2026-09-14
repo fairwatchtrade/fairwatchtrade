@@ -31,8 +31,9 @@ test("dealer-local controls keep the current seller pathname", () => {
   assert.match(browse, /brandFacets = useMemo\(\(\) => countBy\(listings/);
 });
 
-test("public room has no owner-management branch", () => {
-  assert.doesNotMatch(page, /auth\.getUser|isOwner|manage|upload/i);
+test("room supports authenticated preview without owner-management controls", () => {
+  assert.match(page, /auth\.getUser/);
+  assert.doesNotMatch(page, /<DealerRoomPublicationControl|upload/i);
   assert.match(settings, /Dealer Room identity/);
   assert.match(settings, /\/api\/account\/dealer-profile/);
 });
