@@ -193,7 +193,13 @@ export default function CurrentHomepage() {
             <div key={principle.label} className="font-display text-[12px] text-[var(--slate)]">
               <div
                 aria-hidden="true"
-                className="mb-1 grid h-[34px] place-items-center text-[30px] leading-none text-[var(--gold)]"
+                /* The mark anchors an item in the horizontal three-across
+                   composition. Once the row stacks it has nothing to anchor
+                   against and reads as a stray formatting character, so below
+                   541px it is removed outright rather than replaced — display
+                   none takes its 34px box and margin with it, leaving the
+                   labels to space themselves. */
+                className="mb-1 hidden h-[34px] place-items-center text-[30px] leading-none text-[var(--gold)] min-[541px]:grid"
               >
                 {principle.mark}
               </div>
@@ -324,7 +330,12 @@ export default function CurrentHomepage() {
                     : { borderTop: `1px solid ${RUNWAY_RULE}`, borderLeft: 'none' }
                 }
               >
-                <div className="mb-[26px] text-[10px] tracking-[0.18em] text-[var(--gold-dim)]">
+                {/* Centred while the grid is stacked, where the index is a
+                    section marker introducing the block beneath it; left in
+                    the three-column mode, where it is a column header. The
+                    heading and body stay left-aligned at every width — the
+                    editorial content is not what changes. */}
+                <div className="mb-[26px] text-center text-[10px] tracking-[0.18em] text-[var(--gold-dim)] min-[821px]:text-left">
                   {column.index}
                 </div>
                 <h3 className="font-display text-[28px] font-normal leading-[1.08] text-[var(--platinum)]">
