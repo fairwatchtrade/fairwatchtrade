@@ -320,22 +320,24 @@ export default function CurrentHomepage() {
             className="mt-[62px] grid grid-cols-1 min-[541px]:mt-[90px] min-[821px]:grid-cols-3"
             style={{ borderTop: `1px solid ${RUNWAY_RULE}`, borderBottom: `1px solid ${RUNWAY_RULE}` }}
           >
+            {/* Alignment belongs to the BLOCK, not to its parts. Stacked, each
+                proof is a single centred editorial unit — index, heading and
+                copy together — so the alignment is declared once on the article
+                and inherited. In the three-column mode it returns to left,
+                where the index is a column header and the copy runs against a
+                shared left edge. The section rules between blocks are
+                unaffected either way. */}
             {PROOF.map((column, index) => (
               <article
                 key={column.index}
-                className="px-1 py-[30px] min-[821px]:min-h-[224px] min-[821px]:px-[34px] min-[821px]:pb-[34px] min-[821px]:pt-[38px]"
+                className="px-1 py-[30px] text-center min-[821px]:min-h-[224px] min-[821px]:px-[34px] min-[821px]:pb-[34px] min-[821px]:pt-[38px] min-[821px]:text-left"
                 style={
                   index === 0
                     ? undefined
                     : { borderTop: `1px solid ${RUNWAY_RULE}`, borderLeft: 'none' }
                 }
               >
-                {/* Centred while the grid is stacked, where the index is a
-                    section marker introducing the block beneath it; left in
-                    the three-column mode, where it is a column header. The
-                    heading and body stay left-aligned at every width — the
-                    editorial content is not what changes. */}
-                <div className="mb-[26px] text-center text-[10px] tracking-[0.18em] text-[var(--gold-dim)] min-[821px]:text-left">
+                <div className="mb-[26px] text-[10px] tracking-[0.18em] text-[var(--gold-dim)]">
                   {column.index}
                 </div>
                 <h3 className="font-display text-[28px] font-normal leading-[1.08] text-[var(--platinum)]">
@@ -343,7 +345,11 @@ export default function CurrentHomepage() {
                   <br />
                   {column.heading[1]}
                 </h3>
-                <p className="mt-4 max-w-[30ch] font-display text-[15px] leading-[1.55] text-[var(--slate)]">
+                {/* The 30ch measure is kept at every width; centring the text
+                    inside a box that stayed left would leave the paragraph
+                    visibly off-axis, so the box itself centres while stacked
+                    and returns to the left edge in the column mode. */}
+                <p className="mx-auto mt-4 max-w-[30ch] font-display text-[15px] leading-[1.55] text-[var(--slate)] min-[821px]:mx-0">
                   {column.copy}
                 </p>
               </article>
