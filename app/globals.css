@@ -73,7 +73,10 @@
    Settings sees the finished site. An explicit Light choice still works
    (the repair/census workflow depends on it). To reopen the curtains when
    Daylight is done, restore this line to: color-scheme: light dark; */
-html { color-scheme: light dark; }
+html {
+  color-scheme: light dark;
+  font-variant-numeric: lining-nums;
+}
 html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"] { color-scheme: dark; }
 [data-inspection-light] {
@@ -450,6 +453,12 @@ html, body {
 /* ── TYPOGRAPHY ── */
 .font-display {
   font-family: 'Cormorant Garamond', serif;
+}
+
+/* Structured identities and readouts keep the sitewide lining law while
+   adding fixed digit widths for fast scanning. Prose remains proportional. */
+.fw-tabular-nums {
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 @layer components {

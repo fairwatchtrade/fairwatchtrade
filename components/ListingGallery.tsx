@@ -570,7 +570,7 @@ export default function ListingGallery({
                are unchanged. */
             <div
               data-mobile-photo-count=""
-              className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-[var(--on-photo-scrim-soft)] px-[7px] py-[3px] text-[11px] font-medium tabular-nums tracking-[0.08em] text-[var(--on-photo-text)] backdrop-blur-[6px] min-[56rem]:hidden"
+              className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-[var(--on-photo-scrim-soft)] px-[7px] py-[3px] text-[11px] font-medium fw-tabular-nums tracking-[0.08em] text-[var(--on-photo-text)] backdrop-blur-[6px] min-[56rem]:hidden"
               aria-label={`Photo ${active + 1} of ${photos.length}`}
             >
               <span aria-hidden="true">{active + 1} / {photos.length}</span>

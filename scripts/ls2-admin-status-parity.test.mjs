@@ -57,7 +57,7 @@ const joinedSources = appAndComponents.map((path) => readFileSync(path, "utf8"))
 assert.equal((joinedSources.match(/data-admin-dark=""/g) ?? []).length, 1, "only app/admin/layout mounts data-admin-dark");
 assert.equal((joinedSources.match(/data-immersive-dark=""/g) ?? []).length, 2, "Galaxy and Collector's Drawer remain the only immersive-dark mounts");
 assert.equal((joinedSources.match(/data-inspection-light=""/g) ?? []).length, 1, "Watch Detail remains the only inspection-light mount");
-assert.match(css, /html \{ color-scheme: light dark; \}/);
+assert.match(css, /html\s*\{[^}]*color-scheme:\s*light dark;/s);
 assert.match(css, /html\[data-theme="light"\] \{ color-scheme: light; \}/);
 assert.match(css, /html\[data-theme="dark"\] \{ color-scheme: dark; \}/);
 

@@ -40,7 +40,7 @@ export default function ListingScoreMeter({
 
       {/* Headline combined number */}
       <div className="mt-1 flex items-center gap-2">
-        <div className="text-[28px] font-light leading-none text-[var(--platinum)] tabular-nums">
+        <div className="text-[28px] font-light leading-none text-[var(--platinum)] fw-tabular-nums">
           {score.combined}
         </div>
         <ListingScoreHelp
@@ -128,7 +128,7 @@ export default function ListingScoreMeter({
                 {!full && (
                   <span className="text-[var(--muted)]"> — {item.hint}</span>
                 )}
-                <span className="ml-1 text-[11px] text-[var(--muted)] tabular-nums">
+                <span className="ml-1 text-[11px] text-[var(--muted)] fw-tabular-nums">
                   {isBoxPapers
                     ? `(${item.earned}/${item.max}) · +${item.max}`
                     : partial

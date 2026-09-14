@@ -398,7 +398,7 @@ export default function AdminAuctionIngest({
                     {r.location ?? ""}
                   </span>
                 </div>
-                <div className="shrink-0 text-[11px] tabular-nums text-[var(--slate)]">
+                <div className="shrink-0 text-[11px] fw-tabular-nums text-[var(--slate)]">
                   {r.starts_at.slice(0, 10)}
                   {r.online_only ? " · online" : ""}
                 </div>

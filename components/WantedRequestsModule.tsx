@@ -414,7 +414,7 @@ function AnswerPanel({
                   {l.reference ? ` · ${l.reference}` : ""}
                   {l.public_code ? ` · ${l.public_code}` : ""}
                 </span>
-                <span className="text-[12px] tabular-nums text-[var(--muted)]">
+                <span className="text-[12px] fw-tabular-nums text-[var(--muted)]">
                   {formatMoney(l.asking_price, l.asking_currency)} · {l.status}
                 </span>
               </button>

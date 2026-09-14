@@ -662,7 +662,7 @@ const PANEL_CSS = `
 .aubrey-panel textarea{font:inherit}
 .aubrey-head{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
 .aubrey-kicker{color:var(--gold);font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:7px}
-.aubrey-title{font:400 24px/1.1 var(--display);color:var(--platinum);margin:0}
+.aubrey-title{font-family:var(--display);font-size:24px;font-weight:400;line-height:1.1;color:var(--platinum);margin:0}
 /* Sitka Text proof (2026-08-21, bounded): this ONE narrative sentence is
    named in the order. font-family only — size, line-height, colour and
    spacing are the artifact's and are untouched. Local face, serif
@@ -697,7 +697,7 @@ const PANEL_CSS = `
 .score-tech small{display:block;color:var(--muted);font-size:9px;line-height:1.45;margin-top:3px}
 .empty-evidence{display:none;border:1px dashed #303642;background:#0E1117;padding:24px;min-height:180px;align-items:center;justify-content:center;text-align:center}
 .empty-evidence.show{display:flex}
-.empty-evidence h3{font:400 22px/1.1 var(--display);margin:0 0 8px;color:var(--platinum)}
+.empty-evidence h3{font-family:var(--display);font-size:22px;font-weight:400;line-height:1.1;margin:0 0 8px;color:var(--platinum)}
 .empty-evidence p{max-width:610px;margin:0;color:var(--muted);font-size:11px;line-height:1.65}
 .photo-context{margin-top:12px;border:1px solid var(--line);background:rgba(255,255,255,.012);padding:10px 13px}
 .review-shared{border-top:1px solid var(--line)}

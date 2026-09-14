@@ -81,7 +81,7 @@ export function FwtListingId({ code, variant = "card", className }: FwtListingId
             whitespace-nowrap so an identifier never breaks across lines. */}
         <span
           style={ID_FACE}
-          className="select-all whitespace-nowrap text-[15px] uppercase tracking-[0.14em] text-[var(--platinum-dim)] sm:text-[16px]"
+          className="fw-tabular-nums select-all whitespace-nowrap text-[15px] uppercase tracking-[0.14em] text-[var(--platinum-dim)] sm:text-[16px]"
         >
           {value}
         </span>
@@ -100,7 +100,7 @@ export function FwtListingId({ code, variant = "card", className }: FwtListingId
       </span>
       <span
         style={ID_FACE}
-        className={`select-all whitespace-nowrap tracking-[0.1em] text-[var(--platinum-dim)] ${className ?? ""}`}
+        className={`fw-tabular-nums select-all whitespace-nowrap tracking-[0.1em] text-[var(--platinum-dim)] ${className ?? ""}`}
       >
         {value}
       </span>

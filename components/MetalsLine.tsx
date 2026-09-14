@@ -31,7 +31,7 @@ export default function MetalsLine() {
             className={`h-1.5 w-1.5 rounded-full ${METAL_DOT_CLASS[m.key as keyof typeof METAL_DOT_CLASS] ?? "bg-zinc-400"}`}
           />
           <span className="font-medium text-[#E8E4DC]">{m.label}</span>
-          <span className="tabular-nums">{usd(m.price, m.key)}</span>
+          <span className="fw-tabular-nums">{usd(m.price, m.key)}</span>
         </span>
       ))}
     </div>

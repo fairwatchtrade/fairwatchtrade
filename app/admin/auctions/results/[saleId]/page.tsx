@@ -126,7 +126,7 @@ export default async function AuctionSaleDetailPage({
           ].map(([k, v]) => (
             <div key={String(k)} className="bg-[var(--surface)] px-3 py-2">
               <div className={dtCls}>{k}</div>
-              <div className="text-[16px] tabular-nums text-[var(--platinum)]">{v}</div>
+              <div className="text-[16px] fw-tabular-nums text-[var(--platinum)]">{v}</div>
             </div>
           ))}
         </section>
@@ -173,7 +173,7 @@ export default async function AuctionSaleDetailPage({
                 </dl>
                 {a.content_hash && (
                   <p className="mt-2 break-all text-[10px] text-[var(--muted)]">
-                    Content SHA-256: <span className="tabular-nums">{a.content_hash}</span>
+                    Content SHA-256: <span className="fw-tabular-nums">{a.content_hash}</span>
                   </p>
                 )}
                 {a.attribution_note && (
@@ -226,7 +226,7 @@ export default async function AuctionSaleDetailPage({
                 <tbody className="divide-y divide-[var(--border-faint)]">
                   {lots.map((lot) => (
                     <tr key={lot.id}>
-                      <td className="px-3 py-2 text-[12px] tabular-nums text-[var(--platinum)]">
+                      <td className="px-3 py-2 text-[12px] fw-tabular-nums text-[var(--platinum)]">
                         {lot.lot_number}
                       </td>
                       <td className="px-3 py-2 text-[12px] text-[var(--platinum-dim)]">
@@ -241,7 +241,7 @@ export default async function AuctionSaleDetailPage({
                       <td className="px-3 py-2 text-[11px] uppercase tracking-[1px] text-[var(--platinum-dim)]">
                         {lot.result?.sale_outcome ?? "—"}
                       </td>
-                      <td className="px-3 py-2 text-[12px] tabular-nums text-[var(--platinum-dim)]">
+                      <td className="px-3 py-2 text-[12px] fw-tabular-nums text-[var(--platinum-dim)]">
                         {lot.result?.price_realized != null
                           ? formatMoney(lot.result.price_realized, lot.result.currency)
                           : lot.result?.sale_outcome === "sold"

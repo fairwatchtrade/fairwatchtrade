@@ -509,7 +509,7 @@ function FacetGroup({
                 {value}
               </span>
               <span
-                className={`tabular-nums ${
+                className={`fw-tabular-nums ${
                   dealerLegibility
                     ? "text-[11px] text-[var(--slate)]"
                     : "text-[11px] text-[var(--muted)]"
@@ -1373,7 +1373,7 @@ export default function BrowseClient({
           }`}
         >
           <span>All inventory</span>
-          <span className={`text-[11px] tabular-nums transition-colors ${
+          <span className={`text-[11px] fw-tabular-nums transition-colors ${
             selectedBrands.size === 0
               ? "text-[var(--gold-dim)]"
               : "text-[var(--slate)] group-hover:text-[var(--platinum-dim)]"
@@ -1396,7 +1396,7 @@ export default function BrowseClient({
               }`}
             >
               <span className="truncate">{brand}</span>
-              <span className={`text-[11px] tabular-nums transition-colors ${
+              <span className={`text-[11px] fw-tabular-nums transition-colors ${
                 active
                   ? "text-[var(--gold-dim)]"
                   : "text-[var(--slate)] group-hover:text-[var(--platinum-dim)]"

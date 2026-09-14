@@ -153,7 +153,7 @@ export default function MarketBar() {
               />
               <div className="leading-tight">
                 <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
-                <div className="text-[13px] font-medium tabular-nums text-[var(--platinum)]">
+                <div className="text-[13px] font-medium fw-tabular-nums text-[var(--platinum)]">
                   {usd(m.price, m.key)}
                   {m.direction != null && (
                     <span
@@ -244,7 +244,7 @@ export default function MarketBar() {
                     <span className="text-[12px] font-medium text-emerald-400">Live now</span>
                   ) : (
                     <span
-                      className="text-[12px] font-medium tabular-nums text-[var(--platinum)]"
+                      className="text-[12px] font-medium fw-tabular-nums text-[var(--platinum)]"
                       // v2.4z — server render and client hydrate read Date.now()
                       // moments apart; the countdown text may differ by a minute
                       // across that gap. Time-sensitive text is the textbook case

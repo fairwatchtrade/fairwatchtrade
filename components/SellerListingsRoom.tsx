@@ -865,7 +865,7 @@ export default function SellerListingsRoom({
                       watch has been on the market for weeks. Published rows
                       from before the decision record existed are unknown for
                       the same reason, and are shown as unknown. */}
-                  <div className="hidden text-right text-[12px] tabular-nums text-[var(--platinum-dim)] md:block">
+                  <div className="hidden text-right text-[12px] fw-tabular-nums text-[var(--platinum-dim)] md:block">
                     {publishedAt[row.id] ? (
                       new Date(publishedAt[row.id]).toLocaleDateString("en-US", {
                         month: "short",

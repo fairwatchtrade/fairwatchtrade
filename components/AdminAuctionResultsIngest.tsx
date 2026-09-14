@@ -542,7 +542,7 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
             <div className="mt-4 border border-[var(--border-subtle)] p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <div className="text-[11px] uppercase tracking-[3px] text-[var(--gold-subtle)]">{stateLabel}</div>
-                <div className="text-[10px] tabular-nums text-[var(--muted)]">
+                <div className="text-[10px] fw-tabular-nums text-[var(--muted)]">
                   Run <span className="text-[var(--platinum-dim)]">{run.runId}</span>
                   {run.packetId ? ` · ${run.packetId}` : ""}
                   {run.reusedExisting ? " · already live" : ""}
@@ -581,7 +581,7 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
                       <dt className="shrink-0 text-[10px] uppercase tracking-[1px] text-[var(--muted)]">
                         {k.replaceAll("_", " ")}
                       </dt>
-                      <dd className="min-w-0 flex-1 text-right text-[12px] tabular-nums text-[var(--platinum-dim)] [overflow-wrap:anywhere]">
+                      <dd className="min-w-0 flex-1 text-right text-[12px] fw-tabular-nums text-[var(--platinum-dim)] [overflow-wrap:anywhere]">
                         {String(v)}
                       </dd>
                     </div>
@@ -604,12 +604,12 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
 
               {run.planSha256 && (
                 <p className="mt-3 break-all text-[10px] text-[var(--muted)]">
-                  Plan SHA-256: <span className="tabular-nums">{run.planSha256}</span>
+                  Plan SHA-256: <span className="fw-tabular-nums">{run.planSha256}</span>
                 </p>
               )}
 
               {(run.state === "applying" || run.state === "applied") && (
-                <p className="mt-2 text-[12px] tabular-nums text-[var(--platinum-dim)]">
+                <p className="mt-2 text-[12px] fw-tabular-nums text-[var(--platinum-dim)]">
                   {String(run.progress?.processed ?? 0)} / {String(run.progress?.total ?? "…")} rows
                   {run.state === "applying" ? " — you can leave; the run is durable." : " — complete."}
                 </p>
@@ -697,7 +697,7 @@ export default function AdminAuctionResultsIngest({ onApplied }: { onApplied?: (
                   {!r.revisionBound && (
                     <span className="text-[10px] uppercase tracking-[1.5px] text-[var(--muted)]">Legacy · inspection only</span>
                   )}
-                  <span className="text-[10px] tabular-nums text-[var(--muted)]">
+                  <span className="text-[10px] fw-tabular-nums text-[var(--muted)]">
                     {new Date(r.createdAt).toLocaleString()} · {r.runId.slice(0, 8)}
                   </span>
                   {r.lastErrorCode && (

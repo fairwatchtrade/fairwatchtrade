@@ -194,7 +194,7 @@ export default function AdminAuctionOperations({
                           ) : null}
                         </td>
                         <td className={tdCls}>{r.location ?? "—"}</td>
-                        <td className={`${tdCls} tabular-nums`}>{r.starts_at.slice(0, 10)}</td>
+                        <td className={`${tdCls} fw-tabular-nums`}>{r.starts_at.slice(0, 10)}</td>
                         <td className={`${tdCls} uppercase text-[10px] tracking-[1.5px] ${STATUS_BADGE[status]}`}>
                           {status}
                         </td>
@@ -285,11 +285,11 @@ export default function AdminAuctionOperations({
                     const unfinished = r.lot_count - r.fresh_exact_count;
                     return (
                       <tr key={r.sale_id}>
-                        <td className={`${tdCls} tabular-nums`}>{r.sale_date ?? "—"}</td>
+                        <td className={`${tdCls} fw-tabular-nums`}>{r.sale_date ?? "—"}</td>
                         <td className={`${tdCls} text-[var(--platinum)]`}>{r.house_name}</td>
                         <td className={tdCls}>{r.sale_name}</td>
                         <td className={tdCls}>{evidenceSummaryOf(r)}</td>
-                        <td className={`${tdCls} tabular-nums`}>
+                        <td className={`${tdCls} fw-tabular-nums`}>
                           {r.lot_count} / {r.current_result_count}
                           {r.priced_result_count < r.sold_count ? (
                             <span
@@ -303,7 +303,7 @@ export default function AdminAuctionOperations({
                         <td className={tdCls}>
                           {IDENTITY_LABELS[identity]}
                           {identity !== "resolved" && identity !== "no_lots" && unfinished > 0 ? (
-                            <span className="ml-2 text-[10px] tabular-nums text-[var(--muted)]">
+                            <span className="ml-2 text-[10px] fw-tabular-nums text-[var(--muted)]">
                               {unfinished} open
                               {r.stale_decision_count > 0 ? ` · ${r.stale_decision_count} stale` : ""}
                             </span>

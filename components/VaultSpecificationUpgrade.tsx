@@ -1358,7 +1358,7 @@ export default function VaultSpecificationUpgrade({
                                 long a research round will take and does not
                                 pretend to. */}
                             {progress && startedAt.has(item.sourceSha256) && (
-                              <span className="tabular-nums text-[var(--muted)]">
+                              <span className="fw-tabular-nums text-[var(--muted)]">
                                 {formatElapsed(
                                   nowTick -
                                     (startedAt.get(item.sourceSha256) ?? nowTick)
