@@ -68,7 +68,7 @@ export default function SiteFooter({
           </Link>
         </div>
         <p className="mt-3 text-[11px] text-[var(--muted)]">
-          Built for collectors. 5% flat fee. No ads. Ever.
+          5% flat fee. No tracking cookies. No ads. Ever.
         </p>
         <p className="mt-2 text-[11px] text-[var(--muted)]">
           <Link

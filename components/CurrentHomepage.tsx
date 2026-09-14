@@ -1,189 +1,367 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import {
-  MARKETPLACE_IDENTITY_EYEBROW,
-  MARKETPLACE_IDENTITY_CLARIFICATION_LINES,
-  MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE,
-} from '@/lib/marketplaceIdentity';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { buildBrowseSearchHref } from '@/lib/nav/headerSearch';
+
+/* ════════════════════════════════════════════════════════════════════════
+   HOMEPAGE BODY — the pre-inventory runway.
+
+   WHAT THIS PAGE IS FOR. There is not yet enough published inventory to let
+   watches carry the front door, so the homepage leads with the METHOD
+   instead: how FairWatchTrade is searched. The headline promises a way of
+   looking, never marketplace depth — an inventory promise the catalogue
+   cannot currently keep is the one thing this composition must not make.
+   When real watches can carry the room, the opening becomes inventory-led
+   and this runway gives way to it.
+
+   THIS FILE OWNS THE BODY ONLY. NavBar, MarketBar and SiteFooter are mounted
+   once by app/layout.tsx and are never reproduced here — a second masthead
+   or a second metals strip is the failure mode this note exists to prevent.
+   The compact header search is deliberately absent on "/" (see
+   headerSearchVisible in lib/nav/headerSearch.ts): the homepage owns one
+   large search in its body, so the page never carries two search fields.
+
+   THE SEARCH IS REAL. The field below is a new PLACEMENT of the existing
+   search mechanism, not a second one. It submits through
+   buildBrowseSearchHref into /browse?q=, where Browse's parser, URL state,
+   Active Criteria and result machinery take over. No local parsing, no
+   reference interpretation, no fuzzy matching, no results overlay — the
+   example strings in the hint are demonstration copy, never fixtures.
+
+   THE CLOCK IS REAL TIME. It reads the visitor's local clock and updates
+   every second; the hand angles below are computed, never decorative
+   constants. It is the hinge between the discovery room and the runway. It
+   is aria-hidden on purpose: it carries no information the page depends on,
+   and a label that silently went stale every second would be worse than
+   silence.
+
+   APPEARANCE. The light composition is the designed one, so every custom
+   value is written light-dark(light, dark) rather than forcing the page to
+   one appearance. Shared tokens are used wherever one exists; functional
+   text sits at --muted or brighter under the readability floor, which is why
+   a few values here are a shade stronger than the light comp.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* The pale runway. This exact light value is the approved room colour; the
+   dark arm is the ordinary page ink so the room still reads as a distinct
+   plane beneath the lighter search room above it. */
+const RUNWAY_SURFACE = 'light-dark(#F2F0E9, #0D0F14)';
+const RUNWAY_RULE = 'light-dark(rgba(188,169,131,1), rgba(201,168,76,0.22))';
+
+const PRINCIPLES = [
+  { mark: '♢', label: 'Mechanical timepieces only' },
+  { mark: '⌁', label: 'Watches chosen for merit' },
+  { mark: '⌾', label: 'Original photography' },
+] as const;
+
+const PROOF = [
+  {
+    index: '01 / CAPITAL',
+    heading: ['5% flat fee.', 'No games.'],
+    copy:
+      'Keep more of your collection working for you instead of surrendering it to commissions, promoted placement, and marketplace friction.',
+  },
+  {
+    index: '02 / TRUST',
+    heading: ['The actual watch.', 'Not a stock photo.'],
+    /* Public language for the photograph-credibility system. It promises
+       quiet evidence checking and human review — never detection, never
+       automatic rejection, never a claim about what was proven. */
+    copy:
+      'Listings are built around photographs of the watch actually being offered. We quietly check those images for signs they may have been reused or sourced elsewhere, and anything questionable is held for human review.',
+  },
+  {
+    index: '03 / DISCOVERY',
+    heading: ['Search the way', 'you think.'],
+    copy:
+      'Reference, movement, complication, dial, case — the details that distinguish one watch from the next belong at the center of discovery.',
+  },
+] as const;
+
+/* Each is a promise the current product actually keeps. "No tracking
+   cookies" is deliberately not "no cookies": authentication, session and the
+   appearance preference all set cookies, and the Privacy Policy says so. */
+const QUIET_PRINCIPLES = [
+  'No tracking cookies',
+  'No ads. Ever.',
+  'No manufactured urgency',
+  'No buyer-facing scores',
+  'No stock photography',
+] as const;
+
+/* Hands are positioned from the centre and extend to the right, so zero
+   degrees points at three o'clock and every angle carries the -90 that puts
+   twelve at the top. */
+function handAngles(now: Date) {
+  const hours = now.getHours() % 12;
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  return {
+    hour: hours * 30 + minutes * 0.5 - 90,
+    minute: minutes * 6 + seconds * 0.1 - 90,
+    second: seconds * 6 - 90,
+  };
+}
 
 export default function CurrentHomepage() {
-  const [time, setTime] = useState({ hourDeg: -90, minDeg: -90, secDeg: -90 });
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  /* Server and first client paint agree on twelve o'clock; the effect
+     replaces it with real local time immediately after mount. */
+  const [hands, setHands] = useState({ hour: -90, minute: -90, second: -90 });
 
   useEffect(() => {
-    function calcTime() {
-      const now = new Date();
-      const hours = now.getHours() % 12;
-      const minutes = now.getMinutes();
-      const seconds = now.getSeconds();
-      setTime({
-        hourDeg: (hours * 30) + (minutes * 0.5),
-        minDeg: (minutes * 6) + (seconds * 0.1),
-        secDeg: (seconds * 6) - 90,
-      });
+    function tick() {
+      setHands(handAngles(new Date()));
     }
-    calcTime();
-    const interval = setInterval(calcTime, 1000);
-    return () => clearInterval(interval);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
-  const { hourDeg, minDeg, secDeg } = time;
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    /* The one submit seam. Empty or whitespace text reaches bare /browse
+       rather than an empty q — that behaviour belongs to the helper. */
+    router.push(buildBrowseSearchHref(query));
+  }
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--ink)]">
+    <main className="relative flex flex-col">
 
-      {/* Movement background art */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-[-10%] top-[40%] w-[55%] max-w-[560px] -translate-y-1/2 opacity-[0.025]"
+      {/* ── SEARCH ROOM ─────────────────────────────────────────────────
+          The instrument comes first. Everything below it explains why. ── */}
+      <section
+        className="min-h-[610px] px-[22px] pb-12 pt-[54px] text-center min-[821px]:min-h-[650px] min-[821px]:px-[7vw] min-[821px]:pb-14 min-[821px]:pt-[70px]"
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)' }}
       >
-        <svg viewBox="0 0 500 500" fill="none" className="h-auto w-full">
-          <circle cx="250" cy="250" r="230" stroke="white" strokeWidth="0.4" />
-          <circle cx="250" cy="250" r="185" stroke="white" strokeWidth="0.4" />
-          <circle cx="250" cy="250" r="140" stroke="white" strokeWidth="0.4" />
-          <circle cx="250" cy="250" r="95" stroke="white" strokeWidth="0.4" />
-          <circle cx="250" cy="250" r="50" stroke="white" strokeWidth="0.4" />
-          <line x1="250" y1="20" x2="250" y2="55" stroke="white" strokeWidth="0.4" />
-          <line x1="250" y1="445" x2="250" y2="480" stroke="white" strokeWidth="0.4" />
-          <line x1="20" y1="250" x2="55" y2="250" stroke="white" strokeWidth="0.4" />
-          <line x1="445" y1="250" x2="480" y2="250" stroke="white" strokeWidth="0.4" />
-          <line x1="250" y1="250" x2="250" y2="100" stroke="white" strokeWidth="0.9" />
-          <line x1="250" y1="250" x2="315" y2="250" stroke="white" strokeWidth="0.7" />
-          <circle cx="250" cy="250" r="4" fill="white" />
-        </svg>
-      </div>
-
-      {/* ── ZONE 1 — HERO ──
-          Inline styles guarantee spacing regardless of Tailwind JIT compilation.
-      ── */}
-      <div
-        className="relative z-[1] flex flex-col items-center px-6 text-center"
-        style={{ paddingTop: '72px', paddingBottom: '40px' }}
-      >
-
-        {/* Gap between market bar and eyebrow — inline guaranteed.
-            Identity copy renders from the shared source (lib/marketplaceIdentity)
-            so this surface can never drift from the future homepage: primary
-            eyebrow white and dominant, secondary clarification gold and quieter. */}
-        <div className="-mt-3 mb-11 text-center">
-          <div className="font-[Inter] text-[15px] uppercase leading-[1.5] tracking-[4px] text-[var(--platinum)] sm:text-[18px]">
-            {MARKETPLACE_IDENTITY_EYEBROW}
-          </div>
-          {/* Two centered lines reading as one balanced block — the break is
-              governed in the shared source, never left to viewport wrapping.
-              Cormorant italic, not the letter-spaced sans this platform uses
-              for labels and kickers: this is a sentence, so it takes the same
-              prose voice as the italic line beneath the headline. The narrower
-              serif is also what lets both lines hold their composition on a
-              phone without letter-spacing games.
-
-              Two compositions of the one sentence, one per width, because a
-              single break point cannot serve both: the wide break overran the
-              312px usable width of a 360px phone by a few pixels and stranded
-              "importance" alone on a third line — an accident, not a
-              composition. The phone keeps its full 15px size and turns
-              earlier instead of shrinking. Exactly one block is ever rendered;
-              `hidden` removes the other from the accessibility tree too, so
-              the sentence is never announced twice. */}
-          <div className="mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:hidden">
-            {MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE.map((line) => (
-              <div key={line}>{line}</div>
-            ))}
-          </div>
-          <div className="mt-2 hidden font-display font-light italic leading-[1.7] text-[var(--gold)] sm:block sm:text-[18px]">
-            {MARKETPLACE_IDENTITY_CLARIFICATION_LINES.map((line) => (
-              <div key={line}>{line}</div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mx-auto mb-9 w-full max-w-[180px]">
-          <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FairWatchTrade clock" className="block h-auto w-full">
-            <circle cx="110" cy="110" r="108" stroke="light-dark(rgba(122,95,32,0.2),rgba(201,168,76,0.12))" strokeWidth="0.5" />
-            <circle cx="110" cy="110" r="100" stroke="light-dark(rgba(122,95,32,0.4),rgba(201,168,76,0.28))" strokeWidth="1" />
-            <circle cx="110" cy="110" r="93" stroke="light-dark(rgba(62,54,38,0.06),rgba(255,255,255,0.03))" strokeWidth="0.5" />
-            <line x1="110" y1="16" x2="110" y2="26" stroke="var(--gold)" strokeWidth="1.5" />
-            <line x1="110" y1="194" x2="110" y2="204" stroke="var(--gold)" strokeWidth="1.5" />
-            <line x1="16" y1="110" x2="26" y2="110" stroke="var(--gold)" strokeWidth="1.5" />
-            <line x1="194" y1="110" x2="204" y2="110" stroke="var(--gold)" strokeWidth="1.5" />
-            <line x1="158.4" y1="21.6" x2="153.4" y2="30.3" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="198.4" y1="61.6" x2="189.7" y2="66.6" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="198.4" y1="158.4" x2="189.7" y2="153.4" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="158.4" y1="198.4" x2="153.4" y2="189.7" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="61.6" y1="198.4" x2="66.6" y2="189.7" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="21.6" y1="158.4" x2="30.3" y2="153.4" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="21.6" y1="61.6" x2="30.3" y2="66.6" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <line x1="61.6" y1="21.6" x2="66.6" y2="30.3" stroke="light-dark(rgba(122,95,32,0.42),rgba(201,168,76,0.3))" strokeWidth="0.8" />
-            <text x="110" y="50" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.6),rgba(232,228,220,0.55))" letterSpacing="1">XII</text>
-            <text x="170" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">III</text>
-            <text x="110" y="178" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">VI</text>
-            <text x="50" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="11" fill="light-dark(rgba(37,35,31,0.45),rgba(232,228,220,0.38))" letterSpacing="1">IX</text>
-            <text x="110" y="96" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="8" fill="light-dark(rgba(122,95,32,0.55),rgba(201,168,76,0.4))" letterSpacing="2">FW</text>
-            <text x="110" y="106" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="5.5" fill="light-dark(rgba(122,95,32,0.4),rgba(201,168,76,0.28))" letterSpacing="1.5">FAIRWATCHTRADE</text>
-            <g style={{ transformOrigin: '110px 110px', transform: `rotate(${hourDeg}deg)` }}>
-              <line x1="110" y1="110" x2="110" y2="48" stroke="var(--platinum)" strokeWidth="1.2" strokeLinecap="round" />
-            </g>
-            <g style={{ transformOrigin: '110px 110px', transform: `rotate(${minDeg}deg)` }}>
-              <line x1="110" y1="110" x2="110" y2="34" stroke="var(--platinum)" strokeWidth="1" strokeLinecap="round" />
-            </g>
-            <g className="second-hand" style={{ transformOrigin: '110px 110px', transform: `rotate(${secDeg}deg)` }}>
-              <line x1="110" y1="122" x2="110" y2="40" stroke="var(--gold)" strokeWidth="0.8" strokeLinecap="round" opacity="0.7" />
-            </g>
-            <circle cx="110" cy="110" r="3" fill="var(--gold)" />
-            <circle cx="110" cy="110" r="1.5" fill="var(--ink)" />
-          </svg>
-        </div>
-
-        <h1 className="mb-4 max-w-[540px] font-display text-[40px] font-light leading-[1.3] tracking-[0.3px] text-[var(--platinum)] sm:text-[48px]">
-          A marketplace <span className="text-[var(--gold)]">worthy</span>
+        <h1
+          className="mx-auto max-w-[980px] font-display text-[39px] font-normal uppercase leading-[0.95] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[clamp(34px,4.35vw,68px)]"
+        >
+          Search the way
           <br />
-          of the watches within it.
+          you think
         </h1>
 
-        <p className="mb-9 max-w-[400px] font-display text-[16px] font-light italic leading-[1.8] text-[var(--slate)]">
-          One flat fee. No hidden costs. No compromises.
+        <p className="mx-auto mt-6 max-w-[600px] font-display text-[16px] leading-[1.45] text-[var(--slate)] min-[541px]:text-[18px]">
+          Reference, movement, complication, dial, case — start with what actually distinguishes
+          the watch.
         </p>
 
-        <div className="fw-rule" />
+        <form
+          onSubmit={submitSearch}
+          role="search"
+          className="mx-auto mt-[34px] grid h-[50px] w-full max-w-[740px] grid-cols-[1fr_44px]"
+          style={{
+            border: '1px solid var(--border-mid)',
+            background: 'light-dark(#FFFFFF, #1A1D26)',
+          }}
+        >
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search watches"
+            placeholder="Brand, reference, complication..."
+            className="min-w-0 border-0 bg-transparent px-[18px] font-display text-[16px] text-[var(--platinum)] outline-none placeholder:text-[var(--void)]"
+          />
+          <button
+            type="submit"
+            aria-label="Search"
+            className="text-[22px] leading-none text-[var(--muted)] transition-colors hover:text-[var(--platinum)]"
+            style={{ borderLeft: '1px solid var(--border-faint)' }}
+          >
+            &#8981;
+          </button>
+        </form>
 
-      </div>
-
-      {/* ── GUARANTEED SPACER between Zone 1 and Zone 2 ── */}
-      <div style={{ height: '56px', flexShrink: 0 }} />
-
-      {/* ── ZONE 2 — BROWSE ENTRANCE ──
-          Robots Readiness GRS-002 (Layout order 2026-09-08). This zone used
-          to be the pre-inventory waitlist: "Get Notified When Watches
-          Arrive", two role checkboxes, an email field and a Notify Me
-          button posting to /api/waitlist. Public inventory exists, so that
-          story was stale product truth. The waitlist stored nothing (the
-          route only sent two Resend emails, one to the visitor and one to
-          the founder), so nothing was migrated; the API route itself is
-          left in place untouched. The zone now does the one job a signed-out
-          stranger needs from the homepage: a real door into Browse. Same
-          slot, same eyebrow treatment, the existing primary control. The
-          identity copy above (hero eyebrow + governed clarification) is the
-          specialty statement and is deliberately not repeated here. ── */}
-      <div className="relative z-[1] flex flex-col items-center px-6">
-
-        <p className="mb-5 text-center text-[11px] uppercase tracking-[2.2px] text-[var(--muted)]">
-          Explore the watches
+        <p className="mt-[13px] font-display text-[13px] italic text-[var(--muted)]">
+          Try <span className="not-italic text-[var(--gold)]">&ldquo;mother of pearl moonphase&rdquo;</span> or a
+          reference like <span className="not-italic text-[var(--gold)]">&ldquo;PFC274&rdquo;</span>
         </p>
 
-        <Link href="/browse" className="fw-btn-primary whitespace-nowrap">
-          Browse watches
-        </Link>
+        <div className="mx-auto mt-[52px] grid max-w-[740px] grid-cols-[1fr_auto_1fr] items-center gap-[18px] min-[541px]:mt-[74px]">
+          <span className="h-px" style={{ background: 'var(--border-mid)' }} />
+          <span className="font-display text-[13px] text-[var(--muted)]">
+            Every watch on FairWatchTrade is curated for you — the buyer.
+          </span>
+          <span className="h-px" style={{ background: 'var(--border-mid)' }} />
+        </div>
 
-      </div>
+        <div className="mx-auto mt-[26px] grid max-w-[760px] grid-cols-1 gap-[14px] min-[541px]:grid-cols-3 min-[541px]:gap-[18px] min-[821px]:gap-9">
+          {PRINCIPLES.map((principle) => (
+            <div key={principle.label} className="font-display text-[12px] text-[var(--slate)]">
+              <div
+                aria-hidden="true"
+                className="mb-1 grid h-[34px] place-items-center text-[30px] leading-none text-[var(--gold)]"
+              >
+                {principle.mark}
+              </div>
+              <div>{principle.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      {/* ── FOOTER TAGLINE — guaranteed 48px below button row ── */}
-      <p
-        className="relative z-[1] text-center text-[11px] uppercase tracking-[3px] text-[var(--muted)]"
-        style={{ marginTop: '48px', paddingBottom: '48px' }}
+      {/* ── RUNWAY ──────────────────────────────────────────────────────
+          Height is content-driven on purpose. The room ends when its last
+          line ends and the real footer follows; it is never padded out to a
+          fixed height, which is what turns a composed room into a blank
+          landing strip. ── */}
+      <section
+        className="relative overflow-hidden"
+        style={{ background: RUNWAY_SURFACE, borderTop: '1px solid var(--border-gold)' }}
       >
-        For independent &amp; boutique watchmakers
-      </p>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, light-dark(rgba(255,255,255,0.18), rgba(255,255,255,0.03)), transparent 160px), radial-gradient(circle at 50% 22%, light-dark(rgba(255,255,255,0.22), rgba(255,255,255,0.04)), transparent 42%)',
+          }}
+        />
+
+        <div className="relative z-[1] mx-auto max-w-[1260px] px-[22px] pb-[86px] pt-[74px] min-[821px]:px-[7vw] min-[821px]:pb-[110px] min-[821px]:pt-24">
+
+          <div className="mb-11 flex justify-center">
+            <div
+              aria-hidden="true"
+              className="relative h-[152px] w-[152px] rounded-full font-display"
+              style={{
+                border: '1px solid var(--border-gold)',
+                background: 'light-dark(rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+                boxShadow:
+                  'inset 0 0 0 6px light-dark(rgba(255,255,255,0.10), rgba(255,255,255,0.03)), inset 0 0 0 7px light-dark(rgba(143,116,64,0.10), rgba(201,168,76,0.07))',
+              }}
+            >
+              <span
+                className="absolute inset-[11px] rounded-full"
+                style={{ border: '1px solid var(--border-faint)' }}
+              />
+
+              <span className="absolute left-1/2 top-[15px] -translate-x-1/2 text-[10px] leading-none text-[var(--gold-dim)]">XII</span>
+              <span className="absolute right-[17px] top-1/2 -translate-y-1/2 text-[10px] leading-none text-[var(--gold-dim)]">III</span>
+              <span className="absolute bottom-[15px] left-1/2 -translate-x-1/2 text-[10px] leading-none text-[var(--gold-dim)]">VI</span>
+              <span className="absolute left-[17px] top-1/2 -translate-y-1/2 text-[10px] leading-none text-[var(--gold-dim)]">IX</span>
+
+              {[60, 120, 240, 300].map((angle) => (
+                <span
+                  key={angle}
+                  className="absolute left-1/2 top-[7px] h-[7px] w-px"
+                  style={{
+                    background: 'var(--gold-subtle)',
+                    transformOrigin: '50% 69px',
+                    transform: `rotate(${angle}deg)`,
+                  }}
+                />
+              ))}
+
+              <span
+                className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[6px] tracking-[0.18em] text-[var(--gold-subtle)]"
+              >
+                FAIRWATCHTRADE
+              </span>
+
+              <span
+                className="absolute left-1/2 top-1/2 h-px w-[39px]"
+                style={{
+                  background: 'var(--slate)',
+                  transformOrigin: '0 50%',
+                  transform: `rotate(${hands.hour}deg)`,
+                }}
+              />
+              <span
+                className="absolute left-1/2 top-1/2 h-px w-[52px]"
+                style={{
+                  background: 'var(--muted)',
+                  transformOrigin: '0 50%',
+                  transform: `rotate(${hands.minute}deg)`,
+                }}
+              />
+              <span
+                className="absolute left-1/2 top-1/2 h-px w-[57px]"
+                style={{
+                  background: 'var(--gold)',
+                  transformOrigin: '0 50%',
+                  transform: `rotate(${hands.second}deg)`,
+                }}
+              />
+              <span
+                className="absolute left-1/2 top-1/2 h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  background: 'var(--gold-fill)',
+                  boxShadow: '0 0 0 2px light-dark(rgba(255,255,255,0.35), rgba(255,255,255,0.10))',
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mb-[22px] text-center text-[11px] uppercase tracking-[0.24em] text-[var(--gold-dim)]">
+            Why FairWatchTrade exists
+          </div>
+
+          <h2 className="mx-auto max-w-[960px] text-center font-display text-[42px] font-normal leading-[0.98] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[clamp(36px,5.2vw,74px)]">
+            Built for the watch nobody else recognizes —{' '}
+            <em className="font-normal italic text-[var(--platinum-dim)]">and the one person who does.</em>
+          </h2>
+
+          <p className="mx-auto mt-[30px] max-w-[720px] text-center font-display text-[17px] leading-[1.55] text-[var(--slate)] min-[541px]:text-[18px]">
+            Most watch marketplaces are built around inventory. FairWatchTrade is built around
+            recognition: the reference, the movement, the dial, the details you actually care about.
+          </p>
+
+          <div
+            className="mt-[62px] grid grid-cols-1 min-[541px]:mt-[90px] min-[821px]:grid-cols-3"
+            style={{ borderTop: `1px solid ${RUNWAY_RULE}`, borderBottom: `1px solid ${RUNWAY_RULE}` }}
+          >
+            {PROOF.map((column, index) => (
+              <article
+                key={column.index}
+                className="px-1 py-[30px] min-[821px]:min-h-[224px] min-[821px]:px-[34px] min-[821px]:pb-[34px] min-[821px]:pt-[38px]"
+                style={
+                  index === 0
+                    ? undefined
+                    : { borderTop: `1px solid ${RUNWAY_RULE}`, borderLeft: 'none' }
+                }
+              >
+                <div className="mb-[26px] text-[10px] tracking-[0.18em] text-[var(--gold-dim)]">
+                  {column.index}
+                </div>
+                <h3 className="font-display text-[28px] font-normal leading-[1.08] text-[var(--platinum)]">
+                  {column.heading[0]}
+                  <br />
+                  {column.heading[1]}
+                </h3>
+                <p className="mt-4 max-w-[30ch] font-display text-[15px] leading-[1.55] text-[var(--slate)]">
+                  {column.copy}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mx-auto mt-[92px] grid max-w-[970px] grid-cols-1 items-center gap-[18px] min-[821px]:grid-cols-[1fr_auto_1fr] min-[821px]:gap-7">
+            <span className="hidden h-px min-[821px]:block" style={{ background: 'var(--border-gold)' }} />
+            <blockquote className="mx-auto max-w-[680px] text-center font-display text-[23px] italic leading-[1.35] text-[var(--platinum-dim)]">
+              &ldquo;We think in dials and VPH, not dropdowns.&rdquo;
+            </blockquote>
+            <span className="hidden h-px min-[821px]:block" style={{ background: 'var(--border-gold)' }} />
+          </div>
+
+          <div className="mx-auto mt-[68px] flex max-w-[850px] flex-wrap justify-center gap-x-[22px] gap-y-4 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] min-[541px]:gap-9">
+            {QUIET_PRINCIPLES.map((principle) => (
+              <span key={principle} className="relative pl-[14px]">
+                <span
+                  aria-hidden="true"
+                  className="absolute left-0 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full"
+                  style={{ background: 'var(--gold-fill)' }}
+                />
+                {principle}
+              </span>
+            ))}
+          </div>
+
+        </div>
+      </section>
 
     </main>
   );

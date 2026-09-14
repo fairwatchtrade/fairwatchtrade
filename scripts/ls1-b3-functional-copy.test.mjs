@@ -319,7 +319,6 @@ const PROTECTED_EXACT_CLASSES = [
   ["components/BrowseClient.tsx", "font-display text-[14px] font-light italic leading-[1.6] text-[var(--slate)]", 1, "Browse maxim"],
   ["components/MobileNav.tsx", "mt-1 font-display text-[13px] font-light italic text-[var(--platinum-dim)]", 1, "MobileNav literary greeting"],
   ["components/CatalogueClient.tsx", "mb-3 font-display text-[13px] font-light italic text-[var(--platinum-dim)]", 1, "Catalogue literary maxim"],
-  ["components/CurrentHomepage.tsx", "mt-2 font-display text-[15px] font-light italic leading-[1.7] text-[var(--gold)] sm:hidden", 1, "current-homepage identity"],
   ["components/VaultGalaxy.tsx", "pointer-events-none fixed bottom-[10px] left-1/2 z-[6] -translate-x-1/2 text-center font-display text-[11px] italic text-[var(--muted)]", 1, "Vault disclosure"],
   ["components/VaultGalaxy.tsx", "font-display text-[15px] font-light italic leading-[1.8] tracking-[0.2px] text-[var(--muted)]", 1, "Vault archive line"],
   ["components/VaultSpecificationUpgrade.tsx", "mt-0.5 font-display italic text-[var(--muted)]", 1, "Vault admin aside"],
@@ -507,7 +506,12 @@ assert.equal(
 
 assert.equal(countExactStatic("components/VaultSpecificationUpgrade.tsx", "mt-2 text-[12px] text-[var(--platinum-dim)]"), 1, "Vault admin aside keeps its inherited 12px parent");
 assert.match(read("components/VaultSpecificationUpgrade.tsx"), /Nice try, you wanker\./, "Vault admin aside copy remains present");
-assert.match(read("components/CurrentHomepage.tsx"), /MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE/, "current-homepage identity source remains present");
+/* The homepage no longer carries an editorial identity italic. Its body is
+   the search-led pre-inventory runway, whose copy is display-serif
+   composition rather than a functional root, so it holds no binding here.
+   The homepage's exclusion from the functional recipe is still proven above.
+   The governed identity strings themselves are untouched and still live in
+   lib/marketplaceIdentity.ts. */
 assert.match(read("components/CatalogueClient.tsx"), /Every great library begins with a single volume\./, "Catalogue literary maxim remains present");
 
 console.log("ls1-b3-functional-copy: 1 recipe, 111 prior + 5 LS-4 failure-truth bindings (116 current), 4 rail consumers, 20 protected and 6 dormant treatments PASS");
