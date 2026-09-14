@@ -25,7 +25,7 @@ export default function FounderSignature({
         height={(width * 700) / 2461}
         fill="currentColor"
         role="img"
-        aria-label="William Mynatt signature"
+        aria-label="Founder's signature"
         className="text-[var(--platinum)]"
       >
         <g transform="translate(0.000000,700.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M14819 6392 c-46 -23 -164 -129 -361 -322 -42 -41 -95 -92 -117 -113
