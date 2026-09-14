@@ -77,7 +77,7 @@ export default function AboutPage() {
         <div className="fw-body font-display px-1 text-left text-[14px] font-light text-[var(--platinum-dim)] sm:text-[16.5px]">
           <p>
             Welcome. Long before I found myself collecting watches, I worked in
-            IT infrastructure consulting in Northern Virginia. FairWatchTrade
+            IT infrastructure consulting in Northern Virginia. But FairWatchTrade
             was not born from a business plan. It grew out of a personal search.
           </p>
 
