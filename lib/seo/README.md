@@ -4,15 +4,28 @@
 
 > "robots.txt decides what gets indexed, and a page that is not linked is private."
 
-Neither is true. `app/robots.ts` is one site-wide crawler *request* and it is
-fully closed pre-launch (`User-Agent: *` / `Disallow: /`). It says nothing
-about any individual resource. What decides whether ONE page may be indexed
-once robots opens — and which of several URLs is that page's identity — is
-the per-resource metadata emitted through this directory. Robots is posture.
-This is truth.
+Neither is true. `app/robots.ts` is one site-wide crawler *request*. Since the
+launch lift it is open for public resources and closes only three machine and
+operator prefixes:
 
-The two coexist on purpose: the sitemap and every canonical exist today while
-robots stays closed. A sitemap is discovery, not permission.
+```txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /internal/
+
+Sitemap: https://www.fairwatchtrade.com/sitemap.xml
+```
+
+It says nothing about any individual resource. What decides whether ONE page
+may be indexed — and which of several URLs is that page's identity — is the
+per-resource metadata emitted through this directory. Robots is posture.
+This is truth. **Opening robots widened nothing here:** every noindex ruling
+below held before the lift and holds identically after it.
+
+A sitemap is discovery, not permission. It tells a crawler where to look;
+each resource's own directive still decides what may be indexed.
 
 ## What lives where
 
@@ -60,8 +73,16 @@ robots stays closed. A sitemap is discovery, not permission.
 
 ## What is deliberately NOT built
 
-- **No robots lift, no partial allowlist, no `Sitemap:` line in robots.txt.**
-  Opening robots is a founder ruling for its own flight.
+- **No partial public allowlist in robots.txt.** The open posture is
+  `Allow: /` with three closed prefixes — never a hand-maintained list of
+  permitted paths, which would silently close every page nobody remembered
+  to add.
+- **No robots `Disallow` for noindex routes.** Auth doors, account and
+  action pages, individual seller profiles and non-public listings stay
+  crawler-reachable on purpose: a crawler blocked from fetching a page can
+  never read the `noindex` that page emits. Blocking and noindexing are
+  opposite instruments. This is the trap most likely to be "fixed" by
+  someone tidying robots.txt — do not.
 - **No `changeFrequency` or `priority`** in the sitemap. They are hints
   crawlers largely ignore and would be invented.
 - **No Open Graph / Twitter card work.** Out of scope for this cluster.
@@ -79,9 +100,12 @@ node scripts/robots-readiness-seo-foundation.test.mjs
 # every route that declares policy, and which helper it uses
 grep -rn "RouteMetadata\|Metadata()" app --include=*.tsx --include=*.ts | grep -v "^app/api"
 
-# production: sitemap is live XML, robots is still closed
+# production: sitemap is live XML, robots is open with three closed prefixes
 curl -s https://www.fairwatchtrade.com/sitemap.xml | head -5
 curl -s https://www.fairwatchtrade.com/robots.txt
+
+# production: nothing personal is advertised as an indexable seller identity
+curl -s https://www.fairwatchtrade.com/sitemap.xml | grep -o '<loc>[^<]*/sellers/[^<]*</loc>'
 
 # production: a page's directive and canonical (signed out)
 curl -s https://www.fairwatchtrade.com/browse | grep -o '<meta name="robots"[^>]*>\|<link rel="canonical"[^>]*>'

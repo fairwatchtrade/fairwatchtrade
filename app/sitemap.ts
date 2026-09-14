@@ -11,10 +11,17 @@ import {
    PRODUCTION SITEMAP — /sitemap.xml   (Robots Readiness GRS-007)
 
    Discovery, not permission. This file lists the resources FairWatchTrade
-   WANTS found once robots opens; app/robots.ts still disallows every
-   crawler pre-launch, and the two coexist on purpose. A sitemap tells a
-   crawler where to look; the page-level directive on each resource decides
-   whether it may be indexed after its lifecycle changes.
+   WANTS found. app/robots.ts is open since the launch lift and references
+   this document by URL, but the two remain different instruments: a sitemap
+   tells a crawler where to look; the page-level directive on each resource
+   decides whether it may be indexed after its lifecycle changes.
+
+   A seller enters ONLY as a governed dealer slug, and that slug is a public,
+   indexable identity the moment it exists — there is no second gate between
+   "has a dealer_profiles row" and "is advertised to search engines". Admit a
+   dealer whose business_name is a natural person's name and that person's
+   name becomes a search result. That is a deliberate property, not an
+   oversight; see lib/seo/README.md.
 
    Two reads, on the ANONYMOUS client — never the cookie-bound session
    client, so a signed-in seller's own drafts can never widen a public

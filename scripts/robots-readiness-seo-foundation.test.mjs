@@ -9,10 +9,13 @@
         seller indexing, sitemap membership;
      2. source pins on the routes that consume it — every governed page
         declares through the one source, noindex surfaces are noindex,
-        returnTo behaviour is preserved, robots stays closed and its stale
-        /sell note is gone.
+        returnTo behaviour is preserved;
+     3. the launch robots posture, EXECUTED rather than grepped — the
+        emitted rule object is the assertion, so a comment can never pass
+        for a posture.
 
-   Robots-lift is NOT asserted anywhere here; the whole site stays closed. */
+   Robots is open for governed public resources. Section 10 is the guard
+   that stops a regression back to the site-wide blockade. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -37,6 +40,10 @@ import {
 } from "../lib/seo/routeMetadata.ts";
 import { SITEMAP_LISTING_CEILING, buildSitemapEntries } from "../lib/seo/sitemap.ts";
 import { SITE_URL } from "../lib/discovery/publicDiscovery.ts";
+/* app/robots.ts carries a type-only Next import, which strips to nothing, so
+   the real route handler runs here under plain Node. Section 10 asserts what
+   it EMITS — not what its comment says. */
+import robotsRoute from "../app/robots.ts";
 
 let n = 0;
 const ok = (name, cond) => { assert.ok(cond, name); n += 1; };
@@ -251,19 +258,53 @@ ok("sitemap reads through the anonymous client, never the session client", sitem
 ok("sitemap listing read is published-only", sitemapRoute.includes('.eq("status", "published")'));
 ok("sitemap membership is decided by the pure composer", sitemapRoute.includes("buildSitemapEntries({ listings, dealers })"));
 
-/* ── 10 · robots stays closed; the stale /sell note is gone ── */
-const robots = read("app/robots.ts");
-ok("robots still disallows everything", /userAgent:\s*"\*"/.test(robots) && /disallow:\s*"\/"/.test(robots));
-ok("robots carries no allow rules", !/\ballow:/.test(robots));
-ok("robots carries no sitemap reference yet (discovery stays a lift-flight decision)", !/sitemap:/.test(robots));
-ok("stale launch note no longer documents /sell as disallowed", !robots.includes("/sell disallowed"));
-ok("robots records that /sell is indexable under the route policy", robots.includes("/sell is a public entry destination"));
-ok("robots points at the policy home", robots.includes("lib/seo/README.md"));
+/* ── 10 · robots: the LAUNCH posture, executed rather than grepped ──
+   The site-wide blockade is lifted. Public resources are crawlable and the
+   three machine/operator prefixes stay closed. Robots is still not access
+   control — /api/, /admin/ and /internal/ are protected by auth, and these
+   lines only stop a well-behaved crawler wasting requests on them.
+
+   Nothing here decides whether ONE page may be indexed. That is still the
+   per-resource directive in lib/seo/routeMetadata.ts, asserted above: a
+   noindex route deliberately stays crawler-REACHABLE so the crawler can
+   read the directive it must obey. */
+const robotsSource = read("app/robots.ts");
+const emitted = robotsRoute();
+const rule = emitted.rules;
+ok("one rule object, not a per-agent allowlist", !Array.isArray(rule));
+eq("the rule addresses every crawler", rule.userAgent, "*");
+
+const disallowed = Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow];
+ok("the site-wide blockade is GONE — no root-wide Disallow", !disallowed.includes("/"));
+eq("public crawl is allowed", rule.allow, "/");
+ok("Allow is the whole site, never a partial public allowlist", typeof rule.allow === "string");
+for (const closed of ["/api/", "/admin/", "/internal/"]) {
+  ok(`${closed} stays crawler-disallowed`, disallowed.includes(closed));
+}
+eq("exactly three prefixes are closed", disallowed.length, 3);
+/* Noindex surfaces are deliberately NOT listed above: a crawler blocked from
+   fetching them can never see the noindex their own page emits. */
+for (const reachable of ["/login", "/signup", "/account", "/sellers/", "/listings/", "/shopping-bag", "/wanted"]) {
+  ok(`${reachable} is not robots-disallowed (its page owns its own directive)`, !disallowed.includes(reachable));
+}
+
+eq("robots references exactly the canonical sitemap", emitted.sitemap, `${O}/sitemap.xml`);
+eq("the sitemap reference is built on the one canonical origin", emitted.sitemap, `${CANONICAL_ORIGIN}/sitemap.xml`);
+ok("the sitemap reference is on the serving www host, never the apex", !/^https:\/\/fairwatchtrade\.com/.test(emitted.sitemap));
+
+ok("no pre-launch blockade note survives", !robotsSource.includes("PRE-LAUNCH: block ALL search-engine indexing"));
+ok("no note still says the file must stay fully closed", !robotsSource.includes("MUST stay"));
+ok("robots records that route policy, not robots, decides indexability", robotsSource.includes("ROUTE POLICY LIVES ELSEWHERE"));
+ok("robots points at the policy home", robotsSource.includes("lib/seo/README.md"));
+ok("robots records that it is not access control", /not access control/i.test(robotsSource));
 
 /* ── 11 · the README beside the machinery ── */
 const readme = read("lib/seo/README.md");
 ok("README leads with the misconception it kills", readme.includes("misconception") && readme.includes("robots.txt decides what gets indexed"));
 ok("README records the root-canonical trap", readme.includes("root layout must never declare a canonical"));
-ok("README records what is deliberately not built", readme.includes("deliberately NOT built") && readme.includes("No robots lift"));
+ok("README records what is deliberately not built", readme.includes("deliberately NOT built"));
+ok("README no longer claims robots is closed pre-launch", !readme.includes("No robots lift") && !readme.includes("fully closed pre-launch"));
+ok("README records the open posture and what stays closed", readme.includes("Disallow: /api/") && readme.includes("Disallow: /admin/") && readme.includes("Disallow: /internal/"));
+ok("README keeps robots and per-resource truth separate", readme.includes("Robots is posture"));
 
 console.log(`robots-readiness-seo-foundation: ${n} assertions PASS`);
