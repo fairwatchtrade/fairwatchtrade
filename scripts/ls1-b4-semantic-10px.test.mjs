@@ -149,7 +149,7 @@ const ANCHORS = [
   anchor("components/ProposeTradeDialog.tsx", "fw-transaction-fact", "trade give fact", `<dt className="{{recipe}} uppercase text-[var(--muted)]"> You give </dt>`),
   anchor("components/ProposeTradeDialog.tsx", "fw-transaction-fact", "trade cash fact", `<dt className="{{recipe}} uppercase text-[var(--muted)]"> Cash </dt>`),
 
-  anchor("components/PurchaseRequestForm.tsx", "fw-functional-copy", "seller-details review help", `<div className="mt-4 border-t border-[var(--border-gold)] pt-3 {{recipe}} text-[var(--muted)]"> Review these details from the seller before sending your request. </div>`),
+  anchor("components/PurchaseRequestForm.tsx", "fw-functional-copy", "seller-details review help", `<div data-listing-details-trust-footer className="mt-5 border-t border-[var(--border-gold)] pt-3 {{recipe}} text-[var(--muted)]"> Review these details from the seller before sending your request. </div>`),
   anchor("components/PurchaseRequestForm.tsx", "fw-validity-state", "optional purchase note", `<span className="{{recipe}} normal-case text-[var(--muted)]"> — optional </span>`),
   anchor("components/ReviewStep.tsx", "fw-functional-copy", "listing-currency disclosure", `<p className="mt-1.5 max-w-[560px] {{recipe}} text-[var(--muted)]"> The amount and currency shown are the exact values attached to the listing.`),
 
@@ -243,7 +243,10 @@ const EXPECTED_FILE_TOTALS = {
   "components/InlinePurchaseRequest.tsx": [0, 0, 0, 1, 0, 0],
   "components/ListingCorrespondence.tsx": [4, 1, 0, 0, 1, 0],
   "components/ProposeTradeDialog.tsx": [0, 3, 0, 0, 2, 0],
-  "components/PurchaseRequestForm.tsx": [2, 6, 0, 2, 0, 0],
+  /* The Layout-owned Listing Details composition adds one functional-copy
+     provenance owner and three net fact-label bindings while preserving the
+     existing recipe definitions. */
+  "components/PurchaseRequestForm.tsx": [3, 9, 0, 2, 0, 0],
   "components/SavedSearchesCard.tsx": [1, 0, 0, 0, 1, 0],
   "components/TradeDoorway.tsx": [0, 0, 1, 0, 0, 0],
   /* +1 fw-compact-control (2026-09-12): the Active / Archived view tabs

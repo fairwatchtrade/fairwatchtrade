@@ -184,7 +184,9 @@ const EXPECTED_BINDINGS = {
   "components/MarketplaceControl.tsx": 2,
   "components/MobileWizard.tsx": 13,
   "components/NotificationsBell.tsx": 1,
-  "components/PurchaseRequestForm.tsx": 2,
+  /* Listing Details composition gives seller provenance a readable
+     functional-copy owner instead of the retired decorative eyebrow. */
+  "components/PurchaseRequestForm.tsx": 3,
   "components/rail/catalogueCardStyles.ts": 1,
   "components/RemoveListingDialog.tsx": 1,
   "components/ReviewStep.tsx": 2,
@@ -226,7 +228,7 @@ for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
     }
   }
 }
-assert.equal(bindingTotal, 110, "all 88 LS1-B3 roots, 14 additive LS1-B4 bindings and 8 LS1-B6 auth/recovery states are governed");
+assert.equal(bindingTotal, 111, "all 88 LS1-B3 roots, 14 additive LS1-B4 bindings, 8 LS1-B6 auth/recovery states, and the Listing Details provenance owner are governed");
 
 const railSource = read("components/rail/catalogueCardStyles.ts");
 assert.match(
@@ -505,4 +507,4 @@ assert.match(read("components/VaultSpecificationUpgrade.tsx"), /Nice try, you wa
 assert.match(read("components/CurrentHomepage.tsx"), /MARKETPLACE_IDENTITY_CLARIFICATION_LINES_MOBILE/, "current-homepage identity source remains present");
 assert.match(read("components/CatalogueClient.tsx"), /Every great library begins with a single volume\./, "Catalogue literary maxim remains present");
 
-console.log("ls1-b3-functional-copy: 1 recipe, 88 base + 14 B4 + 8 B6 bindings (110 current), 4 rail consumers, 20 protected and 6 dormant treatments PASS");
+console.log("ls1-b3-functional-copy: 1 recipe, 88 base + 14 B4 + 8 B6 + 1 Layout provenance binding (111 current), 4 rail consumers, 20 protected and 6 dormant treatments PASS");

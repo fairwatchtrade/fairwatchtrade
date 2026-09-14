@@ -120,7 +120,10 @@ function governedBindings(path) {
 
 const EXPECTED_BINDINGS = {
   "components/PurchaseRequestForm.tsx": {
-    "fw-transaction-fact": 6,
+    /* Listing Details composition (2026-09-13): Condition, Included, Band,
+       and Fulfillment now bind the governed fact-label recipe. The retired
+       floating provenance eyebrow had already contributed one binding. */
+    "fw-transaction-fact": 9,
     "fw-lifecycle-label": 0,
     "fw-validity-state": 2,
   },
@@ -173,6 +176,6 @@ for (const [path, expected] of Object.entries(EXPECTED_BINDINGS)) {
   assert.deepEqual(actual, expected, `${path} binds only its LS1-B1 semantic roles`);
   total += found.length;
 }
-assert.equal(total, 48, "all 47 LS1-B1 bindings and the one additive LS1-B4 validity binding are governed");
+assert.equal(total, 51, "all 47 LS1-B1 bindings, the additive LS1-B4 validity binding, and 3 net Layout composition bindings are governed");
 
-console.log("ls1-b1-commerce-microtype: 3 recipes, 47 base + 1 B4 bindings (48 current) PASS");
+console.log("ls1-b1-commerce-microtype: 3 recipes, 47 base + 1 B4 + 3 Layout composition bindings (51 current) PASS");

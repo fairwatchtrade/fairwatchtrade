@@ -117,13 +117,6 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
      the shared controller. This route no longer owns a second copy of any
      of it — one contract, three surfaces. */
 
-  /* ── read-only seller facts (derived server-side from the live listing) ── */
-  const truthRows: Array<{ label: string; value: string }> = [];
-  if (listing.condition) truthRows.push({ label: "Condition", value: listing.condition });
-  if (listing.included) truthRows.push({ label: "Included", value: listing.included });
-  truthRows.push({ label: "Band", value: listing.strap });
-  truthRows.push({ label: "Fulfillment", value: "Shipping details will be confirmed with the seller." });
-
   return (
     <main className="min-h-screen bg-[var(--ink)] text-[var(--platinum)]">
       {/* sub-bar: return to listing */}
@@ -193,25 +186,54 @@ export default function PurchaseRequestForm({ listing }: { listing: ListingConte
           {/* B · LISTING DETAILS (read-only seller truth; collapsible) */}
           <section className="order-3 lg:order-none lg:col-start-1 lg:row-start-2">
             <details open className="border border-[var(--border-faint)] bg-[var(--surface)] lg:border-t-0">
-              <summary className="flex cursor-pointer items-end justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer flex-col items-start px-5 py-4 [&::-webkit-details-marker]:hidden">
                 <h2 className="font-display text-[19px] font-light text-[var(--platinum)]">Listing details</h2>
-                <span className="fw-transaction-fact uppercase text-[var(--muted)]">From the seller&apos;s listing</span>
+                <span data-listing-details-provenance className="mt-1 block fw-functional-copy text-[var(--muted)]">
+                  Seller-provided details
+                </span>
               </summary>
-              <div className="px-5 pb-5">
-                <div className="grid">
-                  {truthRows.map((row, i) => (
-                    <div
-                      key={row.label}
-                      className={`grid grid-cols-[110px_1fr] gap-4 py-[11px] text-[11px] leading-[1.45] ${
-                        i === 0 ? "" : "border-t border-[var(--border-faint)]"
-                      }`}
-                    >
-                      <b className="font-medium text-[var(--muted)]">{row.label}</b>
-                      <span className="text-[var(--platinum-dim)]">{row.value}</span>
+              <div data-listing-details-composition className="px-5 pb-5">
+                {listing.condition && (
+                  <dl data-listing-details-primary>
+                    <div>
+                      <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Condition</dt>
+                      <dd className="mt-1 font-display text-[24px] font-light leading-[1.12] lining-nums text-[var(--platinum)]">
+                        {listing.condition}
+                      </dd>
                     </div>
-                  ))}
-                </div>
-                <div className="mt-4 border-t border-[var(--border-gold)] pt-3 fw-functional-copy text-[var(--muted)]">
+                  </dl>
+                )}
+
+                <dl
+                  data-listing-details-package
+                  className={`grid gap-5 ${listing.condition ? "mt-5" : ""} ${listing.included ? "sm:grid-cols-2" : ""}`}
+                >
+                  {listing.included && (
+                    <div>
+                      <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Included</dt>
+                      <dd className="mt-1 text-[13px] leading-[1.5] text-[var(--platinum-dim)]">
+                        {listing.included}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Band</dt>
+                    <dd className="mt-1 text-[13px] leading-[1.5] text-[var(--platinum-dim)]">
+                      {listing.strap}
+                    </dd>
+                  </div>
+                </dl>
+
+                <dl data-listing-details-support className="mt-5 border-t border-[var(--border-faint)] pt-4">
+                  <div>
+                    <dt className="fw-transaction-fact uppercase text-[var(--muted)]">Fulfillment</dt>
+                    <dd className="mt-1.5 text-[12px] leading-[1.6] text-[var(--muted)]">
+                      Shipping details will be confirmed with the seller.
+                    </dd>
+                  </div>
+                </dl>
+
+                <div data-listing-details-trust-footer className="mt-5 border-t border-[var(--border-gold)] pt-3 fw-functional-copy text-[var(--muted)]">
                   Review these details from the seller before sending your request.
                 </div>
               </div>
