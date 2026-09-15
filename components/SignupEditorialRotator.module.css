@@ -1,0 +1,158 @@
+/* One desktop plane holds the task and its editorial companion. The form
+   retains its 440px working width; changing messages cannot move either column.
+   All room architecture is desktop-only. */
+.room { position: relative; }
+.rotator { display: none; }
+.roleSelector {
+  border-radius: 0;
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
+  box-shadow:
+    inset 0 1px 0 light-dark(rgba(255, 253, 248, 0.85), rgba(255, 255, 255, 0.045)),
+    inset 0 -2px 4px light-dark(rgba(58, 44, 22, 0.035), rgba(0, 0, 0, 0.12));
+}
+.roleSelector[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, var(--surface));
+  box-shadow: inset 0 2px 0 var(--gold-subtle), inset 0 -2px 4px light-dark(rgba(58, 44, 22, 0.035), rgba(0, 0, 0, 0.12));
+}
+.roleSelector[aria-pressed="true"] > span:first-child { color: var(--gold-on-tint); }
+.roleSelector:hover { border-color: var(--gold); }
+.roleSelector:focus-visible {
+  border-color: var(--gold);
+  outline: 1px solid var(--gold);
+  outline-offset: 2px;
+}
+.accountBenefits {
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
+  box-shadow: 0 3px 12px light-dark(rgba(58, 44, 22, 0.03), rgba(0, 0, 0, 0.10));
+}
+
+@media (min-width: 1440px) {
+  .formArea {
+    position: relative;
+    display: grid;
+    flex: none;
+    grid-template-columns: 440px minmax(0, 1fr);
+    align-items: start;
+    gap: 48px;
+    width: calc(100% - 64px);
+    max-width: 1280px;
+    margin: 48px auto;
+    padding: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border-faint);
+  }
+  .formArea::before {
+    content: "";
+    position: absolute;
+    top: 40px;
+    bottom: 40px;
+    left: 504px;
+    width: 1px;
+    background: var(--border-subtle);
+  }
+  .taskHeading {
+    font-size: 36px;
+    font-weight: 400;
+    line-height: 1.18;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+  .accountBenefits {
+    /* Redistribute the existing 25px padding/border allowance inside the
+       sister card, keeping the approved panel and downstream form geometry. */
+    padding: 11px 12px 12px;
+  }
+  .accountBenefits ul { font-size: 12px; line-height: 1.65; }
+  .rotator {
+    display: block;
+    position: relative;
+    width: 100%;
+    padding: 32px 32px 24px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: var(--surface-2);
+    box-shadow:
+      0 14px 40px light-dark(rgba(58, 44, 22, 0.075), rgba(0, 0, 0, 0.20)),
+      0 2px 8px light-dark(rgba(58, 44, 22, 0.035), rgba(0, 0, 0, 0.12));
+    color: var(--platinum);
+  }
+}
+
+/* All six cells reserve the tallest approved copy; only one is visible and
+   exposed to accessibility. Neither the controls nor the form reflow. */
+.messages { display: grid; }
+.message { grid-area: 1 / 1; min-width: 0; }
+.eyebrow {
+  min-height: 18px;
+  margin-bottom: 14px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+.heading {
+  position: relative;
+  margin: 0 0 18px;
+  font-size: clamp(30px, 1.75vw, 34px);
+  font-weight: 400;
+  line-height: 1.22;
+  text-wrap: pretty;
+}
+.heading::after {
+  /* Sit inside the existing copy gap without changing the reserved geometry. */
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -9px;
+  width: 84%;
+  height: 1px;
+  background: linear-gradient(to right,
+    var(--gold) 0%,
+    color-mix(in srgb, var(--gold) 65%, transparent) 8%,
+    var(--border-subtle) 32%,
+    var(--border-faint) 70%,
+    transparent 100%);
+  pointer-events: none;
+}
+.body {
+  margin: 0;
+  color: var(--slate);
+  font-size: clamp(15px, 0.84vw, 16px);
+  font-weight: 400;
+  line-height: 1.7;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  width: 252px;
+  margin-top: 20px;
+}
+.control {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.control:focus-visible { outline: 1px solid var(--gold); outline-offset: 1px; }
+.dash { display: block; width: 100%; max-width: 32px; height: 2px; background: var(--border-subtle); overflow: hidden; }
+.control[aria-pressed="true"] .dash { background: color-mix(in srgb, var(--gold) 40%, var(--surface)); }
+.control:not([aria-pressed="true"]):hover .dash { background: var(--gold-subtle); }
+.fill { display: block; height: 100%; background: var(--gold); transform: scaleX(0); transform-origin: left; }
+.control:not([aria-pressed="true"]) .fill { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .messages { opacity: 1 !important; }
+  .fill { display: none; }
+  .control[aria-pressed="true"] .dash { background: var(--gold); }
+}

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import WatchBlueprint from "@/components/WatchBlueprint";
+import SignupEditorialRotator from "@/components/SignupEditorialRotator";
+import editorialStyles from "@/components/SignupEditorialRotator.module.css";
 
 type Role = "collector" | "seller" | "both";
 
@@ -352,14 +354,14 @@ export default function SignUpPage() {
       {leftPanel}
 
       {/* ── RIGHT PANEL — Sign Up ── */}
-      <div className="flex flex-1 flex-col">
+      <div className={`flex flex-1 flex-col ${editorialStyles.room}`}>
         <div className="border-b border-[var(--border-faint)] bg-[var(--gold-whisper)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
           Create your account
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-11 py-12">
+        <div className={`flex flex-1 flex-col items-center justify-center px-11 py-12 ${editorialStyles.formArea}`}>
           <div className="w-full max-w-[440px]">
-            <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
+            <div className={`mb-[6px] font-display text-[26px] font-light text-[var(--platinum)] ${editorialStyles.taskHeading}`}>
               Join FairWatchTrade.
             </div>
             <div className="mb-7 fw-functional-copy text-[var(--muted)]">
@@ -370,7 +372,7 @@ export default function SignUpPage() {
             {/* v2.56 — "What your account gives you" approved wording.
                 Literal about channel, timing, and no-batch; honest that it is not
                 yet Catalogue-targeted. The manifesto (left panel) stays unchanged. */}
-            <div className="mb-6 border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+            <div className={`mb-6 border border-[var(--border-subtle)] bg-[var(--surface)] p-4 ${editorialStyles.accountBenefits}`}>
               <div className="mb-3 text-[11px] uppercase tracking-[1.6px] text-[var(--gold)]">
                 What your account gives you
               </div>
@@ -396,11 +398,8 @@ export default function SignUpPage() {
                     key={chip.id}
                     type="button"
                     onClick={() => setRole(chip.id)}
-                    className={`flex-1 cursor-pointer border px-2 py-[10px] text-center ${
-                      selected
-                        ? "border-[var(--border-gold)] bg-[var(--gold-whisper)]"
-                        : "border-[var(--border-subtle)]"
-                    }`}
+                    aria-pressed={selected}
+                    className={`flex-1 cursor-pointer border px-2 py-[10px] text-center ${editorialStyles.roleSelector}`}
                   >
                     <span
                       className={`mb-[3px] block text-[11px] uppercase tracking-[1.2px] ${
@@ -517,6 +516,7 @@ export default function SignUpPage() {
               FairWatchTrade is a curated marketplace. All listings are reviewed.
             </div>
           </div>
+          <SignupEditorialRotator />
         </div>
       </div>
     </div>
