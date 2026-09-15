@@ -232,7 +232,17 @@ export default function WatchBlueprint({
         aspectRatio: "260 / 430",
         perspective: `${perspective}px`,
         touchAction: "pan-y",
-        "--blueprint-time-hand-hover": "light-dark(#4F3C16, #9A7E3A)",
+        /* The hover target for the two live hands. The selector, the desktop
+           pointer gate and this token all fired correctly before — the light
+           arm was simply below the threshold a person notices. Measured on
+           the signup rail: the hands render inside a 0.65-opacity group as a
+           0.8px hairline, so #4F3C16 resolved to only a 15% luminance drop
+           against #F3F0E8. The dark arm was already landing a 34% drop,
+           which is why the failure was reported on light only. #241A05
+           brings light to 31% — parity with the arm that works. The group
+           opacity is the ceiling here: even pure black reaches only ~35%,
+           so darkening further buys almost nothing and would read harsh. */
+        "--blueprint-time-hand-hover": "light-dark(#241A05, #9A7E3A)",
       } as CSSProperties}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

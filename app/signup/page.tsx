@@ -207,8 +207,17 @@ export default function SignUpPage() {
         />
       </div>
 
-      {/* The manifesto */}
-      <div className="relative z-[1] flex flex-1 flex-col justify-center">
+      {/* The manifesto.
+
+          It used to centre itself in whatever rail height was left over, so
+          the gap between the engineering watch and this copy grew with the
+          window: measured 51px at 900px tall and 374px at 1600px. The watch
+          sat at the top of one room and the writing began halfway down
+          another. A fixed lead-in replaces the centring, so the two read as
+          one composition at every height — the padding accounts for the
+          watch wrapper's -24px negative margin and leaves roughly 64px of
+          breathing room below the drawing. */}
+      <div className="relative z-[1] flex flex-1 flex-col pt-[88px]">
         <div className="mb-5 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
           Why we are here
         </div>
@@ -269,10 +278,10 @@ export default function SignUpPage() {
         {leftPanel}
         <div className="flex flex-1 flex-col">
           <div className="border-b border-[var(--border-faint)] bg-[var(--gold-whisper)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
-            Create Account
+            Create your account
           </div>
           <div className="flex flex-1 flex-col items-center justify-center px-11 py-12">
-            <div className="w-full max-w-[320px]">
+            <div className="w-full max-w-[440px]">
               <div className="mb-[6px] text-center font-display text-[26px] font-light text-[var(--platinum)]">
                 Check your email.
               </div>
@@ -345,11 +354,11 @@ export default function SignUpPage() {
       {/* ── RIGHT PANEL — Sign Up ── */}
       <div className="flex flex-1 flex-col">
         <div className="border-b border-[var(--border-faint)] bg-[var(--gold-whisper)] py-[6px] text-center text-[11px] uppercase tracking-[1.4px] text-[var(--gold-subtle)]">
-          Create Account
+          Create your account
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center px-11 py-12">
-          <div className="w-full max-w-[320px]">
+          <div className="w-full max-w-[440px]">
             <div className="mb-[6px] font-display text-[26px] font-light text-[var(--platinum)]">
               Join FairWatchTrade.
             </div>
@@ -481,12 +490,26 @@ export default function SignUpPage() {
             </div>
 
             <div className="mt-3 text-center text-[11px] leading-[1.6] text-[var(--muted)]">
+              {/* These were already real links and read as prose, so nothing
+                  said they could be opened. Underline is this product's
+                  signal for interactive, which is exactly what makes it
+                  correct here and wrong on the sentence around them: the
+                  legal copy stays quiet, the two destinations do not. They
+                  keep --muted rather than borrowing a stronger token — this
+                  surface already establishes muted as readable legal truth —
+                  and resolve to gold on hover and keyboard focus. */}
               By joining you agree to our{" "}
-              <Link href="/terms" className="text-[var(--muted)]">
+              <Link
+                href="/terms"
+                className="text-[var(--muted)] underline decoration-[var(--gold-subtle)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--gold)] hover:decoration-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              >
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-[var(--muted)]">
+              <Link
+                href="/privacy"
+                className="text-[var(--muted)] underline decoration-[var(--gold-subtle)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--gold)] hover:decoration-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              >
                 Privacy Policy
               </Link>
               .

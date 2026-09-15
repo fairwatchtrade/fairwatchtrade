@@ -174,7 +174,11 @@ const protectedR06 = [
   ["app/login/page.tsx", "sign-in panel title", `text-[var(--gold-subtle)]"> Sign In`],
   ["app/not-found.tsx", "not-found framing eyebrow", `text-[var(--gold-subtle)]"> Page not found`],
   ["app/sell/(entry)/page.tsx", "sell-entry brand eyebrow", `text-[var(--gold-subtle)]"> FairWatchTrade`],
-  ["app/signup/page.tsx", "compact and wide create-account panel titles", `text-[var(--gold-subtle)]"> Create Account`, 2],
+  /* The strip names the room the visitor is standing in, so it says the same
+     thing before and after the code is sent — the room must not rename itself
+     on submit. The gold-subtle binding and the count of two are the point of
+     this pin; only the words moved to "Create your account". */
+  ["app/signup/page.tsx", "compact and wide create-account panel titles", `text-[var(--gold-subtle)]"> Create your account`, 2],
   ["app/vault/galaxy/page.tsx", "vault-galaxy auth eyebrow", `text-[var(--gold-subtle)]"> The FairWatchTrade Vault`],
   ["app/vault/page.tsx", "vault auth eyebrow", `text-[var(--gold-subtle)]"> The FairWatchTrade Vault`],
   ["app/wanted/page.tsx", "wanted page eyebrow", `text-[var(--gold-subtle)]"> Wanted / Looking For`],

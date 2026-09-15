@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { buildBrowseSearchHref } from '@/lib/nav/headerSearch';
 
@@ -218,6 +219,20 @@ export default function CurrentHomepage() {
           </p>
           <p className="mt-[7px] font-display text-[13px] italic leading-[1.4] text-[var(--slate)] min-[541px]:text-[14px]">
             We&rsquo;re opening deliberately — one real watch at a time.
+          </p>
+          {/* The last sentence of the launch paragraph, and the only doorway
+              out of it: open → new → deliberate → you can join. A quiet text
+              link on purpose — a filled button here would turn a statement of
+              provenance into an advertisement, which is the one thing this
+              block was built not to be. Underline carries the interactivity,
+              because within this product underline means interactive. */}
+          <p className="mt-[14px]">
+            <Link
+              href="/signup"
+              className="font-display text-[14px] text-[var(--muted)] underline decoration-[var(--gold-subtle)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--gold)] hover:decoration-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] min-[541px]:text-[15px]"
+            >
+              Join and sell — it&rsquo;s free.
+            </Link>
           </p>
         </div>
 

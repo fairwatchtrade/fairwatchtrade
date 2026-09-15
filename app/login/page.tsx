@@ -121,7 +121,12 @@ export default function LoginPage() {
         </div>
 
         {/* The manifesto */}
-        <div className="relative z-[1] flex flex-1 flex-col justify-center">
+        {/* Same correction as the signup rail, for the same reason: the
+            manifesto centred itself in the leftover height, so the gap below
+            the watch grew with the window. The two doors of one house should
+            not drift into unrelated rail geography, so both take the same
+            fixed lead-in. */}
+        <div className="relative z-[1] flex flex-1 flex-col pt-[88px]">
           <div className="mb-5 text-[11px] uppercase tracking-[1.4px] text-[var(--gold-dim)]">
             Why we are here
           </div>

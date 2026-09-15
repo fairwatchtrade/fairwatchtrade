@@ -242,13 +242,35 @@ export default function NavBar({
               made the row read as two different type sizes. The dropdown
               this opens is a separate panel and keeps its own scale. */}
           {!authed ? (
-            <Link
-              href="/login"
-              className="flex items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] text-[var(--muted)] transition-colors hover:text-[var(--gold)]"
-            >
-              <AccountIcon />
-              Sign In / Register
-            </Link>
+            /* Two words, two destinations. The cluster previously PRESENTED
+               two actions and offered one: the whole "Sign In / Register"
+               string was a single link to /login, so a visitor who read
+               "Register" and clicked it landed on the sign-in door. The
+               visual grouping is unchanged — one compact account cluster at
+               the same size and colour — but each word is now its own link,
+               independently focusable, with its own honest destination.
+
+               The slash is punctuation and is aria-hidden: it names nothing
+               and must never be a target. The icon travels with Sign In and
+               stays decorative, so it cannot make Register route to /login. */
+            <span className="flex items-center gap-2 text-[13.7px] uppercase tracking-[1.8px] text-[var(--muted)]">
+              <Link
+                href="/login"
+                className="flex items-center gap-2 transition-colors hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              >
+                <AccountIcon />
+                Sign In
+              </Link>
+              <span aria-hidden="true" className="select-none">
+                /
+              </span>
+              <Link
+                href="/signup"
+                className="transition-colors hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)]"
+              >
+                Register
+              </Link>
+            </span>
           ) : (
             /* `flex` is load-bearing, not cosmetic. As a block this wrapper
                shrank correctly under the cluster's min-w-0 but did NOT
