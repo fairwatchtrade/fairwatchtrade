@@ -190,4 +190,64 @@ ok("the retired scaffolding closing never reached public copy",
   !/a marketplace, quietly different/i.test(home) &&
     !/until the watches fill this room/i.test(home));
 
+/* ── launch context (v9.00) ───────────────────────────────────────────────
+   Governed public copy stating when the marketplace opened. It is pinned
+   because it is TEMPORARY: it comes out when real inventory makes the
+   marketplace's maturity self-evident, and that removal should be a
+   deliberate act rather than something that quietly happens during an
+   unrelated edit. The date is the substance — "new" without a temporal
+   anchor asks a visitor to trust an undated claim. */
+ok("launch eyebrow carries the exact governed wording",
+  home.includes("Now Open · September 2026"));
+ok("the launch date appears exactly once", (home.match(/September 2026/g) || []).length === 1);
+ok("launch eyebrow is the governed 11px at the one place it is declared",
+  /className="[^"]*text-\[11px\][^"]*tracking-\[0\.24em\][^"]*gold-dim[^"]*"\s*>\s*Now Open · September 2026/.test(home));
+ok("the middle line admits newness without offering the standards as new",
+  home.includes("FairWatchTrade is new. The standards are not."));
+ok("the quiet closing line is present",
+  home.includes("opening deliberately") && home.includes("one real watch at a time."));
+/* Absence assertions run against the CODE, never the raw file. A file's own
+   documentation naturally uses the very words it documents the absence of —
+   a comment explaining "this is not a promo card, no coming-soon language"
+   would fail a naive check for those strings. Prose must not be able to trip
+   a structural guard, so block comments are stripped once here. */
+const homeCode = home
+  .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+
+/* Scoped to the launch region itself — between the curation line and the
+   principles — rather than the whole file. A bare word test is the wrong
+   instrument here: "promo" matches "promoted placement", which is real
+   governed copy in the 01 / CAPITAL paragraph. */
+const launchRegion = homeCode.slice(
+  homeCode.indexOf("curated for you"),
+  homeCode.indexOf("PRINCIPLES.map")
+);
+ok("the launch region actually contains the launch context",
+  launchRegion.includes("Now Open · September 2026"));
+ok("the launch context is not a banner, card or CTA",
+  !/<button/.test(launchRegion) &&
+    !/\bbg-/.test(launchRegion) &&
+    !/rounded/.test(launchRegion));
+ok("no coming-soon language ships", !/coming soon/i.test(homeCode));
+
+/* ── principle marks are rules, not glyphs (v9.00) ── */
+ok("the retired decorative glyphs are gone everywhere",
+  !home.includes("♢") && !home.includes("⌁") && !home.includes("⌾"));
+ok("no icon or svg replaced them", !home.includes("<svg") && !home.includes("<Image"));
+ok("one identical gold rule is declared once and rendered for every principle",
+  /mx-auto mb-2 block h-px w-8 opacity-90 min-\[541px\]:mb-3/.test(home));
+
+/* ── proof blocks centre at EVERY width (v9.00) ───────────────────────────
+   The v8.99a desktop reversal is superseded. These pin the absence of the
+   two classes that produced it, so a later edit cannot quietly restore a
+   left-aligned desktop proof column. */
+ok("proof alignment never reverts to left at desktop", !home.includes("min-[821px]:text-left"));
+ok("the proof paragraph box never un-centres at desktop", !home.includes("min-[821px]:mx-0"));
+ok("proof alignment is declared once on the block", /text-center min-\[821px\]:min-h-\[230px\]/.test(home));
+
+/* ── headline scale (v9.00) ── */
+ok("hero maximum is the governed scale", home.includes("clamp(42px,4vw,58px)"));
+ok("statement maximum is the governed scale", home.includes("clamp(38px,4.5vw,62px)"));
+
 console.log(`homepage-identity: ${pass} assertions PASS`);

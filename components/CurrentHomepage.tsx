@@ -24,10 +24,11 @@ import { buildBrowseSearchHref } from '@/lib/nav/headerSearch';
 
    THE SEARCH IS REAL. The field below is a new PLACEMENT of the existing
    search mechanism, not a second one. It submits through
-   buildBrowseSearchHref into /browse?q=, where Browse's parser, URL state,
-   Active Criteria and result machinery take over. No local parsing, no
-   reference interpretation, no fuzzy matching, no results overlay — the
-   example strings in the hint are demonstration copy, never fixtures.
+   buildBrowseSearchHref into the Browse query route, where Browse's parser,
+   URL state, Active Criteria and result machinery take over. No local
+   parsing, no reference interpretation, no fuzzy matching, no results
+   overlay — the example strings in the hint are demonstration copy, never
+   fixtures.
 
    THE CLOCK IS REAL TIME. It reads the visitor's local clock and updates
    every second; the hand angles below are computed, never decorative
@@ -35,6 +36,11 @@ import { buildBrowseSearchHref } from '@/lib/nav/headerSearch';
    is aria-hidden on purpose: it carries no information the page depends on,
    and a label that silently went stale every second would be worse than
    silence.
+
+   ALIGNMENT BELONGS TO THE BLOCK. Each proof is one centred editorial unit
+   at every width — index, heading and copy inherit one declaration on the
+   article rather than each carrying their own. Three elements with three
+   separate alignment rules is exactly how they drifted apart once already.
 
    APPEARANCE. The light composition is the designed one, so every custom
    value is written light-dark(light, dark) rather than forcing the page to
@@ -47,12 +53,16 @@ import { buildBrowseSearchHref } from '@/lib/nav/headerSearch';
    dark arm is the ordinary page ink so the room still reads as a distinct
    plane beneath the lighter search room above it. */
 const RUNWAY_SURFACE = 'light-dark(#F2F0E9, #0D0F14)';
-const RUNWAY_RULE = 'light-dark(rgba(188,169,131,1), rgba(201,168,76,0.22))';
+const RUNWAY_RULE = 'light-dark(#BCA983, rgba(201,168,76,0.22))';
 
+/* Three statements, each under one identical short gold rule. The rule is
+   deliberately not an icon: a mark that means nothing specific reads as a
+   stray character once the row stacks, which is what the previous glyphs
+   did. A rule is punctuation, not symbolism, so all three are identical. */
 const PRINCIPLES = [
-  { mark: '♢', label: 'Mechanical timepieces only' },
-  { mark: '⌁', label: 'Watches chosen for merit' },
-  { mark: '⌾', label: 'Original photography' },
+  'Mechanical timepieces only',
+  'Watches chosen for merit',
+  'Original photography',
 ] as const;
 
 const PROOF = [
@@ -123,7 +133,7 @@ export default function CurrentHomepage() {
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     /* The one submit seam. Empty or whitespace text reaches bare /browse
-       rather than an empty q — that behaviour belongs to the helper. */
+       rather than an empty query — that behaviour belongs to the helper. */
     router.push(buildBrowseSearchHref(query));
   }
 
@@ -133,18 +143,16 @@ export default function CurrentHomepage() {
       {/* ── SEARCH ROOM ─────────────────────────────────────────────────
           The instrument comes first. Everything below it explains why. ── */}
       <section
-        className="min-h-[610px] px-[22px] pb-12 pt-[54px] text-center min-[821px]:min-h-[650px] min-[821px]:px-[7vw] min-[821px]:pb-14 min-[821px]:pt-[70px]"
+        className="px-5 pb-[50px] pt-[50px] text-center min-[541px]:px-[22px] min-[541px]:pb-12 min-[541px]:pt-[52px] min-[821px]:px-[7vw] min-[821px]:pb-[58px] min-[821px]:pt-16"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)' }}
       >
-        <h1
-          className="mx-auto max-w-[980px] font-display text-[39px] font-normal uppercase leading-[0.95] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[clamp(34px,4.35vw,68px)]"
-        >
+        <h1 className="mx-auto max-w-[980px] font-display text-[37px] font-normal uppercase leading-[0.94] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[39px] min-[821px]:text-[clamp(42px,4vw,58px)]">
           Search the way
           <br />
           you think
         </h1>
 
-        <p className="mx-auto mt-6 max-w-[600px] font-display text-[16px] leading-[1.45] text-[var(--slate)] min-[541px]:text-[18px]">
+        <p className="mx-auto mt-[22px] max-w-[610px] font-display text-[16px] leading-[1.45] text-[var(--slate)] min-[821px]:text-[18px]">
           Reference, movement, complication, dial, case — start with what actually distinguishes
           the watch.
         </p>
@@ -152,7 +160,7 @@ export default function CurrentHomepage() {
         <form
           onSubmit={submitSearch}
           role="search"
-          className="mx-auto mt-[34px] grid h-[50px] w-full max-w-[740px] grid-cols-[1fr_44px]"
+          className="mx-auto mt-[30px] grid h-[50px] w-full max-w-[740px] grid-cols-[1fr_44px] min-[541px]:grid-cols-[1fr_48px]"
           style={{
             border: '1px solid var(--border-mid)',
             background: 'light-dark(#FFFFFF, #1A1D26)',
@@ -175,35 +183,53 @@ export default function CurrentHomepage() {
           </button>
         </form>
 
-        <p className="mt-[13px] font-display text-[13px] italic text-[var(--muted)]">
+        <p className="mt-3 font-display text-[13px] italic text-[var(--muted)]">
           Try <span className="not-italic text-[var(--gold)]">&ldquo;mother of pearl moonphase&rdquo;</span> or a
           reference like <span className="not-italic text-[var(--gold)]">&ldquo;PFC274&rdquo;</span>
         </p>
 
-        <div className="mx-auto mt-[52px] grid max-w-[740px] grid-cols-[1fr_auto_1fr] items-center gap-[18px] min-[541px]:mt-[74px]">
+        <div className="mx-auto mt-[46px] grid w-full max-w-[740px] grid-cols-[1fr_auto_1fr] items-center gap-[14px] min-[541px]:mt-12 min-[541px]:gap-[18px]">
           <span className="h-px" style={{ background: 'var(--border-mid)' }} />
-          <span className="font-display text-[13px] text-[var(--muted)]">
+          <span className="font-display text-[12px] text-[var(--muted)] min-[541px]:text-[13px]">
             Every watch on FairWatchTrade is curated for you — the buyer.
           </span>
           <span className="h-px" style={{ background: 'var(--border-mid)' }} />
         </div>
 
-        <div className="mx-auto mt-[26px] grid max-w-[760px] grid-cols-1 gap-[14px] min-[541px]:grid-cols-3 min-[541px]:gap-[18px] min-[821px]:gap-9">
+        {/* ── LAUNCH CONTEXT ──────────────────────────────────────────────
+            Deliberately not a banner, pill, promo card or alert: no box, no
+            background, no button, no "coming soon". It is provenance, stated
+            once and quietly.
+
+            The date is the point. "New" without a temporal anchor asks a
+            visitor to trust an undated claim; a month and year lets them
+            judge it for themselves. The middle line carries the weight —
+            newness is admitted, standards are not offered as new.
+
+            This block is TEMPORARY by design. When real inventory makes the
+            marketplace's maturity self-evident, it is removed rather than
+            rewritten. ── */}
+        <div className="mx-auto mt-[26px] max-w-[660px] text-center min-[541px]:mt-7">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.24em] text-[var(--gold-dim)]">
+            Now Open · September 2026
+          </div>
+          <p className="font-display text-[19px] font-normal leading-[1.18] text-[var(--platinum)] min-[541px]:text-[20px] min-[821px]:text-[22px]">
+            FairWatchTrade is new. The standards are not.
+          </p>
+          <p className="mt-[7px] font-display text-[13px] italic leading-[1.4] text-[var(--slate)] min-[541px]:text-[14px]">
+            We&rsquo;re opening deliberately — one real watch at a time.
+          </p>
+        </div>
+
+        <div className="mx-auto mt-[30px] grid w-full max-w-[760px] grid-cols-1 gap-5 min-[541px]:mt-[31px] min-[541px]:grid-cols-3 min-[541px]:gap-9">
           {PRINCIPLES.map((principle) => (
-            <div key={principle.label} className="font-display text-[12px] text-[var(--slate)]">
-              <div
+            <div key={principle} className="text-center font-display text-[12px] text-[var(--slate)]">
+              <span
                 aria-hidden="true"
-                /* The mark anchors an item in the horizontal three-across
-                   composition. Once the row stacks it has nothing to anchor
-                   against and reads as a stray formatting character, so below
-                   541px it is removed outright rather than replaced — display
-                   none takes its 34px box and margin with it, leaving the
-                   labels to space themselves. */
-                className="mb-1 hidden h-[34px] place-items-center text-[30px] leading-none text-[var(--gold)] min-[541px]:grid"
-              >
-                {principle.mark}
-              </div>
-              <div>{principle.label}</div>
+                className="mx-auto mb-2 block h-px w-8 opacity-90 min-[541px]:mb-3"
+                style={{ background: 'var(--gold)' }}
+              />
+              {principle}
             </div>
           ))}
         </div>
@@ -227,9 +253,9 @@ export default function CurrentHomepage() {
           }}
         />
 
-        <div className="relative z-[1] mx-auto max-w-[1260px] px-[22px] pb-[86px] pt-[74px] min-[821px]:px-[7vw] min-[821px]:pb-[110px] min-[821px]:pt-24">
+        <div className="relative z-[1] mx-auto max-w-[1260px] px-[22px] pb-[84px] pt-[72px] min-[821px]:px-[7vw] min-[821px]:pb-24 min-[821px]:pt-[76px]">
 
-          <div className="mb-11 flex justify-center">
+          <div className="mb-[42px] flex justify-center">
             <div
               aria-hidden="true"
               className="relative h-[152px] w-[152px] rounded-full font-display"
@@ -302,69 +328,62 @@ export default function CurrentHomepage() {
             </div>
           </div>
 
-          <div className="mb-[22px] text-center text-[11px] uppercase tracking-[0.24em] text-[var(--gold-dim)]">
+          <div className="mb-5 text-center text-[11px] uppercase tracking-[0.24em] text-[var(--gold-dim)]">
             Why FairWatchTrade exists
           </div>
 
-          <h2 className="mx-auto max-w-[960px] text-center font-display text-[42px] font-normal leading-[0.98] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[clamp(36px,5.2vw,74px)]">
+          <h2 className="mx-auto max-w-[960px] text-center font-display text-[39px] font-normal leading-[0.99] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[42px] min-[821px]:text-[clamp(38px,4.5vw,62px)]">
             Built for the watch nobody else recognizes —{' '}
             <em className="font-normal italic text-[var(--platinum-dim)]">and the one person who does.</em>
           </h2>
 
-          <p className="mx-auto mt-[30px] max-w-[720px] text-center font-display text-[17px] leading-[1.55] text-[var(--slate)] min-[541px]:text-[18px]">
+          <p className="mx-auto mt-[27px] max-w-[720px] text-center font-display text-[17px] leading-[1.55] text-[var(--slate)] min-[821px]:text-[18px]">
             Most watch marketplaces are built around inventory. FairWatchTrade is built around
             recognition: the reference, the movement, the dial, the details you actually care about.
           </p>
 
+          {/* Each proof is one centred editorial unit at EVERY width. The
+              alignment is declared once on the article and inherited by the
+              index, heading and copy; the paragraph keeps its 30ch measure
+              and centres its own box so the text never sits off-axis. The
+              rule between blocks belongs to the stacked mode only — in three
+              columns the grid's own top and bottom rules carry the group. */}
           <div
-            className="mt-[62px] grid grid-cols-1 min-[541px]:mt-[90px] min-[821px]:grid-cols-3"
+            className="mt-[62px] grid grid-cols-1 min-[821px]:mt-[72px] min-[821px]:grid-cols-3"
             style={{ borderTop: `1px solid ${RUNWAY_RULE}`, borderBottom: `1px solid ${RUNWAY_RULE}` }}
           >
-            {/* Alignment belongs to the BLOCK, not to its parts. Stacked, each
-                proof is a single centred editorial unit — index, heading and
-                copy together — so the alignment is declared once on the article
-                and inherited. In the three-column mode it returns to left,
-                where the index is a column header and the copy runs against a
-                shared left edge. The section rules between blocks are
-                unaffected either way. */}
             {PROOF.map((column, index) => (
               <article
                 key={column.index}
-                className="px-1 py-[30px] text-center min-[821px]:min-h-[224px] min-[821px]:px-[34px] min-[821px]:pb-[34px] min-[821px]:pt-[38px] min-[821px]:text-left"
-                style={
-                  index === 0
-                    ? undefined
-                    : { borderTop: `1px solid ${RUNWAY_RULE}`, borderLeft: 'none' }
-                }
+                className={`px-1 py-[30px] text-center min-[821px]:min-h-[230px] min-[821px]:px-[34px] min-[821px]:pb-9 min-[821px]:pt-[34px] ${
+                  index === 0 ? '' : 'border-t min-[821px]:border-t-0'
+                }`}
+                style={index === 0 ? undefined : { borderTopColor: RUNWAY_RULE }}
               >
-                <div className="mb-[26px] text-[10px] tracking-[0.18em] text-[var(--gold-dim)]">
+                <div className="mb-[23px] text-[10px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
                   {column.index}
                 </div>
-                <h3 className="font-display text-[28px] font-normal leading-[1.08] text-[var(--platinum)]">
+                <h3 className="font-display text-[27px] font-normal leading-[1.08] text-[var(--platinum)] min-[541px]:text-[28px]">
                   {column.heading[0]}
                   <br />
                   {column.heading[1]}
                 </h3>
-                {/* The 30ch measure is kept at every width; centring the text
-                    inside a box that stayed left would leave the paragraph
-                    visibly off-axis, so the box itself centres while stacked
-                    and returns to the left edge in the column mode. */}
-                <p className="mx-auto mt-4 max-w-[30ch] font-display text-[15px] leading-[1.55] text-[var(--slate)] min-[821px]:mx-0">
+                <p className="mx-auto mt-[15px] max-w-[30ch] font-display text-[15px] leading-[1.55] text-[var(--slate)]">
                   {column.copy}
                 </p>
               </article>
             ))}
           </div>
 
-          <div className="mx-auto mt-[92px] grid max-w-[970px] grid-cols-1 items-center gap-[18px] min-[821px]:grid-cols-[1fr_auto_1fr] min-[821px]:gap-7">
+          <div className="mx-auto mt-[74px] grid max-w-[970px] grid-cols-1 items-center gap-[18px] min-[541px]:mt-[78px] min-[821px]:mt-[82px] min-[821px]:grid-cols-[1fr_auto_1fr] min-[821px]:gap-[27px]">
             <span className="hidden h-px min-[821px]:block" style={{ background: 'var(--border-gold)' }} />
-            <blockquote className="mx-auto max-w-[680px] text-center font-display text-[23px] italic leading-[1.35] text-[var(--platinum-dim)]">
+            <blockquote className="mx-auto max-w-[680px] text-center font-display text-[22px] italic leading-[1.35] text-[var(--platinum-dim)] min-[541px]:text-[23px]">
               &ldquo;We think in dials and VPH, not dropdowns.&rdquo;
             </blockquote>
             <span className="hidden h-px min-[821px]:block" style={{ background: 'var(--border-gold)' }} />
           </div>
 
-          <div className="mx-auto mt-[68px] flex max-w-[850px] flex-wrap justify-center gap-x-[22px] gap-y-4 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] min-[541px]:gap-9">
+          <div className="mx-auto mt-[60px] flex max-w-[850px] flex-wrap justify-center gap-x-[30px] gap-y-4 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
             {QUIET_PRINCIPLES.map((principle) => (
               <span key={principle} className="relative pl-[14px]">
                 <span
