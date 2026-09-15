@@ -144,7 +144,7 @@ export default function CurrentHomepage() {
       {/* ── SEARCH ROOM ─────────────────────────────────────────────────
           The instrument comes first. Everything below it explains why. ── */}
       <section
-        className="px-5 pb-[50px] pt-[50px] text-center min-[541px]:px-[22px] min-[541px]:pb-12 min-[541px]:pt-[52px] min-[821px]:px-[7vw] min-[821px]:pb-[58px] min-[821px]:pt-16"
+        className="px-5 pb-[50px] pt-[50px] text-center min-[541px]:px-[22px] min-[541px]:pb-12 min-[541px]:pt-[52px] min-[821px]:px-[7vw] min-[821px]:pt-16"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)' }}
       >
         <h1 className="mx-auto max-w-[980px] font-display text-[37px] font-normal uppercase leading-[0.94] tracking-[-0.035em] text-[var(--platinum)] min-[541px]:text-[39px] min-[821px]:text-[clamp(42px,4vw,58px)]">
@@ -167,13 +167,43 @@ export default function CurrentHomepage() {
             background: 'light-dark(#FFFFFF, #1A1D26)',
           }}
         >
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search watches"
-            placeholder="Brand, reference, complication..."
-            className="min-w-0 border-0 bg-transparent px-[18px] font-display text-[16px] text-[var(--platinum)] outline-none placeholder:text-[var(--void)]"
-          />
+          {/* The example line lives INSIDE the field from 541px up, where it
+              replaces a separate row beneath it.
+
+              It is an overlay, not a placeholder, and that is forced rather
+              than chosen: CSS styles a placeholder as one flat colour, so a
+              real placeholder cannot carry the gold on the two quoted
+              examples. The native placeholder is therefore kept — the field
+              still announces it, and it still shows on the phone — and is
+              simply made transparent where the overlay takes over. The
+              overlay never takes the pointer and is aria-hidden, because the
+              input already has its own accessible name and placeholder.
+
+              Below 541px the sentence has no room on one line inside a 50px
+              field, so the phone keeps the separate row underneath, where it
+              can wrap. That row becomes sr-only above 541px rather than
+              hidden: it costs no height but the examples stay available to a
+              screen reader at every width. */}
+          <div className="relative min-w-0">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              aria-label="Search watches"
+              placeholder="Brand, reference, complication..."
+              className="h-full w-full min-w-0 border-0 bg-transparent px-[18px] font-display text-[16px] text-[var(--platinum)] outline-none placeholder:text-[var(--void)] min-[541px]:placeholder:text-transparent"
+            />
+            {query === '' && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-[18px] right-[8px] hidden overflow-hidden whitespace-nowrap font-display text-[13px] italic leading-[48px] text-[var(--muted)] min-[541px]:block"
+              >
+                Try{' '}
+                <span className="not-italic text-[var(--gold)]">&ldquo;mother of pearl moonphase&rdquo;</span>{' '}
+                or a reference like{' '}
+                <span className="not-italic text-[var(--gold)]">&ldquo;PFC101&rdquo;</span>
+              </span>
+            )}
+          </div>
           <button
             type="submit"
             aria-label="Search"
@@ -184,9 +214,9 @@ export default function CurrentHomepage() {
           </button>
         </form>
 
-        <p className="mt-3 font-display text-[13px] italic text-[var(--muted)]">
+        <p className="mt-3 font-display text-[13px] italic text-[var(--muted)] min-[541px]:sr-only">
           Try <span className="not-italic text-[var(--gold)]">&ldquo;mother of pearl moonphase&rdquo;</span> or a
-          reference like <span className="not-italic text-[var(--gold)]">&ldquo;PFC274&rdquo;</span>
+          reference like <span className="not-italic text-[var(--gold)]">&ldquo;PFC101&rdquo;</span>
         </p>
 
         <div className="mx-auto mt-[46px] grid w-full max-w-[740px] grid-cols-[1fr_auto_1fr] items-center gap-[14px] min-[541px]:mt-12 min-[541px]:gap-[18px]">
@@ -210,7 +240,7 @@ export default function CurrentHomepage() {
             This block is TEMPORARY by design. When real inventory makes the
             marketplace's maturity self-evident, it is removed rather than
             rewritten. ── */}
-        <div className="mx-auto mt-[26px] max-w-[660px] text-center min-[541px]:mt-7">
+        <div className="mx-auto mt-[26px] max-w-[660px] text-center min-[541px]:mt-7 min-[821px]:mt-[52px]">
           <div className="mb-2 text-[11px] uppercase tracking-[0.24em] text-[var(--gold-dim)]">
             Now Open · September 2026
           </div>
@@ -236,7 +266,7 @@ export default function CurrentHomepage() {
           </p>
         </div>
 
-        <div className="mx-auto mt-[30px] grid w-full max-w-[760px] grid-cols-1 gap-5 min-[541px]:mt-[31px] min-[541px]:grid-cols-3 min-[541px]:gap-9">
+        <div className="mx-auto mt-[30px] grid w-full max-w-[760px] grid-cols-1 gap-5 min-[541px]:mt-[31px] min-[541px]:grid-cols-3 min-[541px]:gap-9 min-[821px]:mt-[52px]">
           {PRINCIPLES.map((principle) => (
             <div key={principle} className="text-center font-display text-[12px] text-[var(--slate)]">
               <span
